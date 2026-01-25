@@ -12,6 +12,39 @@
 <link crossorigin href="https://fonts.gstatic.com" rel="preconnect"/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="./styles.css" rel="stylesheet"/>
+
+<style>
+  .hero { position: relative; }
+  .hero__inner { position: relative; z-index: 2; }
+
+  .hero__ocean {
+    bottom: -40px;
+    height: 340px;
+    left: 50%;
+    opacity: 0.9;
+    pointer-events: none;
+    position: absolute;
+    transform: translateX(-50%);
+    width: min(1100px, 92vw);
+    z-index: 1;
+  }
+
+  .hero__ocean::after {
+    background: radial-gradient(circle at 50% 60%, rgba(182, 255, 95, 0.22), transparent 62%);
+    content: "";
+    inset: -40px -40px -60px -40px;
+    position: absolute;
+  }
+
+  .hero__ocean dotlottie-wc {
+    height: 100%;
+    width: 100%;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero__ocean { display: none; }
+  }
+</style>
 </head>
 
 <body>
@@ -76,26 +109,31 @@
     </div>
   </div>
 </header>
+
 <main class="main">
 <section class="hero" id="top">
+  <div aria-hidden="true" class="hero__ocean" id="heroOcean"></div>
+
   <div class="container hero__inner">
     <div class="pill reveal">
       <span aria-hidden="true" class="pill__dot"></span>
-<span>Calm systems. Repeatable delivery.</span>
-</div>
+      <span>Calm systems. Repeatable delivery.</span>
+    </div>
 
-<h1 class="hero__title reveal">White-Labeled<br/>Delivery Systems</h1>
+    <h1 class="hero__title reveal">White-Labeled<br/>Delivery Systems</h1>
 
-<p class="hero__subtitle reveal">
-  Launch clean. Deliver predictably. Scale without friction.
-</p>
+    <p class="hero__subtitle reveal">
+      Launch clean. Deliver predictably. Scale without friction.
+    </p>
 
-<div class="hero__cta reveal">
-  <a class="button-custom-lentax" href="#register">Request Access <span aria-hidden="true">→</span></a>
-  <a class="btn btn--ghost" href="#features">Explore Systems</a>
-</div>
-
+    <div class="hero__cta reveal">
+      <a class="button-custom-lentax" href="#tax-firms">Virtual Tax Firms</a>
+      <a class="btn btn--ghost" href="#agencies">Virtual Agencies</a>
+      <a class="btn btn--ghost" href="#professionals">Virtual Professionals</a>
+    </div>
+  </div>
 </section>
+
 <section class="section" id="products">
 <div class="container">
 <div class="section__head">
@@ -166,6 +204,7 @@
 </div>
 </div>
 </section>
+
 <section class="section section--alt" id="security">
 <div class="container">
 <div class="section__head">
@@ -197,6 +236,7 @@
 </div>
 </div>
 </section>
+
 <section class="section" id="faq">
 <div class="container">
 <div class="section__head">
@@ -206,25 +246,20 @@
 <div class="faq">
 <details class="qa">
 <summary class="qa__q">Is Lentax the same thing as Tax Monitor?</summary>
-<div class="qa__a">
-                No. Lentax is the umbrella site. Tax Monitor has its own landing page and routes out from here.
-              </div>
+<div class="qa__a">No. Lentax is the umbrella site. Tax Monitor has its own landing page and routes out from here.</div>
 </details>
 <details class="qa">
 <summary class="qa__q">Do I need to switch systems to use an install?</summary>
-<div class="qa__a">
-                No. Installs are designed to add a structured layer without disrupting your current workflow.
-              </div>
+<div class="qa__a">No. Installs are designed to add a structured layer without disrupting your current workflow.</div>
 </details>
 <details class="qa">
 <summary class="qa__q">Can I start with one product and add others later?</summary>
-<div class="qa__a">
-                Yes. Lentax is built to stack installs over time without rebuilding your client experience.
-              </div>
+<div class="qa__a">Yes. Lentax is built to stack installs over time without rebuilding your client experience.</div>
 </details>
 </div>
 </div>
 </section>
+
 <section class="section section--cta" id="start">
 <div class="container">
 <div class="cta">
@@ -235,11 +270,11 @@
 <form class="cta__form" onsubmit="return false;">
 <label class="field">
 <span class="field__label">Email</span>
-<input class="field__input" name="email" placeholder="you@company.com" required="" type="email"/>
+<input class="field__input" name="email" placeholder="you@company.com" required type="email"/>
 </label>
 <label class="field">
 <span class="field__label">What are you trying to fix?</span>
-<input class="field__input" name="goal" placeholder="Reduce follow-up and standardize delivery" required="" type="text"/>
+<input class="field__input" name="goal" placeholder="Reduce follow-up and standardize delivery" required type="text"/>
 </label>
 <div class="cta__actions">
 <button class="btn btn--primary btn--wide" type="submit">Request access</button>
@@ -251,6 +286,7 @@
 </div>
 </section>
 </main>
+
 <footer class="footer">
 <div class="container footer__inner reveal">
 <div class="footer__left">
@@ -258,10 +294,10 @@
 <span aria-hidden="true" class="brand__mark brand__mark--logo">
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Lentax">
   <defs>
-    <clipPath id="clip-sail-orange">
+    <clipPath id="clip-sail-orange-footer">
       <polygon points="86,32 124,78 86,78" />
     </clipPath>
-    <pattern id="pattern-bank" width="22" height="18" patternUnits="userSpaceOnUse">
+    <pattern id="pattern-bank-footer" width="22" height="18" patternUnits="userSpaceOnUse">
       <path d="M3 7 L11 2 L19 7 Z" fill="#E67300" opacity="0.45"/>
       <rect x="4" y="7" width="14" height="2" rx="1" fill="#E67300" opacity="0.45"/>
       <rect x="5" y="9" width="2" height="6" rx="1" fill="#E67300" opacity="0.45"/>
@@ -272,14 +308,14 @@
     </pattern>
   </defs>
 
-  <circle cx="80" cy="80" r="72" fill="none" stroke="#000" stroke-width="8"/>
-  <rect x="78" y="28" width="4" height="70" rx="2" fill="#000"/>
-  <polygon points="74,32 36,78 74,78" fill="#000"/>
+  <circle cx="80" cy="80" r="72" fill="none" stroke="currentColor" stroke-width="8"/>
+  <rect x="78" y="28" width="4" height="70" rx="2" fill="currentColor"/>
+  <polygon points="74,32 36,78 74,78" fill="currentColor"/>
   <polygon points="86,32 124,78 86,78" fill="#FFA500"/>
-  <g clip-path="url(#clip-sail-orange)">
-    <rect x="80" y="28" width="52" height="56" fill="url(#pattern-bank)"/>
+  <g clip-path="url(#clip-sail-orange-footer)">
+    <rect x="80" y="28" width="52" height="56" fill="url(#pattern-bank-footer)"/>
   </g>
-  <path d="M 38 82 L 122 82 L 96 114 Q 80 126 64 114 Z" fill="#000"/>
+  <path d="M 38 82 L 122 82 L 96 114 Q 80 126 64 114 Z" fill="currentColor"/>
 </svg>
 </span>
 <span class="brand__name">Lentax.co</span>
@@ -293,59 +329,107 @@
 </div>
 </div>
 </footer>
-<script>      document.documentElement.classList.add("js");
-      const $ = (s) => document.querySelector(s);
-      const $$ = (s) => Array.from(document.querySelectorAll(s));
 
-      function setStatus(text) {
-        const el = $("#status");
-        if (el) el.textContent = text;
-      }
+<script>
+  document.documentElement.classList.add("js");
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => Array.from(document.querySelectorAll(s));
 
-      function setTab(next) {
-        $$(".tab").forEach((b) => {
-          const active = b.dataset.tab === next;
-          b.classList.toggle("tab--active", active);
-          b.setAttribute("aria-selected", active ? "true" : "false");
+  function setStatus(text) {
+    const el = $("#status");
+    if (el) el.textContent = text;
+  }
+
+  function setTab(next) {
+    $$(".tab").forEach((b) => {
+      const active = b.dataset.tab === next;
+      b.classList.toggle("tab--active", active);
+      b.setAttribute("aria-selected", active ? "true" : "false");
+    });
+
+    $$("[data-preview]").forEach((p) => {
+      p.classList.toggle("preview--hidden", p.dataset.preview !== next);
+    });
+  }
+
+  $$(".tab").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
+
+  const form = $(".cta__form");
+  if (form) {
+    form.addEventListener("submit", () => {
+      setStatus("Submitted. We will follow up.");
+      form.reset();
+    });
+  }
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (reduceMotion) {
+    $$(".reveal").forEach((el) => el.classList.add("is-inview"));
+  } else {
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (!e.isIntersecting) return;
+          e.target.classList.add("is-inview");
+          io.unobserve(e.target);
         });
+      },
+      { rootMargin: "0px 0px -10% 0px", threshold: 0.14 }
+    );
 
-        $$("[data-preview]").forEach((p) => {
-          p.classList.toggle("preview--hidden", p.dataset.preview !== next);
-        });
-      }
+    $$(".reveal").forEach((el) => io.observe(el));
+  }
 
-      $$(".tab").forEach((b) => b.addEventListener("click", () => setTab(b.dataset.tab)));
+  const y = $("#year");
+  if (y) y.textContent = String(new Date().getFullYear());
 
-      const form = $(".cta__form");
-      if (form) {
-        form.addEventListener("submit", () => {
-          setStatus("Submitted. We will follow up.");
-          form.reset();
-        });
-      }
+  (function () {
+    const hero = document.querySelector(".hero");
+    const mount = document.getElementById("heroOcean");
+    if (!hero || !mount) return;
 
+    if (reduceMotion) return;
 
-      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function loadPlayer() {
+      if (document.querySelector('script[data-dotlottie="1"]')) return Promise.resolve();
 
-      if (reduceMotion) {
-        $$(".reveal").forEach((el) => el.classList.add("is-inview"));
-      } else {
-        const io = new IntersectionObserver(
-          (entries) => {
-            entries.forEach((e) => {
-              if (!e.isIntersecting) return;
-              e.target.classList.add("is-inview");
-              io.unobserve(e.target);
-            });
-          },
-          { rootMargin: "0px 0px -10% 0px", threshold: 0.14 }
-        );
+      return new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.dataset.dotlottie = "1";
+        s.type = "module";
+        s.src = "https://unpkg.com/@lottiefiles/dotlottie-wc@0.6.2/dist/dotlottie-wc.js";
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+      });
+    }
 
-        $$(".reveal").forEach((el) => io.observe(el));
-      }
+    function mountLottie() {
+      if (mount.dataset.mounted === "1") return;
+      mount.dataset.mounted = "1";
 
-      const y = $("#year");
-      if (y) y.textContent = String(new Date().getFullYear());
-    </script>
+      mount.innerHTML =
+        '<dotlottie-wc ' +
+        'src="https://lottie.host/968ae1d6-cacd-47f8-8c21-8f24e0023684/s6OXIZJd0K.lottie" ' +
+        'speed="1" autoplay loop ' +
+        'style="width:100%;height:100%"></dotlottie-wc>';
+    }
+
+    const io2 = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io2.disconnect();
+
+        const run = () => loadPlayer().then(mountLottie).catch(() => {});
+        if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 1200 });
+        else setTimeout(run, 0);
+      },
+      { rootMargin: "200px 0px 200px 0px", threshold: 0.01 }
+    );
+
+    io2.observe(hero);
+  })();
+</script>
 </body>
 </html>
