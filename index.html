@@ -100,7 +100,7 @@
 <div class="container">
 <div class="section__head">
 <h2 class="section__title reveal">Products</h2>
-<p class="section__subtitle reveal">Lentax is the umbrella. Each product routes to its own page.</p>
+<p class="section__subtitle reveal">Installs are same-day or within 48 hours.</p>
 </div>
 <div class="grid">
 <article class="card">
@@ -167,12 +167,26 @@
 </div>
 </section>
 
-<section class="section" id="dashboard-preview">
-  <div class="container">
-    <div class="section__head">
-      <h2 class="section__title reveal">Super Admin Dashboard Preview</h2>
-      <p class="section__subtitle reveal">Static mock to show the Tax Monitor Super Admin experience.</p>
-    </div>
+<!-- Replace your existing .section__head block with this -->
+<div class="section__head section__head--tabs">
+  <div class="section__head-copy">
+    <h2 class="section__title reveal">Super Admin Dashboard Preview</h2>
+    <p class="section__subtitle reveal">Static mock to show the Tax Monitor Super Admin experience.</p>
+  </div>
+
+  <div class="tabs-inline reveal" role="tablist" aria-label="Dashboard preview tabs">
+    <button aria-selected="true" class="tab tab--active" data-dashboard-tab="tax-monitor" type="button">
+      Tax Monitor Setup
+    </button>
+    <button aria-selected="false" class="tab" data-dashboard-tab="va-agency" type="button">
+      Virtual Assistant Agency Setup
+    </button>
+    <button aria-selected="false" class="tab" data-dashboard-tab="va-setup" type="button">
+      Virtual Assistant Setup
+    </button>
+  </div>
+</div>
+
 
     <!-- =========================
          TAX MONITOR — SUPER ADMIN DASHBOARD PREVIEW (STATIC MOCK)
