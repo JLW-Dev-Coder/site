@@ -158,45 +158,45 @@
   <div class="container container--wide">
     <div class="section__head section__head--tabs">
 
-      <!-- Browser-style tabs (no heading/subtitle) -->
+      <!-- Browser-style tabs (centered, no heading/subtitle) -->
       <div class="reveal" role="tablist" aria-label="Dashboard preview tabs">
         <div class="flex justify-center">
-  <div class="relative inline-flex items-end gap-1 border-b border-white/15">
+          <div class="relative inline-flex items-end gap-1 border-b border-white/15">
 
+            <button
+              aria-selected="true"
+              class="tab tab--active relative z-10 -mb-px rounded-t-xl border border-b-0 border-white/15 bg-ink-950 px-5 py-2.5 text-sm font-extrabold text-white shadow-soft"
+              data-tab="tax-monitor"
+              type="button"
+            >
+              Tax Monitor Setup
+            </button>
 
-          <button
-            aria-selected="true"
-            class="tab tab--active relative z-10 -mb-px rounded-t-xl border border-b-0 border-white/15 bg-ink-950 px-5 py-2.5 text-sm font-extrabold text-white shadow-soft"
-            data-tab="tax-monitor"
-            type="button"
-          >
-            Tax Monitor Setup
-          </button>
+            <button
+              aria-selected="false"
+              class="tab relative -mb-px rounded-t-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+              data-tab="va-agency"
+              type="button"
+            >
+              Virtual Assistant Agency Setup
+            </button>
 
-          <button
-            aria-selected="false"
-            class="tab relative -mb-px rounded-t-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
-            data-tab="va-agency"
-            type="button"
-          >
-            Virtual Assistant Agency Setup
-          </button>
+            <button
+              aria-selected="false"
+              class="tab relative -mb-px rounded-t-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+              data-tab="va-setup"
+              type="button"
+            >
+              Virtual Assistant Setup
+            </button>
 
-          <button
-            aria-selected="false"
-            class="tab relative -mb-px rounded-t-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
-            data-tab="va-setup"
-            type="button"
-          >
-            Virtual Assistant Setup
-          </button>
-
+          </div>
         </div>
       </div>
     </div>
 
     <div class="dash-preview-wrap">
-      <!-- =========================
+            <!-- =========================
            TAX MONITOR (existing) — wrapped for tab switching
            ========================= -->
       <div data-preview="tax-monitor">
