@@ -415,6 +415,37 @@ a { color: inherit; text-decoration: none; }
 .section__head { margin-bottom: 16px; }
 .section__title { font-size: 28px; letter-spacing: -0.03em; margin: 0 0 6px; }
 .section__subtitle { color: var(--muted); margin: 0; }
+/* Add this right after your existing .section__head { ... } rule */
+.section__head--tabs{
+  align-items: flex-start;
+  display: flex;
+  gap: 14px;
+  justify-content: space-between;
+}
+
+.section__head-copy{
+  min-width: 0;
+}
+
+.tabs-inline{
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+@media (max-width: 720px){
+  .section__head--tabs{
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tabs-inline{
+    justify-content: flex-start;
+  }
+}
 
 .grid {
   display: grid;
