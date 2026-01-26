@@ -90,6 +90,7 @@ a { color: inherit; text-decoration: none; }
   display: flex;
   gap: 10px;
 }
+
 .brand__mark {
   align-items: center;
   background: linear-gradient(135deg, var(--a), var(--b));
@@ -97,18 +98,20 @@ a { color: inherit; text-decoration: none; }
   color: #061018;
   display: inline-flex;
   font-weight: 900;
-  height: 34px;
+  height: 64px;
   justify-content: center;
-  width: 34px;
+  width: 64px;
 }
+
 .brand__mark--logo {
   background: none;
 }
+
 .brand__mark--logo svg {
   color: #ffffff;
   display: block;
-  height: 44px;
-  width: auto;
+  height: 64px;
+  width: 64px;
 }
 
 .brand__name {
@@ -121,9 +124,9 @@ a { color: inherit; text-decoration: none; }
   border: 2px solid rgba(255, 255, 255, 0.85);
   border-radius: 999px;
   display: inline-flex;
-  height: 54px;
+  height: 64px;
   justify-content: center;
-  width: 54px;
+  width: 64px;
 }
 
 .brand__logo-text {
@@ -133,6 +136,7 @@ a { color: inherit; text-decoration: none; }
   line-height: 1.05;
   text-align: center;
 }
+
 
 .header__divider {
   background: rgba(255, 255, 255, 0.14);
