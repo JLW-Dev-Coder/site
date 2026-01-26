@@ -15,13 +15,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="./styles.css" rel="stylesheet"/>
-
-<style>
-  /* Optional: subtle section spacing polish without touching your main CSS file */
-  .section--workflow .card__text { max-width: 52ch; }
-  .section--workflow .card__actions { margin-top: 16px; }
-  .section--workflow .pill { margin: 0 auto 18px; width: fit-content; }
-</style>
 </head>
 
 <body>
@@ -92,20 +85,20 @@
 <section class="hero" id="top">
   <div class="container hero__inner">
 
-    <div class="pill" data-animate="up">
+    <div class="pill">
       <span class="pill__dot" aria-hidden="true"></span>
       <span>Calm systems. Repeatable delivery.</span>
     </div>
 
-    <h1 class="hero__title" data-animate="up">
+    <h1 class="hero__title">
       White-Labeled<br/>Delivery Systems
     </h1>
 
-    <p class="hero__subtitle" data-animate="up">
+    <p class="hero__subtitle">
       Launch clean. Deliver predictably. Scale without friction.
     </p>
 
-    <div class="hero__cta" data-animate="up">
+    <div class="hero__cta">
       <a class="button-custom-lentax" href="#tax-firms">Virtual Tax Firms</a>
       <a class="btn btn--ghost" href="#agencies">Virtual Agencies</a>
       <a class="btn btn--ghost" href="#professionals">Virtual Professionals</a>
@@ -114,94 +107,11 @@
   </div>
 </section>
 
-<!-- NEW SECTION (agnostic to offers; pain-point aligned) -->
-<section class="section section--alt section--workflow" id="workflow">
-  <div class="container">
-
-    <div class="section__head">
-      <div class="pill" data-animate="up">
-        <span class="pill__dot" aria-hidden="true"></span>
-        <span>Clean handoffs. Clear next steps.</span>
-      </div>
-
-      <h2 class="section__title" data-animate="up">A seamless workflow from intake to delivery</h2>
-      <p class="section__subtitle" data-animate="up">Most teams don’t need more tools. They need one system that stays consistent.</p>
-    </div>
-
-    <div class="grid grid--3">
-
-      <article class="card" id="tax-firms" data-animate="card">
-        <div class="card__top">
-          <div class="card__title">Virtual Tax Firms</div>
-          <div class="card__tag">Workflow</div>
-        </div>
-
-        <p class="card__text">
-          Intake, documents, tasks, and client updates stay in one lane so your team always knows what’s next.
-        </p>
-
-        <ul class="card__list">
-          <li>Clarity: every case has a next step</li>
-          <li>Handoffs: work moves without DMs</li>
-          <li>Scope: boundaries stay visible</li>
-        </ul>
-
-        <div class="card__actions">
-          <a class="btn btn--ghost btn--sm" href="#installs">See installs</a>
-        </div>
-      </article>
-
-      <article class="card" id="agencies" data-animate="card">
-        <div class="card__top">
-          <div class="card__title">Virtual Agencies</div>
-          <div class="card__tag">Ops</div>
-        </div>
-
-        <p class="card__text">
-          A stable backend for onboarding, projects, and delivery—so clients see structure, not scramble.
-        </p>
-
-        <ul class="card__list">
-          <li>Clarity: the process is the product</li>
-          <li>Handoffs: roles and ownership are obvious</li>
-          <li>Scope: deliverables don’t drift</li>
-        </ul>
-
-        <div class="card__actions">
-          <a class="btn btn--ghost btn--sm" href="#installs">See installs</a>
-        </div>
-      </article>
-
-      <article class="card" id="professionals" data-animate="card">
-        <div class="card__top">
-          <div class="card__title">Virtual Professionals</div>
-          <div class="card__tag">Execution</div>
-        </div>
-
-        <p class="card__text">
-          Ready-made steps that help you start clean, stay organized, and deliver with confidence.
-        </p>
-
-        <ul class="card__list">
-          <li>Clarity: no guessing what to do</li>
-          <li>Handoffs: client info lands where it should</li>
-          <li>Scope: you don’t “work for free”</li>
-        </ul>
-
-        <div class="card__actions">
-          <a class="btn btn--ghost btn--sm" href="#installs">See installs</a>
-        </div>
-      </article>
-
-    </div>
-  </div>
-</section>
-
 <section class="section" id="about">
   <div class="container">
     <div class="section__head">
-      <h2 class="section__title" data-animate="up">About</h2>
-      <p class="section__subtitle" data-animate="up">Founder-led today. Built to hand off cleanly tomorrow.</p>
+      <h2 class="section__title">About</h2>
+      <p class="section__subtitle">Founder-led today. Built to hand off cleanly tomorrow.</p>
     </div>
   </div>
 </section>
@@ -209,8 +119,8 @@
 <section class="section section--alt" id="artifacts">
   <div class="container">
     <div class="section__head">
-      <h2 class="section__title" data-animate="up">Artifacts</h2>
-      <p class="section__subtitle" data-animate="up">Comparisons, IRS context, and decision-safe outputs.</p>
+      <h2 class="section__title">Artifacts</h2>
+      <p class="section__subtitle">Comparisons, IRS context, and decision-safe outputs.</p>
     </div>
   </div>
 </section>
@@ -218,8 +128,8 @@
 <section class="section" id="installs">
   <div class="container">
     <div class="section__head">
-      <h2 class="section__title" data-animate="up">Installs</h2>
-      <p class="section__subtitle" data-animate="up">Each install is scoped, structured, and standalone.</p>
+      <h2 class="section__title">Installs</h2>
+      <p class="section__subtitle">Each install is scoped, structured, and standalone.</p>
     </div>
   </div>
 </section>
@@ -227,8 +137,8 @@
 <section class="section" id="blog">
   <div class="container">
     <div class="section__head">
-      <h2 class="section__title" data-animate="up">Blog</h2>
-      <p class="section__subtitle" data-animate="up">Operational thinking, not marketing noise.</p>
+      <h2 class="section__title">Blog</h2>
+      <p class="section__subtitle">Operational thinking, not marketing noise.</p>
     </div>
   </div>
 </section>
@@ -237,7 +147,7 @@
 
 <!-- Footer -->
 <footer class="footer">
-  <div class="container footer__inner" data-animate="up">
+  <div class="container footer__inner">
     <div class="footer__left">
       <div class="footer__brand">
         <span class="brand__name">Lentax.co</span>
@@ -265,31 +175,17 @@
 
   if (!reduceMotion) {
     gsap.from(".header", { duration: 0.5, opacity: 0, y: -12, ease: "power2.out" });
-    gsap.from(".hero__inner > *", { duration: 0.55, opacity: 0, y: 14, stagger: 0.07, delay: 0.06, ease: "power2.out" });
-
-    const animateIn = (el) => {
-      const mode = el.getAttribute("data-animate") || "up";
-
-      if (mode === "card") {
-        gsap.from(el, { duration: 0.55, opacity: 0, y: 14, ease: "power2.out" });
-        return;
-      }
-
-      gsap.from(el, { duration: 0.5, opacity: 0, y: 12, ease: "power2.out" });
-    };
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (!e.isIntersecting) return;
-          animateIn(e.target);
-          io.unobserve(e.target);
-        });
-      },
-      { rootMargin: "0px 0px -12% 0px", threshold: 0.12 }
-    );
-
-    document.querySelectorAll("[data-animate]").forEach((el) => io.observe(el));
+    gsap.from(".pill", { duration: 0.5, opacity: 0, y: 10, delay: 0.05, ease: "power2.out" });
+    gsap.from(".hero__title", { duration: 0.6, opacity: 0, y: 16, delay: 0.1, ease: "power2.out" });
+    gsap.from(".hero__subtitle", { duration: 0.6, opacity: 0, y: 16, delay: 0.14, ease: "power2.out" });
+    gsap.from(".hero__cta a", {
+      duration: 0.5,
+      opacity: 0,
+      y: 12,
+      delay: 0.18,
+      stagger: 0.06,
+      ease: "power2.out"
+    });
   }
 </script>
 
