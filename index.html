@@ -175,8 +175,6 @@
       </div>
     </section>
 
-    <!-- IMPORTANT: this section was missing its <section class="section"><div class="container"> wrapper,
-         which is why it became full width. -->
     <section class="section" id="dashboard-preview">
       <div class="container">
         <div class="section__head section__head--tabs">
@@ -192,14 +190,9 @@
           </div>
         </div>
 
-        <!-- =========================
-             TAX MONITOR — SUPER ADMIN DASHBOARD PREVIEW (STATIC MOCK)
-             HTML/CSS only (no JS)
-             ========================= -->
         <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
           <div class="tm-admin-shell">
 
-            <!-- LEFT SIDEBAR -->
             <aside class="tm-admin-sidebar" aria-label="Sidebar">
               <div class="tm-admin-brand">
                 <div class="tm-admin-brand__logo" aria-hidden="true">
@@ -295,14 +288,16 @@
               </div>
             </aside>
 
-            <!-- MAIN -->
             <div class="tm-admin-main">
-
-              <!-- TOP BAR -->
               <div class="tm-admin-topbar" aria-label="Top bar">
                 <div class="tm-admin-topbar__left">
                   <button class="tm-admin-topbar__iconbtn" type="button" aria-label="Collapse sidebar">≪</button>
                   <button class="tm-admin-topbar__iconbtn tm-admin-topbar__iconbtn--plus" type="button" aria-label="Create">+</button>
+
+                  <!-- NEW: Client Experience button -->
+                  <button class="tm-admin-topbar__iconbtn tm-admin-topbar__iconbtn--client" type="button" aria-label="Client Experience">
+                    Client Experience
+                  </button>
                 </div>
 
                 <div class="tm-admin-topbar__right">
@@ -316,7 +311,6 @@
                 </div>
               </div>
 
-              <!-- CONTENT -->
               <section class="tm-admin-content" aria-label="Dashboard content">
                 <h2 class="tm-admin-title">Good Afternoon, Jamie</h2>
                 <p class="tm-admin-subtitle">
@@ -325,7 +319,6 @@
                 </p>
 
                 <div class="tm-admin-grid">
-                  <!-- Row 1 -->
                   <div class="tm-admin-card tm-admin-card--wide">
                     <div class="tm-admin-card__head">
                       <div class="tm-admin-card__label">Open Estimates</div>
@@ -356,7 +349,6 @@
                     </div>
                   </div>
 
-                  <!-- Row 2 -->
                   <div class="tm-admin-card">
                     <div class="tm-admin-card__head">
                       <div class="tm-admin-card__label">Clients <span class="tm-admin-card__muted">(Goal — 25)</span></div>
@@ -429,7 +421,6 @@
                     </div>
                   </div>
 
-                  <!-- Row 3 -->
                   <div class="tm-admin-card tm-admin-card--wide">
                     <div class="tm-admin-card__head">
                       <div class="tm-admin-card__label">Total Revenue</div>
@@ -460,7 +451,6 @@
                     </div>
                   </div>
 
-                  <!-- Row 4 -->
                   <div class="tm-admin-card tm-admin-card--full">
                     <div class="tm-admin-card__head">
                       <div class="tm-admin-card__label">Team(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
