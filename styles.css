@@ -346,10 +346,11 @@ a { color: inherit; text-decoration: none; }
 }
 
 .pill__dot {
-  animation: pillHeartbeat 1.43s ease-in-out infinite; /* slowed ~10% */
+  animation: pillHeartbeat 1.43s ease-in-out infinite; /* ~10% slower */
+  background: rgba(209,250,229,0.95); /* solid fill */
   border-radius: 50%;
-  height: 8px;          /* force circle */
-  width: 8px;           /* force circle */
+  height: 6px;   /* smaller */
+  width: 6px;    /* smaller */
 }
 
 @keyframes pillHeartbeat {
@@ -359,8 +360,8 @@ a { color: inherit; text-decoration: none; }
   }
 
   10% {
-    box-shadow: 0 0 0 4px rgba(167,243,208,0.55);
-    transform: scale(1.14);
+    box-shadow: 0 0 0 3px rgba(167,243,208,0.55);
+    transform: scale(1.12);
   }
 
   18% {
@@ -369,8 +370,8 @@ a { color: inherit; text-decoration: none; }
   }
 
   28% {
-    box-shadow: 0 0 0 7px rgba(209,250,229,0.45);
-    transform: scale(1.22);
+    box-shadow: 0 0 0 6px rgba(209,250,229,0.45);
+    transform: scale(1.18);
   }
 
   40% {
@@ -383,6 +384,7 @@ a { color: inherit; text-decoration: none; }
     transform: scale(1);
   }
 }
+
 
 
 .metrics {
