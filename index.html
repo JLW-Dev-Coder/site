@@ -63,15 +63,15 @@
 
     <div class="header__right">
       <nav aria-label="Primary" class="nav">
-        <a class="nav__link" href="#features">Features</a>
-        <a class="nav__link" href="#tools">Tools</a>
-        <a class="nav__link" href="#pricing">Pricing</a>
+        <a class="nav__link" href="#features">About</a>
+        <a class="nav__link" href="#tools">Pricing</a>
+        <a class="nav__link" href="#pricing">Book or Demo</a>
         <a class="nav__link" href="#blog">Blog</a>
       </nav>
 
       <span aria-hidden="true" class="header__divider"></span>
 
-      <a class="nav__link nav__link--strong" href="#signin">Sign In</a>
+      <a class="nav__link nav__link--strong" href="https://secure.lentax.co/site/login">Sign In</a>
       <a class="btn btn--primary" href="#get-started">Get Started</a>
     </div>
   </div>
@@ -87,8 +87,7 @@
 <h1 class="hero__title reveal">White-Labeled<br/>Delivery Systems</h1>
 
 <p class="hero__subtitle reveal">
-  Turn messy intake, follow-ups, and handoffs into a clean, repeatable workflow. Portals, tasks, and
-  automation that protect scope and keep delivery predictable.
+ Clean setup, fast launch, predictable delivery—built to scale.
 </p>
 
 <div class="hero__cta reveal">
@@ -172,23 +171,14 @@
   <div class="container">
     <div class="section__head">
       <h2 class="section__title reveal">Super Admin Dashboard Preview</h2>
-      <p class="section__subtitle reveal">Toggle between the three Super Admin dashboard experiences.</p>
+      <p class="section__subtitle reveal">Static mock to show the Tax Monitor Super Admin experience.</p>
     </div>
 
-    <div class="preview-switch" role="tablist" aria-label="Dashboard preview toggle">
-      <input class="preview-switch__input" type="radio" name="preview" id="preview-tax-monitor" checked>
-      <input class="preview-switch__input" type="radio" name="preview" id="preview-va-agency">
-      <input class="preview-switch__input" type="radio" name="preview" id="preview-va-setup">
-
-      <div class="preview-switch__tabs">
-        <label class="preview-switch__tab" for="preview-tax-monitor" role="tab" aria-controls="panel-tax-monitor">Tax Monitor Setup</label>
-        <label class="preview-switch__tab" for="preview-va-agency" role="tab" aria-controls="panel-va-agency">Virtual Assistant Agency Setup</label>
-        <label class="preview-switch__tab" for="preview-va-setup" role="tab" aria-controls="panel-va-setup">Virtual Assistant Setup</label>
-      </div>
-
-      <div class="preview-switch__panels">
-        <div class="preview-switch__panel preview-switch__panel--tax-monitor" id="panel-tax-monitor" role="tabpanel" aria-label="Tax Monitor Setup preview">
-          <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
+    <!-- =========================
+         TAX MONITOR — SUPER ADMIN DASHBOARD PREVIEW (STATIC MOCK)
+         HTML/CSS only (no JS)
+         ========================= -->
+    <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
       <div class="tm-admin-shell">
 
         <!-- LEFT SIDEBAR -->
@@ -307,363 +297,172 @@
               </div>
             </div>
           </div>
-        </div>
 
-        <div class="preview-switch__panel preview-switch__panel--va-agency" id="panel-va-agency" role="tabpanel" aria-label="Virtual Assistant Agency Setup preview">
-          <!-- =========================
-               VA AGENCY SETUP — PROJECT DASHBOARD PREVIEW (STATIC MOCK)
-               HTML/CSS only (no JS)
-               ========================= -->
-          <div class="va-agency-preview" role="region" aria-label="VA Agency Setup project dashboard preview">
-            <div class="va-agency-shell">
-              <aside class="va-agency-sidebar" aria-label="Sidebar">
-                <div class="va-agency-brand">
-                  <div class="va-agency-brand__mark" aria-hidden="true"></div>
-                  <div class="va-agency-brand__text">
-                    <div class="va-agency-brand__title">lentax.co</div>
-                    <div class="va-agency-brand__sub">VA Agency Setup</div>
-                  </div>
+          <!-- CONTENT -->
+          <section class="tm-admin-content" aria-label="Dashboard content">
+            <h2 class="tm-admin-title">Good Afternoon, Jamie</h2>
+            <p class="tm-admin-subtitle">
+              This dashboard provides a real-time view of pipeline activity, client volume, team capacity, and financial performance.
+              Use it to spot trends, identify risk, and prioritize what requires attention next.
+            </p>
+
+            <div class="tm-admin-grid">
+              <!-- Row 1 -->
+              <div class="tm-admin-card tm-admin-card--wide">
+                <div class="tm-admin-card__head">
+                  <div class="tm-admin-card__label">Open Estimates</div>
+                  <div class="tm-admin-card__miniicon" aria-hidden="true"></div>
                 </div>
-
-                <div class="va-agency-profile">
-                  <div class="va-agency-profile__avatar" aria-hidden="true"></div>
-                  <div class="va-agency-profile__meta">
-                    <div class="va-agency-profile__name">JAMIE L WILLIAMS</div>
-                    <a class="va-agency-profile__link" href="#" aria-label="Edit Profile">Edit Profile</a>
-                  </div>
+                <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                <div class="tm-admin-card__bar">
+                  <span class="tm-admin-card__barfill" style="width: 18%;"></span>
                 </div>
-
-                <nav class="va-agency-nav" aria-label="Primary navigation">
-                  <a class="va-agency-nav__item va-agency-nav__item--active" href="#va-agency-dashboard">
-                    <span class="va-agency-nav__icon" aria-hidden="true"></span>
-                    <span class="va-agency-nav__label">Dashboard</span>
-                  </a>
-                  <a class="va-agency-nav__item" href="#va-agency-start-here"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Start Here</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-automations"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Automations</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-calendar"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Calendar</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-content"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Content</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-courses"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Courses</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-crm"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">CRM</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-files"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Files</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-forms"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Forms</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-marketing"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Marketing</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-messaging"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Messaging Inbox</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-office"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Office Space</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-onboarding"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Onboarding</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-orders"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Orders / Projects</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-support"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Get Support</span></a>
-                  <a class="va-agency-nav__item" href="#va-agency-settings"><span class="va-agency-nav__icon" aria-hidden="true"></span><span class="va-agency-nav__label">Settings</span></a>
-                </nav>
-
-                <div class="va-agency-ask">
-                  <a class="va-agency-ask__btn" href="#va-agency-ask">Ask!</a>
+                <div class="tm-admin-card__foot">
+                  <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                  <button class="tm-admin-card__btn" type="button">VIEW</button>
                 </div>
-              </aside>
+              </div>
 
-              <div class="va-agency-main">
-                <div class="va-agency-topbar" aria-label="Top bar">
-                  <div class="va-agency-topbar__left">
-                    <button class="va-agency-topbar__iconbtn" type="button" aria-label="Collapse sidebar">≪</button>
-                    <button class="va-agency-topbar__iconbtn va-agency-topbar__iconbtn--plus" type="button" aria-label="Create">+</button>
-                  </div>
-                  <div class="va-agency-topbar__right">
-                    <span class="va-agency-topbar__icon" aria-hidden="true"></span>
-                    <span class="va-agency-topbar__icon" aria-hidden="true"></span>
-                    <span class="va-agency-topbar__icon" aria-hidden="true"></span>
-                    <div class="va-agency-topbar__user" aria-label="User menu">
-                      <div class="va-agency-topbar__userpic" aria-hidden="true"></div>
-                    </div>
-                  </div>
+              <div class="tm-admin-card tm-admin-card--wide">
+                <div class="tm-admin-card__head">
+                  <div class="tm-admin-card__label">Open Proposals</div>
+                  <div class="tm-admin-card__miniicon" aria-hidden="true"></div>
                 </div>
-
-                <div class="va-agency-tabs" aria-label="Project tabs">
-                  <span class="va-agency-tabs__item">Dashboard</span>
-                  <span class="va-agency-tabs__item va-agency-tabs__item--active">Tasks</span>
-                  <span class="va-agency-tabs__item">Kanban</span>
-                  <span class="va-agency-tabs__item">Phases</span>
-                  <span class="va-agency-tabs__item">Timers</span>
-                  <span class="va-agency-tabs__item">Calendar</span>
-                  <span class="va-agency-tabs__item">Files</span>
-                  <span class="va-agency-tabs__item">Team Live Chat</span>
-                  <span class="va-agency-tabs__item">Notes</span>
-                  <span class="va-agency-tabs__item">Notes Export</span>
-                  <span class="va-agency-tabs__item">Settings</span>
+                <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                <div class="tm-admin-card__bar">
+                  <span class="tm-admin-card__barfill" style="width: 18%;"></span>
                 </div>
-
-                <div class="va-agency-header">
-                  <div class="va-agency-header__left">
-                    <div class="va-agency-header__title">THREADS: DATAENTRYWORK | VA AGENCIES | HIRING VA — BEGINNER (0–1 YEAR)</div>
-                    <div class="va-agency-header__sub">Project Description</div>
-                  </div>
-                  <div class="va-agency-header__right">
-                    <span class="va-agency-badge">P1 General Info Capture</span>
-                    <span class="va-agency-pill">PROJ_557</span>
-                    <span class="va-agency-pill">Work Posting Task</span>
-                  </div>
+                <div class="tm-admin-card__foot">
+                  <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                  <button class="tm-admin-card__btn" type="button">VIEW</button>
                 </div>
+              </div>
 
-                <div class="va-agency-body">
-                  <div class="va-agency-pane va-agency-pane--list" aria-label="Task list">
-                    <div class="va-agency-pane__top">
-                      <button class="va-agency-btn" type="button">+ Add Task</button>
-                      <div class="va-agency-pane__tools">
-                        <span class="va-agency-pill">10</span>
-                        <span class="va-agency-pill">Filter</span>
-                      </div>
-                    </div>
+              <!-- Row 2 -->
+              <div class="tm-admin-card">
+                <div class="tm-admin-card__head">
+                  <div class="tm-admin-card__label">Clients <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                  <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                </div>
+                <div class="tm-admin-card__metric">
+                  <span class="tm-admin-card__metricnum">2</span>
+                  <span class="tm-admin-card__good">↗ 100.0% (All time)</span>
+                </div>
+                <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                  <span class="tm-admin-card__barfill" style="width: 8%;"></span>
+                </div>
+                <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                  <span class="tm-admin-card__small">8%</span>
+                  <button class="tm-admin-card__btn" type="button">VIEW</button>
+                </div>
+              </div>
 
-                    <div class="va-agency-task">
-                      <div class="va-agency-task__row">
-                        <div class="va-agency-task__title">New Work Post Arrived — Info Gathering Underway. See task description if interested [33387]</div>
-                        <span class="va-agency-pill">⋯</span>
-                      </div>
-                      <div class="va-agency-task__meta">
-                        <span class="va-agency-tag va-agency-tag--danger">DUE</span>
-                        <span class="va-agency-tag va-agency-tag--neutral">OPEN</span>
-                        <span class="va-agency-tag va-agency-tag--warn">CRITICAL — TODAY</span>
-                        <span class="va-agency-tag va-agency-tag--muted">REPLY</span>
-                        <span class="va-agency-tag va-agency-tag--phase">P1</span>
-                      </div>
-                    </div>
+              <div class="tm-admin-card">
+                <div class="tm-admin-card__head">
+                  <div class="tm-admin-card__label">Prospects <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                  <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                </div>
+                <div class="tm-admin-card__metric">
+                  <span class="tm-admin-card__metricnum">2</span>
+                  <span class="tm-admin-card__good">↗ 100.0% (All time)</span>
+                </div>
+                <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                  <span class="tm-admin-card__barfill" style="width: 8%;"></span>
+                </div>
+                <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                  <span class="tm-admin-card__small">8%</span>
+                  <button class="tm-admin-card__btn" type="button">VIEW</button>
+                </div>
+              </div>
 
-                    <div class="va-agency-task">
-                      <div class="va-agency-task__row">
-                        <div class="va-agency-task__title">Verify &amp; Reach Out — Introduce Our Captain to the Agency</div>
-                        <span class="va-agency-pill">⋯</span>
-                      </div>
-                      <div class="va-agency-task__meta">
-                        <span class="va-agency-tag va-agency-tag--muted">AWAITING VA REQUEST</span>
-                        <span class="va-agency-tag va-agency-tag--warn">HIGH — 48 HOURS</span>
-                        <span class="va-agency-tag va-agency-tag--neutral">RESEARCH / INTRO</span>
-                      </div>
-                    </div>
-                  </div>
+              <div class="tm-admin-card">
+                <div class="tm-admin-card__head">
+                  <div class="tm-admin-card__label">Leads <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                  <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                </div>
+                <div class="tm-admin-card__metric">
+                  <span class="tm-admin-card__metricnum">0</span>
+                  <span class="tm-admin-card__delta">• 0.0% (All time)</span>
+                </div>
+                <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                  <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                </div>
+                <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                  <span class="tm-admin-card__small">0%</span>
+                  <button class="tm-admin-card__btn" type="button">VIEW</button>
+                </div>
+              </div>
 
-                  <div class="va-agency-pane va-agency-pane--detail" aria-label="Task details">
-                    <div class="va-agency-detail__head">
-                      <button class="va-agency-btn va-agency-btn--ghost" type="button">✓ Mark Complete</button>
-                      <div class="va-agency-detail__actions" aria-hidden="true">
-                        <span class="va-agency-iconbtn"></span>
-                        <span class="va-agency-iconbtn"></span>
-                        <span class="va-agency-iconbtn"></span>
-                        <span class="va-agency-iconbtn"></span>
-                        <span class="va-agency-iconbtn"></span>
-                      </div>
-                    </div>
+              <div class="tm-admin-card">
+                <div class="tm-admin-card__head">
+                  <div class="tm-admin-card__label">Circle(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                  <div class="tm-admin-card__miniicon tm-admin-card__miniicon--tag" aria-hidden="true"></div>
+                </div>
+                <div class="tm-admin-card__metric">
+                  <span class="tm-admin-card__metricnum">0</span>
+                  <span class="tm-admin-card__delta">• 0.0% (All time)</span>
+                </div>
+                <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                  <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                </div>
+                <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                  <span class="tm-admin-card__small">0%</span>
+                  <button class="tm-admin-card__btn" type="button">VIEW</button>
+                </div>
+              </div>
 
-                    <div class="va-agency-detail__title">New Work Post Arrived — Info Gathering Underway. See task description if interested [33387]</div>
+              <!-- Row 3 -->
+              <div class="tm-admin-card tm-admin-card--wide">
+                <div class="tm-admin-card__head">
+                  <div class="tm-admin-card__label">Total Revenue</div>
+                  <div class="tm-admin-card__miniicon tm-admin-card__miniicon--gold" aria-hidden="true"></div>
+                </div>
+                <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                <div class="tm-admin-card__bar">
+                  <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                </div>
+                <div class="tm-admin-card__foot">
+                  <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                  <button class="tm-admin-card__btn" type="button">VIEW</button>
+                </div>
+              </div>
 
-                    <div class="va-agency-detail__pills">
-                      <span class="va-agency-tag va-agency-tag--neutral">OPEN</span>
-                      <span class="va-agency-tag va-agency-tag--warn">CRITICAL — TODAY</span>
-                      <span class="va-agency-tag va-agency-tag--muted">REPLY</span>
-                    </div>
+              <div class="tm-admin-card tm-admin-card--wide">
+                <div class="tm-admin-card__head">
+                  <div class="tm-admin-card__label">Unpaid Invoices</div>
+                  <div class="tm-admin-card__miniicon tm-admin-card__miniicon--gold" aria-hidden="true"></div>
+                </div>
+                <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                <div class="tm-admin-card__bar">
+                  <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                </div>
+                <div class="tm-admin-card__foot">
+                  <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                  <button class="tm-admin-card__btn" type="button">VIEW</button>
+                </div>
+              </div>
 
-                    <div class="va-agency-detail__grid">
-                      <div class="va-agency-field">
-                        <div class="va-agency-field__label">Assigned to</div>
-                        <div class="va-agency-field__value">Fire Marshall Bill</div>
-                      </div>
-                      <div class="va-agency-field">
-                        <div class="va-agency-field__label">Due</div>
-                        <div class="va-agency-field__value">12/24/2025</div>
-                      </div>
-                      <div class="va-agency-field">
-                        <div class="va-agency-field__label">Priority</div>
-                        <div class="va-agency-field__value">Critical — Today</div>
-                      </div>
-                      <div class="va-agency-field">
-                        <div class="va-agency-field__label">Status</div>
-                        <div class="va-agency-field__value">Open</div>
-                      </div>
-                      <div class="va-agency-field">
-                        <div class="va-agency-field__label">Type</div>
-                        <div class="va-agency-field__value">Reply</div>
-                      </div>
-                      <div class="va-agency-field">
-                        <div class="va-agency-field__label">Files</div>
-                        <div class="va-agency-field__value">Task Files</div>
-                      </div>
-                    </div>
-
-                    <div class="va-agency-desc">
-                      <div class="va-agency-desc__label">Task Description</div>
-                      <div class="va-agency-desc__title">Set your course, our VA Starter Track freelancer.</div>
-                      <div class="va-agency-desc__text">This is a static mock showing the project task layout used to process and reply to work postings inside your portal.</div>
-                    </div>
-                  </div>
+              <!-- Row 4 -->
+              <div class="tm-admin-card tm-admin-card--full">
+                <div class="tm-admin-card__head">
+                  <div class="tm-admin-card__label">Team(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                  <div class="tm-admin-card__miniicon tm-admin-card__miniicon--purple" aria-hidden="true"></div>
+                </div>
+                <div class="tm-admin-card__metric">
+                  <span class="tm-admin-card__metricnum">0</span>
+                  <span class="tm-admin-card__delta">• 0.0% (30d)</span>
+                </div>
+                <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                  <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                </div>
+                <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                  <span class="tm-admin-card__small">0%</span>
+                  <button class="tm-admin-card__btn" type="button">VIEW</button>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
 
-        <div class="preview-switch__panel preview-switch__panel--va-setup" id="panel-va-setup" role="tabpanel" aria-label="Virtual Assistant Setup preview">
-          <!-- =========================
-               VA SETUP — STARTER TRACK DASHBOARD PREVIEW (STATIC MOCK)
-               HTML/CSS only (no JS)
-               ========================= -->
-          <div class="va-starter-preview" role="region" aria-label="VA Starter Track dashboard preview">
-            <div class="va-starter-shell">
-              <aside class="va-starter-sidebar" aria-label="Sidebar">
-                <div class="va-starter-brand">
-                  <div class="va-starter-brand__mark" aria-hidden="true"></div>
-                  <div class="va-starter-brand__text">
-                    <div class="va-starter-brand__title">lentax.co</div>
-                    <div class="va-starter-brand__sub">VA Starter Track</div>
-                  </div>
-                </div>
-
-                <div class="va-starter-profile">
-                  <div class="va-starter-profile__avatar" aria-hidden="true"></div>
-                  <div class="va-starter-profile__meta">
-                    <div class="va-starter-profile__name">FIRE MARSHALL BILL</div>
-                    <a class="va-starter-profile__link" href="#" aria-label="Edit Profile">Edit Profile</a>
-                  </div>
-                </div>
-
-                <nav class="va-starter-nav" aria-label="Primary navigation">
-                  <a class="va-starter-nav__item va-starter-nav__item--active" href="#va-starter-dashboard"><span class="va-starter-nav__icon" aria-hidden="true"></span><span class="va-starter-nav__label">Dashboard</span></a>
-                  <a class="va-starter-nav__item" href="#va-starter-start-here"><span class="va-starter-nav__icon" aria-hidden="true"></span><span class="va-starter-nav__label">Start Here</span></a>
-                  <a class="va-starter-nav__item" href="#va-starter-calendar"><span class="va-starter-nav__icon" aria-hidden="true"></span><span class="va-starter-nav__label">Calendar</span></a>
-                  <a class="va-starter-nav__item" href="#va-starter-crm"><span class="va-starter-nav__icon" aria-hidden="true"></span><span class="va-starter-nav__label">CRM</span></a>
-                  <a class="va-starter-nav__item" href="#va-starter-messaging"><span class="va-starter-nav__icon" aria-hidden="true"></span><span class="va-starter-nav__label">Messaging Inbox</span></a>
-                  <a class="va-starter-nav__item" href="#va-starter-office"><span class="va-starter-nav__icon" aria-hidden="true"></span><span class="va-starter-nav__label">Office Space</span></a>
-                  <a class="va-starter-nav__item" href="#va-starter-orders"><span class="va-starter-nav__icon" aria-hidden="true"></span><span class="va-starter-nav__label">Orders / Projects</span></a>
-                  <a class="va-starter-nav__item" href="#va-starter-resources"><span class="va-starter-nav__icon" aria-hidden="true"></span><span class="va-starter-nav__label">Free Resources</span></a>
-                </nav>
-
-                <div class="va-starter-ask">
-                  <a class="va-starter-ask__btn" href="#va-starter-ask">Ask!</a>
-                </div>
-              </aside>
-
-              <div class="va-starter-main">
-                <div class="va-starter-topbar" aria-label="Top bar">
-                  <div class="va-starter-topbar__left">
-                    <button class="va-starter-topbar__iconbtn" type="button" aria-label="Collapse sidebar">≪</button>
-                    <button class="va-starter-topbar__iconbtn va-starter-topbar__iconbtn--plus" type="button" aria-label="Create">+</button>
-                  </div>
-                  <div class="va-starter-topbar__right">
-                    <span class="va-starter-topbar__icon" aria-hidden="true"></span>
-                    <span class="va-starter-topbar__icon" aria-hidden="true"></span>
-                    <span class="va-starter-topbar__icon" aria-hidden="true"></span>
-                    <div class="va-starter-topbar__user" aria-label="User menu">
-                      <div class="va-starter-topbar__userpic" aria-hidden="true"></div>
-                    </div>
-                  </div>
-                </div>
-
-                <section class="va-starter-content" aria-label="Dashboard content">
-                  <h3 class="va-starter-title">Good Night, Fire Marshall</h3>
-                  <p class="va-starter-subtitle">Track your profile setup, earnings, active tasks, and enrolled project tracks.</p>
-
-                  <div class="va-starter-grid va-starter-grid--top">
-                    <div class="va-starter-card va-starter-card--journey">
-                      <div class="va-starter-card__head">
-                        <div class="va-starter-card__label">Set Sail on Your Freelancer Journey!</div>
-                        <div class="va-starter-card__miniicon" aria-hidden="true"></div>
-                      </div>
-                      <div class="va-starter-journey">
-                        <div class="va-starter-journey__avatar" aria-hidden="true"></div>
-                        <div class="va-starter-journey__copy">
-                          <div class="va-starter-journey__title">Welcome aboard, Freelancer!</div>
-                          <div class="va-starter-journey__text"><strong>Mint</strong> is your first mate, guiding you through your first voyage. Complete your profile ships-shape to unlock your starter track perks.</div>
-                          <button class="va-starter-btn" type="button">Edit Your Profile</button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="va-starter-card va-starter-card--progress">
-                      <div class="va-starter-card__head">
-                        <div class="va-starter-card__label">My Freelancer Profile Setup</div>
-                        <div class="va-starter-card__miniicon" aria-hidden="true"></div>
-                      </div>
-                      <div class="va-starter-progress">
-                        <div class="va-starter-progress__row"><span class="va-starter-progress__name">Activate Flow Organizer</span><span class="va-starter-progress__bar"><span class="va-starter-progress__fill" style="width:100%;"></span></span></div>
-                        <div class="va-starter-progress__row"><span class="va-starter-progress__name">Background Info</span><span class="va-starter-progress__bar"><span class="va-starter-progress__fill" style="width:100%;"></span></span></div>
-                        <div class="va-starter-progress__row"><span class="va-starter-progress__name">Profile Avatar</span><span class="va-starter-progress__bar"><span class="va-starter-progress__fill" style="width:100%;"></span></span></div>
-                        <div class="va-starter-progress__row"><span class="va-starter-progress__name">Booking Link</span><span class="va-starter-progress__bar"><span class="va-starter-progress__fill" style="width:100%;"></span></span></div>
-                        <div class="va-starter-progress__row"><span class="va-starter-progress__name">W-9 Information</span><span class="va-starter-progress__bar"><span class="va-starter-progress__fill" style="width:100%;"></span></span></div>
-                        <div class="va-starter-progress__row"><span class="va-starter-progress__name">Professional Standards</span><span class="va-starter-progress__bar"><span class="va-starter-progress__fill" style="width:100%;"></span></span></div>
-                        <div class="va-starter-progress__row"><span class="va-starter-progress__name">Preview</span><span class="va-starter-progress__bar"><span class="va-starter-progress__fill" style="width:100%;"></span></span></div>
-                        <div class="va-starter-progress__row"><span class="va-starter-progress__name">Launch</span><span class="va-starter-progress__bar"><span class="va-starter-progress__fill" style="width:100%;"></span></span></div>
-                        <button class="va-starter-btn" type="button">Edit My Profile</button>
-                      </div>
-                    </div>
-
-                    <div class="va-starter-card va-starter-card--earnings">
-                      <div class="va-starter-card__head">
-                        <div class="va-starter-card__label">Your Freelancer Earnings</div>
-                        <div class="va-starter-card__miniicon" aria-hidden="true"></div>
-                      </div>
-                      <div class="va-starter-chart" aria-hidden="true">
-                        <div class="va-starter-chart__bar" style="height:72%;"></div>
-                        <div class="va-starter-chart__bar" style="height:72%;"></div>
-                        <div class="va-starter-chart__bar" style="height:10%;"></div>
-                        <div class="va-starter-chart__bar" style="height:58%;"></div>
-                      </div>
-                      <button class="va-starter-btn" type="button">View My Payouts</button>
-                    </div>
-                  </div>
-
-                  <div class="va-starter-grid va-starter-grid--bottom">
-                    <div class="va-starter-card va-starter-card--tasks">
-                      <div class="va-starter-card__head">
-                        <div class="va-starter-card__label">Your Work Tasks</div>
-                        <div class="va-starter-card__miniicon" aria-hidden="true"></div>
-                      </div>
-                      <div class="va-starter-list">
-                        <div class="va-starter-row">
-                          <div class="va-starter-row__title">New Work Post Arrived — Info Gathering Underway</div>
-                          <div class="va-starter-row__tags">
-                            <span class="va-starter-tag va-starter-tag--danger">Past Due</span>
-                            <span class="va-starter-tag va-starter-tag--warn">Critical — Today</span>
-                            <span class="va-starter-tag va-starter-tag--good">Check-In</span>
-                          </div>
-                        </div>
-                        <div class="va-starter-row">
-                          <div class="va-starter-row__title">Verify &amp; Reach Out — Introduce Our Captain</div>
-                          <div class="va-starter-row__tags">
-                            <span class="va-starter-tag va-starter-tag--muted">Assigned</span>
-                            <span class="va-starter-tag va-starter-tag--phase">Phase P1</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="va-starter-card va-starter-card--postings">
-                      <div class="va-starter-card__head">
-                        <div class="va-starter-card__label">Today’s Work Postings</div>
-                        <div class="va-starter-card__miniicon" aria-hidden="true"></div>
-                      </div>
-                      <div class="va-starter-list">
-                        <div class="va-starter-row">
-                          <div class="va-starter-row__title">Threads: Remote Jobs | Marketing Agencies | Hiring VA — Intermediate</div>
-                          <div class="va-starter-row__tags">
-                            <span class="va-starter-tag va-starter-tag--muted">Completed</span>
-                            <span class="va-starter-tag va-starter-tag--phase">P1 General Info Capture</span>
-                          </div>
-                        </div>
-                        <div class="va-starter-row">
-                          <div class="va-starter-row__title">Threads: Remote Jobs | Coaches &amp; Consultants | Hiring VA — Beginner</div>
-                          <div class="va-starter-row__tags">
-                            <span class="va-starter-tag va-starter-tag--warn">Past Due</span>
-                            <span class="va-starter-tag va-starter-tag--muted">General Info Capture</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+          </section>
         </div>
 
       </div>
