@@ -1537,11 +1537,11 @@ a { color: inherit; text-decoration: none; }
 
 .outcome-icon {
   align-items: center;
-  border-radius: 999px;
-  display: inline-flex;
-  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  height: 56px;
   justify-content: center;
-  width: 34px;
+  width: 56px;
 }
 
 .outcome-icon__tick {
@@ -1563,12 +1563,29 @@ a { color: inherit; text-decoration: none; }
   width: 6px;
 }
 
-.outcome-icon--a { background: rgba(34,197,94,0.92); }
-.outcome-icon--b { background: rgba(168,85,247,0.92); }
-.outcome-icon--c { background: rgba(56,189,248,0.92); }
-.outcome-icon--d { background: rgba(249,115,22,0.92); }
-.outcome-icon--e { background: rgba(250,204,21,0.92); }
-.outcome-icon--f { background: rgba(236,72,153,0.92); }
+.outcome-icon--a {
+  background: linear-gradient(135deg, #1f9d8a, #1b6ca8); /* teal → blue */
+}
+
+.outcome-icon--b {
+  background: linear-gradient(135deg, #2fb3a3, #2a7bbd); /* mint-teal → soft blue */
+}
+
+.outcome-icon--c {
+  background: linear-gradient(135deg, #3ccfcf, #3a8dde); /* aqua → sky blue */
+}
+
+.outcome-icon--d {
+  background: linear-gradient(135deg, #2fa36b, #2b8fd6); /* green → blue */
+}
+
+.outcome-icon--e {
+  background: linear-gradient(135deg, #4fd1a5, #4aa3df); /* light green → light blue */
+}
+
+.outcome-icon--f {
+  background: linear-gradient(135deg, #1b8f6a, #155fa0); /* deep green → deep blue */
+}
 
 .outcome-kicker {
   font-size: 18px;
