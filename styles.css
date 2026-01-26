@@ -393,6 +393,7 @@ a { color: inherit; text-decoration: none; }
   border-color: rgba(255,255,255,0.25);
   color: var(--fg);
 }
+
 .text-animated-highlight-flag {
   display: inline-block;
   font-weight: bold;
@@ -404,17 +405,18 @@ a { color: inherit; text-decoration: none; }
   animation: flagHighlight 1.2s ease-out 1.2s forwards;
   background: linear-gradient(
     90deg,
-    rgba(0, 0, 255, 0.3) 100%,
     rgba(255, 0, 0, 0.3) 0%,
-    rgba(255, 255, 255, 0.4) 50%
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(0, 0, 255, 0.3) 100%
   );
   border-radius: 4px;
+  bottom: -6px;          /* vertical padding */
   content: '';
-  left: -10px;
+  left: -10px;           /* horizontal padding */
   pointer-events: none;
   position: absolute;
-  right: -10px;
-  top: -6px;
+  right: -10px;          /* horizontal padding */
+  top: -6px;             /* vertical padding */
   transform: scaleX(0);
   transform-origin: left;
   z-index: -1;
@@ -425,6 +427,7 @@ a { color: inherit; text-decoration: none; }
     transform: scaleX(1);
   }
 }
+
 
 .preview__headline {
   font-size: 18px;
