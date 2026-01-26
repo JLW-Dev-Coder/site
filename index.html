@@ -14,6 +14,434 @@
   <link crossorigin href="https://fonts.gstatic.com" rel="preconnect"/>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
   <link href="./styles.css" rel="stylesheet"/>
+
+  <!-- Minimal add-ons for tabs + preview switching + VA Starter mock -->
+  <style>
+    .preview--hidden { display: none; }
+
+    .section__head--tabs {
+      align-items: flex-end;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      justify-content: space-between;
+    }
+
+    .section__head-copy { min-width: 240px; }
+
+    .tabs-inline {
+      align-items: center;
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+
+    .tab {
+      -webkit-tap-highlight-color: transparent;
+      appearance: none;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 999px;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+      font-size: 13px;
+      padding: 10px 12px;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    .tab:hover { transform: translateY(-1px); }
+
+    .tab--active {
+      background: rgba(255,255,255,0.18);
+      border-color: rgba(255,255,255,0.25);
+    }
+
+    /* TM: topbar "Client Experience" button */
+    .tm-admin-topbar__clientbtn {
+      align-items: center;
+      border: 1px solid rgba(255,255,255,0.18);
+      border-radius: 10px;
+      color: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      font: inherit;
+      font-size: 12px;
+      gap: 8px;
+      padding: 8px 10px;
+      transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
+      white-space: nowrap;
+    }
+    .tm-admin-topbar__clientbtn:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.26);
+      transform: translateY(-1px);
+    }
+    .tm-admin-topbar__clientdot {
+      background: rgba(255,255,255,0.75);
+      border-radius: 999px;
+      height: 6px;
+      width: 6px;
+    }
+
+    /* VA Starter mock */
+    .va-starter-preview {
+      border-radius: 18px;
+      overflow: hidden;
+    }
+
+    .va-starter-shell {
+      background: #e7e6f0;
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 18px;
+      display: grid;
+      grid-template-columns: 250px 1fr;
+      min-height: 620px;
+      overflow: hidden;
+    }
+
+    .va-starter-sidebar {
+      background: #101114;
+      color: rgba(255,255,255,0.86);
+      padding: 18px 16px;
+    }
+
+    .va-starter-brand {
+      align-items: center;
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .va-starter-brand__logo {
+      align-items: center;
+      background: #ffffff;
+      border-radius: 12px;
+      display: inline-flex;
+      height: 44px;
+      justify-content: center;
+      width: 44px;
+    }
+
+    .va-starter-brand__logo svg { height: 30px; width: 30px; }
+
+    .va-starter-profile {
+      align-items: center;
+      display: flex;
+      gap: 10px;
+      margin: 10px 0 18px;
+    }
+
+    .va-starter-profile__avatar {
+      background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04));
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 999px;
+      height: 42px;
+      width: 42px;
+    }
+
+    .va-starter-profile__name {
+      color: rgba(255,255,255,0.92);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .va-starter-profile__link {
+      color: rgba(255,255,255,0.65);
+      display: inline-block;
+      font-size: 12px;
+      margin-top: 2px;
+      text-decoration: none;
+    }
+
+    .va-starter-nav { display: grid; gap: 8px; margin-top: 10px; }
+
+    .va-starter-nav__item {
+      align-items: center;
+      border-radius: 12px;
+      color: rgba(255,255,255,0.86);
+      display: flex;
+      gap: 10px;
+      padding: 10px 10px;
+      text-decoration: none;
+    }
+
+    .va-starter-nav__item--active { background: rgba(255,255,255,0.08); }
+
+    .va-starter-nav__icon {
+      background: rgba(255,255,255,0.14);
+      border-radius: 8px;
+      height: 18px;
+      width: 18px;
+    }
+
+    .va-starter-main {
+      background: #ffffff;
+      display: grid;
+      grid-template-rows: 56px 1fr;
+      min-width: 0;
+    }
+
+    .va-starter-topbar {
+      align-items: center;
+      border-bottom: 1px solid rgba(0,0,0,0.08);
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 16px;
+    }
+
+    .va-starter-topbar__left { align-items: center; display: inline-flex; gap: 10px; }
+
+    .va-starter-iconbtn {
+      align-items: center;
+      background: rgba(0,0,0,0.04);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      font: inherit;
+      height: 34px;
+      justify-content: center;
+      padding: 0;
+      width: 34px;
+    }
+
+    .va-starter-topbar__right { align-items: center; display: inline-flex; gap: 10px; }
+
+    .va-starter-topbar__chip {
+      background: rgba(0,0,0,0.04);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 999px;
+      font-size: 12px;
+      padding: 8px 10px;
+    }
+
+    .va-starter-userpic {
+      background: linear-gradient(135deg, rgba(0,0,0,0.12), rgba(0,0,0,0.04));
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 999px;
+      height: 34px;
+      width: 34px;
+    }
+
+    .va-starter-content {
+      background: #c8c7d6;
+      padding: 18px 18px 22px;
+    }
+
+    .va-starter-title {
+      font-size: 34px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin: 6px 0 6px;
+      text-align: center;
+    }
+
+    .va-starter-subtitle {
+      color: rgba(0,0,0,0.62);
+      margin: 0 auto 18px;
+      max-width: 760px;
+      text-align: center;
+    }
+
+    .va-starter-grid {
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(12, 1fr);
+    }
+
+    .va-card {
+      background: rgba(255,255,255,0.82);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 12px;
+      box-shadow: 0 8px 22px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+
+    .va-card__head {
+      align-items: center;
+      display: flex;
+      justify-content: space-between;
+      padding: 14px 14px 10px;
+    }
+
+    .va-card__title { font-weight: 800; }
+
+    .va-card__miniicon {
+      background: rgba(0,0,0,0.06);
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 8px;
+      height: 26px;
+      width: 26px;
+    }
+
+    .va-card__body { padding: 0 14px 14px; }
+
+    .va-span-4 { grid-column: span 4; }
+    .va-span-6 { grid-column: span 6; }
+    .va-span-12 { grid-column: span 12; }
+
+    .va-welcome-box {
+      background: rgba(0,0,0,0.04);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 12px;
+      display: grid;
+      gap: 10px;
+      grid-template-columns: 66px 1fr;
+      padding: 12px;
+    }
+
+    .va-mint {
+      background: radial-gradient(circle at 30% 30%, rgba(0,0,0,0.10), rgba(0,0,0,0.03));
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 14px;
+      height: 66px;
+      width: 66px;
+    }
+
+    .va-welcome-title { font-weight: 800; margin: 0; }
+    .va-welcome-text { color: rgba(0,0,0,0.70); font-size: 13px; margin: 0; }
+    .va-welcome-cta {
+      background: rgba(255,255,255,0.90);
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 10px;
+      display: inline-flex;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 8px 10px;
+      width: fit-content;
+    }
+
+    .va-bars { display: grid; gap: 10px; margin-top: 6px; }
+    .va-bar {
+      align-items: center;
+      border-radius: 10px;
+      display: flex;
+      font-size: 12px;
+      gap: 10px;
+      overflow: hidden;
+    }
+    .va-bar__label {
+      background: rgba(255,255,255,0.64);
+      border-right: 1px solid rgba(0,0,0,0.06);
+      min-width: 190px;
+      padding: 8px 10px;
+      white-space: nowrap;
+    }
+    .va-bar__fill { height: 12px; width: 100%; }
+    .va-bar__fill--a { background: #2f7cf6; }
+    .va-bar__fill--b { background: #1b8f2a; }
+    .va-bar__fill--c { background: #7f9a10; }
+    .va-bar__fill--d { background: #6a4b7a; }
+    .va-bar__fill--e { background: #b04a10; }
+    .va-bar__fill--f { background: #f2c300; }
+    .va-bar__fill--g { background: #31c56a; }
+    .va-bar__fill--h { background: #cf18a4; }
+
+    .va-primary-btn {
+      align-items: center;
+      background: #1f56ff;
+      border: 0;
+      border-radius: 10px;
+      color: #fff;
+      cursor: pointer;
+      display: inline-flex;
+      font: inherit;
+      font-size: 12px;
+      font-weight: 800;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 14px;
+      padding: 10px 12px;
+      width: 180px;
+    }
+
+    .va-chart {
+      background: rgba(0,0,0,0.04);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 12px;
+      height: 180px;
+      position: relative;
+    }
+    .va-chart::before {
+      content: "";
+      inset: 10px;
+      position: absolute;
+      background:
+        linear-gradient(to right, rgba(0,0,0,0.08) 1px, transparent 1px) 0 0 / 24px 24px,
+        linear-gradient(to bottom, rgba(0,0,0,0.08) 1px, transparent 1px) 0 0 / 24px 24px;
+      border-radius: 10px;
+      opacity: 0.55;
+    }
+    .va-chart-bars {
+      align-items: end;
+      bottom: 18px;
+      display: flex;
+      gap: 18px;
+      left: 18px;
+      position: absolute;
+      right: 18px;
+      top: 18px;
+    }
+    .va-chart-bar { border-radius: 8px 8px 2px 2px; width: 18%; }
+    .va-chart-bar--a { background: #2f7cf6; height: 78%; }
+    .va-chart-bar--b { background: #b04a10; height: 78%; }
+    .va-chart-bar--c { background: #f2c300; height: 10%; }
+    .va-chart-bar--d { background: #1b8f2a; height: 58%; }
+
+    .va-table {
+      background: rgba(255,255,255,0.86);
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .va-table__row {
+      align-items: center;
+      border-top: 1px solid rgba(0,0,0,0.06);
+      display: grid;
+      font-size: 12px;
+      gap: 10px;
+      grid-template-columns: 26px 1fr 120px;
+      padding: 10px 12px;
+    }
+
+    .va-table__row:first-child { border-top: 0; }
+
+    .va-dot {
+      border: 1px solid rgba(0,0,0,0.16);
+      border-radius: 999px;
+      height: 18px;
+      width: 18px;
+    }
+
+    .va-pillline {
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .va-pill {
+      background: rgba(0,0,0,0.06);
+      border: 1px solid rgba(0,0,0,0.10);
+      border-radius: 999px;
+      font-size: 11px;
+      padding: 4px 8px;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 980px) {
+      .va-span-4, .va-span-6 { grid-column: span 12; }
+      .va-starter-shell { grid-template-columns: 1fr; }
+      .va-starter-sidebar { display: none; }
+    }
+  </style>
 </head>
 
 <body>
@@ -180,7 +608,7 @@
         <div class="section__head section__head--tabs">
           <div class="section__head-copy">
             <h2 class="section__title reveal">Setup Dashboard Preview</h2>
-            <p class="section__subtitle reveal">Preview the Super Admin, Freelancer (Salesperon-role), and client-facing experience.</p>
+            <p class="section__subtitle reveal">Preview the Super Admin, Freelancer, and client-facing experience.</p>
           </div>
 
           <div class="tabs-inline reveal" role="tablist" aria-label="Dashboard preview tabs">
@@ -190,290 +618,570 @@
           </div>
         </div>
 
-        <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
-          <div class="tm-admin-shell">
+        <!-- =========================
+             TAX MONITOR (existing) — wrapped for tab switching
+             ========================= -->
+        <div data-preview="tax-monitor">
+          <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
+            <div class="tm-admin-shell">
 
-            <aside class="tm-admin-sidebar" aria-label="Sidebar">
-              <div class="tm-admin-brand">
-                <div class="tm-admin-brand__logo" aria-hidden="true">
-                  <div class="tm-admin-brand__ring"></div>
+              <!-- LEFT SIDEBAR -->
+              <aside class="tm-admin-sidebar" aria-label="Sidebar">
+                <div class="tm-admin-brand">
+                  <div class="tm-admin-brand__logo" aria-hidden="true">
+                    <div class="tm-admin-brand__ring"></div>
+                  </div>
+                  <div class="tm-admin-brand__text">
+                    <div class="tm-admin-brand__title">Tax Monitor</div>
+                    <div class="tm-admin-brand__sub">.pro</div>
+                  </div>
                 </div>
-                <div class="tm-admin-brand__text">
-                  <div class="tm-admin-brand__title">Tax Monitor</div>
-                  <div class="tm-admin-brand__sub">.pro</div>
+
+                <div class="tm-admin-profile">
+                  <div class="tm-admin-profile__avatar" aria-hidden="true"></div>
+                  <div class="tm-admin-profile__meta">
+                    <div class="tm-admin-profile__name">JAMIE WILLIAMS</div>
+                    <a class="tm-admin-profile__link" href="#" aria-label="Edit Profile">Edit Profile</a>
+                  </div>
                 </div>
+
+                <nav class="tm-admin-nav" aria-label="Primary navigation">
+                  <a class="tm-admin-nav__item tm-admin-nav__item--active" href="#start-here">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Start Here</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#automations">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Automations</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#calendar">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Calendar</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#communities">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Communities</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#content">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Content</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#crm">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">CRM</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#files">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Files</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#forms">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Forms</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#lms">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">LMS</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#marketing">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Marketing</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#messaging">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Messaging</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#my-pages">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">My Pages</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#office">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Office</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#onboarding">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Onboarding</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#projects">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Projects</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#support">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Support</span>
+                  </a>
+                  <a class="tm-admin-nav__item" href="#settings">
+                    <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-nav__label">Settings</span>
+                  </a>
+                </nav>
+
+                <div class="tm-admin-ask">
+                  <a class="tm-admin-ask__btn" href="#ask">Ask!</a>
+                </div>
+              </aside>
+
+              <!-- MAIN -->
+              <div class="tm-admin-main">
+
+                <!-- TOP BAR -->
+                <div class="tm-admin-topbar" aria-label="Top bar">
+                  <div class="tm-admin-topbar__left">
+                    <button class="tm-admin-topbar__iconbtn" type="button" aria-label="Collapse sidebar">≪</button>
+
+                    <!-- Client Experience button (requested) -->
+                    <button class="tm-admin-topbar__clientbtn" type="button" aria-label="Client experience">
+                      <span aria-hidden="true" class="tm-admin-topbar__clientdot"></span>
+                      <span>Client Experience</span>
+                    </button>
+
+                    <button class="tm-admin-topbar__iconbtn tm-admin-topbar__iconbtn--plus" type="button" aria-label="Create">+</button>
+                  </div>
+
+                  <div class="tm-admin-topbar__right">
+                    <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                    <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                    <div class="tm-admin-topbar__user" aria-label="User menu">
+                      <div class="tm-admin-topbar__userpic" aria-hidden="true"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- CONTENT -->
+                <section class="tm-admin-content" aria-label="Dashboard content">
+                  <h2 class="tm-admin-title">Good Afternoon, Jamie</h2>
+                  <p class="tm-admin-subtitle">
+                    This dashboard provides a real-time view of pipeline activity, client volume, team capacity, and financial performance.
+                    Use it to spot trends, identify risk, and prioritize what requires attention next.
+                  </p>
+
+                  <div class="tm-admin-grid">
+                    <div class="tm-admin-card tm-admin-card--wide">
+                      <div class="tm-admin-card__head">
+                        <div class="tm-admin-card__label">Open Estimates</div>
+                        <div class="tm-admin-card__miniicon" aria-hidden="true"></div>
+                      </div>
+                      <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                      <div class="tm-admin-card__bar">
+                        <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                      </div>
+                      <div class="tm-admin-card__foot">
+                        <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                        <button class="tm-admin-card__btn" type="button">VIEW</button>
+                      </div>
+                    </div>
+
+                    <div class="tm-admin-card tm-admin-card--wide">
+                      <div class="tm-admin-card__head">
+                        <div class="tm-admin-card__label">Open Proposals</div>
+                        <div class="tm-admin-card__miniicon" aria-hidden="true"></div>
+                      </div>
+                      <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                      <div class="tm-admin-card__bar">
+                        <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                      </div>
+                      <div class="tm-admin-card__foot">
+                        <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                        <button class="tm-admin-card__btn" type="button">VIEW</button>
+                      </div>
+                    </div>
+
+                    <div class="tm-admin-card">
+                      <div class="tm-admin-card__head">
+                        <div class="tm-admin-card__label">Clients <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                        <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                      </div>
+                      <div class="tm-admin-card__metric">
+                        <span class="tm-admin-card__metricnum">2</span>
+                        <span class="tm-admin-card__good">↗ 100.0% (All time)</span>
+                      </div>
+                      <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                        <span class="tm-admin-card__barfill" style="width: 8%;"></span>
+                      </div>
+                      <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                        <span class="tm-admin-card__small">8%</span>
+                        <button class="tm-admin-card__btn" type="button">VIEW</button>
+                      </div>
+                    </div>
+
+                    <div class="tm-admin-card">
+                      <div class="tm-admin-card__head">
+                        <div class="tm-admin-card__label">Prospects <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                        <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                      </div>
+                      <div class="tm-admin-card__metric">
+                        <span class="tm-admin-card__metricnum">2</span>
+                        <span class="tm-admin-card__good">↗ 100.0% (All time)</span>
+                      </div>
+                      <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                        <span class="tm-admin-card__barfill" style="width: 8%;"></span>
+                      </div>
+                      <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                        <span class="tm-admin-card__small">8%</span>
+                        <button class="tm-admin-card__btn" type="button">VIEW</button>
+                      </div>
+                    </div>
+
+                    <div class="tm-admin-card">
+                      <div class="tm-admin-card__head">
+                        <div class="tm-admin-card__label">Leads <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                        <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                      </div>
+                      <div class="tm-admin-card__metric">
+                        <span class="tm-admin-card__metricnum">0</span>
+                        <span class="tm-admin-card__delta">• 0.0% (All time)</span>
+                      </div>
+                      <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                        <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                      </div>
+                      <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                        <span class="tm-admin-card__small">0%</span>
+                        <button class="tm-admin-card__btn" type="button">VIEW</button>
+                      </div>
+                    </div>
+
+                    <div class="tm-admin-card">
+                      <div class="tm-admin-card__head">
+                        <div class="tm-admin-card__label">Circle(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                        <div class="tm-admin-card__miniicon tm-admin-card__miniicon--tag" aria-hidden="true"></div>
+                      </div>
+                      <div class="tm-admin-card__metric">
+                        <span class="tm-admin-card__metricnum">0</span>
+                        <span class="tm-admin-card__delta">• 0.0% (All time)</span>
+                      </div>
+                      <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                        <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                      </div>
+                      <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                        <span class="tm-admin-card__small">0%</span>
+                        <button class="tm-admin-card__btn" type="button">VIEW</button>
+                      </div>
+                    </div>
+
+                    <div class="tm-admin-card tm-admin-card--wide">
+                      <div class="tm-admin-card__head">
+                        <div class="tm-admin-card__label">Total Revenue</div>
+                        <div class="tm-admin-card__miniicon tm-admin-card__miniicon--gold" aria-hidden="true"></div>
+                      </div>
+                      <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                      <div class="tm-admin-card__bar">
+                        <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                      </div>
+                      <div class="tm-admin-card__foot">
+                        <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                        <button class="tm-admin-card__btn" type="button">VIEW</button>
+                      </div>
+                    </div>
+
+                    <div class="tm-admin-card tm-admin-card--wide">
+                      <div class="tm-admin-card__head">
+                        <div class="tm-admin-card__label">Unpaid Invoices</div>
+                        <div class="tm-admin-card__miniicon tm-admin-card__miniicon--gold" aria-hidden="true"></div>
+                      </div>
+                      <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                      <div class="tm-admin-card__bar">
+                        <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                      </div>
+                      <div class="tm-admin-card__foot">
+                        <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                        <button class="tm-admin-card__btn" type="button">VIEW</button>
+                      </div>
+                    </div>
+
+                    <div class="tm-admin-card tm-admin-card--full">
+                      <div class="tm-admin-card__head">
+                        <div class="tm-admin-card__label">Team(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                        <div class="tm-admin-card__miniicon tm-admin-card__miniicon--purple" aria-hidden="true"></div>
+                      </div>
+                      <div class="tm-admin-card__metric">
+                        <span class="tm-admin-card__metricnum">0</span>
+                        <span class="tm-admin-card__delta">• 0.0% (30d)</span>
+                      </div>
+                      <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                        <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                      </div>
+                      <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                        <span class="tm-admin-card__small">0%</span>
+                        <button class="tm-admin-card__btn" type="button">VIEW</button>
+                      </div>
+                    </div>
+                  </div>
+                </section>
               </div>
 
-              <div class="tm-admin-profile">
-                <div class="tm-admin-profile__avatar" aria-hidden="true"></div>
-                <div class="tm-admin-profile__meta">
-                  <div class="tm-admin-profile__name">JAMIE WILLIAMS</div>
-                  <a class="tm-admin-profile__link" href="#" aria-label="Edit Profile">Edit Profile</a>
-                </div>
-              </div>
-
-              <nav class="tm-admin-nav" aria-label="Primary navigation">
-                <a class="tm-admin-nav__item tm-admin-nav__item--active" href="#start-here">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Start Here</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#automations">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Automations</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#calendar">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Calendar</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#communities">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Communities</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#content">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Content</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#crm">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">CRM</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#files">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Files</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#forms">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Forms</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#lms">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">LMS</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#marketing">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Marketing</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#messaging">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Messaging</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#my-pages">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">My Pages</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#office">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Office</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#onboarding">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Onboarding</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#projects">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Projects</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#support">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Support</span>
-                </a>
-                <a class="tm-admin-nav__item" href="#settings">
-                  <span class="tm-admin-nav__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-nav__label">Settings</span>
-                </a>
-              </nav>
-
-              <div class="tm-admin-ask">
-                <a class="tm-admin-ask__btn" href="#ask">Ask!</a>
-              </div>
-            </aside>
-
-            <div class="tm-admin-main">
-              <div class="tm-admin-topbar" aria-label="Top bar">
-                <div class="tm-admin-topbar__left">
-                  <button class="tm-admin-topbar__iconbtn" type="button" aria-label="Collapse sidebar">≪</button>
-                  <button class="tm-admin-topbar__iconbtn tm-admin-topbar__iconbtn--plus" type="button" aria-label="Create">+</button>
-
-                  <!-- NEW: Client Experience button -->
-                  <button class="tm-admin-topbar__iconbtn tm-admin-topbar__iconbtn--client" type="button" aria-label="Client Experience">
-                    Client Experience
-                  </button>
-                </div>
-
-                <div class="tm-admin-topbar__right">
-                  <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
-                  <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
-                  <div class="tm-admin-topbar__user" aria-label="User menu">
-                    <div class="tm-admin-topbar__userpic" aria-hidden="true"></div>
-                  </div>
-                </div>
-              </div>
-
-              <section class="tm-admin-content" aria-label="Dashboard content">
-                <h2 class="tm-admin-title">Good Afternoon, Jamie</h2>
-                <p class="tm-admin-subtitle">
-                  This dashboard provides a real-time view of pipeline activity, client volume, team capacity, and financial performance.
-                  Use it to spot trends, identify risk, and prioritize what requires attention next.
-                </p>
-
-                <div class="tm-admin-grid">
-                  <div class="tm-admin-card tm-admin-card--wide">
-                    <div class="tm-admin-card__head">
-                      <div class="tm-admin-card__label">Open Estimates</div>
-                      <div class="tm-admin-card__miniicon" aria-hidden="true"></div>
-                    </div>
-                    <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
-                    <div class="tm-admin-card__bar">
-                      <span class="tm-admin-card__barfill" style="width: 18%;"></span>
-                    </div>
-                    <div class="tm-admin-card__foot">
-                      <span class="tm-admin-card__dot" aria-hidden="true"></span>
-                      <button class="tm-admin-card__btn" type="button">VIEW</button>
-                    </div>
-                  </div>
-
-                  <div class="tm-admin-card tm-admin-card--wide">
-                    <div class="tm-admin-card__head">
-                      <div class="tm-admin-card__label">Open Proposals</div>
-                      <div class="tm-admin-card__miniicon" aria-hidden="true"></div>
-                    </div>
-                    <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
-                    <div class="tm-admin-card__bar">
-                      <span class="tm-admin-card__barfill" style="width: 18%;"></span>
-                    </div>
-                    <div class="tm-admin-card__foot">
-                      <span class="tm-admin-card__dot" aria-hidden="true"></span>
-                      <button class="tm-admin-card__btn" type="button">VIEW</button>
-                    </div>
-                  </div>
-
-                  <div class="tm-admin-card">
-                    <div class="tm-admin-card__head">
-                      <div class="tm-admin-card__label">Clients <span class="tm-admin-card__muted">(Goal — 25)</span></div>
-                      <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
-                    </div>
-                    <div class="tm-admin-card__metric">
-                      <span class="tm-admin-card__metricnum">2</span>
-                      <span class="tm-admin-card__good">↗ 100.0% (All time)</span>
-                    </div>
-                    <div class="tm-admin-card__bar tm-admin-card__bar--thin">
-                      <span class="tm-admin-card__barfill" style="width: 8%;"></span>
-                    </div>
-                    <div class="tm-admin-card__foot tm-admin-card__foot--split">
-                      <span class="tm-admin-card__small">8%</span>
-                      <button class="tm-admin-card__btn" type="button">VIEW</button>
-                    </div>
-                  </div>
-
-                  <div class="tm-admin-card">
-                    <div class="tm-admin-card__head">
-                      <div class="tm-admin-card__label">Prospects <span class="tm-admin-card__muted">(Goal — 25)</span></div>
-                      <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
-                    </div>
-                    <div class="tm-admin-card__metric">
-                      <span class="tm-admin-card__metricnum">2</span>
-                      <span class="tm-admin-card__good">↗ 100.0% (All time)</span>
-                    </div>
-                    <div class="tm-admin-card__bar tm-admin-card__bar--thin">
-                      <span class="tm-admin-card__barfill" style="width: 8%;"></span>
-                    </div>
-                    <div class="tm-admin-card__foot tm-admin-card__foot--split">
-                      <span class="tm-admin-card__small">8%</span>
-                      <button class="tm-admin-card__btn" type="button">VIEW</button>
-                    </div>
-                  </div>
-
-                  <div class="tm-admin-card">
-                    <div class="tm-admin-card__head">
-                      <div class="tm-admin-card__label">Leads <span class="tm-admin-card__muted">(Goal — 25)</span></div>
-                      <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
-                    </div>
-                    <div class="tm-admin-card__metric">
-                      <span class="tm-admin-card__metricnum">0</span>
-                      <span class="tm-admin-card__delta">• 0.0% (All time)</span>
-                    </div>
-                    <div class="tm-admin-card__bar tm-admin-card__bar--thin">
-                      <span class="tm-admin-card__barfill" style="width: 0%;"></span>
-                    </div>
-                    <div class="tm-admin-card__foot tm-admin-card__foot--split">
-                      <span class="tm-admin-card__small">0%</span>
-                      <button class="tm-admin-card__btn" type="button">VIEW</button>
-                    </div>
-                  </div>
-
-                  <div class="tm-admin-card">
-                    <div class="tm-admin-card__head">
-                      <div class="tm-admin-card__label">Circle(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
-                      <div class="tm-admin-card__miniicon tm-admin-card__miniicon--tag" aria-hidden="true"></div>
-                    </div>
-                    <div class="tm-admin-card__metric">
-                      <span class="tm-admin-card__metricnum">0</span>
-                      <span class="tm-admin-card__delta">• 0.0% (All time)</span>
-                    </div>
-                    <div class="tm-admin-card__bar tm-admin-card__bar--thin">
-                      <span class="tm-admin-card__barfill" style="width: 0%;"></span>
-                    </div>
-                    <div class="tm-admin-card__foot tm-admin-card__foot--split">
-                      <span class="tm-admin-card__small">0%</span>
-                      <button class="tm-admin-card__btn" type="button">VIEW</button>
-                    </div>
-                  </div>
-
-                  <div class="tm-admin-card tm-admin-card--wide">
-                    <div class="tm-admin-card__head">
-                      <div class="tm-admin-card__label">Total Revenue</div>
-                      <div class="tm-admin-card__miniicon tm-admin-card__miniicon--gold" aria-hidden="true"></div>
-                    </div>
-                    <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
-                    <div class="tm-admin-card__bar">
-                      <span class="tm-admin-card__barfill" style="width: 18%;"></span>
-                    </div>
-                    <div class="tm-admin-card__foot">
-                      <span class="tm-admin-card__dot" aria-hidden="true"></span>
-                      <button class="tm-admin-card__btn" type="button">VIEW</button>
-                    </div>
-                  </div>
-
-                  <div class="tm-admin-card tm-admin-card--wide">
-                    <div class="tm-admin-card__head">
-                      <div class="tm-admin-card__label">Unpaid Invoices</div>
-                      <div class="tm-admin-card__miniicon tm-admin-card__miniicon--gold" aria-hidden="true"></div>
-                    </div>
-                    <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
-                    <div class="tm-admin-card__bar">
-                      <span class="tm-admin-card__barfill" style="width: 18%;"></span>
-                    </div>
-                    <div class="tm-admin-card__foot">
-                      <span class="tm-admin-card__dot" aria-hidden="true"></span>
-                      <button class="tm-admin-card__btn" type="button">VIEW</button>
-                    </div>
-                  </div>
-
-                  <div class="tm-admin-card tm-admin-card--full">
-                    <div class="tm-admin-card__head">
-                      <div class="tm-admin-card__label">Team(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
-                      <div class="tm-admin-card__miniicon tm-admin-card__miniicon--purple" aria-hidden="true"></div>
-                    </div>
-                    <div class="tm-admin-card__metric">
-                      <span class="tm-admin-card__metricnum">0</span>
-                      <span class="tm-admin-card__delta">• 0.0% (30d)</span>
-                    </div>
-                    <div class="tm-admin-card__bar tm-admin-card__bar--thin">
-                      <span class="tm-admin-card__barfill" style="width: 0%;"></span>
-                    </div>
-                    <div class="tm-admin-card__foot tm-admin-card__foot--split">
-                      <span class="tm-admin-card__small">0%</span>
-                      <button class="tm-admin-card__btn" type="button">VIEW</button>
-                    </div>
-                  </div>
-                </div>
-              </section>
             </div>
-
           </div>
         </div>
+
+        <!-- =========================
+             VA AGENCY (placeholder for now)
+             ========================= -->
+        <div class="preview--hidden" data-preview="va-agency">
+          <div class="card" style="margin-top: 14px;">
+            <div class="card__top">
+              <div class="card__title">Virtual Assistant Agency Setup</div>
+              <div class="card__tag">Preview</div>
+            </div>
+            <p class="card__text">Next: we’ll drop in the VA Agency project dashboard mock.</p>
+          </div>
+        </div>
+
+        <!-- =========================
+             VA STARTER TRACK (added) — matches screenshot layout
+             ========================= -->
+        <div class="preview--hidden" data-preview="va-setup">
+          <div class="va-starter-preview" role="region" aria-label="Virtual Assistant Starter Track dashboard preview">
+            <div class="va-starter-shell">
+
+              <aside class="va-starter-sidebar" aria-label="Sidebar">
+                <div class="va-starter-brand">
+                  <div class="va-starter-brand__logo" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Lentax icon">
+                      <circle cx="80" cy="80" r="72" fill="none" stroke="#000" stroke-width="10"/>
+                      <rect x="78" y="28" width="4" height="70" rx="2" fill="#000"/>
+                      <polygon points="74,32 36,78 74,78" fill="#000"/>
+                      <polygon points="86,32 124,78 86,78" fill="#FFA500"/>
+                      <path d="M 38 82 L 122 82 L 96 114 Q 80 126 64 114 Z" fill="#000"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <div style="font-weight: 900; line-height: 1;">Lentax.co</div>
+                    <div style="color: rgba(255,255,255,0.55); font-size: 11px; margin-top: 2px;">Powered by Lenore, Inc.</div>
+                  </div>
+                </div>
+
+                <div class="va-starter-profile">
+                  <div class="va-starter-profile__avatar" aria-hidden="true"></div>
+                  <div>
+                    <div class="va-starter-profile__name">FIRE MARSHALL BILL</div>
+                    <a class="va-starter-profile__link" href="#" aria-label="Edit profile">Edit Profile</a>
+                  </div>
+                </div>
+
+                <nav class="va-starter-nav" aria-label="Primary navigation">
+                  <a class="va-starter-nav__item va-starter-nav__item--active" href="#dash">
+                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                    <span>Dashboard</span>
+                  </a>
+                  <a class="va-starter-nav__item" href="#start-here">
+                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                    <span>Start Here</span>
+                  </a>
+                  <a class="va-starter-nav__item" href="#calendar">
+                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                    <span>Calendar</span>
+                  </a>
+                  <a class="va-starter-nav__item" href="#crm">
+                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                    <span>CRM</span>
+                  </a>
+                  <a class="va-starter-nav__item" href="#messaging">
+                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                    <span>Messaging Inbox</span>
+                  </a>
+                  <a class="va-starter-nav__item" href="#office">
+                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                    <span>Office Space</span>
+                  </a>
+                  <a class="va-starter-nav__item" href="#orders">
+                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                    <span>Orders / Projects</span>
+                  </a>
+                  <a class="va-starter-nav__item" href="#resources">
+                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                    <span>Free Resources</span>
+                  </a>
+                </nav>
+              </aside>
+
+              <div class="va-starter-main">
+                <div class="va-starter-topbar" aria-label="Top bar">
+                  <div class="va-starter-topbar__left">
+                    <button class="va-starter-iconbtn" type="button" aria-label="Collapse sidebar">≪</button>
+                    <button class="va-starter-iconbtn" type="button" aria-label="Create">+</button>
+                  </div>
+                  <div class="va-starter-topbar__right">
+                    <span class="va-starter-topbar__chip">🔎</span>
+                    <span class="va-starter-topbar__chip">🔔</span>
+                    <span class="va-starter-topbar__chip">💬</span>
+                    <div class="va-starter-userpic" aria-hidden="true"></div>
+                  </div>
+                </div>
+
+                <section class="va-starter-content" aria-label="VA Starter dashboard content">
+                  <h2 class="va-starter-title">Good Morning, Fire Marshall</h2>
+                  <p class="va-starter-subtitle">Track your profile setup, earnings, active tasks, and enrolled project tracks.</p>
+
+                  <div class="va-starter-grid">
+                    <!-- Top row -->
+                    <div class="va-card va-span-4">
+                      <div class="va-card__head">
+                        <div>
+                          <div class="va-card__title">Set Sail on Your Freelancer Journey! 🧭</div>
+                          <div style="color: rgba(0,0,0,0.55); font-size: 12px; margin-top: 4px;">11/06/2025</div>
+                        </div>
+                      </div>
+                      <div class="va-card__body">
+                        <div class="va-welcome-box">
+                          <div class="va-mint" aria-hidden="true"></div>
+                          <div>
+                            <p class="va-welcome-title">Welcome aboard, Freelancer!</p>
+                            <p class="va-welcome-text" style="margin-top: 6px;">
+                              <strong>Mint</strong> here — your loyal first mate guiding you through your first voyage.
+                            </p>
+                            <p class="va-welcome-text" style="margin-top: 8px;">
+                              Follow the steps, complete your profile, and unlock your full set of starter track perks.
+                            </p>
+                            <div style="margin-top: 10px;">
+                              <span class="va-welcome-cta">Edit Your Profile</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="va-card va-span-4" style="background: rgba(236, 255, 253, 0.82);">
+                      <div class="va-card__head">
+                        <div class="va-card__title">My Freelancer Profile Setup</div>
+                        <div class="va-card__miniicon" aria-hidden="true"></div>
+                      </div>
+                      <div class="va-card__body">
+                        <div class="va-bars" aria-label="Progress bars">
+                          <div class="va-bar">
+                            <div class="va-bar__label">Activate Flow Organizer 100</div>
+                            <div class="va-bar__fill va-bar__fill--a"></div>
+                          </div>
+                          <div class="va-bar">
+                            <div class="va-bar__label">Background Info 100</div>
+                            <div class="va-bar__fill va-bar__fill--b"></div>
+                          </div>
+                          <div class="va-bar">
+                            <div class="va-bar__label">Profile Avatar 100</div>
+                            <div class="va-bar__fill va-bar__fill--c"></div>
+                          </div>
+                          <div class="va-bar">
+                            <div class="va-bar__label">Booking Link 100</div>
+                            <div class="va-bar__fill va-bar__fill--d"></div>
+                          </div>
+                          <div class="va-bar">
+                            <div class="va-bar__label">W9 Information 100</div>
+                            <div class="va-bar__fill va-bar__fill--e"></div>
+                          </div>
+                          <div class="va-bar">
+                            <div class="va-bar__label">Professional Standards 100</div>
+                            <div class="va-bar__fill va-bar__fill--f"></div>
+                          </div>
+                          <div class="va-bar">
+                            <div class="va-bar__label">Preview 100</div>
+                            <div class="va-bar__fill va-bar__fill--g"></div>
+                          </div>
+                          <div class="va-bar">
+                            <div class="va-bar__label">Launch 100</div>
+                            <div class="va-bar__fill va-bar__fill--h"></div>
+                          </div>
+                        </div>
+
+                        <button class="va-primary-btn" type="button" aria-label="Edit my profile">
+                          ✏️ <span>Edit My Profile</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="va-card va-span-4" style="background: rgba(243, 241, 255, 0.82);">
+                      <div class="va-card__head">
+                        <div class="va-card__title">Your Freelancer Earnings</div>
+                        <div class="va-card__miniicon" aria-hidden="true"></div>
+                      </div>
+                      <div class="va-card__body">
+                        <div class="va-chart" aria-label="Earnings bar chart">
+                          <div class="va-chart-bars" aria-hidden="true">
+                            <div class="va-chart-bar va-chart-bar--a"></div>
+                            <div class="va-chart-bar va-chart-bar--b"></div>
+                            <div class="va-chart-bar va-chart-bar--c"></div>
+                            <div class="va-chart-bar va-chart-bar--d"></div>
+                          </div>
+                        </div>
+
+                        <button class="va-primary-btn" type="button" aria-label="View my payouts" style="margin-top: 12px;">
+                          🧾 <span>View My Payouts</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Bottom row -->
+                    <div class="va-card va-span-6" style="background: rgba(255, 247, 235, 0.92);">
+                      <div class="va-card__head">
+                        <div class="va-card__title">Your Work Tasks</div>
+                        <div class="va-card__miniicon" aria-hidden="true"></div>
+                      </div>
+                      <div class="va-card__body">
+                        <div class="va-table" aria-label="Tasks table">
+                          <div class="va-table__row">
+                            <div class="va-dot" aria-hidden="true"></div>
+                            <div>
+                              <div style="font-weight: 700;">My Tasks</div>
+                              <div class="va-pillline" aria-hidden="true">
+                                <span class="va-pill">Assigned</span>
+                                <span class="va-pill">Critical — Today</span>
+                                <span class="va-pill">Phase: P1</span>
+                              </div>
+                            </div>
+                            <div style="color: rgba(0,0,0,0.55); text-align: right;">Past due</div>
+                          </div>
+
+                          <div class="va-table__row">
+                            <div class="va-dot" aria-hidden="true"></div>
+                            <div>
+                              <div style="font-weight: 700;">New Work Post Arrived — Info Gathering Underway</div>
+                              <div style="color: rgba(0,0,0,0.60); margin-top: 4px;">See task description if interested [33387]</div>
+                            </div>
+                            <div style="color: rgba(0,0,0,0.55); text-align: right;">11/22/2025</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="va-card va-span-6" style="background: rgba(238, 243, 255, 0.92);">
+                      <div class="va-card__head">
+                        <div class="va-card__title">Today's Work Postings</div>
+                        <div class="va-card__miniicon" aria-hidden="true"></div>
+                      </div>
+                      <div class="va-card__body">
+                        <div class="va-table" aria-label="Work postings table">
+                          <div class="va-table__row">
+                            <div class="va-dot" aria-hidden="true"></div>
+                            <div>
+                              <div style="font-weight: 700;">All Project Tracks</div>
+                              <div class="va-pillline" aria-hidden="true">
+                                <span class="va-pill">Completed</span>
+                                <span class="va-pill">P1 General Info Capture</span>
+                                <span class="va-pill">VA Agencies</span>
+                              </div>
+                            </div>
+                            <div style="color: rgba(0,0,0,0.55); text-align: right;">Refreshed</div>
+                          </div>
+
+                          <div class="va-table__row">
+                            <div class="va-dot" aria-hidden="true"></div>
+                            <div>
+                              <div style="font-weight: 700;">Threads: WorkFromHomeHiring | VA Agencies</div>
+                              <div style="color: rgba(0,0,0,0.60); margin-top: 4px;">Hiring VA — Beginner (0–1 year) | Support & Coordination</div>
+                            </div>
+                            <div style="color: rgba(0,0,0,0.55); text-align: right;">Past due</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </section>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
 
@@ -666,6 +1374,9 @@
 
     const y = $("#year");
     if (y) y.textContent = String(new Date().getFullYear());
+
+    // Ensure correct initial state (tax-monitor is default)
+    setTab("tax-monitor");
   </script>
 </body>
 </html>
