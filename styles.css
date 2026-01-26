@@ -1647,8 +1647,10 @@ a { color: inherit; text-decoration: none; }
   display: grid;
   gap: 24px;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  justify-items: center;   /* centers each card */
+  justify-content: center;   /* ← centers rows with fewer items */
+  justify-items: center;
 }
+
 
 @media (max-width: 980px) {
   .outcomes-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
