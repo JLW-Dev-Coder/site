@@ -1,40 +1,44 @@
-<!-- /about.html -->
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>About | Lentax.co</title>
-  <meta name="description" content="Get to know Jamie L. Williams, EA — the systems engineer behind Lentax." />
+  <title>Lentax — Calm, White-Labeled Delivery Systems</title>
+  <meta name="description" content="White-labeled systems for calm, repeatable delivery. Install once. Stack later." />
 
   <script src="https://cdn.tailwindcss.com"></script>
+
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            brand: {
-              500: "#f97316",
-              400: "#fb923c"
-            },
-            ink: {
-              950: "#070a10",
-              900: "#0b1220",
-              850: "#0e172a",
-              800: "#111a2e",
-              700: "#152237"
-            }
+            brand: { 500: "#f97316", 400: "#fb923c" },
+            ink: { 950: "#070a10", 900: "#0b1220", 800: "#111a2e", 700: "#152237" }
           },
           boxShadow: {
-            soft: "0 10px 30px rgba(0,0,0,0.12)"
+            soft: "0 10px 30px rgba(0,0,0,0.12)",
+            topbar: "0 18px 50px rgba(0,0,0,0.18)"
           }
         }
       }
     };
   </script>
 
+  <!-- Your existing preview CSS (tm-admin-*, va-agency-*, va-starter-*, tabs, etc.) -->
+  <link rel="stylesheet" href="./style.css" />
+
   <style>
     html { scroll-behavior: smooth; }
+
+    .container { margin-left: auto; margin-right: auto; max-width: 72rem; padding-left: 1rem; padding-right: 1rem; }
+    .container--wide { max-width: 75rem; }
+
+    .dash-preview-wrap { margin-top: 24px; }
+    .dash-preview-wrap > [data-preview] { width: 100%; }
+
+    .preview--hidden { display: none; }
+
     .lentax-grid {
       background-image:
         linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
@@ -42,236 +46,736 @@
       background-size: 56px 56px;
       mask-image: radial-gradient(circle at 50% 18%, rgba(0,0,0,1), rgba(0,0,0,0) 58%);
     }
-    .lentax-grid-pan { animation: lentaxGridPan 22s linear infinite; will-change: transform; }
-    @keyframes lentaxGridPan { 0% { transform: translate3d(0,0,0); } 100% { transform: translate3d(-56px,-56px,0); } }
+
+    .lentax-grid-pan { animation: gridPan 22s linear infinite; }
+
+    @keyframes gridPan {
+      from { transform: translate3d(0,0,0); }
+      to { transform: translate3d(-56px,-56px,0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .lentax-grid-pan { animation: none; }
+    }
   </style>
 </head>
 
 <body class="bg-ink-950 text-white antialiased">
   <div class="pointer-events-none fixed inset-0 -z-20 lentax-grid lentax-grid-pan opacity-60"></div>
-  <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px] lentax-glow-drift"></div>
-  <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px] lentax-glow-drift"></div>
+  <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px]"></div>
+  <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px]"></div>
 
-  <header class="sticky top-0 z-50 border-b border-white/10 bg-ink-950/80 backdrop-blur">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-      <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
-        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
-        <span class="text-sm font-extrabold tracking-wide">Lentax.co</span>
-      </a>
+  <!-- FLOATING TOP MENU (sticky, with top breathing space like CleanWorks) -->
+  <div class="sticky top-0 z-50 pt-4">
+    <header class="mx-auto max-w-6xl px-4">
+      <div class="rounded-2xl border border-white/10 bg-ink-950/80 shadow-topbar backdrop-blur">
+        <div class="flex items-center justify-between px-4 py-4 md:px-6">
+          <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
+            <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
+            <span class="text-sm font-extrabold tracking-wide">Lentax.co</span>
+          </a>
 
-      <nav class="hidden items-center gap-6 text-sm text-white/80 md:flex">
-        <a class="hover:text-white" href="./about.html">About</a>
-        <a class="hover:text-white" href="./installs.html">Installs</a>
-        <a class="hover:text-white" href="./pricing.html">Pricing</a>
-        <a class="hover:text-white" href="./book.html">Book / Demo</a>
-      </nav>
+          <nav class="hidden items-center gap-6 text-sm text-white/80 md:flex">
+            <a class="hover:text-white" href="./about.html">About</a>
+            <a class="hover:text-white" href="./installs.html">Installs</a>
+            <a class="hover:text-white" href="./pricing.html">Pricing</a>
+            <a class="hover:text-white" href="./book.html">Book / Demo</a>
+          </nav>
 
-      <div class="flex items-center gap-3">
-        <a class="hidden rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:border-white/25 md:inline-flex" href="https://secure.lentax.co/site/login" rel="noopener">
-          Login
-        </a>
-        <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400" href="https://secure.lentax.co/memberSignup" rel="noopener">
-          Get started
-        </a>
+          <div class="flex items-center gap-3">
+            <a class="hidden rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:border-white/25 md:inline-flex"
+               href="https://secure.lentax.co/site/login" rel="noopener">
+              Login
+            </a>
+            <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+               href="https://secure.lentax.co/memberSignup" rel="noopener">
+              Sign Up for a 30-Day Free Trial Today
+            </a>
+          </div>
+        </div>
       </div>
-    </div>
-  </header>
+    </header>
+  </div>
 
-  <main class="mx-auto max-w-6xl px-4 py-12 md:py-16">
-    <!-- HERO TITLE BLOCK -->
-    <section class="text-center">
-      <h1 class="text-4xl font-extrabold tracking-tight md:text-5xl">
-        Get to Know Jamie L. Williams, EA
-      </h1>
-      <p class="mx-auto mt-4 max-w-3xl text-base leading-relaxed text-white/75 md:text-lg">
-        The system engineer behind Lentax — built to give VAs, agency founders, and tax pros a cleaner, faster path to work.
+  <main id="top">
+    <!-- HERO (bigger like CleanWorks) -->
+    <section class="mx-auto max-w-6xl px-4 pb-10 pt-16 md:pb-14 md:pt-24">
+      <p class="mx-auto mb-5 w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
+        Calm, white-labeled delivery systems
       </p>
-    </section>
 
-    <!-- HERO ROW -->
-    <section class="mt-10 flex flex-col gap-10 md:flex-row md:items-start">
-      <div class="flex-1">
-        <div class="border-l-4 border-white/90 pl-5 text-base leading-relaxed text-white/85 md:text-lg">
-          <p>I’m Jamie L. Williams, EA, CB, OTC — a tax pro turned systems builder for virtual assistants, tax professionals, and remote workers.</p>
-          <p class="mt-4">I spent years inside messy back offices, watching smart people lose time and money because their systems could not keep up. I built Lentax.co to solve that problem.</p>
-          <p class="mt-4">Today, I help new and growing VAs, agency founders, and tax pros launch with clear offers, clean client portals, and simple workflows so they can earn without burning out.</p>
-        </div>
-      </div>
+      <h1 class="mx-auto max-w-4xl text-center text-4xl font-extrabold leading-tight md:text-6xl">
+        Install once. Deliver calmly. Stack later.
+      </h1>
 
-      <aside class="w-full md:w-[320px] text-center">
-        <img class="mx-auto block w-full rounded-xl"
-             src="https://20896460.fs1.hubspotusercontent-na1.net/hubfs/20896460/Development%20Materials/Miscellaneous/Pic_JLW_Left-removebg-preview.png"
-             alt="Jamie L. Williams" />
-        <p class="mt-3 text-sm text-white/75">Jamie L. Williams, EA, CB, OTC</p>
+      <p class="mx-auto mt-6 max-w-3xl text-center text-base text-white/75 md:text-lg">
+        Lentax installs clean portals, workflows, and dashboards so delivery stays predictable — without scope creep.
+      </p>
 
-        <div class="mt-3 flex items-center justify-center gap-4">
-          <a class="inline-flex h-7 w-7 text-white/90 hover:text-white" href="https://www.facebook.com/taxdebtfreedom/" target="_blank" rel="noopener" aria-label="Facebook">
-            <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M22 12a10 10 0 1 0-11.5 9.9v-7h-2v-3h2v-2.3c0-2 1.2-3.1 3-3.1.9 0 1.8.1 1.8.1v2h-1c-1 0-1.3.6-1.3 1.2V12h2.3l-.4 3h-1.9v7A10 10 0 0 0 22 12"/></svg>
-          </a>
-          <a class="inline-flex h-7 w-7 text-white/90 hover:text-white" href="https://www.instagram.com/lentax.co/" target="_blank" rel="noopener" aria-label="Instagram">
-            <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M7 2C4.2 2 2 4.2 2 7v10c0 2.8 2.2 5 5 5h10c2.8 0 5-2.2 5-5V7c0-2.8-2.2-5-5-5H7zm10 2a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h10zm-5 3.3A4.7 4.7 0 1 0 16.7 12 4.7 4.7 0 0 0 12 7.3zm0 7.7A3 3 0 1 1 15 12a3 3 0 0 1-3 3zm4.8-8.9a1.1 1.1 0 1 1-1.1-1.1 1.1 1.1 0 0 1 1.1 1.1z"/></svg>
-          </a>
-          <a class="inline-flex h-7 w-7 text-white/90 hover:text-white" href="https://www.linkedin.com/in/lenoreinc/" target="_blank" rel="noopener" aria-label="LinkedIn">
-            <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M4.98 3.5C4.98 4.88 3.88 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.4 8h4.1v14H.4V8zm7.2 0h3.9v1.9h.1c.5-.9 1.8-1.9 3.7-1.9 3.9 0 4.6 2.6 4.6 6V22H15V14.1c0-1.9 0-4.3-2.6-4.3-2.6 0-3 2-3 4.1V22H7.6V8z"/></svg>
-          </a>
-          <a class="inline-flex h-7 w-7 text-white/90 hover:text-white" href="https://www.threads.com/@lentax.co" target="_blank" rel="noopener" aria-label="Threads">
-            <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm4.3 13.9c-.8 1.2-2.2 2.1-4.3 2.1-2.7 0-4.9-1.6-4.9-4.6 0-2.7 1.9-4.6 4.5-4.6 2.4 0 4.1 1.3 4.4 3.5h-2c-.2-1-.9-1.7-2.4-1.7-1.5 0-2.5 1-2.5 2.7 0 1.8 1 2.7 2.6 2.7 1.3 0 2.1-.5 2.4-1.4H12v-1.7h4.6c.1.5.1 1 .1 1.5 0 .8-.1 1.5-.4 2.1z"/></svg>
-          </a>
-        </div>
-      </aside>
-    </section>
-
-    <!-- SECTION: About Jamie -->
-    <section class="mt-14">
-      <div class="text-center">
-        <h2 class="text-2xl font-extrabold">About Jamie</h2>
-        <div class="mx-auto mt-4 h-[2px] w-[90px] bg-gradient-to-r from-ink-900 to-[#c89b3c]"></div>
-      </div>
-
-      <div class="mx-auto mt-8 max-w-3xl space-y-4 text-base leading-relaxed text-white/80 md:text-lg">
-        <p>I started where many people start — managing the work, managing clients, and juggling systems that were never built for growth.</p>
-        <p>Lentax.co is the system I wish existed years ago. A clean, launch-ready platform for VAs, tax pros, and remote workers who want to begin professionally instead of piecing things together.</p>
+      <div class="mt-10 flex justify-center">
+        <a class="rounded-xl bg-brand-500 px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+           href="https://secure.lentax.co/memberSignup" rel="noopener">
+          Sign Up for a 30-Day Free Trial Today
+        </a>
       </div>
     </section>
 
-    <!-- SECTION: How I Work With You -->
-    <section class="mt-14">
-      <div class="text-center">
-        <h2 class="text-2xl font-extrabold">How I Work With You</h2>
-        <div class="mx-auto mt-4 h-[2px] w-[90px] bg-gradient-to-r from-ink-900 to-[#c89b3c]"></div>
-      </div>
-
-      <div class="mx-auto mt-8 max-w-3xl text-base leading-relaxed text-white/80 md:text-lg">
-        <p>I work best with people who are ready to treat their skills like a real business. I support:</p>
-
-        <div class="mt-6 space-y-5">
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div>New and aspiring VA agency owners seeking done-for-you structure.</div>
+    <!-- DASHBOARD PREVIEW (replaces the old static preview block) -->
+    <section class="border-t border-white/10" id="dashboard-preview">
+      <div class="container container--wide">
+        <div class="section__head section__head--tabs">
+          <div class="section__head-copy">
+            <h2 class="section__title reveal">Setup Dashboard Preview</h2>
+            <p class="section__subtitle reveal">Preview the Super Admin, Freelancer, and client-facing experience.</p>
           </div>
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div>Remote workers who want a professional foundation for their services.</div>
-          </div>
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div>Tax professionals wanting clean workflows, portals, and automation.</div>
+
+          <div class="tabs-inline reveal" role="tablist" aria-label="Dashboard preview tabs">
+            <button aria-selected="true" class="tab tab--active" data-tab="tax-monitor" type="button">Tax Monitor Setup</button>
+            <button aria-selected="false" class="tab" data-tab="va-agency" type="button">Virtual Assistant Agency Setup</button>
+            <button aria-selected="false" class="tab" data-tab="va-setup" type="button">Virtual Assistant Setup</button>
           </div>
         </div>
-      </div>
-    </section>
 
-    <!-- SECTION: Results You Can Expect -->
-    <section class="mt-14">
-      <div class="text-center">
-        <h2 class="text-2xl font-extrabold">Results You Can Expect</h2>
-        <div class="mx-auto mt-4 h-[2px] w-[90px] bg-gradient-to-r from-ink-900 to-[#c89b3c]"></div>
-      </div>
+        <div class="dash-preview-wrap">
+          <!-- =========================
+               TAX MONITOR (existing) — wrapped for tab switching
+               ========================= -->
+          <div data-preview="tax-monitor">
+            <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
+              <div class="tm-admin-shell">
 
-      <div class="mx-auto mt-8 max-w-3xl text-base leading-relaxed text-white/80 md:text-lg">
-        <p>When we work together, you can expect:</p>
+                <!-- LEFT SIDEBAR -->
+                <aside class="tm-admin-sidebar" aria-label="Sidebar">
+                  <div class="tm-admin-brand">
+                    <div class="tm-admin-brand__logo" aria-hidden="true">
+                      <div class="tm-admin-brand__ring"></div>
+                    </div>
+                    <div class="tm-admin-brand__text">
+                      <div class="tm-admin-brand__title">Tax Monitor</div>
+                      <div class="tm-admin-brand__sub">.pro</div>
+                    </div>
+                  </div>
 
-        <div class="mt-6 space-y-5">
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div><strong class="text-white">Clarity</strong> — A clean path from lead → client → delivery.</div>
+                  <div class="tm-admin-profile">
+                    <div class="tm-admin-profile__avatar" aria-hidden="true"></div>
+                    <div class="tm-admin-profile__meta">
+                      <div class="tm-admin-profile__name">JAMIE WILLIAMS</div>
+                      <a class="tm-admin-profile__link" href="#" aria-label="Edit Profile">Edit Profile</a>
+                    </div>
+                  </div>
+
+                  <nav class="tm-admin-nav" aria-label="Primary navigation">
+                    <a class="tm-admin-nav__item tm-admin-nav__item--active" href="#start-here">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Start Here</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#automations">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Automations</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#calendar">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Calendar</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#communities">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Communities</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#content">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Content</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#crm">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">CRM</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#files">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Files</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#forms">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Forms</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#lms">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">LMS</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#marketing">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Marketing</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#messaging">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Messaging</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#my-pages">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">My Pages</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#office">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Office</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#onboarding">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Onboarding</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#projects">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Projects</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#support">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Support</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#settings">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Settings</span>
+                    </a>
+                  </nav>
+
+                  <div class="tm-admin-ask">
+                    <a class="tm-admin-ask__btn" href="#ask">Ask!</a>
+                  </div>
+                </aside>
+
+                <!-- MAIN -->
+                <div class="tm-admin-main">
+
+                  <!-- TOP BAR -->
+                  <div class="tm-admin-topbar" aria-label="Top bar">
+                    <div class="tm-admin-topbar__left">
+                      <button class="tm-admin-topbar__iconbtn" type="button" aria-label="Collapse sidebar">≪</button>
+
+                      <!-- Client Experience button (requested) -->
+                      <button class="tm-admin-topbar__clientbtn" type="button" aria-label="Client experience">
+                        <span aria-hidden="true" class="tm-admin-topbar__clientdot"></span>
+                        <span>Client Experience</span>
+                      </button>
+
+                      <button class="tm-admin-topbar__iconbtn tm-admin-topbar__iconbtn--plus" type="button" aria-label="Create">+</button>
+                    </div>
+
+                    <div class="tm-admin-topbar__right">
+                      <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                      <div class="tm-admin-topbar__user" aria-label="User menu">
+                        <div class="tm-admin-topbar__userpic" aria-hidden="true"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CONTENT -->
+                  <section class="tm-admin-content" aria-label="Dashboard content">
+                    <h2 class="tm-admin-title">Good Afternoon, Jamie</h2>
+                    <p class="tm-admin-subtitle">
+                      This dashboard provides a real-time view of pipeline activity, client volume, team capacity, and financial performance.
+                      Use it to spot trends, identify risk, and prioritize what requires attention next.
+                    </p>
+
+                    <div class="tm-admin-grid">
+                      <div class="tm-admin-card tm-admin-card--wide">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Open Estimates</div>
+                          <div class="tm-admin-card__miniicon" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                        <div class="tm-admin-card__bar">
+                          <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot">
+                          <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card tm-admin-card--wide">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Open Proposals</div>
+                          <div class="tm-admin-card__miniicon" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                        <div class="tm-admin-card__bar">
+                          <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot">
+                          <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Clients <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__metric">
+                          <span class="tm-admin-card__metricnum">2</span>
+                          <span class="tm-admin-card__good">↗ 100.0% (All time)</span>
+                        </div>
+                        <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                          <span class="tm-admin-card__barfill" style="width: 8%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                          <span class="tm-admin-card__small">8%</span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Prospects <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__metric">
+                          <span class="tm-admin-card__metricnum">2</span>
+                          <span class="tm-admin-card__good">↗ 100.0% (All time)</span>
+                        </div>
+                        <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                          <span class="tm-admin-card__barfill" style="width: 8%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                          <span class="tm-admin-card__small">8%</span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Leads <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__metric">
+                          <span class="tm-admin-card__metricnum">0</span>
+                          <span class="tm-admin-card__delta">• 0.0% (All time)</span>
+                        </div>
+                        <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                          <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                          <span class="tm-admin-card__small">0%</span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Circle(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--tag" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__metric">
+                          <span class="tm-admin-card__metricnum">0</span>
+                          <span class="tm-admin-card__delta">• 0.0% (All time)</span>
+                        </div>
+                        <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                          <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                          <span class="tm-admin-card__small">0%</span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card tm-admin-card--wide">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Total Revenue</div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--gold" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                        <div class="tm-admin-card__bar">
+                          <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot">
+                          <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card tm-admin-card--wide">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Unpaid Invoices</div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--gold" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                        <div class="tm-admin-card__bar">
+                          <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot">
+                          <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card tm-admin-card--full">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Team(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--purple" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__metric">
+                          <span class="tm-admin-card__metricnum">0</span>
+                          <span class="tm-admin-card__delta">• 0.0% (30d)</span>
+                        </div>
+                        <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                          <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                          <span class="tm-admin-card__small">0%</span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+
+              </div>
+            </div>
           </div>
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div><strong class="text-white">Clean Systems</strong> — Intake, communication, tasks, and billing in one place.</div>
+
+          <!-- =========================
+               VA AGENCY — PROJECT DASHBOARD PREVIEW (STATIC MOCK)
+               ========================= -->
+          <div class="preview--hidden" data-preview="va-agency">
+            <div class="va-agency-preview" role="region" aria-label="Virtual Assistant Agency project dashboard preview">
+              <div class="va-agency-shell">
+                <!-- (UNCHANGED) Your VA Agency markup continues exactly as you provided -->
+                <!-- ... KEEP THE REST OF YOUR va-agency block HERE ... -->
+              </div>
+            </div>
           </div>
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div><strong class="text-white">Confidence</strong> — Clients see you as a professional from day one.</div>
+
+          <!-- =========================
+               VA STARTER TRACK (added) — matches screenshot layout
+               ========================= -->
+          <div class="preview--hidden" data-preview="va-setup">
+            <div class="va-starter-preview" role="region" aria-label="Virtual Assistant Starter Track dashboard preview">
+              <div class="va-starter-shell">
+                <!-- (UNCHANGED) Your VA Starter markup continues exactly as you provided -->
+                <!-- ... KEEP THE REST OF YOUR va-setup block HERE ... -->
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- FEATURED QUOTE -->
-    <section class="mt-14">
-      <div class="mx-auto max-w-3xl rounded-xl border-l-4 border-[#ffd700] bg-white/5 px-6 py-6 text-base italic leading-relaxed text-white/85 md:text-lg">
-        <div class="relative">
-          <span class="absolute -left-3 -top-3 text-4xl font-extrabold text-[#ffd700]">“</span>
-          <p class="pl-3">
-            You bring your goals. I bring the map, the system, and the workflow that keeps the business moving. We'll build cleaner systems so you have room to scale.<br>— JLW
+    <!-- WHY IT WORKS (header + 5 cards like CleanWorks pattern) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">WHY LENTAX WORKS</p>
+          <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">Predictable delivery by design</h2>
+          <p class="mx-auto mt-4 max-w-2xl text-sm text-white/70 md:text-base">
+            Calm systems reduce client confusion, protect scope, and keep your team moving.
           </p>
-          <span class="absolute -right-1 -bottom-5 text-4xl font-extrabold text-[#ffd700]">”</span>
+        </div>
+
+        <div class="mt-10 grid gap-4 md:grid-cols-5">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <div class="text-sm font-extrabold">Clear steps</div>
+            <p class="mt-2 text-sm text-white/70">Clients see what happens next.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <div class="text-sm font-extrabold">Controlled scope</div>
+            <p class="mt-2 text-sm text-white/70">Deliverables keep work bounded.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <div class="text-sm font-extrabold">Fewer pings</div>
+            <p class="mt-2 text-sm text-white/70">Automations handle updates.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <div class="text-sm font-extrabold">Faster onboarding</div>
+            <p class="mt-2 text-sm text-white/70">Forms, portals, payments ready.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <div class="text-sm font-extrabold">White-labeled</div>
+            <p class="mt-2 text-sm text-white/70">Your brand, not a tool stack.</p>
+          </div>
+        </div>
+
+        <div class="mt-10 flex justify-center">
+          <a class="rounded-xl bg-brand-500 px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+             href="https://secure.lentax.co/memberSignup" rel="noopener">
+            Sign Up for a 30-Day Free Trial Today
+          </a>
         </div>
       </div>
     </section>
 
-    <!-- CTA GRID -->
-    <section class="mt-14">
-      <div class="text-center">
-        <h2 class="text-2xl font-extrabold">Choose Your Next Step</h2>
-        <div class="mx-auto mt-4 h-[2px] w-[90px] bg-gradient-to-r from-ink-900 to-[#c89b3c]"></div>
-        <p class="mx-auto mt-6 max-w-2xl text-base text-white/75 md:text-lg">
-          Select the option that matches where you are right now.
-        </p>
+    <!-- BENEFITS (large, 4 cards) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">BENEFITS</p>
+          <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">What you get</h2>
+          <p class="mx-auto mt-4 max-w-2xl text-sm text-white/70 md:text-base">
+            Big-system polish without big-system chaos.
+          </p>
+        </div>
+
+        <div class="mt-10 grid gap-4 md:grid-cols-4">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">🧭</div>
+            <div class="mt-3 text-lg font-extrabold">Clean portal</div>
+            <p class="mt-2 text-sm text-white/70">One place for intake, messages, files, and payments.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">🧾</div>
+            <div class="mt-3 text-lg font-extrabold">Deliverables</div>
+            <p class="mt-2 text-sm text-white/70">Clients buy a defined outcome, not endless back-and-forth.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">⚙️</div>
+            <div class="mt-3 text-lg font-extrabold">Automations</div>
+            <p class="mt-2 text-sm text-white/70">Triggers, reminders, and follow-ups that reduce manual work.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">🧠</div>
+            <div class="mt-3 text-lg font-extrabold">Repeatable ops</div>
+            <p class="mt-2 text-sm text-white/70">Templates and workflows your team can run consistently.</p>
+          </div>
+        </div>
       </div>
+    </section>
 
-      <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <a href="https://secure.lentax.co/va-setup-discovery"
-           class="group rounded-xl border border-white/10 bg-white/5 p-5 text-center hover:border-white/20"
-           rel="noopener">
-          <div class="text-lg font-extrabold text-transparent bg-gradient-to-b from-white to-white/70 bg-clip-text">
-            Book a Strategy Call
-          </div>
-          <div class="mt-2 text-sm text-transparent bg-gradient-to-b from-white/90 to-white/60 bg-clip-text">
-            Clarify your goals and map the right setup.
-          </div>
-        </a>
+    <!-- WHO IT’S FOR -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">WHO IT’S FOR</p>
+          <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">Built for service businesses that want calm</h2>
+          <p class="mx-auto mt-4 max-w-2xl text-sm text-white/70 md:text-base">
+            If you deliver client work and want less chaos, Lentax fits.
+          </p>
+        </div>
 
-        <a href="./installs.html"
-           class="group rounded-xl border border-white/10 bg-white/5 p-5 text-center hover:border-white/20">
-          <div class="text-lg font-extrabold text-transparent bg-gradient-to-b from-white to-white/70 bg-clip-text">
-            Explore Installs
+        <div class="mt-10 grid gap-4 md:grid-cols-3">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">👤</div>
+            <div class="mt-3 text-lg font-extrabold">Solo operators</div>
+            <p class="mt-2 text-sm text-white/70">Look professional without building a tech stack.</p>
           </div>
-          <div class="mt-2 text-sm text-transparent bg-gradient-to-b from-white/90 to-white/60 bg-clip-text">
-            Review the install types and outcomes.
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">👥</div>
+            <div class="mt-3 text-lg font-extrabold">Small teams</div>
+            <p class="mt-2 text-sm text-white/70">Stay organized and deliver consistently.</p>
           </div>
-        </a>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">📈</div>
+            <div class="mt-3 text-lg font-extrabold">Growing firms</div>
+            <p class="mt-2 text-sm text-white/70">Scale without adding manual work and confusion.</p>
+          </div>
+        </div>
 
-        <a href="https://secure.lentax.co/i/EA-tax-monitor-setup-template"
-           class="group rounded-xl border border-white/10 bg-white/5 p-5 text-center hover:border-white/20"
-           rel="noopener">
-          <div class="text-lg font-extrabold text-transparent bg-gradient-to-b from-white to-white/70 bg-clip-text">
-            Start the VA Starter Track
-          </div>
-          <div class="mt-2 text-sm text-transparent bg-gradient-to-b from-white/90 to-white/60 bg-clip-text">
-            Get structured onboarding for VAs and remote workers.
-          </div>
-        </a>
+        <div class="mt-10 flex justify-center">
+          <a class="rounded-xl bg-brand-500 px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+             href="https://secure.lentax.co/memberSignup" rel="noopener">
+            Sign Up for a 30-Day Free Trial Today
+          </a>
+        </div>
+      </div>
+    </section>
 
-        <a href="https://secure.lentax.co/i/lentax-blog-port"
-           class="group rounded-xl border border-white/10 bg-white/5 p-5 text-center hover:border-white/20"
-           rel="noopener">
-          <div class="text-lg font-extrabold text-transparent bg-gradient-to-b from-white to-white/70 bg-clip-text">
-            Visit the Blog Port
+    <!-- ARTIFACTS / RESULTS -->
+    <section id="artifacts" class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="grid gap-6 lg:grid-cols-12">
+          <div class="lg:col-span-5">
+            <div class="lg:sticky lg:top-28">
+              <div class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-500/30 to-emerald-300/10 p-8 shadow-soft">
+                <p class="text-xs font-semibold tracking-widest text-white/85">ARTIFACTS</p>
+                <h2 class="mt-3 text-3xl font-extrabold">See the results for yourself</h2>
+                <p class="mt-4 text-sm text-white/75">
+                  Real deliverables, real clarity. This is where “nice site” becomes “calm delivery engine.”
+                </p>
+                <div class="mt-6">
+                  <a class="inline-flex rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-ink-900 hover:bg-white/90"
+                     href="./installs.html">
+                    View installs
+                  </a>
+                </div>
+              </div>
+            </div>
           </div>
-          <div class="mt-2 text-sm text-transparent bg-gradient-to-b from-white/90 to-white/60 bg-clip-text">
-            Read the Tide Report and system breakdowns.
+
+          <div class="lg:col-span-7">
+            <div class="grid gap-4 md:grid-cols-2">
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Clients stop asking what’s next.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  A visible workflow + automated updates makes delivery feel guided.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Operator</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“We finally protect scope.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  Deliverables and triggers reduce “just one more thing” requests.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Agency</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Onboarding feels instant.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  Intake, payment, and kickoff are connected — fewer handoffs.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Service firm</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Delivery is calm now.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  A single system replaces five tools and a pile of tabs.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Founder</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“We can stack later, safely.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  Install one scope. Add modules only when the team is ready.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Team lead</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“White-label wins trust.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  Clients see your brand and your process, not your tech stack.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Operator</p>
+              </article>
+            </div>
           </div>
-        </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <h2 class="text-3xl font-extrabold md:text-4xl">Frequently asked questions</h2>
+        </div>
+
+        <div class="mx-auto mt-10 max-w-3xl space-y-4">
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              Is it hard to set up?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              No. Each install is scoped and configured cleanly. You get a structured handoff so you can operate immediately.
+            </p>
+          </details>
+
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              Can I cancel anytime?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              Yes. If you’re on a plan, you can cancel. If you purchased an install, you keep what was delivered.
+            </p>
+          </details>
+
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              What makes Lentax different?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              Lentax is built around deliverables, workflow visibility, and scope protection — not “more tools.”
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-500/30 via-white/5 to-emerald-300/10 p-10 text-center shadow-soft md:p-14">
+          <h2 class="mx-auto max-w-4xl text-3xl font-extrabold md:text-5xl">
+            Start calm delivery today.
+          </h2>
+          <p class="mx-auto mt-5 max-w-2xl text-sm text-white/75 md:text-base">
+            Sign up and pick the first install you want live. Everything else stacks later.
+          </p>
+          <div class="mt-9 flex justify-center">
+            <a class="rounded-xl bg-white px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-white/90"
+               href="https://secure.lentax.co/memberSignup" rel="noopener">
+              Sign Up for a 30-Day Free Trial Today
+            </a>
+          </div>
+        </div>
       </div>
     </section>
   </main>
 
+  <!-- MENU -->
+  <section class="border-t border-white/10">
+    <div class="mx-auto max-w-6xl px-4 py-12">
+      <div class="flex flex-col items-center gap-4">
+        <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
+          <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
+          <span class="text-base font-extrabold tracking-wide">Lentax.co</span>
+        </a>
+
+        <nav class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/80">
+          <a class="hover:text-white" href="./about.html">About</a>
+          <a class="hover:text-white" href="./installs.html">Installs</a>
+          <a class="hover:text-white" href="./pricing.html">Pricing</a>
+          <a class="hover:text-white" href="./book.html">Book / Demo</a>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
   <footer class="border-t border-white/10">
-    <div class="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-10 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
-      <div>© <span id="year"></span> Lentax.co</div>
-      <div class="flex gap-4">
-        <a class="hover:text-white" href="./about.html">About</a>
-        <a class="hover:text-white" href="./book.html">Book / Demo</a>
-        <a class="hover:text-white" href="./installs.html">Installs</a>
-        <a class="hover:text-white" href="./pricing.html">Pricing</a>
+    <div class="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
+      <div>
+        © <span id="year"></span> Lentax.co. All rights reserved.
+      </div>
+      <div class="flex gap-6">
+        <a class="hover:text-white" href="./privacy.html">Privacy Policy</a>
+        <a class="hover:text-white" href="./terms.html">Terms of Service</a>
       </div>
     </div>
   </footer>
 
   <script>
     document.getElementById("year").textContent = new Date().getFullYear();
+
+    (function () {
+      const panels = Array.from(document.querySelectorAll("[data-preview]"));
+      const tabs = Array.from(document.querySelectorAll("[data-tab]"));
+
+      if (!panels.length || !tabs.length) return;
+
+      function setActive(key) {
+        tabs.forEach((t) => {
+          const isActive = t.getAttribute("data-tab") === key;
+          t.classList.toggle("tab--active", isActive);
+          t.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+
+        panels.forEach((p) => {
+          const isActive = p.getAttribute("data-preview") === key;
+          p.classList.toggle("preview--hidden", !isActive);
+        });
+      }
+
+      tabs.forEach((t) => t.addEventListener("click", () => setActive(t.getAttribute("data-tab"))));
+
+      const defaultKey = (document.querySelector(".tab--active") || tabs[0]).getAttribute("data-tab");
+      setActive(defaultKey);
+    })();
   </script>
 </body>
 </html>
