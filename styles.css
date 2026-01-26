@@ -1531,6 +1531,8 @@ a { color: inherit; text-decoration: none; }
   align-items: center;
   display: flex;
   flex-direction: column;
+  gap: 10px;               /* added vertical breathing room */
+  line-height: 1.45;       /* added overall line-height */
   max-width: 320px;        /* keeps cards from stretching */
   text-align: center;      /* centers card content */
 }
@@ -1611,12 +1613,11 @@ a { color: inherit; text-decoration: none; }
   );
 }
 
-
 .outcome-kicker {
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.01em;
-  line-height: 1.1;
+  line-height: 1.35;       /* increased to avoid crowding */
   margin-top: 6px;
   position: relative;
 }
@@ -1637,8 +1638,8 @@ a { color: inherit; text-decoration: none; }
 .outcome-text {
   color: rgba(255,255,255,0.78);
   font-size: 18px;
-  line-height: 1.55;
-  margin: 0;
+  line-height: 1.7;        /* increased line-height */
+  margin: 6px 0 0 0;       /* added top spacing */
   max-width: 280px;
 }
 
@@ -1657,6 +1658,7 @@ a { color: inherit; text-decoration: none; }
   .outcomes-grid { grid-template-columns: 1fr; }
   .outcome-text { max-width: 420px; }
 }
+
 
 /* va-agency */
 .va-agency-brand{align-items:center;display:flex;gap:10px;padding:14px 14px 10px;}
