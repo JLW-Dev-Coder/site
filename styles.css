@@ -679,6 +679,32 @@ a { color: inherit; text-decoration: none; }
 .cta__subtitle { color: var(--muted); line-height: 1.7; margin: 8px 0 0; }
 .cta__title { font-size: 26px; letter-spacing: -0.03em; margin: 0; }
 
+/* START section alignment fix */
+#start .cta {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 1fr 1fr;
+  padding: 0;
+}
+
+#start .cta__copy,
+#start .cta__form {
+  padding: 18px;
+}
+
+#start .cta__form {
+  padding-top: 18px;
+}
+
+@media (max-width: 720px) {
+  #start .cta {
+    grid-template-columns: 1fr;
+  }
+}
+
 .field { display: grid; gap: 8px; margin-top: 10px; }
 .field__input {
   background: rgba(0, 0, 0, 0.22);
