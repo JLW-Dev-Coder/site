@@ -6,28 +6,19 @@
   <title>Lentax — Calm, White-Labeled Delivery Systems</title>
   <meta name="description" content="White-labeled systems for calm, repeatable delivery. Install once. Stack later." />
 
-  <!-- Tailwind CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Tailwind config -->
   <script>
     tailwind.config = {
       theme: {
         extend: {
           colors: {
-            brand: {
-              500: "#f97316",
-              400: "#fb923c"
-            },
-            ink: {
-              950: "#070a10",
-              900: "#0b1220",
-              800: "#111a2e",
-              700: "#152237"
-            }
+            brand: { 500: "#f97316", 400: "#fb923c" },
+            ink: { 950: "#070a10", 900: "#0b1220", 800: "#111a2e", 700: "#152237" }
           },
           boxShadow: {
-            soft: "0 10px 30px rgba(0,0,0,0.12)"
+            soft: "0 10px 30px rgba(0,0,0,0.12)",
+            topbar: "0 18px 50px rgba(0,0,0,0.18)"
           }
         }
       }
@@ -45,361 +36,402 @@
       mask-image: radial-gradient(circle at 50% 18%, rgba(0,0,0,1), rgba(0,0,0,0) 58%);
     }
 
-    .lentax-grid-pan {
-      animation: gridPan 22s linear infinite;
-    }
+    .lentax-grid-pan { animation: gridPan 22s linear infinite; }
 
     @keyframes gridPan {
       from { transform: translate3d(0,0,0); }
       to { transform: translate3d(-56px,-56px,0); }
     }
 
-    .lentax-glow-drift {
-      animation: glowDrift 14s ease-in-out infinite;
-      will-change: transform;
-    }
-
-    @keyframes glowDrift {
-      0% { transform: translate3d(0,0,0); }
-      33% { transform: translate3d(16px,-10px,0); }
-      66% { transform: translate3d(-12px,14px,0); }
-      100% { transform: translate3d(0,0,0); }
+    @media (prefers-reduced-motion: reduce) {
+      .lentax-grid-pan { animation: none; }
     }
   </style>
 </head>
 
 <body class="bg-ink-950 text-white antialiased">
   <div class="pointer-events-none fixed inset-0 -z-20 lentax-grid lentax-grid-pan opacity-60"></div>
-  <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px] lentax-glow-drift"></div>
-  <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px] lentax-glow-drift"></div>
+  <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px]"></div>
+  <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px]"></div>
 
-  <header class="sticky top-0 z-50 border-b border-white/10 bg-ink-950/80 backdrop-blur">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-      <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
-        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
-        <span class="text-sm font-extrabold tracking-wide">Lentax.co</span>
-      </a>
+  <!-- FLOATING TOP MENU (sticky, with top breathing space like CleanWorks) -->
+  <div class="sticky top-0 z-50 pt-4">
+    <header class="mx-auto max-w-6xl px-4">
+      <div class="rounded-2xl border border-white/10 bg-ink-950/80 shadow-topbar backdrop-blur">
+        <div class="flex items-center justify-between px-4 py-4 md:px-6">
+          <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
+            <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
+            <span class="text-sm font-extrabold tracking-wide">Lentax.co</span>
+          </a>
 
-      <nav class="hidden items-center gap-6 text-sm text-white/80 md:flex">
-        <a class="hover:text-white" href="./about.html">About</a>
-        <a class="hover:text-white" href="./installs.html">Installs</a>
-        <a class="hover:text-white" href="./pricing.html">Pricing</a>
-        <a class="hover:text-white" href="./book.html">Book / Demo</a>
-      </nav>
+          <nav class="hidden items-center gap-6 text-sm text-white/80 md:flex">
+            <a class="hover:text-white" href="./about.html">About</a>
+            <a class="hover:text-white" href="./installs.html">Installs</a>
+            <a class="hover:text-white" href="./pricing.html">Pricing</a>
+            <a class="hover:text-white" href="./book.html">Book / Demo</a>
+          </nav>
 
-      <div class="flex items-center gap-3">
-        <a class="hidden rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:border-white/25 md:inline-flex" href="https://secure.lentax.co/site/login" rel="noopener">
-          Login
-        </a>
-        <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400" href="https://secure.lentax.co/memberSignup" rel="noopener">
-          Get started
-        </a>
+          <div class="flex items-center gap-3">
+            <a class="hidden rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:border-white/25 md:inline-flex"
+               href="https://secure.lentax.co/site/login" rel="noopener">
+              Login
+            </a>
+            <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+               href="https://secure.lentax.co/memberSignup" rel="noopener">
+              Sign Up for a 30-Day Free Trial Today
+            </a>
+          </div>
+        </div>
       </div>
-    </div>
-  </header>
+    </header>
+  </div>
 
   <main id="top">
-    <!-- HERO -->
-    <section class="mx-auto max-w-6xl px-4 py-16 md:py-24">
-      <p class="mb-4 inline-flex rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80">
-        White-labeled delivery systems
+    <!-- HERO (bigger like CleanWorks) -->
+    <section class="mx-auto max-w-6xl px-4 pb-10 pt-16 md:pb-14 md:pt-24">
+      <p class="mx-auto mb-5 w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
+        Calm, white-labeled delivery systems
       </p>
-      <h1 class="max-w-3xl text-4xl font-extrabold leading-tight md:text-5xl">
-        Calm, repeatable delivery — installed once, stacked later.
+
+      <h1 class="mx-auto max-w-4xl text-center text-4xl font-extrabold leading-tight md:text-6xl">
+        Install once. Deliver calmly. Stack later.
       </h1>
-      <p class="mt-5 max-w-2xl text-white/75">
+
+      <p class="mx-auto mt-6 max-w-3xl text-center text-base text-white/75 md:text-lg">
         Lentax installs clean portals, workflows, and dashboards so delivery stays predictable — without scope creep.
       </p>
 
-      <div class="mt-8 flex flex-col gap-3 sm:flex-row">
-        <a href="#start" class="rounded-xl bg-brand-500 px-6 py-3 text-sm font-extrabold text-ink-900 hover:bg-brand-400">
-          Start with one install
-        </a>
-        <a href="#what-you-get" class="rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold hover:border-white/25">
-          See what you get →
+      <div class="mt-10 flex justify-center">
+        <a class="rounded-xl bg-brand-500 px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+           href="https://secure.lentax.co/memberSignup" rel="noopener">
+          Sign Up for a 30-Day Free Trial Today
         </a>
       </div>
     </section>
 
-    <!-- HOW IT WORKS -->
-    <section id="how-it-works" class="border-t border-white/10">
-      <div class="mx-auto max-w-6xl px-4 py-14">
-        <h2 class="text-2xl font-bold">How it works</h2>
-        <div class="mt-8 grid gap-4 md:grid-cols-3">
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div class="font-semibold">Install</div>
-            <p class="mt-2 text-sm text-white/70">One scoped system, configured cleanly.</p>
-          </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div class="font-semibold">Deliver</div>
-            <p class="mt-2 text-sm text-white/70">Clients see exactly what happens next.</p>
-          </div>
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-5">
-            <div class="font-semibold">Stack later</div>
-            <p class="mt-2 text-sm text-white/70">Expand only when ready.</p>
+    <!-- DASHBOARD PREVIEW (full width under hero, like CleanWorks) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-10 md:py-14">
+        <div class="overflow-hidden rounded-2xl border border-white/10 bg-white/5 shadow-soft">
+          <div class="grid gap-0 md:grid-cols-12">
+            <div class="border-b border-white/10 bg-ink-900/40 p-5 md:col-span-3 md:border-b-0 md:border-r">
+              <div class="text-xs text-white/60">Overview</div>
+              <div class="mt-3 space-y-2 text-sm">
+                <div class="flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2">
+                  <span class="h-2 w-2 rounded-full bg-emerald-300"></span>
+                  <span class="font-semibold">Dashboard</span>
+                </div>
+                <div class="rounded-xl px-3 py-2 text-white/70">Clients</div>
+                <div class="rounded-xl px-3 py-2 text-white/70">Deliverables</div>
+                <div class="rounded-xl px-3 py-2 text-white/70">Workflows</div>
+                <div class="rounded-xl px-3 py-2 text-white/70">Revenue</div>
+              </div>
+            </div>
+
+            <div class="p-5 md:col-span-9 md:p-7">
+              <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <div class="text-xs text-white/60">Preview</div>
+                  <div class="mt-1 text-lg font-extrabold">Operator dashboard</div>
+                  <p class="mt-2 max-w-2xl text-sm text-white/70">
+                    This is a static preview block. Your live installs can embed real screenshots, portal tours, or module walk-throughs.
+                  </p>
+                </div>
+
+                <div class="flex gap-2 text-xs">
+                  <span class="rounded-full bg-white/10 px-3 py-2">Tax Monitor</span>
+                  <span class="rounded-full border border-white/15 px-3 py-2 text-white/60">VA Agency</span>
+                  <span class="rounded-full border border-white/15 px-3 py-2 text-white/60">VA Starter</span>
+                </div>
+              </div>
+
+              <div class="mt-6 grid gap-4 md:grid-cols-3">
+                <div class="rounded-2xl border border-white/10 bg-ink-900/30 p-5">
+                  <div class="text-xs text-white/60">Pipeline</div>
+                  <div class="mt-2 text-2xl font-extrabold">18</div>
+                  <div class="mt-2 text-sm text-white/70">Active clients</div>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-ink-900/30 p-5">
+                  <div class="text-xs text-white/60">Delivery</div>
+                  <div class="mt-2 text-2xl font-extrabold">92%</div>
+                  <div class="mt-2 text-sm text-white/70">On-time tasks</div>
+                </div>
+                <div class="rounded-2xl border border-white/10 bg-ink-900/30 p-5">
+                  <div class="text-xs text-white/60">Follow-ups</div>
+                  <div class="mt-2 text-2xl font-extrabold">Auto</div>
+                  <div class="mt-2 text-sm text-white/70">No chasing</div>
+                </div>
+              </div>
+
+              <div class="mt-5 rounded-2xl border border-white/10 bg-white/5 p-5">
+                <div class="flex items-center justify-between">
+                  <div class="text-sm font-semibold">Delivery timeline</div>
+                  <div class="text-xs text-white/60">Monthly</div>
+                </div>
+                <div class="mt-4 grid grid-cols-12 gap-2">
+                  <div class="col-span-3 h-2 rounded-full bg-white/10"></div>
+                  <div class="col-span-4 h-2 rounded-full bg-white/10"></div>
+                  <div class="col-span-5 h-2 rounded-full bg-brand-500/50"></div>
+                </div>
+                <div class="mt-3 text-xs text-white/60">
+                  Tip: swap this with an actual screenshot image (full width) when ready.
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- WHAT YOU GET (UPDATED HEADER FORMAT LIKE SCREENSHOT) -->
-    <section id="what-you-get" class="border-t border-white/10">
-      <div class="mx-auto max-w-6xl px-4 py-16">
-        <div class="mx-auto max-w-4xl text-center">
-          <a class="text-xs font-extrabold tracking-wide text-brand-400 hover:text-brand-400" href="#what-you-get">
-            Why Lentax?
-          </a>
-
-          <h2 class="mt-4 text-3xl font-extrabold tracking-tight md:text-5xl">
-            Powerful systems designed for calm delivery
-          </h2>
-
-          <p class="mx-auto mt-5 max-w-3xl text-sm leading-relaxed text-white/75 md:text-base">
-            Running delivery through messy portals is tough. Keeping track of leads, follow-ups, and client work can feel like a full-time job.
-            That’s where Lentax comes in.
-          </p>
-
-          <p class="mx-auto mt-5 max-w-3xl text-sm leading-relaxed text-white/75 md:text-base">
-            With Lentax, you’ll stop losing time to back-and-forth and start delivering with clear next steps.
-            Install one system, then stack only when you’re ready.
+    <!-- WHY IT WORKS (header + 5 cards like CleanWorks pattern) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">WHY LENTAX WORKS</p>
+          <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">Predictable delivery by design</h2>
+          <p class="mx-auto mt-4 max-w-2xl text-sm text-white/70 md:text-base">
+            Calm systems reduce client confusion, protect scope, and keep your team moving.
           </p>
         </div>
 
-        <!-- Cards: 6-col grid. Row 1: 3 cards. Row 2: 2 cards centered. -->
-        <div class="mt-14 grid gap-6 md:grid-cols-6 md:items-stretch">
-          <!-- Card 1 -->
-          <article class="h-full rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft md:col-span-2">
-            <div class="flex h-full flex-col">
-              <div class="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-                <svg viewBox="0 0 24 24" class="h-7 w-7 text-brand-400" fill="currentColor" aria-hidden="true">
-                  <path d="M7 7h10v2H7V7zm0 4h10v2H7v-2zm0 4h6v2H7v-2z"/>
-                  <path d="M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" fill="none" stroke="currentColor" stroke-width="1.5"/>
-                </svg>
-              </div>
-
-              <h3 class="text-lg font-extrabold tracking-tight">Automated follow-up</h3>
-
-              <ul class="mt-4 space-y-3 text-sm text-white/80">
-                <li class="flex gap-3">
-                  <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">✓</span>
-                  <span>Engage leads with timed sequences.</span>
-                </li>
-                <li class="flex gap-3">
-                  <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">✓</span>
-                  <span>Reduce manual reminders and back-and-forth.</span>
-                </li>
-              </ul>
-
-              <div class="mt-auto pt-6">
-                <a class="inline-flex items-center gap-2 text-sm font-extrabold text-white/90 hover:text-white" href="./installs.html">
-                  Learn more <span aria-hidden="true">→</span>
-                </a>
-              </div>
-            </div>
-          </article>
-
-          <!-- Card 2 -->
-          <article class="h-full rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft md:col-span-2">
-            <div class="flex h-full flex-col">
-              <div class="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-                <svg viewBox="0 0 24 24" class="h-7 w-7 text-brand-400" fill="currentColor" aria-hidden="true">
-                  <path d="M12 1a11 11 0 1 0 0 22 11 11 0 0 0 0-22zm1 6v5h4v2h-6V7h2z"/>
-                </svg>
-              </div>
-
-              <h3 class="text-lg font-extrabold tracking-tight">Recurring campaigns</h3>
-
-              <ul class="mt-4 space-y-3 text-sm text-white/80">
-                <li class="flex gap-3">
-                  <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">✓</span>
-                  <span>Re-engage past clients automatically.</span>
-                </li>
-                <li class="flex gap-3">
-                  <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">✓</span>
-                  <span>Keep your calendar full with consistent touchpoints.</span>
-                </li>
-              </ul>
-
-              <div class="mt-auto pt-6">
-                <a class="inline-flex items-center gap-2 text-sm font-extrabold text-white/90 hover:text-white" href="./pricing.html">
-                  View pricing <span aria-hidden="true">→</span>
-                </a>
-              </div>
-            </div>
-          </article>
-
-          <!-- Card 3 -->
-          <article class="h-full rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft md:col-span-2">
-            <div class="flex h-full flex-col">
-              <div class="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-                <svg viewBox="0 0 24 24" class="h-7 w-7 text-brand-400" fill="currentColor" aria-hidden="true">
-                  <path d="M4 4h16v6H4V4zm0 10h10v6H4v-6zm12 0h4v6h-4v-6z"/>
-                </svg>
-              </div>
-
-              <h3 class="text-lg font-extrabold tracking-tight">Customizable templates</h3>
-
-              <ul class="mt-4 space-y-3 text-sm text-white/80">
-                <li class="flex gap-3">
-                  <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">✓</span>
-                  <span>Launch-ready portal structure.</span>
-                </li>
-                <li class="flex gap-3">
-                  <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">✓</span>
-                  <span>Brand it later without breaking workflows.</span>
-                </li>
-              </ul>
-
-              <div class="mt-auto pt-6">
-                <a class="inline-flex items-center gap-2 text-sm font-extrabold text-white/90 hover:text-white" href="./book.html">
-                  Book / demo <span aria-hidden="true">→</span>
-                </a>
-              </div>
-            </div>
-          </article>
-
-          <!-- Card 4 (row 2; spans 3) -->
-          <article class="h-full rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft md:col-span-3">
-            <div class="flex h-full flex-col">
-              <div class="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-                <svg viewBox="0 0 24 24" class="h-7 w-7 text-brand-400" fill="currentColor" aria-hidden="true">
-                  <path d="M4 19V5h2v14H4zm4 0V9h2v10H8zm4 0V3h2v16h-2zm4 0v-6h2v6h-2zm4 0V7h2v12h-2z"/>
-                </svg>
-              </div>
-
-              <h3 class="text-lg font-extrabold tracking-tight">Centralized management</h3>
-
-              <ul class="mt-4 space-y-3 text-sm text-white/80">
-                <li class="flex gap-3">
-                  <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">✓</span>
-                  <span>Track work in one place with clear status.</span>
-                </li>
-                <li class="flex gap-3">
-                  <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">✓</span>
-                  <span>Reduce “what’s next?” questions by design.</span>
-                </li>
-              </ul>
-
-              <div class="mt-auto pt-6">
-                <a class="inline-flex items-center gap-2 text-sm font-extrabold text-white/90 hover:text-white" href="./installs.html">
-                  Explore installs <span aria-hidden="true">→</span>
-                </a>
-              </div>
-            </div>
-          </article>
-
-          <!-- Card 5 (row 2; spans 3) -->
-          <article class="h-full rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft md:col-span-3">
-            <div class="flex h-full flex-col">
-              <div class="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
-                <svg viewBox="0 0 24 24" class="h-7 w-7 text-brand-400" fill="currentColor" aria-hidden="true">
-                  <path d="M10 2h4v2h-4V2zM4 6h16v14H4V6zm2 2v10h12V8H6z"/>
-                </svg>
-              </div>
-
-              <h3 class="text-lg font-extrabold tracking-tight">Performance insights</h3>
-
-              <ul class="mt-4 space-y-3 text-sm text-white/80">
-                <li class="flex gap-3">
-                  <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">✓</span>
-                  <span>Simple metrics that show what’s stuck.</span>
-                </li>
-                <li class="flex gap-3">
-                  <span class="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-500/15 text-brand-300">✓</span>
-                  <span>Prioritize next actions with confidence.</span>
-                </li>
-              </ul>
-
-              <div class="mt-auto pt-6">
-                <a class="inline-flex items-center gap-2 text-sm font-extrabold text-white/90 hover:text-white" href="./pricing.html">
-                  See pricing <span aria-hidden="true">→</span>
-                </a>
-              </div>
-            </div>
-          </article>
+        <div class="mt-10 grid gap-4 md:grid-cols-5">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <div class="text-sm font-extrabold">Clear steps</div>
+            <p class="mt-2 text-sm text-white/70">Clients see what happens next.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <div class="text-sm font-extrabold">Controlled scope</div>
+            <p class="mt-2 text-sm text-white/70">Deliverables keep work bounded.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <div class="text-sm font-extrabold">Fewer pings</div>
+            <p class="mt-2 text-sm text-white/70">Automations handle updates.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <div class="text-sm font-extrabold">Faster onboarding</div>
+            <p class="mt-2 text-sm text-white/70">Forms, portals, payments ready.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <div class="text-sm font-extrabold">White-labeled</div>
+            <p class="mt-2 text-sm text-white/70">Your brand, not a tool stack.</p>
+          </div>
         </div>
 
-        <div class="mt-12 flex justify-center">
-          <a class="inline-flex items-center justify-center rounded-xl bg-brand-500 px-6 py-3 text-sm font-extrabold text-ink-900 hover:bg-brand-400" href="./book.html">
-            Book / demo →
+        <div class="mt-10 flex justify-center">
+          <a class="rounded-xl bg-brand-500 px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+             href="https://secure.lentax.co/memberSignup" rel="noopener">
+            Sign Up for a 30-Day Free Trial Today
           </a>
         </div>
       </div>
     </section>
 
-    <!-- DASHBOARD PREVIEW -->
-    <section id="dashboard-preview" class="border-t border-white/10">
-      <div class="mx-auto max-w-6xl px-4 py-16">
-        <div class="mb-10 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 class="text-2xl font-bold">Setup dashboard preview</h2>
-            <p class="mt-2 max-w-2xl text-sm text-white/75">
-              Preview the Super Admin, operator, and client-facing experience.
+    <!-- BENEFITS (large, 4 cards) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">BENEFITS</p>
+          <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">What you get</h2>
+          <p class="mx-auto mt-4 max-w-2xl text-sm text-white/70 md:text-base">
+            Big-system polish without big-system chaos.
+          </p>
+        </div>
+
+        <div class="mt-10 grid gap-4 md:grid-cols-4">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">🧭</div>
+            <div class="mt-3 text-lg font-extrabold">Clean portal</div>
+            <p class="mt-2 text-sm text-white/70">One place for intake, messages, files, and payments.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">🧾</div>
+            <div class="mt-3 text-lg font-extrabold">Deliverables</div>
+            <p class="mt-2 text-sm text-white/70">Clients buy a defined outcome, not endless back-and-forth.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">⚙️</div>
+            <div class="mt-3 text-lg font-extrabold">Automations</div>
+            <p class="mt-2 text-sm text-white/70">Triggers, reminders, and follow-ups that reduce manual work.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">🧠</div>
+            <div class="mt-3 text-lg font-extrabold">Repeatable ops</div>
+            <p class="mt-2 text-sm text-white/70">Templates and workflows your team can run consistently.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- “NEW FOUNDER” STYLE SECTION (header + 3 cards) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">WHO IT’S FOR</p>
+          <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">Built for service businesses that want calm</h2>
+          <p class="mx-auto mt-4 max-w-2xl text-sm text-white/70 md:text-base">
+            If you deliver client work and want less chaos, Lentax fits.
+          </p>
+        </div>
+
+        <div class="mt-10 grid gap-4 md:grid-cols-3">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">👤</div>
+            <div class="mt-3 text-lg font-extrabold">Solo operators</div>
+            <p class="mt-2 text-sm text-white/70">Look professional without building a tech stack.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">👥</div>
+            <div class="mt-3 text-lg font-extrabold">Small teams</div>
+            <p class="mt-2 text-sm text-white/70">Stay organized and deliver consistently.</p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+            <div class="text-2xl">📈</div>
+            <div class="mt-3 text-lg font-extrabold">Growing firms</div>
+            <p class="mt-2 text-sm text-white/70">Scale without adding manual work and confusion.</p>
+          </div>
+        </div>
+
+        <div class="mt-10 flex justify-center">
+          <a class="rounded-xl bg-brand-500 px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+             href="https://secure.lentax.co/memberSignup" rel="noopener">
+            Sign Up for a 30-Day Free Trial Today
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- “ARTIFACTS / RESULTS” SECTION (sticky left, scrollable right like CleanWorks) -->
+    <section id="artifacts" class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="grid gap-6 lg:grid-cols-12">
+          <div class="lg:col-span-5">
+            <div class="lg:sticky lg:top-28">
+              <div class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-500/30 to-emerald-300/10 p-8 shadow-soft">
+                <p class="text-xs font-semibold tracking-widest text-white/85">ARTIFACTS</p>
+                <h2 class="mt-3 text-3xl font-extrabold">See the results for yourself</h2>
+                <p class="mt-4 text-sm text-white/75">
+                  Real deliverables, real clarity. This is where “nice site” becomes “calm delivery engine.”
+                </p>
+                <div class="mt-6">
+                  <a class="inline-flex rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-ink-900 hover:bg-white/90"
+                     href="./installs.html">
+                    View installs
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-7">
+            <div class="grid gap-4 md:grid-cols-2">
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Clients stop asking what’s next.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  A visible workflow + automated updates makes delivery feel guided.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Operator</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“We finally protect scope.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  Deliverables and triggers reduce “just one more thing” requests.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Agency</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Onboarding feels instant.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  Intake, payment, and kickoff are connected — fewer handoffs.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Service firm</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Delivery is calm now.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  A single system replaces five tools and a pile of tabs.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Founder</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“We can stack later, safely.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  Install one scope. Add modules only when the team is ready.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Team lead</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“White-label wins trust.”</div>
+                <p class="mt-3 text-sm text-white/70">
+                  Clients see your brand and your process, not your tech stack.
+                </p>
+                <p class="mt-4 text-xs text-white/60">— Operator</p>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ (large header + 3 dropdowns) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <h2 class="text-3xl font-extrabold md:text-4xl">Frequently asked questions</h2>
+        </div>
+
+        <div class="mx-auto mt-10 max-w-3xl space-y-4">
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              Is it hard to set up?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              No. Each install is scoped and configured cleanly. You get a structured handoff so you can operate immediately.
             </p>
-          </div>
+          </details>
 
-          <div class="flex gap-2 text-sm">
-            <span class="rounded-full bg-white/10 px-4 py-2">Tax Monitor</span>
-            <span class="rounded-full border border-white/15 px-4 py-2 text-white/60">VA Agency</span>
-            <span class="rounded-full border border-white/15 px-4 py-2 text-white/60">VA Starter</span>
-          </div>
-        </div>
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              Can I cancel anytime?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              Yes. If you’re on a plan, you can cancel. If you purchased an install, you keep what was delivered.
+            </p>
+          </details>
 
-        <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
-          <div class="grid gap-4 md:grid-cols-3">
-            <div class="rounded-xl border border-white/10 bg-ink-800 p-4">
-              <div class="text-xs text-white/60">Sidebar</div>
-              <div class="mt-2 text-sm font-semibold">Navigation</div>
-            </div>
-            <div class="rounded-xl border border-white/10 bg-ink-800 p-4 md:col-span-2">
-              <div class="text-xs text-white/60">Main dashboard</div>
-              <div class="mt-2 grid grid-cols-2 gap-3">
-                <div class="rounded-lg bg-white/5 p-3">Clients</div>
-                <div class="rounded-lg bg-white/5 p-3">Revenue</div>
-                <div class="rounded-lg bg-white/5 p-3">Projects</div>
-                <div class="rounded-lg bg-white/5 p-3">Capacity</div>
-              </div>
-            </div>
-          </div>
-          <p class="mt-4 text-xs text-white/50">
-            Full interactive previews live inside each install landing page.
-          </p>
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              What makes Lentax different?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              Lentax is built around deliverables, workflow visibility, and scope protection — not “more tools.”
+            </p>
+          </details>
         </div>
       </div>
     </section>
 
-    <!-- PROOF -->
-    <section id="proof" class="border-t border-white/10">
-      <div class="mx-auto max-w-6xl px-4 py-14">
-        <h2 class="text-2xl font-bold">Why teams choose Lentax</h2>
-        <div class="mt-8 grid gap-4 md:grid-cols-3">
-          <blockquote class="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm">
-            “Delivery finally feels calm.”
-          </blockquote>
-          <blockquote class="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm">
-            “Clients stop asking what’s next.”
-          </blockquote>
-          <blockquote class="rounded-2xl border border-white/10 bg-white/5 p-5 text-sm">
-            “Scope is protected by design.”
-          </blockquote>
-        </div>
-      </div>
-    </section>
-
-    <!-- START CTA -->
-    <section id="start" class="border-t border-white/10">
-      <div class="mx-auto max-w-6xl px-4 py-16">
-        <div class="rounded-2xl border border-white/10 bg-gradient-to-r from-brand-500/20 to-white/5 p-8">
-          <h2 class="text-2xl font-extrabold">Start with one install</h2>
-          <p class="mt-2 text-sm text-white/75">
-            Pick the first system you want live. Everything else stacks later.
+    <!-- CTA (large blue-style block, but Lentax-themed) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6xl px-4 py-14 md:py-16">
+        <div class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-500/30 via-white/5 to-emerald-300/10 p-10 text-center shadow-soft md:p-14">
+          <h2 class="mx-auto max-w-4xl text-3xl font-extrabold md:text-5xl">
+            Start calm delivery today.
+          </h2>
+          <p class="mx-auto mt-5 max-w-2xl text-sm text-white/75 md:text-base">
+            Sign up and pick the first install you want live. Everything else stacks later.
           </p>
-          <div class="mt-6 flex flex-col gap-3 sm:flex-row">
-            <a href="./pricing.html" class="rounded-xl bg-brand-500 px-6 py-3 text-sm font-extrabold text-ink-900 hover:bg-brand-400">
-              View pricing
-            </a>
-            <a href="./book.html" class="rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold hover:border-white/25">
-              Book / demo
+          <div class="mt-9 flex justify-center">
+            <a class="rounded-xl bg-white px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-white/90"
+               href="https://secure.lentax.co/memberSignup" rel="noopener">
+              Sign Up for a 30-Day Free Trial Today
             </a>
           </div>
         </div>
@@ -407,10 +439,35 @@
     </section>
   </main>
 
-  <!-- FOOTER -->
+  <!-- MENU (centered logo + menu under it, like CleanWorks footer menu block) -->
+  <section class="border-t border-white/10">
+    <div class="mx-auto max-w-6xl px-4 py-12">
+      <div class="flex flex-col items-center gap-4">
+        <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
+          <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
+          <span class="text-base font-extrabold tracking-wide">Lentax.co</span>
+        </a>
+
+        <nav class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/80">
+          <a class="hover:text-white" href="./about.html">About</a>
+          <a class="hover:text-white" href="./installs.html">Installs</a>
+          <a class="hover:text-white" href="./pricing.html">Pricing</a>
+          <a class="hover:text-white" href="./book.html">Book / Demo</a>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER (copyright left, policies right) -->
   <footer class="border-t border-white/10">
-    <div class="mx-auto flex max-w-6xl justify-between px-4 py-10 text-sm text-white/70">
-      <span>© <span id="year"></span> Lentax.co</span>
+    <div class="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-8 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
+      <div>
+        © <span id="year"></span> Lentax.co. All rights reserved.
+      </div>
+      <div class="flex gap-6">
+        <a class="hover:text-white" href="./privacy.html">Privacy Policy</a>
+        <a class="hover:text-white" href="./terms.html">Terms of Service</a>
+      </div>
     </div>
   </footer>
 
