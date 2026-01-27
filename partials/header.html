@@ -1,24 +1,51 @@
-<header class="site-header">
-  <div class="container header-inner">
-    <a class="brand" href="/index.html" aria-label="Lentax home">
-      <img
-        src="/assets/Virtual-Launch-Pro_Logo_200x60_Black.svg"
-        alt="Lentax logo"
-        height="44"
-        width="200"
-        loading="eager"
-        decoding="async"
-      />
-    </a>
+<!-- HEADER (shared) -->
+<div class="sticky top-0 z-50 pt-4">
+  <header class="mx-auto max-w-6-5xl px-4">
+    <div class="rounded-2xl border border-white/10 bg-ink-950/80 shadow-topbar backdrop-blur">
+      <div class="flex items-center justify-between px-4 py-4 md:px-6">
+        <a class="flex items-center" href="/index.html" aria-label="Lentax home">
+          <span aria-hidden="true" class="inline-flex items-center">
+            <img
+              src="/assets/Virtual-Launch-Pro_Logo_200x60_Black.svg"
+              alt="Lentax logo"
+              class="h-11 w-auto"
+              decoding="async"
+              fetchpriority="high"
+              height="60"
+              loading="eager"
+              width="200"
+            />
+          </span>
+        </a>
 
-    <nav class="site-nav" aria-label="Primary navigation">
-      <ul class="nav-list">
-        <li><a href="/about.html">About</a></li>
-        <li><a href="/book.html" class="nav-cta">Book / Demo</a></li>
-        <li><a href="/index.html">Home</a></li>
-        <li><a href="/installs.html">Installs</a></li>
-        <li><a href="/pricing.html">Pricing</a></li>
-      </ul>
-    </nav>
-  </div>
-</header>
+        <div class="hidden items-center gap-4 md:flex">
+          <nav class="flex items-center gap-4 text-sm font-semibold text-white/80" aria-label="Primary navigation">
+            <a class="hover:text-white" href="/about.html">About</a>
+            <a class="hover:text-white" href="/installs.html">Installs</a>
+            <a class="hover:text-white" href="/pricing.html">Pricing</a>
+            <a class="hover:text-white" href="/book.html">Book / Demo</a>
+            <a class="hover:text-white" href="https://secure.lentax.co/site/login" rel="noopener">Login</a>
+          </nav>
+
+          <a
+            class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+            href="/book.html"
+            rel="noopener"
+          >
+            Schedule Demo Call
+          </a>
+        </div>
+
+        <div class="flex items-center gap-3 md:hidden">
+          <a
+            class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+            href="/book.html"
+            rel="noopener"
+          >
+            Schedule Demo Call
+          </a>
+        </div>
+      </div>
+    </div>
+  </header>
+</div>
