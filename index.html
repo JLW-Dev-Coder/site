@@ -1623,5 +1623,37 @@
       setActive(defaultKey);
     })();
   </script>
+    <script>
+  (function () {
+    function loadIncludes() {
+      var nodes = Array.prototype.slice.call(document.querySelectorAll("[data-include]"));
+      if (!nodes.length) return;
+
+      nodes.forEach(function (node) {
+        var key = node.getAttribute("data-include");
+        var url = "/partials/" + key + ".html";
+
+        fetch(url, { cache: "no-store" })
+          .then(function (res) {
+            if (!res.ok) throw new Error("Include failed: " + url);
+            return res.text();
+          })
+          .then(function (html) {
+            node.innerHTML = html;
+          })
+          .catch(function (err) {
+            console.error(err);
+          });
+      });
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", loadIncludes);
+    } else {
+      loadIncludes();
+    }
+  })();
+</script>
+
 </body>
 </html>
