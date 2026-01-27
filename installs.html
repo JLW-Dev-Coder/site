@@ -1,4 +1,4 @@
-<!-- installs.html -->
+<!-- /installs.html -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -12,6 +12,9 @@
     tailwind.config = {
       theme: {
         extend: {
+          maxWidth: {
+            '6-5xl': '77.5rem'
+          },
           colors: {
             brand: {
               50: "#fff7ed",
@@ -23,21 +26,22 @@
               600: "#ea580c",
               700: "#c2410c",
               800: "#9a3412",
-              900: "#7c2d12",
+              900: "#7c2d12"
             },
             ink: {
               950: "#070a10",
               900: "#0b1220",
               850: "#0e172a",
               800: "#111a2e",
-              700: "#152237",
-            },
+              700: "#152237"
+            }
           },
           boxShadow: {
             soft: "0 10px 30px rgba(0,0,0,0.12)",
-          },
-        },
-      },
+            topbar: "0 18px 50px rgba(0,0,0,0.18)"
+          }
+        }
+      }
     };
   </script>
 
@@ -51,9 +55,17 @@
       mask-image: radial-gradient(circle at 50% 18%, rgba(0,0,0,1), rgba(0,0,0,0) 58%);
     }
     .lentax-grid-pan { animation: lentaxGridPan 22s linear infinite; will-change: transform; }
-    @keyframes lentaxGridPan { 0% { transform: translate3d(0,0,0); } 100% { transform: translate3d(-56px,-56px,0); } }
+    @keyframes lentaxGridPan {
+      0% { transform: translate3d(0,0,0); }
+      100% { transform: translate3d(-56px,-56px,0); }
+    }
     .lentax-glow-drift { animation: lentaxGlowDrift 14s ease-in-out infinite; will-change: transform; }
-    @keyframes lentaxGlowDrift { 0%{transform:translate3d(0,0,0);} 33%{transform:translate3d(16px,-10px,0);} 66%{transform:translate3d(-12px,14px,0);} 100%{transform:translate3d(0,0,0);} }
+    @keyframes lentaxGlowDrift {
+      0%{transform:translate3d(0,0,0);}
+      33%{transform:translate3d(16px,-10px,0);}
+      66%{transform:translate3d(-12px,14px,0);}
+      100%{transform:translate3d(0,0,0);}
+    }
   </style>
 </head>
 
@@ -62,30 +74,48 @@
   <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px] lentax-glow-drift"></div>
   <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px] lentax-glow-drift"></div>
 
-  <header class="sticky top-0 z-50 border-b border-white/10 bg-ink-950/80 backdrop-blur">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-      <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
-        <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
-        <span class="text-sm font-extrabold tracking-wide">Lentax.co</span>
-      </a>
+  <!-- HEADER (same as index / book / about) -->
+  <div class="sticky top-0 z-50 pt-4">
+    <header class="mx-auto max-w-6-5xl px-4">
+      <div class="rounded-2xl border border-white/10 bg-ink-950/80 shadow-topbar backdrop-blur">
+        <div class="flex items-center justify-between px-4 py-4 md:px-6">
+          <a class="flex items-center" href="./index.html" aria-label="VirtualLaunch.pro home">
+            <span aria-hidden="true" class="inline-flex items-center">
+              <img
+                src="https://secure.virtuallaunch.pro/file/af3e273dd6c612a5ce5d71f5545c5c12/0f5b048e-4920-4003-a505-cb85f588d1a1/SVG_Virtual+Launch+Pro_Logo_300x140.svg"
+                alt="VirtualLaunch.pro logo"
+                class="h-11 w-auto"
+                loading="eager"
+                decoding="async"
+              />
+            </span>
+          </a>
 
-      <nav class="hidden items-center gap-6 text-sm text-white/80 md:flex">
-        <a class="hover:text-white" href="./about.html">About</a>
-        <a class="hover:text-white" href="./installs.html">Installs</a>
-        <a class="hover:text-white" href="./pricing.html">Pricing</a>
-        <a class="hover:text-white" href="./book.html">Book / Demo</a>
-      </nav>
+          <div class="hidden items-center gap-4 md:flex">
+            <nav class="flex items-center gap-4 text-sm font-semibold text-white/80">
+              <a class="hover:text-white" href="./about.html">About</a>
+              <a class="hover:text-white" href="./installs.html">Installs</a>
+              <a class="hover:text-white" href="./pricing.html">Pricing</a>
+              <a class="hover:text-white" href="./book.html">Book / Demo</a>
+              <a class="hover:text-white" href="https://secure.virtuallaunch.pro/site/login" rel="noopener">Login</a>
+            </nav>
 
-      <div class="flex items-center gap-3">
-        <a class="hidden rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:border-white/25 md:inline-flex" href="https://secure.lentax.co/site/login" rel="noopener">
-          Login
-        </a>
-        <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400" href="https://secure.lentax.co/memberSignup" rel="noopener">
-          Get started
-        </a>
+            <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+               href="./book.html" rel="noopener">
+              Schedule Demo Call
+            </a>
+          </div>
+
+          <div class="flex items-center gap-3 md:hidden">
+            <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+               href="./book.html" rel="noopener">
+              Schedule Demo Call
+            </a>
+          </div>
+        </div>
       </div>
-    </div>
-  </header>
+    </header>
+  </div>
 
   <main class="mx-auto max-w-6xl px-4 py-14 md:py-20">
     <div class="mb-10 max-w-3xl">
@@ -110,7 +140,7 @@
         </p>
         <div class="mt-5 flex flex-col gap-3">
           <a class="inline-flex items-center justify-center rounded-xl bg-brand-500 px-4 py-3 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
-             href="https://secure.lentax.co/i/tax-monitor-for-tax-professionals" rel="noopener">
+             href="https://secure.virtuallaunch.pro/i/tax-monitor-for-tax-professionals" rel="noopener">
             View landing page →
           </a>
           <a class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-extrabold text-white hover:border-white/25"
@@ -131,7 +161,7 @@
         </p>
         <div class="mt-5 flex flex-col gap-3">
           <a class="inline-flex items-center justify-center rounded-xl bg-brand-500 px-4 py-3 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
-             href="https://secure.lentax.co/i/va-agency-setup" rel="noopener">
+             href="https://secure.virtuallaunch.pro/i/va-agency-setup" rel="noopener">
             View landing page →
           </a>
           <a class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-extrabold text-white hover:border-white/25"
@@ -152,7 +182,7 @@
         </p>
         <div class="mt-5 flex flex-col gap-3">
           <a class="inline-flex items-center justify-center rounded-xl bg-brand-500 px-4 py-3 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
-             href="https://secure.lentax.co/i/va-starter-track" rel="noopener">
+             href="https://secure.virtuallaunch.pro/i/va-starter-track" rel="noopener">
             View landing page →
           </a>
           <a class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm font-extrabold text-white hover:border-white/25"
@@ -177,8 +207,9 @@
     </div>
   </main>
 
+  <!-- FOOTER (same as other pages) -->
   <footer class="border-t border-white/10">
-    <div class="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-10 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
+    <div class="mx-auto flex max-w-6-5xl flex-col gap-4 px-4 py-8 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
       <div>© <span id="year"></span> Lentax.co</div>
       <div class="flex gap-4">
         <a class="hover:text-white" href="./about.html">About</a>
