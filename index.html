@@ -1,332 +1,348 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+<!-- DASHBOARD PREVIEW (replaces the old static preview block) -->
+<section class="border-t border-white/10" id="dashboard-preview">
+  <div class="container container--wide">
+    <div class="section__head section__head--tabs">
+      <div class="reveal w-full" role="tablist" aria-label="Dashboard preview tabs">
+        <div class="flex justify-center">
+          <div class="relative inline-flex items-end gap-1 border-b border-white/15">
 
-  <title>Lentax — Calm, White-Labeled Delivery Systems</title>
-
-  <meta name="description" content="White-labeled systems for calm, repeatable delivery. Install once. Stack later." />
-
-  <!-- Open Graph / Social -->
-  <meta property="og:title" content="Lentax — Calm, White-Labeled Delivery Systems" />
-  <meta property="og:description" content="White-labeled portals, workflows, and dashboards for predictable service delivery." />
-  <meta property="og:type" content="website" />
-  <meta name="twitter:card" content="summary_large_image" />
-
-  <!-- Fonts (kept from original build) -->
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&display=swap"
-    rel="stylesheet"
-  />
-
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
-  <!-- Tailwind config -->
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          maxWidth: {
-            '6-5xl': '77.5rem' /* 1240px */
-          },
-          colors: {
-            brand: { 500: "#f97316", 400: "#fb923c" },
-            ink: { 950: "#070a10", 900: "#0b1220", 800: "#111a2e", 700: "#152237" }
-          },
-          boxShadow: {
-            soft: "0 10px 30px rgba(0,0,0,0.12)",
-            topbar: "0 18px 50px rgba(0,0,0,0.18)"
-          }
-        }
-      }
-    };
-  </script>
-
-
-  <!-- EXISTING DASHBOARD / PREVIEW STYLES (tm-admin, va-agency, va-starter, tabs, etc.) -->
-  <!-- IMPORTANT: filename is plural -->
-  <link rel="stylesheet" href="./styles.css" />
-
-  <!-- Site-specific helpers -->
-  <style>
-    html { scroll-behavior: smooth; }
-
-    .container {
-      margin-left: auto;
-      margin-right: auto;
-      max-width: 72rem;
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
-
-    .container--wide { max-width: 75rem; }
-
-    .dash-preview-wrap { margin-top: 24px; }
-    .dash-preview-wrap > [data-preview] { width: 100%; }
-
-    .preview--hidden { display: none; }
-
-    .lentax-grid {
-      background-image:
-        linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
-      background-size: 56px 56px;
-      mask-image: radial-gradient(circle at 50% 18%, rgba(0,0,0,1), rgba(0,0,0,0) 58%);
-    }
-
-    .lentax-grid-pan {
-      animation: gridPan 22s linear infinite;
-    }
-
-    @keyframes gridPan {
-      from { transform: translate3d(0,0,0); }
-      to { transform: translate3d(-56px,-56px,0); }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      .lentax-grid-pan { animation: none; }
-    }
-  </style>
-</head>
-
-
-<body class="bg-ink-950 text-white antialiased">
-  <div class="pointer-events-none fixed inset-0 -z-20 lentax-grid lentax-grid-pan opacity-60"></div>
-  <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px]"></div>
-  <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px]"></div>
-
-  <!-- FLOATING TOP MENU (sticky, with top breathing space like CleanWorks) -->
-  <div class="sticky top-0 z-50 pt-4">
-    <header class="mx-auto max-w-6-5xl px-4">
-      <div class="rounded-2xl border border-white/10 bg-ink-950/80 shadow-topbar backdrop-blur">
-        <div class="flex items-center justify-between px-4 py-4 md:px-6">
-          <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
-            <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
-            <span class="text-sm font-extrabold tracking-wide">Lentax.co</span>
-          </a>
-
-          <nav class="hidden items-center gap-6 text-sm text-white/80 md:flex">
-            <a class="hover:text-white" href="./about.html">About</a>
-            <a class="hover:text-white" href="./installs.html">Installs</a>
-            <a class="hover:text-white" href="./pricing.html">Pricing</a>
-            <a class="hover:text-white" href="./book.html">Book / Demo</a>
-          </nav>
-
-          <div class="flex items-center gap-3">
-            <a class="hidden rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/90 hover:border-white/25 md:inline-flex"
-               href="https://secure.lentax.co/site/login" rel="noopener">
-              Login
-            </a>
-            <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
-               href="/book.html" rel="noopener">
-              Schedule Demo Call
-            </a>
-          </div>
-        </div>
-      </div>
-    </header>
-  </div>
-
-  <main id="top">
-    <!-- HERO (bigger like CleanWorks) -->
-    <section class="mx-auto max-w-6-5xl px-4 pb-10 pt-16 md:pb-14 md:pt-24">
-      <p class="mx-auto mb-5 w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
-        Calm, white-labeled delivery systems
-      </p>
-
-      <h1 class="mx-auto max-w-4xl text-center text-4xl font-extrabold leading-tight md:text-6xl">
-        Install once. Deliver calmly. Stack later.
-      </h1>
-
-      <p class="mx-auto mt-6 max-w-3xl text-center text-base text-white/75 md:text-lg">
-        Lentax installs clean portals, workflows, and dashboards so delivery stays predictable — without scope creep.
-      </p>
-
-      <div class="mt-10 flex justify-center">
-        <a class="rounded-xl bg-brand-500 px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
-           href="https://secure.lentax.co/memberSignup" rel="noopener">
-          Sign Up for a 30-Day Free Trial Today
-        </a>
-      </div>
-    </section>
-
-<!-- =========================
-     TAX MONITOR — SUPER ADMIN DASHBOARD PREVIEW
-     ========================= -->
-<div data-preview="tax-monitor">
-  <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
-    <div class="tm-admin-shell">
-
-      <!-- LEFT SIDEBAR -->
-      <aside class="tm-admin-sidebar" aria-label="Sidebar">
-        <div class="tm-admin-brand">
-          <div class="tm-admin-brand__logo" aria-hidden="true">
-            <div class="tm-admin-brand__ring"></div>
-          </div>
-          <div class="tm-admin-brand__text">
-            <div class="tm-admin-brand__title">Tax Monitor</div>
-            <div class="tm-admin-brand__sub">.pro</div>
-          </div>
-        </div>
-
-        <div class="tm-admin-profile">
-          <div class="tm-admin-profile__avatar" aria-hidden="true"></div>
-          <div class="tm-admin-profile__meta">
-            <div class="tm-admin-profile__name">JAMIE WILLIAMS</div>
-            <a class="tm-admin-profile__link" href="#" aria-label="Edit Profile">Edit Profile</a>
-          </div>
-        </div>
-
-        <nav class="tm-admin-nav" aria-label="Primary navigation">
-          <a class="tm-admin-nav__item tm-admin-nav__item--active" href="#start-here"><span class="tm-admin-nav__label">Start Here</span></a>
-          <a class="tm-admin-nav__item" href="#automations"><span class="tm-admin-nav__label">Automations</span></a>
-          <a class="tm-admin-nav__item" href="#calendar"><span class="tm-admin-nav__label">Calendar</span></a>
-          <a class="tm-admin-nav__item" href="#communities"><span class="tm-admin-nav__label">Communities</span></a>
-          <a class="tm-admin-nav__item" href="#content"><span class="tm-admin-nav__label">Content</span></a>
-          <a class="tm-admin-nav__item" href="#crm"><span class="tm-admin-nav__label">CRM</span></a>
-          <a class="tm-admin-nav__item" href="#files"><span class="tm-admin-nav__label">Files</span></a>
-          <a class="tm-admin-nav__item" href="#forms"><span class="tm-admin-nav__label">Forms</span></a>
-          <a class="tm-admin-nav__item" href="#lms"><span class="tm-admin-nav__label">LMS</span></a>
-          <a class="tm-admin-nav__item" href="#marketing"><span class="tm-admin-nav__label">Marketing</span></a>
-          <a class="tm-admin-nav__item" href="#messaging"><span class="tm-admin-nav__label">Messaging</span></a>
-          <a class="tm-admin-nav__item" href="#my-pages"><span class="tm-admin-nav__label">My Pages</span></a>
-          <a class="tm-admin-nav__item" href="#office"><span class="tm-admin-nav__label">Office</span></a>
-          <a class="tm-admin-nav__item" href="#onboarding"><span class="tm-admin-nav__label">Onboarding</span></a>
-          <a class="tm-admin-nav__item" href="#projects"><span class="tm-admin-nav__label">Projects</span></a>
-          <a class="tm-admin-nav__item" href="#support"><span class="tm-admin-nav__label">Support</span></a>
-          <a class="tm-admin-nav__item" href="#settings"><span class="tm-admin-nav__label">Settings</span></a>
-        </nav>
-
-        <div class="tm-admin-ask">
-          <a class="tm-admin-ask__btn" href="#ask">Ask!</a>
-        </div>
-      </aside>
-
-      <!-- MAIN -->
-      <div class="tm-admin-main">
-
-        <!-- TOP BAR -->
-        <div class="tm-admin-topbar" aria-label="Top bar">
-          <div class="tm-admin-topbar__left">
-            <button class="tm-admin-topbar__iconbtn" type="button" aria-label="Collapse sidebar">
-              <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
+            <button
+              aria-selected="true"
+              class="tab tab--active relative z-10 -mb-px inline-flex items-center gap-2 rounded-t-xl border border-b-0 border-white/15 bg-ink-950 px-5 py-2.5 text-sm font-extrabold text-white shadow-soft"
+              data-tab="tax-monitor"
+              type="button"
+            >
+              <span aria-hidden="true" class="h-2 w-2 rounded-full bg-emerald-300"></span>
+              <span>Tax Monitor Setup</span>
             </button>
 
-            <button class="tm-admin-topbar__clientbtn" type="button" aria-label="Client experience">
-              <span class="tm-admin-topbar__clientdot" aria-hidden="true"></span>
-              <span>Client Experience</span>
+            <button
+              aria-selected="false"
+              class="tab relative -mb-px inline-flex items-center gap-2 rounded-t-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+              data-tab="va-agency"
+              type="button"
+            >
+              <span aria-hidden="true" class="h-2 w-2 rounded-full bg-white/35"></span>
+              <span>Virtual Assistant Agency Setup</span>
             </button>
 
-            <button class="tm-admin-topbar__iconbtn tm-admin-topbar__iconbtn--plus" type="button" aria-label="Create">
-              <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            <button
+              aria-selected="false"
+              class="tab relative -mb-px inline-flex items-center gap-2 rounded-t-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+              data-tab="va-setup"
+              type="button"
+            >
+              <span aria-hidden="true" class="h-2 w-2 rounded-full bg-white/35"></span>
+              <span>Virtual Assistant Setup</span>
             </button>
-          </div>
 
-          <div class="tm-admin-topbar__right">
-            <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
-            <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
-            <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
-            <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
-            <div class="tm-admin-topbar__user" aria-label="User menu">
-              <div class="tm-admin-topbar__userpic" aria-hidden="true"></div>
-            </div>
           </div>
         </div>
-
-        <!-- CONTENT -->
-        <section class="tm-admin-content" aria-label="Dashboard content">
-          <h2 class="tm-admin-title">Good Afternoon, Jamie</h2>
-          <p class="tm-admin-subtitle">
-            This dashboard provides a real-time view of pipeline activity, client volume, team capacity,
-            and financial performance. Use it to spot trends, identify risk, and prioritize what requires attention next.
-          </p>
-
-          <div class="tm-admin-grid">
-
-            <div class="tm-admin-card tm-admin-card--wide">
-              <div class="tm-admin-card__head">
-                <div class="tm-admin-card__label">Open Estimates</div>
-              </div>
-              <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
-              <div class="tm-admin-card__bar"><span class="tm-admin-card__barfill" style="width:18%;"></span></div>
-              <div class="tm-admin-card__foot"><button class="tm-admin-card__btn">VIEW</button></div>
-            </div>
-
-            <div class="tm-admin-card tm-admin-card--wide">
-              <div class="tm-admin-card__head">
-                <div class="tm-admin-card__label">Open Proposals</div>
-              </div>
-              <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
-              <div class="tm-admin-card__bar"><span class="tm-admin-card__barfill" style="width:18%;"></span></div>
-              <div class="tm-admin-card__foot"><button class="tm-admin-card__btn">VIEW</button></div>
-            </div>
-
-            <div class="tm-admin-card">
-              <div class="tm-admin-card__head">
-                <div class="tm-admin-card__label">Clients <span class="tm-admin-card__muted">(Goal — 25)</span></div>
-              </div>
-              <div class="tm-admin-card__metric">
-                <span class="tm-admin-card__metricnum">2</span>
-                <span class="tm-admin-card__good">100.0%</span>
-              </div>
-              <div class="tm-admin-card__bar tm-admin-card__bar--thin">
-                <span class="tm-admin-card__barfill" style="width:8%;"></span>
-              </div>
-            </div>
-
-            <div class="tm-admin-card">
-              <div class="tm-admin-card__head">
-                <div class="tm-admin-card__label">Prospects <span class="tm-admin-card__muted">(Goal — 25)</span></div>
-              </div>
-              <div class="tm-admin-card__metric">
-                <span class="tm-admin-card__metricnum">2</span>
-                <span class="tm-admin-card__good">100.0%</span>
-              </div>
-              <div class="tm-admin-card__bar tm-admin-card__bar--thin">
-                <span class="tm-admin-card__barfill" style="width:8%;"></span>
-              </div>
-            </div>
-
-            <div class="tm-admin-card">
-              <div class="tm-admin-card__head">
-                <div class="tm-admin-card__label">Leads</div>
-              </div>
-              <div class="tm-admin-card__metric">
-                <span class="tm-admin-card__metricnum">0</span>
-                <span class="tm-admin-card__delta">0.0%</span>
-              </div>
-              <div class="tm-admin-card__bar tm-admin-card__bar--thin">
-                <span class="tm-admin-card__barfill" style="width:0%;"></span>
-              </div>
-            </div>
-
-            <div class="tm-admin-card tm-admin-card--full">
-              <div class="tm-admin-card__head">
-                <div class="tm-admin-card__label">Team(s)</div>
-              </div>
-              <div class="tm-admin-card__metric">
-                <span class="tm-admin-card__metricnum">0</span>
-                <span class="tm-admin-card__delta">0.0%</span>
-              </div>
-              <div class="tm-admin-card__bar tm-admin-card__bar--thin">
-                <span class="tm-admin-card__barfill" style="width:0%;"></span>
-              </div>
-            </div>
-
-          </div>
-        </section>
       </div>
     </div>
-  </div>
-</div>
 
-
-      <!-- =========================
-           VA AGENCY — PROJECT DASHBOARD PREVIEW (STATIC MOCK)
+    <div class="dash-preview-wrap">
+           <!-- =========================
+           TAX MONITOR (existing) — wrapped for tab switching
            ========================= -->
+      <div data-preview="tax-monitor">
+
+            <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
+              <div class="tm-admin-shell">
+
+                <!-- LEFT SIDEBAR -->
+                <aside class="tm-admin-sidebar" aria-label="Sidebar">
+                  <div class="tm-admin-brand">
+                    <div class="tm-admin-brand__logo" aria-hidden="true">
+                      <div class="tm-admin-brand__ring"></div>
+                    </div>
+                    <div class="tm-admin-brand__text">
+                      <div class="tm-admin-brand__title">Tax Monitor</div>
+                      <div class="tm-admin-brand__sub">.pro</div>
+                    </div>
+                  </div>
+
+                  <div class="tm-admin-profile">
+                    <div class="tm-admin-profile__avatar" aria-hidden="true"></div>
+                    <div class="tm-admin-profile__meta">
+                      <div class="tm-admin-profile__name">JAMIE WILLIAMS</div>
+                      <a class="tm-admin-profile__link" href="#" aria-label="Edit Profile">Edit Profile</a>
+                    </div>
+                  </div>
+
+                  <nav class="tm-admin-nav" aria-label="Primary navigation">
+                    <a class="tm-admin-nav__item tm-admin-nav__item--active" href="#start-here">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Start Here</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#automations">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Automations</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#calendar">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Calendar</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#communities">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Communities</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#content">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Content</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#crm">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">CRM</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#files">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Files</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#forms">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Forms</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#lms">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">LMS</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#marketing">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Marketing</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#messaging">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Messaging</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#my-pages">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">My Pages</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#office">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Office</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#onboarding">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Onboarding</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#projects">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Projects</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#support">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Support</span>
+                    </a>
+                    <a class="tm-admin-nav__item" href="#settings">
+                      <span class="tm-admin-nav__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-nav__label">Settings</span>
+                    </a>
+                  </nav>
+
+                  <div class="tm-admin-ask">
+                    <a class="tm-admin-ask__btn" href="#ask">Ask!</a>
+                  </div>
+                </aside>
+
+                <!-- MAIN -->
+                <div class="tm-admin-main">
+
+                  <!-- TOP BAR -->
+                  <div class="tm-admin-topbar" aria-label="Top bar">
+                    <div class="tm-admin-topbar__left">
+                      <button class="tm-admin-topbar__iconbtn" type="button" aria-label="Collapse sidebar">≪</button>
+
+                      <!-- Client Experience button (requested) -->
+                      <button class="tm-admin-topbar__clientbtn" type="button" aria-label="Client experience">
+                        <span aria-hidden="true" class="tm-admin-topbar__clientdot"></span>
+                        <span>Client Experience</span>
+                      </button>
+
+                      <button class="tm-admin-topbar__iconbtn tm-admin-topbar__iconbtn--plus" type="button" aria-label="Create">+</button>
+                    </div>
+
+                    <div class="tm-admin-topbar__right">
+                      <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                      <span class="tm-admin-topbar__icon" aria-hidden="true"></span>
+                      <div class="tm-admin-topbar__user" aria-label="User menu">
+                        <div class="tm-admin-topbar__userpic" aria-hidden="true"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- CONTENT -->
+                  <section class="tm-admin-content" aria-label="Dashboard content">
+                    <h2 class="tm-admin-title">Good Afternoon, Jamie</h2>
+                    <p class="tm-admin-subtitle">
+                      This dashboard provides a real-time view of pipeline activity, client volume, team capacity, and financial performance.
+                      Use it to spot trends, identify risk, and prioritize what requires attention next.
+                    </p>
+
+                    <div class="tm-admin-grid">
+                      <div class="tm-admin-card tm-admin-card--wide">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Open Estimates</div>
+                          <div class="tm-admin-card__miniicon" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                        <div class="tm-admin-card__bar">
+                          <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot">
+                          <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card tm-admin-card--wide">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Open Proposals</div>
+                          <div class="tm-admin-card__miniicon" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                        <div class="tm-admin-card__bar">
+                          <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot">
+                          <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Clients <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__metric">
+                          <span class="tm-admin-card__metricnum">2</span>
+                          <span class="tm-admin-card__good">↗ 100.0% (All time)</span>
+                        </div>
+                        <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                          <span class="tm-admin-card__barfill" style="width: 8%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                          <span class="tm-admin-card__small">8%</span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Prospects <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__metric">
+                          <span class="tm-admin-card__metricnum">2</span>
+                          <span class="tm-admin-card__good">↗ 100.0% (All time)</span>
+                        </div>
+                        <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                          <span class="tm-admin-card__barfill" style="width: 8%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                          <span class="tm-admin-card__small">8%</span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Leads <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--user" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__metric">
+                          <span class="tm-admin-card__metricnum">0</span>
+                          <span class="tm-admin-card__delta">• 0.0% (All time)</span>
+                        </div>
+                        <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                          <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                          <span class="tm-admin-card__small">0%</span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Circle(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--tag" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__metric">
+                          <span class="tm-admin-card__metricnum">0</span>
+                          <span class="tm-admin-card__delta">• 0.0% (All time)</span>
+                        </div>
+                        <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                          <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                          <span class="tm-admin-card__small">0%</span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card tm-admin-card--wide">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Total Revenue</div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--gold" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                        <div class="tm-admin-card__bar">
+                          <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot">
+                          <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card tm-admin-card--wide">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Unpaid Invoices</div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--gold" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__value">$0.00k <span class="tm-admin-card__delta">• 0.0% (All time)</span></div>
+                        <div class="tm-admin-card__bar">
+                          <span class="tm-admin-card__barfill" style="width: 18%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot">
+                          <span class="tm-admin-card__dot" aria-hidden="true"></span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+
+                      <div class="tm-admin-card tm-admin-card--full">
+                        <div class="tm-admin-card__head">
+                          <div class="tm-admin-card__label">Team(s) <span class="tm-admin-card__muted">(Goal — 25)</span></div>
+                          <div class="tm-admin-card__miniicon tm-admin-card__miniicon--purple" aria-hidden="true"></div>
+                        </div>
+                        <div class="tm-admin-card__metric">
+                          <span class="tm-admin-card__metricnum">0</span>
+                          <span class="tm-admin-card__delta">• 0.0% (30d)</span>
+                        </div>
+                        <div class="tm-admin-card__bar tm-admin-card__bar--thin">
+                          <span class="tm-admin-card__barfill" style="width: 0%;"></span>
+                        </div>
+                        <div class="tm-admin-card__foot tm-admin-card__foot--split">
+                          <span class="tm-admin-card__small">0%</span>
+                          <button class="tm-admin-card__btn" type="button">VIEW</button>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- =========================
+               VA AGENCY — PROJECT DASHBOARD PREVIEW (STATIC MOCK)
+               ========================= -->
       <div class="preview--hidden" data-preview="va-agency">
         <div class="va-agency-preview" role="region" aria-label="Virtual Assistant Agency project dashboard preview">
           <div class="va-agency-shell">
