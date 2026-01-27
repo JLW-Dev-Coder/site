@@ -17,15 +17,40 @@
 
 <body class="bg-ink-950 text-white antialiased">
 
-  <!-- FOOTER (matches index.html) -->
+  <!-- FOOTER (shared) -->
   <footer class="border-t border-white/10">
-    <div class="mx-auto flex max-w-6-5xl flex-col gap-4 px-4 py-8 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
-      <div>
-        © <span id="year"></span> Copyright © 2020+ Virtual Launch Pro. Owned and operated by Lenore, Inc.
-      </div>
-      <div class="flex gap-6">
-        <a class="hover:text-white" href="./privacy.html">Privacy Policy</a>
-        <a class="hover:text-white" href="./terms.html">Terms of Service</a>
+    <div class="mx-auto max-w-6-5xl px-4 py-10">
+      <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+
+        <!-- Logo -->
+        <a
+          class="flex items-center"
+          href="/index.html"
+          aria-label="Virtual Launch Pro home"
+        >
+          <span aria-hidden="true" class="inline-flex items-center h-10">
+            <img
+              src="/assets/Virtual-Launch-Pro_Logo_200x60_Black.svg"
+              alt="Virtual Launch Pro logo"
+              class="h-10 w-auto"
+              decoding="async"
+              loading="lazy"
+            />
+          </span>
+        </a>
+
+        <!-- Links -->
+        <div class="flex flex-col gap-4 text-sm text-white/70 md:items-end">
+          <div>
+            © <span id="year"></span> Copyright © 2020+ Virtual Launch Pro.
+            Owned and operated by Lenore, Inc.
+          </div>
+          <div class="flex gap-6">
+            <a class="hover:text-white" href="/privacy.html">Privacy Policy</a>
+            <a class="hover:text-white" href="/terms.html">Terms of Service</a>
+          </div>
+        </div>
+
       </div>
     </div>
   </footer>
