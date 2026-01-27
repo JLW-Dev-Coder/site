@@ -17,11 +17,12 @@
 
 <body class="bg-ink-950 text-white antialiased">
 
-  <!-- MENU -->
+  <!-- LOGO + MENU -->
   <section class="border-t border-white/10">
     <div class="mx-auto max-w-6-5xl px-4 py-12">
-      <div class="flex flex-col items-center gap-4">
+      <div class="flex flex-col items-center gap-6">
 
+        <!-- Logo -->
         <a
           class="flex items-center"
           href="/index.html"
@@ -38,6 +39,7 @@
           </span>
         </a>
 
+        <!-- Menu -->
         <nav class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/80">
           <a class="hover:text-white" href="/about.html">About</a>
           <a class="hover:text-white" href="/installs.html">Installs</a>
@@ -49,13 +51,18 @@
     </div>
   </section>
 
-  <!-- FOOTER -->
+  <!-- FOOTER LEGAL ROW -->
   <footer class="border-t border-white/10">
-    <div class="mx-auto flex max-w-6-5xl flex-col gap-4 px-4 py-8 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
+    <div
+      class="mx-auto max-w-6-5xl px-4 py-8 text-sm text-white/70
+             flex flex-col gap-4
+             md:flex-row md:items-center md:justify-between"
+    >
       <div>
-        © <span id="year"></span> Copyright © 2020+ Virtual Launch Pro.
+        © <span id="year"></span> Virtual Launch Pro.
         Owned and operated by Lenore, Inc.
       </div>
+
       <div class="flex gap-6">
         <a class="hover:text-white" href="/privacy.html">Privacy Policy</a>
         <a class="hover:text-white" href="/terms.html">Terms of Service</a>
