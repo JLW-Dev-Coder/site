@@ -6,7 +6,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Book / Demo | Lentax.co</title>
   <meta name="description" content="Book a demo or appointment for a Lentax install." />
-
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -16,37 +20,33 @@
             '6-5xl': '77.5rem'
           },
           colors: {
-            brand: {
-              50: "#fff7ed",
-              100: "#ffedd5",
-              200: "#fed7aa",
-              300: "#fdba74",
-              400: "#fb923c",
-              500: "#f97316",
-              600: "#ea580c",
-              700: "#c2410c",
-              800: "#9a3412",
-              900: "#7c2d12",
-            },
-            ink: {
-              950: "#070a10",
-              900: "#0b1220",
-              850: "#0e172a",
-              800: "#111a2e",
-              700: "#152237",
-            },
+            brand: { 500: "#f97316", 400: "#fb923c" },
+            ink: { 950: "#070a10", 900: "#0b1220", 800: "#111a2e", 700: "#152237" }
           },
           boxShadow: {
             soft: "0 10px 30px rgba(0,0,0,0.12)",
             topbar: "0 18px 50px rgba(0,0,0,0.18)"
-          },
-        },
-      },
+          }
+        }
+      }
     };
   </script>
-
+  <link rel="stylesheet" href="./styles.css" />
   <style>
     html { scroll-behavior: smooth; }
+
+    .booking-embed iframe {
+      height: clamp(760px, 72vh, 980px) !important;
+      min-height: 760px !important;
+      width: 100% !important;
+    }
+
+    .booking-embed > iframe {
+      height: clamp(760px, 72vh, 980px) !important;
+      min-height: 760px !important;
+      width: 100% !important;
+    }
+
     .lentax-grid {
       background-image:
         linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
@@ -54,10 +54,27 @@
       background-size: 56px 56px;
       mask-image: radial-gradient(circle at 50% 18%, rgba(0,0,0,1), rgba(0,0,0,0) 58%);
     }
+
     .lentax-grid-pan { animation: lentaxGridPan 22s linear infinite; will-change: transform; }
-    @keyframes lentaxGridPan { 0% { transform: translate3d(0,0,0); } 100% { transform: translate3d(-56px,-56px,0); } }
+
+    @keyframes lentaxGridPan {
+      0% { transform: translate3d(0,0,0); }
+      100% { transform: translate3d(-56px,-56px,0); }
+    }
+
     .lentax-glow-drift { animation: lentaxGlowDrift 14s ease-in-out infinite; will-change: transform; }
-    @keyframes lentaxGlowDrift { 0%{transform:translate3d(0,0,0);} 33%{transform:translate3d(16px,-10px,0);} 66%{transform:translate3d(-12px,14px,0);} 100%{transform:translate3d(0,0,0);} }
+
+    @keyframes lentaxGlowDrift {
+      0% { transform: translate3d(0,0,0); }
+      33% { transform: translate3d(16px,-10px,0); }
+      66% { transform: translate3d(-12px,14px,0); }
+      100% { transform: translate3d(0,0,0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .lentax-glow-drift { animation: none; }
+      .lentax-grid-pan { animation: none; }
+    }
   </style>
 </head>
 
@@ -66,7 +83,7 @@
   <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px] lentax-glow-drift"></div>
   <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px] lentax-glow-drift"></div>
 
-  <!-- HEADER (index.html header/menu) -->
+  <!-- HEADER (matches index.html) -->
   <div class="sticky top-0 z-50 pt-4">
     <header class="mx-auto max-w-6-5xl px-4">
       <div class="rounded-2xl border border-white/10 bg-ink-950/80 shadow-topbar backdrop-blur">
@@ -92,21 +109,15 @@
               <a class="hover:text-white" href="https://secure.virtuallaunch.pro/site/login" rel="noopener">Login</a>
             </nav>
 
-            <a
-              class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
-              href="./book.html"
-              rel="noopener"
-            >
+            <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+               href="./book.html" rel="noopener">
               Schedule Demo Call
             </a>
           </div>
 
           <div class="flex items-center gap-3 md:hidden">
-            <a
-              class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
-              href="./book.html"
-              rel="noopener"
-            >
+            <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+               href="./book.html" rel="noopener">
               Schedule Demo Call
             </a>
           </div>
@@ -115,7 +126,7 @@
     </header>
   </div>
 
-  <main class="mx-auto max-w-6xl px-4 py-14 md:py-20">
+  <main class="mx-auto max-w-6-5xl px-4 py-14 md:py-20">
     <div class="mb-10 max-w-3xl">
       <p class="mb-4 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80">
         Book the right appointment
@@ -134,7 +145,8 @@
           <div class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">Demo</div>
         </div>
         <p class="mt-3 text-sm text-white/70">Practice fit review appointment.</p>
-        <div class="mt-5 rounded-xl border border-white/10 bg-ink-850 p-4">
+
+        <div class="booking-embed mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
           <script src="https://secure.virtuallaunch.pro/frm/2unptF7wZ3mMDNbbp.js"></script>
         </div>
       </article>
@@ -146,7 +158,8 @@
           <div class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">Setup</div>
         </div>
         <p class="mt-3 text-sm text-white/70">Setup info / discovery appointment.</p>
-        <div class="mt-5 rounded-xl border border-white/10 bg-ink-850 p-4">
+
+        <div class="booking-embed mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
           <script src="https://secure.virtuallaunch.pro/frm/2qPfMCSrCfzLtg6r2.js"></script>
         </div>
       </article>
@@ -158,23 +171,45 @@
           <div class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/70">Setup</div>
         </div>
         <p class="mt-3 text-sm text-white/70">Setup info / onboarding appointment.</p>
-        <div class="mt-5 rounded-xl border border-white/10 bg-ink-850 p-4">
+
+        <div class="booking-embed mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
           <script src="https://secure.virtuallaunch.pro/frm/24YCVCM33WMidzDw1.js"></script>
         </div>
       </article>
     </div>
 
     <div class="mt-10 flex flex-col gap-3 sm:flex-row">
-      <a class="inline-flex items-center justify-center rounded-xl bg-brand-500 px-5 py-3 text-sm font-extrabold text-ink-900 hover:bg-brand-400" href="./pricing.html">
+      <a class="inline-flex items-center justify-center rounded-xl bg-brand-500 px-5 py-3 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+         href="./pricing.html">
         View pricing →
       </a>
-      <a class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-extrabold text-white hover:border-white/25" href="./installs.html">
+      <a class="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-extrabold text-white hover:border-white/25"
+         href="./installs.html">
         View installs
       </a>
     </div>
   </main>
 
-  <!-- FOOTER (index.html footer/menu) -->
+  <!-- MENU (matches index.html) -->
+  <section class="border-t border-white/10">
+    <div class="mx-auto max-w-6-5xl px-4 py-12">
+      <div class="flex flex-col items-center gap-4">
+        <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
+          <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
+          <span class="text-base font-extrabold tracking-wide">Lentax.co</span>
+        </a>
+
+        <nav class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/80">
+          <a class="hover:text-white" href="./about.html">About</a>
+          <a class="hover:text-white" href="./installs.html">Installs</a>
+          <a class="hover:text-white" href="./pricing.html">Pricing</a>
+          <a class="hover:text-white" href="./book.html">Book / Demo</a>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER (matches index.html) -->
   <footer class="border-t border-white/10">
     <div class="mx-auto flex max-w-6-5xl flex-col gap-4 px-4 py-8 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
       <div>
