@@ -76,9 +76,13 @@
 </head>
 
 <body class="bg-ink-950 text-white antialiased">
+  <!-- Background (keep your existing background layers as-is, if you have them) -->
   <div class="pointer-events-none fixed inset-0 -z-20 lentax-grid lentax-grid-pan opacity-60"></div>
   <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px]"></div>
   <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px]"></div>
+
+  <!-- Shared header include -->
+  <div data-include="header"></div>
 
   <div class="sticky top-0 z-50 pt-4">
     <header class="mx-auto max-w-6-5xl px-4">
@@ -95,11 +99,6 @@
     />
   </span>
 </a>
-
-
-
-
-
 
           <div class="hidden items-center gap-4 md:flex">
             <nav class="flex items-center gap-4 text-sm font-semibold text-white/80">
