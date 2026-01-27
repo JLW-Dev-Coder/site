@@ -83,7 +83,7 @@
 
   <!-- Shared header include -->
   <div data-include="header"></div>
-
+ <main>
   <div class="sticky top-0 z-50 pt-4">
     <header class="mx-auto max-w-6-5xl px-4">
       <div class="rounded-2xl border border-white/10 bg-ink-950/80 shadow-topbar backdrop-blur">
@@ -1615,45 +1615,34 @@
     </div>
   </section>
 
-  <!-- FOOTER -->
-  <footer class="border-t border-white/10">
-    <div class="mx-auto flex max-w-6-5xl flex-col gap-4 px-4 py-8 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
-      <div>
-        © <span id="year"></span> Lentax.co. All rights reserved.
-      </div>
-      <div class="flex gap-6">
-        <a class="hover:text-white" href="./privacy.html">Privacy Policy</a>
-        <a class="hover:text-white" href="./terms.html">Terms of Service</a>
-      </div>
-    </div>
-  </footer>
+ </main>
 
+  <!-- Shared footer include -->
+  <div data-include="footer"></div>
+
+  <!-- Includes loader -->
   <script>
-    document.getElementById("year").textContent = new Date().getFullYear();
+    (async function () {
+      async function load(selector, url) {
+        var el = document.querySelector(selector);
+        if (!el) return;
 
-    (function () {
-      const panels = Array.from(document.querySelectorAll("[data-preview]"));
-      const tabs = Array.from(document.querySelectorAll("[data-tab]"));
-
-      if (!panels.length || !tabs.length) return;
-
-      function setActive(key) {
-        tabs.forEach((t) => {
-          const isActive = t.getAttribute("data-tab") === key;
-          t.classList.toggle("tab--active", isActive);
-          t.setAttribute("aria-selected", isActive ? "true" : "false");
-        });
-
-        panels.forEach((p) => {
-          const isActive = p.getAttribute("data-preview") === key;
-          p.classList.toggle("preview--hidden", !isActive);
-        });
+        try {
+          var res = await fetch(url, { cache: "no-cache" });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          el.innerHTML = await res.text();
+        } catch (e) {
+          el.innerHTML = '<div class="container" style="padding:12px 0"><a href="/index.html">Home</a></div>';
+        }
       }
 
-      tabs.forEach((t) => t.addEventListener("click", () => setActive(t.getAttribute("data-tab"))));
+      await Promise.all([
+        load('[data-include="footer"]', '/partials/footer.html'),
+        load('[data-include="header"]', '/partials/header.html')
+      ]);
 
-      const defaultKey = (document.querySelector(".tab--active") || tabs[0]).getAttribute("data-tab");
-      setActive(defaultKey);
+      var year = document.getElementById("year");
+      if (year) year.textContent = new Date().getFullYear();
     })();
   </script>
 </body>
