@@ -76,16 +76,58 @@
 </head>
 
 <body class="bg-ink-950 text-white antialiased">
-  <!-- Background -->
+  <!-- Background (keep your existing background layers as-is, if you have them) -->
   <div class="pointer-events-none fixed inset-0 -z-20 lentax-grid lentax-grid-pan opacity-60"></div>
   <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px]"></div>
   <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px]"></div>
 
-  <!-- Shared header include (THIS is the only header now) -->
+  <!-- Shared header include -->
   <div data-include="header"></div>
 
+  <div class="sticky top-0 z-50 pt-4">
+    <header class="mx-auto max-w-6-5xl px-4">
+      <div class="rounded-2xl border border-white/10 bg-ink-950/80 shadow-topbar backdrop-blur">
+        <div class="flex items-center justify-between px-4 py-4 md:px-6">
+       <a class="flex items-center" href="./index.html" aria-label="VirtualLaunch.pro home">
+  <span aria-hidden="true" class="inline-flex items-center">
+    <img
+      src="https://secure.virtuallaunch.pro/file/af3e273dd6c612a5ce5d71f5545c5c12/0f5b048e-4920-4003-a505-cb85f588d1a1/SVG_Virtual+Launch+Pro_Logo_300x140.svg"
+      alt="VirtualLaunch.pro logo"
+      class="h-11 w-auto"
+      loading="eager"
+      decoding="async"
+    />
+  </span>
+</a>
+
+          <div class="hidden items-center gap-4 md:flex">
+            <nav class="flex items-center gap-4 text-sm font-semibold text-white/80">
+              <a class="hover:text-white" href="./about.html">About</a>
+              <a class="hover:text-white" href="./installs.html">Installs</a>
+              <a class="hover:text-white" href="./pricing.html">Pricing</a>
+              <a class="hover:text-white" href="./book.html">Book / Demo</a>
+              <a class="hover:text-white" href="https://secure.lentax.co/site/login" rel="noopener">Login</a>
+            </nav>
+
+            <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+               href="./book.html" rel="noopener">
+              Schedule Demo Call
+            </a>
+          </div>
+
+          <div class="flex items-center gap-3 md:hidden">
+            <a class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+               href="./book.html" rel="noopener">
+              Schedule Demo Call
+            </a>
+          </div>
+        </div>
+      </div>
+    </header>
+  </div>
+
   <main id="top">
-    <!-- HERO -->
+    <!-- HERO (bigger like CleanWorks) -->
     <section class="mx-auto max-w-6-5xl px-4 pb-10 pt-16 md:pb-14 md:pt-24">
       <p class="mx-auto mb-5 w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
         Calm, white-labeled delivery systems
@@ -107,52 +149,54 @@
       </div>
     </section>
 
-    <!-- DASHBOARD PREVIEW -->
-    <section class="border-t border-white/10" id="dashboard-preview">
-      <div class="container container--wide">
-        <div class="section__head section__head--tabs">
-          <div class="reveal w-full" role="tablist" aria-label="Dashboard preview tabs">
-            <div class="flex justify-center">
-              <div class="relative inline-flex items-end gap-1 border-b border-white/15">
+<!-- DASHBOARD PREVIEW (replaces the old static preview block) -->
+<section class="border-t border-white/10" id="dashboard-preview">
+  <div class="container container--wide">
+    <div class="section__head section__head--tabs">
+      <div class="reveal w-full" role="tablist" aria-label="Dashboard preview tabs">
+        <div class="flex justify-center">
+          <div class="relative inline-flex items-end gap-1 border-b border-white/15">
 
-                <button
-                  aria-selected="true"
-                  class="tab tab--active relative z-10 -mb-px inline-flex items-center gap-2 rounded-t-xl border border-b-0 border-white/15 bg-ink-950 px-5 py-2.5 text-sm font-extrabold text-white shadow-soft"
-                  data-tab="tax-monitor"
-                  type="button"
-                >
-                  <span aria-hidden="true" class="h-2 w-2 rounded-full bg-emerald-300"></span>
-                  <span>Tax Monitor Setup</span>
-                </button>
+            <button
+              aria-selected="true"
+              class="tab tab--active relative z-10 -mb-px inline-flex items-center gap-2 rounded-t-xl border border-b-0 border-white/15 bg-ink-950 px-5 py-2.5 text-sm font-extrabold text-white shadow-soft"
+              data-tab="tax-monitor"
+              type="button"
+            >
+              <span aria-hidden="true" class="h-2 w-2 rounded-full bg-emerald-300"></span>
+              <span>Tax Monitor Setup</span>
+            </button>
 
-                <button
-                  aria-selected="false"
-                  class="tab relative -mb-px inline-flex items-center gap-2 rounded-t-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
-                  data-tab="va-agency"
-                  type="button"
-                >
-                  <span aria-hidden="true" class="h-2 w-2 rounded-full bg-white/35"></span>
-                  <span>Virtual Assistant Agency Setup</span>
-                </button>
+            <button
+              aria-selected="false"
+              class="tab relative -mb-px inline-flex items-center gap-2 rounded-t-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+              data-tab="va-agency"
+              type="button"
+            >
+              <span aria-hidden="true" class="h-2 w-2 rounded-full bg-white/35"></span>
+              <span>Virtual Assistant Agency Setup</span>
+            </button>
 
-                <button
-                  aria-selected="false"
-                  class="tab relative -mb-px inline-flex items-center gap-2 rounded-t-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
-                  data-tab="va-setup"
-                  type="button"
-                >
-                  <span aria-hidden="true" class="h-2 w-2 rounded-full bg-white/35"></span>
-                  <span>Virtual Assistant Setup</span>
-                </button>
+            <button
+              aria-selected="false"
+              class="tab relative -mb-px inline-flex items-center gap-2 rounded-t-xl border border-transparent px-5 py-2.5 text-sm font-semibold text-white/60 hover:bg-white/5 hover:text-white"
+              data-tab="va-setup"
+              type="button"
+            >
+              <span aria-hidden="true" class="h-2 w-2 rounded-full bg-white/35"></span>
+              <span>Virtual Assistant Setup</span>
+            </button>
 
-              </div>
-            </div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <div class="dash-preview-wrap">
-          <!-- TAX MONITOR -->
-          <div data-preview="tax-monitor">
+    <div class="dash-preview-wrap">
+           <!-- =========================
+           TAX MONITOR (existing) — wrapped for tab switching
+           ========================= -->
+      <div data-preview="tax-monitor">
 
             <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
               <div class="tm-admin-shell">
@@ -261,6 +305,7 @@
                     <div class="tm-admin-topbar__left">
                       <button class="tm-admin-topbar__iconbtn" type="button" aria-label="Collapse sidebar">≪</button>
 
+                      <!-- Client Experience button (requested) -->
                       <button class="tm-admin-topbar__clientbtn" type="button" aria-label="Client experience">
                         <span aria-hidden="true" class="tm-admin-topbar__clientdot"></span>
                         <span>Client Experience</span>
@@ -446,90 +491,1169 @@
             </div>
           </div>
 
-          <!-- VA AGENCY -->
-          <div class="preview--hidden" data-preview="va-agency">
-            <!-- (unchanged content preserved from your original file) -->
-            <!-- NOTE: Your original VA AGENCY block remains exactly as-is in the file you provided. -->
+          <!-- =========================
+               VA AGENCY — PROJECT DASHBOARD PREVIEW (STATIC MOCK)
+               ========================= -->
+      <div class="preview--hidden" data-preview="va-agency">
+        <div class="va-agency-preview" role="region" aria-label="Virtual Assistant Agency project dashboard preview">
+          <div class="va-agency-shell">
+
+            <!-- LEFT SIDEBAR -->
+            <aside class="va-agency-sidebar" aria-label="Sidebar">
+              <div class="va-agency-brand">
+                <div class="va-agency-brand__mark" aria-hidden="true"></div>
+                <div class="va-agency-brand__text">
+                  <div class="va-agency-brand__title">Lentax.co</div>
+                  <div class="va-agency-brand__sub">Dashboard</div>
+                </div>
+              </div>
+
+              <div class="va-agency-profile">
+                <div class="va-agency-profile__avatar" aria-hidden="true"></div>
+                <div class="va-agency-profile__meta">
+                  <div class="va-agency-profile__name">FIRE MARSHALL BILL</div>
+                  <a class="va-agency-profile__link" href="#" aria-label="Edit Profile">Edit Profile</a>
+                </div>
+              </div>
+
+              <nav class="va-agency-nav" aria-label="Primary navigation">
+                <a class="va-agency-nav__item va-agency-nav__item--active" href="#dashboard">
+                  <span class="va-agency-nav__icon" aria-hidden="true"></span>
+                  <span class="va-agency-nav__label">Dashboard</span>
+                </a>
+                <a class="va-agency-nav__item" href="#start-here">
+                  <span class="va-agency-nav__icon" aria-hidden="true"></span>
+                  <span class="va-agency-nav__label">Start Here</span>
+                </a>
+                <a class="va-agency-nav__item" href="#calendar">
+                  <span class="va-agency-nav__icon" aria-hidden="true"></span>
+                  <span class="va-agency-nav__label">Calendar</span>
+                </a>
+                <a class="va-agency-nav__item" href="#crm">
+                  <span class="va-agency-nav__icon" aria-hidden="true"></span>
+                  <span class="va-agency-nav__label">CRM</span>
+                </a>
+                <a class="va-agency-nav__item" href="#messaging">
+                  <span class="va-agency-nav__icon" aria-hidden="true"></span>
+                  <span class="va-agency-nav__label">Messaging Inbox</span>
+                </a>
+                <a class="va-agency-nav__item" href="#office">
+                  <span class="va-agency-nav__icon" aria-hidden="true"></span>
+                  <span class="va-agency-nav__label">Office Space</span>
+                </a>
+                <a class="va-agency-nav__item" href="#orders">
+                  <span class="va-agency-nav__icon" aria-hidden="true"></span>
+                  <span class="va-agency-nav__label">Orders / Projects</span>
+                </a>
+                <a class="va-agency-nav__item" href="#resources">
+                  <span class="va-agency-nav__icon" aria-hidden="true"></span>
+                  <span class="va-agency-nav__label">Free Resources</span>
+                </a>
+              </nav>
+            </aside>
+
+            <!-- MAIN -->
+            <div class="va-agency-main">
+
+              <!-- TOP BAR -->
+              <div class="va-agency-topbar" aria-label="Top bar">
+                <div class="va-agency-topbar__left">
+                  <button class="va-agency-topbar__iconbtn" type="button" aria-label="Collapse sidebar">
+                    <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
+                  </button>
+                  <button class="va-agency-topbar__iconbtn va-agency-topbar__iconbtn--plus" type="button" aria-label="Create">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                  </button>
+                </div>
+
+                <div class="va-agency-topbar__right">
+                  <span class="va-agency-topbar__icon" aria-hidden="true"></span>
+                  <span class="va-agency-topbar__icon" aria-hidden="true"></span>
+                  <span class="va-agency-topbar__icon" aria-hidden="true"></span>
+                  <div class="va-agency-topbar__user" aria-label="User menu">
+                    <div class="va-agency-topbar__userpic" aria-hidden="true"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CONTENT -->
+              <section class="va-agency-content" aria-label="Project dashboard content">
+                <div class="va-agency-subnav" aria-label="Project navigation">
+                  <a class="va-agency-subnav__item" href="#dashboard">DASHBOARD</a>
+                  <a class="va-agency-subnav__item" href="#tasks">TASKS</a>
+                  <a class="va-agency-subnav__item" href="#kanban">KANBAN</a>
+                  <a class="va-agency-subnav__item va-agency-subnav__item--active" href="#phases">PHASES</a>
+                  <a class="va-agency-subnav__item" href="#timers">TIMERS</a>
+                  <a class="va-agency-subnav__item" href="#calendar2">CALENDAR</a>
+                  <a class="va-agency-subnav__item" href="#files">FILES</a>
+                  <a class="va-agency-subnav__item" href="#chat">TEAM LIVE CHAT</a>
+                  <a class="va-agency-subnav__item" href="#notes">NOTES</a>
+                  <a class="va-agency-subnav__item" href="#export">NOTES EXPORT</a>
+                </div>
+
+                <div class="va-agency-projectbar">
+                  <div class="va-agency-projectbar__left">
+                    THREADS: REMOTEJOBS | MARKETING AGENCIES | HIRING VA — INTERMEDIATE (1–2 YEARS) | SUPPORT & COORDINATION
+                  </div>
+                  <div class="va-agency-projectbar__right">
+                    <span class="va-agency-pill">PROJ_309</span>
+                    <span class="va-agency-pill va-agency-pill--warn">[P1] General Info Capture</span>
+                    <span class="va-agency-select" aria-hidden="true">Threads: RemoteJobs | Marketing Agencies | …</span>
+                    <span class="va-agency-menu" aria-hidden="true"></span>
+                  </div>
+                </div>
+
+                <div class="va-agency-row va-agency-row--thin">
+                  <div class="va-agency-field">Project Description</div>
+                  <div class="va-agency-field va-agency-field--right">
+                    <span class="va-agency-link">Show</span>
+                    <span class="va-agency-caret" aria-hidden="true"></span>
+                  </div>
+                </div>
+
+                <div class="va-agency-split">
+                  <div class="va-agency-panel">
+                    <div class="va-agency-panel__head">
+                      <div class="va-agency-panel__title">Phases</div>
+                      <div class="va-agency-panel__tools">
+                        <span class="va-agency-miniicon" aria-hidden="true"></span>
+                      </div>
+                    </div>
+
+                    <div class="va-agency-phase va-agency-phase--active">
+                      <div class="va-agency-phase__top">
+                        <div class="va-agency-phase__name">
+                          Phase Title: <i class="fa-solid fa-bullseye" aria-hidden="true"></i> [P1] General Info Capture
+                        </div>
+                        <div class="va-agency-phase__kebab" aria-hidden="true"></div>
+                      </div>
+                      <div class="va-agency-phase__sub">Status: Phase_[P1] General Info Capture</div>
+                      <div class="va-agency-phase__meta">
+                        <div>Start Date: 12/10/2025</div>
+                        <div>Due Date: 12/17/2025</div>
+                        <div class="va-agency-progress">
+                          <span>Progress:</span>
+                          <span class="va-agency-progress__bar"><span class="va-agency-progress__fill" style="width: 12%;"></span></span>
+                          <span class="va-agency-progress__pct">0 of 1</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="va-agency-phase">
+                      <div class="va-agency-phase__top">
+                        <div class="va-agency-phase__name">
+                          Phase Title: <i class="fa-solid fa-compass" aria-hidden="true"></i> [P2] Qualification &amp; Segmentation
+                        </div>
+                        <div class="va-agency-phase__kebab" aria-hidden="true"></div>
+                      </div>
+                      <div class="va-agency-phase__sub">Status: Phase_[P2] Qualify &amp; Segment</div>
+                      <div class="va-agency-phase__meta">
+                        <div>Start Date: 12/18/2025</div>
+                        <div>Due Date: 12/24/2025</div>
+                        <div class="va-agency-progress">
+                          <span>Progress:</span>
+                          <span class="va-agency-progress__bar"><span class="va-agency-progress__fill" style="width: 10%;"></span></span>
+                          <span class="va-agency-progress__pct">0 of 1</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="va-agency-rightcol">
+                    <div class="va-agency-panel">
+                      <div class="va-agency-panel__head">
+                        <div class="va-agency-panel__title">
+                          <i class="fa-solid fa-bullseye" aria-hidden="true"></i> [P1] General Info Capture
+                        </div>
+                        <div class="va-agency-panel__tools">
+                          <span class="va-agency-close" aria-hidden="true">×</span>
+                        </div>
+                      </div>
+
+                      <div class="va-agency-detail">
+                        <div class="va-agency-detail__row">
+                          <div class="va-agency-detail__label">TITLE:</div>
+                          <div class="va-agency-detail__value">
+                            <i class="fa-solid fa-bullseye" aria-hidden="true"></i> [P1] General Info Capture
+                          </div>
+                        </div>
+                        <div class="va-agency-detail__row">
+                          <div class="va-agency-detail__label">START DATE:</div>
+                          <div class="va-agency-detail__value">12/10/2025</div>
+                        </div>
+                        <div class="va-agency-detail__row">
+                          <div class="va-agency-detail__label">DUE DATE:</div>
+                          <div class="va-agency-detail__value">12/17/2025</div>
+                        </div>
+                        <div class="va-agency-detail__row va-agency-detail__row--desc">
+                          <div class="va-agency-detail__label">DESCRIPTION:</div>
+                          <div class="va-agency-detail__value">
+                            This phase collects the essentials so you can decide whether the opportunity is worth exploring.
+                            We verify details, identify red flags, and document findings before the voyage continues.
+                            If you want to proceed, follow the Tasks tab steps while we chart the course.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="va-agency-panel va-agency-panel--tasks">
+                      <div class="va-agency-panel__head">
+                        <div class="va-agency-panel__title">Associated Tasks</div>
+                      </div>
+
+                      <div class="va-agency-table" role="table" aria-label="Associated tasks table">
+                        <div class="va-agency-table__head" role="row">
+                          <div class="va-agency-table__cell va-agency-table__cell--num" role="columnheader">Task Number</div>
+                          <div class="va-agency-table__cell" role="columnheader">Task Title</div>
+                          <div class="va-agency-table__cell va-agency-table__cell--assignee" role="columnheader">Assignee</div>
+                        </div>
+
+                        <div class="va-agency-table__row" role="row">
+                          <div class="va-agency-table__cell va-agency-table__cell--num" role="cell">553607</div>
+                          <div class="va-agency-table__cell" role="cell">
+                            <div class="va-agency-tasktitle">New Work Post Arrived — Info Gathering Underway</div>
+                            <div class="va-agency-taskmeta">
+                              <span class="va-agency-chip">OPEN</span>
+                              <span class="va-agency-chip va-agency-chip--reply">REPLY</span>
+                              <span class="va-agency-chip va-agency-chip--phase">PHASE: [P1] GENERAL INFO CAPTURE</span>
+                            </div>
+                          </div>
+                          <div class="va-agency-table__cell va-agency-table__cell--assignee" role="cell">Fire Marshall Bill</div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+              </section>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =========================
+           VA STARTER TRACK (added) — matches screenshot layout
+           ========================= -->
+      <div class="preview--hidden" data-preview="va-setup">
+        <div class="va-starter-preview" role="region" aria-label="Virtual Assistant Starter Track dashboard preview">
+          <div class="va-starter-shell">
+
+            <aside class="va-starter-sidebar" aria-label="Sidebar">
+              <div class="va-starter-brand">
+                <div class="va-starter-brand__logo" aria-hidden="true">
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Lentax icon">
+                    <circle cx="80" cy="80" r="72" fill="none" stroke="#000" stroke-width="10"/>
+                    <rect x="78" y="28" width="4" height="70" rx="2" fill="#000"/>
+                    <polygon points="74,32 36,78 74,78" fill="#000"/>
+                    <polygon points="86,32 124,78 86,78" fill="#FFA500"/>
+                    <path d="M 38 82 L 122 82 L 96 114 Q 80 126 64 114 Z" fill="#000"/>
+                  </svg>
+                </div>
+                <div>
+                  <div style="font-weight: 900; line-height: 1;">Lentax.co</div>
+                  <div style="color: rgba(0,0,0,0.60); font-size: 11px; margin-top: 2px;">Powered by Lenore, Inc.</div>
+                </div>
+              </div>
+
+              <div class="va-starter-profile">
+                <div class="va-starter-profile__avatar" aria-hidden="true"></div>
+                <div>
+                  <div class="va-starter-profile__name">FIRE MARSHALL BILL</div>
+                  <a class="va-starter-profile__link" href="#" aria-label="Edit profile">Edit Profile</a>
+                </div>
+              </div>
+
+              <nav class="va-starter-nav" aria-label="Primary navigation">
+                <a class="va-starter-nav__item va-starter-nav__item--active" href="#dash">
+                  <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                  <span>Dashboard</span>
+                </a>
+                <a class="va-starter-nav__item" href="#start-here">
+                  <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                  <span>Start Here</span>
+                </a>
+                <a class="va-starter-nav__item" href="#calendar">
+                  <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                  <span>Calendar</span>
+                </a>
+                <a class="va-starter-nav__item" href="#crm">
+                  <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                  <span>CRM</span>
+                </a>
+                <a class="va-starter-nav__item" href="#messaging">
+                  <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                  <span>Messaging Inbox</span>
+                </a>
+                <a class="va-starter-nav__item" href="#office">
+                  <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                  <span>Office Space</span>
+                </a>
+                <a class="va-starter-nav__item" href="#orders">
+                  <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                  <span>Orders / Projects</span>
+                </a>
+                <a class="va-starter-nav__item" href="#resources">
+                  <span class="va-starter-nav__icon" aria-hidden="true"></span>
+                  <span>Free Resources</span>
+                </a>
+              </nav>
+            </aside>
+
+            <div class="va-starter-main">
+              <div class="va-starter-topbar" aria-label="Top bar">
+                <div class="va-starter-topbar__left">
+                  <button class="va-starter-iconbtn" type="button" aria-label="Collapse sidebar">
+                    <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
+                  </button>
+                  <button class="va-starter-iconbtn" type="button" aria-label="Create">
+                    <i class="fa-solid fa-plus" aria-hidden="true"></i>
+                  </button>
+                </div>
+                <div class="va-starter-topbar__right">
+                  <span class="va-starter-topbar__chip"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+                  <span class="va-starter-topbar__chip"><i class="fa-solid fa-bell" aria-hidden="true"></i></span>
+                  <span class="va-starter-topbar__chip"><i class="fa-solid fa-message" aria-hidden="true"></i></span>
+                  <div class="va-starter-userpic" aria-hidden="true"></div>
+                </div>
+              </div>
+
+              <section class="va-starter-content" aria-label="VA Starter dashboard content">
+                <h2 class="va-starter-title">Good Morning, Fire Marshall</h2>
+                <p class="va-starter-subtitle">Track your profile setup, earnings, active tasks, and enrolled project tracks.</p>
+
+                <div class="va-starter-grid">
+                  <div class="va-card va-span-4">
+                    <div class="va-card__head">
+                      <div>
+                        <div class="va-card__title">
+                          Set Sail on Your Freelancer Journey! <i class="fa-solid fa-compass" aria-hidden="true"></i>
+                        </div>
+                        <div style="color: rgba(0,0,0,0.55); font-size: 12px; margin-top: 4px;">11/06/2025</div>
+                      </div>
+                    </div>
+                    <div class="va-card__body">
+                      <div class="va-welcome-box">
+                        <div class="va-mint" aria-hidden="true"></div>
+                        <div>
+                          <p class="va-welcome-title">Welcome aboard, Freelancer!</p>
+                          <p class="va-welcome-text" style="margin-top: 6px;">
+                            <strong>Mint</strong> here — your loyal first mate guiding you through your first voyage.
+                          </p>
+                          <p class="va-welcome-text" style="margin-top: 8px;">
+                            Follow the steps, complete your profile, and unlock your full set of starter track perks.
+                          </p>
+                          <div style="margin-top: 10px;">
+                            <span class="va-welcome-cta">Edit Your Profile</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="va-card va-span-4" style="background: rgba(236, 255, 253, 0.82);">
+                    <div class="va-card__head">
+                      <div class="va-card__title">My Freelancer Profile Setup</div>
+                      <div class="va-card__miniicon" aria-hidden="true"></div>
+                    </div>
+                    <div class="va-card__body">
+                      <div class="va-bars" aria-label="Progress bars">
+                        <div class="va-bar">
+                          <div class="va-bar__label">Activate Flow Organizer 100</div>
+                          <div class="va-bar__fill va-bar__fill--a"></div>
+                        </div>
+                        <div class="va-bar">
+                          <div class="va-bar__label">Background Info 100</div>
+                          <div class="va-bar__fill va-bar__fill--b"></div>
+                        </div>
+                        <div class="va-bar">
+                          <div class="va-bar__label">Profile Avatar 100</div>
+                          <div class="va-bar__fill va-bar__fill--c"></div>
+                        </div>
+                        <div class="va-bar">
+                          <div class="va-bar__label">Booking Link 100</div>
+                          <div class="va-bar__fill va-bar__fill--d"></div>
+                        </div>
+                        <div class="va-bar">
+                          <div class="va-bar__label">W9 Information 100</div>
+                          <div class="va-bar__fill va-bar__fill--e"></div>
+                        </div>
+                        <div class="va-bar">
+                          <div class="va-bar__label">Professional Standards 100</div>
+                          <div class="va-bar__fill va-bar__fill--f"></div>
+                        </div>
+                        <div class="va-bar">
+                          <div class="va-bar__label">Preview 100</div>
+                          <div class="va-bar__fill va-bar__fill--g"></div>
+                        </div>
+                        <div class="va-bar">
+                          <div class="va-bar__label">Launch 100</div>
+                          <div class="va-bar__fill va-bar__fill--h"></div>
+                        </div>
+                      </div>
+
+                      <button class="va-primary-btn" type="button" aria-label="Edit my profile">
+                        <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                        <span>Edit My Profile</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="va-card va-span-4" style="background: rgba(243, 241, 255, 0.82);">
+                    <div class="va-card__head">
+                      <div class="va-card__title">Your Freelancer Earnings</div>
+                      <div class="va-card__miniicon" aria-hidden="true"></div>
+                    </div>
+                    <div class="va-card__body">
+                      <div class="va-chart" aria-label="Earnings bar chart">
+                        <div class="va-chart-bars" aria-hidden="true">
+                          <div class="va-chart-bar va-chart-bar--a"></div>
+                          <div class="va-chart-bar va-chart-bar--b"></div>
+                          <div class="va-chart-bar va-chart-bar--c"></div>
+                          <div class="va-chart-bar va-chart-bar--d"></div>
+                        </div>
+                      </div>
+
+                      <button class="va-primary-btn" type="button" aria-label="View my payouts" style="margin-top: 12px;">
+                        <i class="fa-solid fa-receipt" aria-hidden="true"></i>
+                        <span>View My Payouts</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="va-card va-span-6" style="background: rgba(255, 247, 235, 0.92);">
+                    <div class="va-card__head">
+                      <div class="va-card__title">Your Work Tasks</div>
+                      <div class="va-card__miniicon" aria-hidden="true"></div>
+                    </div>
+                    <div class="va-card__body">
+                      <div class="va-table" aria-label="Tasks table">
+                        <div class="va-table__row">
+                          <div class="va-dot" aria-hidden="true"></div>
+                          <div>
+                            <div style="font-weight: 700;">My Tasks</div>
+                            <div class="va-pillline" aria-hidden="true">
+                              <span class="va-pill">Assigned</span>
+                              <span class="va-pill">Critical — Today</span>
+                              <span class="va-pill">Phase: P1</span>
+                            </div>
+                          </div>
+                          <div style="color: rgba(0,0,0,0.55); text-align: right;">Past due</div>
+                        </div>
+
+                        <div class="va-table__row">
+                          <div class="va-dot" aria-hidden="true"></div>
+                          <div>
+                            <div style="font-weight: 700;">New Work Post Arrived — Info Gathering Underway</div>
+                            <div style="color: rgba(0,0,0,0.60); margin-top: 4px;">See task description if interested [33387]</div>
+                          </div>
+                          <div style="color: rgba(0,0,0,0.55); text-align: right;">11/22/2025</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="va-card va-span-6" style="background: rgba(238, 243, 255, 0.92);">
+                    <div class="va-card__head">
+                      <div class="va-card__title">Today's Work Postings</div>
+                      <div class="va-card__miniicon" aria-hidden="true"></div>
+                    </div>
+                    <div class="va-card__body">
+                      <div class="va-table" aria-label="Work postings table">
+                        <div class="va-table__row">
+                          <div class="va-dot" aria-hidden="true"></div>
+                          <div>
+                            <div style="font-weight: 700;">All Project Tracks</div>
+                            <div class="va-pillline" aria-hidden="true">
+                              <span class="va-pill">Completed</span>
+                              <span class="va-pill">P1 General Info Capture</span>
+                              <span class="va-pill">VA Agencies</span>
+                            </div>
+                          </div>
+                          <div style="color: rgba(0,0,0,0.55); text-align: right;">Refreshed</div>
+                        </div>
+
+                        <div class="va-table__row">
+                          <div class="va-dot" aria-hidden="true"></div>
+                          <div>
+                            <div style="font-weight: 700;">Threads: WorkFromHomeHiring | VA Agencies</div>
+                            <div style="color: rgba(0,0,0,0.60); margin-top: 4px;">Hiring VA — Beginner (0–1 year) | Support &amp; Coordination</div>
+                          </div>
+                          <div style="color: rgba(0,0,0,0.55); text-align: right;">Past due</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </section>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+  <!-- WHY IT WORKS (Cleanworks-style: header + 2 paragraphs + 5 cards w/ 2 key points each) -->
+<section class="border-t border-white/10">
+  <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+    <div class="mx-auto max-w-4xl text-center">
+      <p class="text-xs font-semibold tracking-widest text-brand-400">WHY LENTAX WORKS</p>
+      <h2 class="mt-3 text-4xl font-extrabold md:text-5xl">Predictable delivery, built for calm</h2>
+
+      <p class="mx-auto mt-6 max-w-3xl text-base text-white/70 md:text-lg">
+        Service delivery breaks down when clients can’t see what happens next, and your team has to answer the same questions repeatedly.
+        Lentax fixes that with visible steps, defined deliverables, and automations that reduce noise.
+      </p>
+
+      <p class="mx-auto mt-4 max-w-3xl text-base text-white/70 md:text-lg">
+        Install once, then stack add-ons only when you’re ready.
+        You stay in control of scope, timelines, and client expectations—without rebuilding your process every season.
+      </p>
+    </div>
+
+    <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-6">
+      <!-- Card 1 -->
+      <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft lg:col-span-2">
+        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+          <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path d="M9 12l2 2 4-5" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+          </svg>
+        </div>
+
+        <h3 class="text-lg font-extrabold">Clear steps</h3>
+
+        <ul class="mt-4 space-y-3 text-sm text-white/70">
+          <li class="flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            <span>Clients follow a guided path instead of guessing what to do next.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            <span>Your team works from the same checklist, every time.</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft lg:col-span-2">
+        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+          <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path d="M12 22s8-3 8-10V6l-8-3-8 3v6c0 7 8 10 8 10z" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            <path d="M9 12l2 2 4-5" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+          </svg>
+        </div>
+
+        <h3 class="text-lg font-extrabold">Controlled scope</h3>
+
+        <ul class="mt-4 space-y-3 text-sm text-white/70">
+          <li class="flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            <span>Deliverables define what’s included, so “one more thing” doesn’t take over.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            <span>Work stays predictable even when client complexity spikes.</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft lg:col-span-2">
+        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+          <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            <path d="M12 7v5l3 3" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+          </svg>
+        </div>
+
+        <h3 class="text-lg font-extrabold">Fewer follow-ups</h3>
+
+        <ul class="mt-4 space-y-3 text-sm text-white/70">
+          <li class="flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            <span>Automations send updates before clients feel the need to ask.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            <span>Your inbox stays clear for real issues—not status checks.</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft lg:col-span-3">
+        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+          <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path d="M7 7h10M7 12h10M7 17h6" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            <path d="M5 4h14a2 2 0 0 1 2 2v12a4 4 0 0 1-4 4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+          </svg>
+        </div>
+
+        <h3 class="text-lg font-extrabold">Faster onboarding</h3>
+
+        <ul class="mt-4 space-y-3 text-sm text-white/70">
+          <li class="flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            <span>Intake, files, messages, and payments live in one clean portal.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            <span>Clients get started quickly without manual back-and-forth.</span>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Card 5 -->
+      <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft lg:col-span-3">
+        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+          <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path d="M12 2l3 7h7l-5.5 4 2.5 7-7-4.5L5 20l2.5-7L2 9h7l3-7z" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+          </svg>
+        </div>
+
+        <h3 class="text-lg font-extrabold">White-labeled trust</h3>
+
+        <ul class="mt-4 space-y-3 text-sm text-white/70">
+          <li class="flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            <span>Your client sees your brand and your process—not a patchwork of tools.</span>
+          </li>
+          <li class="flex items-start gap-3">
+            <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+            <span>Consistency builds confidence and makes the service feel premium.</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-12 flex justify-center">
+      <a
+        class="rounded-xl bg-brand-500 px-8 py-4 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+        href="https://secure.lentax.co/memberSignup"
+        rel="noopener"
+      >
+        Sign Up for a 30-Day Free Trial Today
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- BENEFITS (Cleanworks-style: orange panel, 4 items, white icons, no header) -->
+<section class="border-t border-white/10">
+  <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+    <div class="rounded-2xl bg-brand-500 px-6 py-10 shadow-soft md:px-10 md:py-14">
+      <div class="grid gap-10 text-center md:grid-cols-4 md:gap-8">
+        <div>
+          <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-white/10">
+            <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path d="M12 8v4l3 3" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="text-lg font-extrabold text-white">Save Time</div>
+          <p class="mx-auto mt-3 max-w-xs text-sm text-white/90">
+            Spend less time answering status questions and more time delivering real work.
+          </p>
+        </div>
+
+        <div>
+          <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-white/10">
+            <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path d="M3 17l6-6 4 4 7-7" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              <path d="M14 8h6v6" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="text-lg font-extrabold text-white">Increase Revenue</div>
+          <p class="mx-auto mt-3 max-w-xs text-sm text-white/90">
+            Defined deliverables and follow-ups help convert more clients with less friction.
+          </p>
+        </div>
+
+        <div>
+          <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-white/10">
+            <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path d="M10 4h4v4h-4V4z" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              <path d="M4 10h4v4H4v-4z" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              <path d="M16 10h4v4h-4v-4z" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              <path d="M10 16h4v4h-4v-4z" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              <path d="M12 8v2M8 12h2M14 12h2M12 14v2" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="text-lg font-extrabold text-white">Stay Organized</div>
+          <p class="mx-auto mt-3 max-w-xs text-sm text-white/90">
+            Keep intake, files, messages, and payments in one calm, structured system.
+          </p>
+        </div>
+
+        <div>
+          <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-white/10">
+            <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path d="M12 3v18" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              <path d="M16 7H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H8" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+            </svg>
+          </div>
+          <div class="text-lg font-extrabold text-white">Grow Affordably</div>
+          <p class="mx-auto mt-3 max-w-xs text-sm text-white/90">
+            Install once, then add modules only when your practice is ready to expand.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHO IT’S FOR (dark section, orange-outline translucent cards) -->
+<section class="border-t border-white/10 bg-ink-950">
+  <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+    <div class="mx-auto max-w-3xl text-center">
+      <p class="text-xs font-semibold tracking-widest text-brand-400">
+        WHO LENTAX IS FOR
+      </p>
+      <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">
+        Built for calm, scalable service delivery
+      </h2>
+      <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
+        Lentax supports service businesses at every stage—whether you’re solo,
+        managing a small team, or preparing to scale without added chaos.
+      </p>
+    </div>
+
+    <div class="mt-14 grid gap-8 md:grid-cols-3">
+      <!-- Card 1 -->
+      <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+          <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5z" stroke="#FFA500" stroke-width="2"/>
+            <path d="M3 21a9 9 0 0 1 18 0" stroke="#FFA500" stroke-width="2"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-extrabold text-white">
+          Solo service operators
+        </h3>
+        <p class="mt-3 text-sm text-white/70">
+          Look established and professional without building or maintaining
+          a complicated tech stack.
+        </p>
+      </div>
+
+      <!-- Card 2 -->
+      <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+          <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path d="M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" stroke="#FFA500" stroke-width="2"/>
+            <path d="M7 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="#FFA500" stroke-width="2"/>
+            <path d="M17 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3z" stroke="#FFA500" stroke-width="2"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-extrabold text-white">
+          Small, growing teams
+        </h3>
+        <p class="mt-3 text-sm text-white/70">
+          Stay organized, reduce internal friction, and deliver consistently
+          as more people touch the work.
+        </p>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+        <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+          <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path d="M3 17l6-6 4 4 7-7" stroke="#FFA500" stroke-width="2"/>
+            <path d="M14 8h6v6" stroke="#FFA500" stroke-width="2"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-extrabold text-white">
+          Firms ready to scale
+        </h3>
+        <p class="mt-3 text-sm text-white/70">
+          Increase capacity and revenue without adding manual steps,
+          scope creep, or process breakdowns.
+        </p>
+      </div>
+    </div>
+
+    <div class="mt-14 flex justify-center">
+      <a
+        class="rounded-xl bg-brand-500 px-8 py-4 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+        href="https://secure.lentax.co/memberSignup"
+        rel="noopener"
+      >
+        Sign Up for a 30-Day Free Trial Today
+      </a>
+    </div>
+  </div>
+</section>
+
+
+
+<!-- ARTIFACTS / RESULTS (nested inside left hero like Cleanworks) -->
+<section id="artifacts" class="border-t border-white/10">
+  <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+    <div class="grid gap-6 lg:grid-cols-12">
+      <!-- LEFT HERO (header + buttons + CTA) -->
+      <div class="lg:col-span-5">
+        <div class="lg:sticky lg:top-28">
+          <div class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-500/30 to-emerald-300/10 p-8 shadow-soft">
+            <p class="text-xs font-semibold tracking-widest text-white/85">ARTIFACTS</p>
+            <h2 class="mt-3 text-3xl font-extrabold">See what problems our setups solve</h2>
+            <p class="mt-4 text-sm text-white/75">
+              Toggle between offers to preview the deliverables and “problem-solved” artifacts each setup ships with.
+            </p>
+
+            <!-- Offer toggle buttons -->
+            <div class="mt-6">
+              <div class="inline-flex items-end gap-1 border-b border-white/15" role="tablist" aria-label="Artifacts offer tabs">
+                <button
+                  type="button"
+                  class="artifact-tab artifact-tab--active inline-flex items-center rounded-xl border border-white/10 bg-ink-950 px-4 py-2 text-sm font-extrabold text-white shadow-soft"
+                  data-artifacts-tab="tax-monitor"
+                  aria-selected="true"
+                >
+                  Tax Monitor Setup
+                </button>
+                <button
+                  type="button"
+                  class="artifact-tab inline-flex items-center rounded-xl border border-transparent bg-transparent px-4 py-2 text-sm font-semibold text-white/75 hover:text-white"
+                  data-artifacts-tab="va-agency"
+                  aria-selected="false"
+                >
+                  Virtual Assistant Agency Setup
+                </button>
+                <button
+                  type="button"
+                  class="artifact-tab inline-flex items-center rounded-xl border border-transparent bg-transparent px-4 py-2 text-sm font-semibold text-white/75 hover:text-white"
+                  data-artifacts-tab="va-setup"
+                  aria-selected="false"
+                >
+                  Virtual Assistant Setup
+                </button>
+              </div>
+            </div>
+
+            <div class="mt-6">
+              <a
+                class="inline-flex rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-ink-900 hover:bg-white/90"
+                href="./installs.html"
+              >
+                View installs
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN (cards) -->
+      <div class="lg:col-span-7">
+        <div class="relative rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft md:p-5">
+          <!-- TAX MONITOR -->
+          <div data-artifacts-panel="tax-monitor" role="tabpanel" aria-label="Tax Monitor artifacts">
+            <div class="grid gap-4 md:grid-cols-2">
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Stop selling before you know.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: premature promises.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“The waiting period is owned.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: status pings.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Scope stays protected.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: scope creep.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“OIC hype gets replaced with data.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: risky defaults.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Capacity is visible before intake piles up.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: overload.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“White-label wins trust.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: tool confusion.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft md:col-span-2">
+                <div class="text-sm font-extrabold">FY2024 OIC snapshot</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: strategy sold without odds.</p>
+                <div class="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <div class="text-xs font-semibold text-white/60">Proposed</div>
+                    <div class="mt-1 text-xl font-extrabold">33,591</div>
+                  </div>
+                  <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <div class="text-xs font-semibold text-white/60">Accepted</div>
+                    <div class="mt-1 text-xl font-extrabold">7,199</div>
+                  </div>
+                  <div class="rounded-xl border border-white/10 bg-white/5 p-4">
+                    <div class="text-xs font-semibold text-white/60">Rate</div>
+                    <div class="mt-1 text-xl font-extrabold">≈ 21%</div>
+                  </div>
+                </div>
+              </article>
+            </div>
           </div>
 
-          <!-- VA STARTER -->
-          <div class="preview--hidden" data-preview="va-setup">
-            <!-- (unchanged content preserved from your original file) -->
-            <!-- NOTE: Your original VA STARTER block remains exactly as-is in the file you provided. -->
+          <!-- VIRTUAL ASSISTANT AGENCY -->
+          <div data-artifacts-panel="va-agency" class="hidden" role="tabpanel" aria-label="Virtual Assistant Agency artifacts">
+            <div class="grid gap-4 md:grid-cols-2">
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Leads stop slipping.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: missed follow-up.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Clients see the process.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: trust friction.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Hiring stays consistent.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: messy intake.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Delivery stays on rails.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: scattered tasks.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Support feels organized.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: reactive help.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Scope stays profitable.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: overdelivery.</p>
+              </article>
+            </div>
           </div>
 
+          <!-- VIRTUAL ASSISTANT SETUP -->
+          <div data-artifacts-panel="va-setup" class="hidden" role="tabpanel" aria-label="Virtual Assistant artifacts">
+            <div class="grid gap-4 md:grid-cols-2">
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Your profile reads premium.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: weak positioning.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Prospects know the next step.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: stalled leads.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Onboarding becomes repeatable.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: reinvention.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Clients pay cleanly.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: payment chaos.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Your work stays organized.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: scattered files.</p>
+              </article>
+
+              <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">“Delivery feels calm.”</div>
+                <p class="mt-3 text-sm text-white/70">Problem solved: context switching.</p>
+              </article>
+            </div>
+          </div>
         </div>
       </div>
-    </section>
+    </div>
+  </div>
 
-    <!-- WHY IT WORKS -->
-    <section class="border-t border-white/10">
-      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
-        <div class="mx-auto max-w-4xl text-center">
-          <p class="text-xs font-semibold tracking-widest text-brand-400">WHY LENTAX WORKS</p>
-          <h2 class="mt-3 text-4xl font-extrabold md:text-5xl">Predictable delivery, built for calm</h2>
-
-          <p class="mx-auto mt-6 max-w-3xl text-base text-white/70 md:text-lg">
-            Service delivery breaks down when clients can’t see what happens next, and your team has to answer the same questions repeatedly.
-            Lentax fixes that with visible steps, defined deliverables, and automations that reduce noise.
-          </p>
-
-          <p class="mx-auto mt-4 max-w-3xl text-base text-white/70 md:text-lg">
-            Install once, then stack add-ons only when you’re ready.
-            You stay in control of scope, timelines, and client expectations—without rebuilding your process every season.
-          </p>
-        </div>
-
-        <!-- (rest of your page continues unchanged) -->
-      </div>
-    </section>
-
-    <!-- MENU -->
-    <section class="border-t border-white/10">
-      <div class="mx-auto max-w-6-5xl px-4 py-12">
-        <div class="flex flex-col items-center gap-4">
-          <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
-            <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
-            <span class="text-base font-extrabold tracking-wide">Lentax.co</span>
-          </a>
-
-          <nav class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/80">
-            <a class="hover:text-white" href="./about.html">About</a>
-            <a class="hover:text-white" href="./installs.html">Installs</a>
-            <a class="hover:text-white" href="./pricing.html">Pricing</a>
-            <a class="hover:text-white" href="./book.html">Book / Demo</a>
-          </nav>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <!-- Shared footer include -->
-  <div data-include="footer"></div>
-
-  <!-- Includes loader -->
   <script>
-    (async function () {
-      async function load(selector, url) {
-        var el = document.querySelector(selector);
-        if (!el) return;
+    (function () {
+      var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-artifacts-tab]"));
+      var panels = Array.prototype.slice.call(document.querySelectorAll("[data-artifacts-panel]"));
 
-        try {
-          var res = await fetch(url, { cache: "no-cache" });
-          if (!res.ok) throw new Error("HTTP " + res.status);
-          el.innerHTML = await res.text();
-        } catch (e) {
-          el.innerHTML = '<div class="container" style="padding:12px 0"><a href="/index.html">Home</a></div>';
-        }
+      function setActive(key) {
+        buttons.forEach(function (b) {
+          var on = b.getAttribute("data-artifacts-tab") === key;
+          b.setAttribute("aria-selected", on ? "true" : "false");
+          b.classList.toggle("artifact-tab--active", on);
+          b.classList.toggle("bg-ink-950", on);
+          b.classList.toggle("border-white/10", on);
+          b.classList.toggle("shadow-soft", on);
+          b.classList.toggle("text-white", on);
+
+          b.classList.toggle("bg-transparent", !on);
+          b.classList.toggle("border-transparent", !on);
+          b.classList.toggle("text-white/75", !on);
+        });
+
+        panels.forEach(function (p) {
+          var show = p.getAttribute("data-artifacts-panel") === key;
+          p.classList.toggle("hidden", !show);
+        });
       }
 
-      await Promise.all([
-        load('[data-include="footer"]', '/partials/footer.html'),
-        load('[data-include="header"]', '/partials/header.html')
-      ]);
+      buttons.forEach(function (b) {
+        b.addEventListener("click", function () {
+          setActive(b.getAttribute("data-artifacts-tab"));
+        });
+      });
 
-      var year = document.getElementById("year");
-      if (year) year.textContent = new Date().getFullYear();
+      setActive("tax-monitor");
+    })();
+  </script>
+</section>
+
+
+
+
+    <!-- FAQ -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <h2 class="text-3xl font-extrabold md:text-4xl">Frequently asked questions</h2>
+        </div>
+
+        <div class="mx-auto mt-10 max-w-3xl space-y-4">
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              Is it hard to set up?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              No. Each install is scoped and configured cleanly. You get a structured handoff so you can operate immediately.
+            </p>
+          </details>
+
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              Can I cancel anytime?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              Yes. If you’re on a plan, you can cancel. If you purchased an install, you keep what was delivered.
+            </p>
+          </details>
+
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              What makes Lentax different?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              Lentax is built around deliverables, workflow visibility, and scope protection — not “more tools.”
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+<section class="border-t border-white/10">
+  <div class="mx-auto max-w-7xl px-6 py-20 md:py-28">
+    <div class="relative overflow-hidden rounded-3xl border border-white/10 bg-ink-950 p-12 text-center shadow-soft md:p-20">
+      <svg aria-hidden="true" class="absolute inset-0 h-full w-full" preserveAspectRatio="xMidYMid slice" viewBox="0 0 1200 400">
+        <defs>
+          <linearGradient id="orangeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ff9a3c" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#ff6a00" stop-opacity="0.25"/>
+          </linearGradient>
+        </defs>
+        <rect width="1200" height="400" fill="url(#orangeGradient)"/>
+        <path d="M0,300 C200,260 400,340 600,300 800,260 1000,340 1200,300 L1200,400 L0,400 Z" fill="#ff7a1a" fill-opacity="0.25"/>
+      </svg>
+
+      <div class="relative">
+        <h2 class="mx-auto max-w-4xl text-4xl font-extrabold md:text-6xl">
+          Start calm delivery today.
+        </h2>
+        <p class="mx-auto mt-6 max-w-2xl text-base text-white/80 md:text-lg">
+          Sign up and pick the first install you want live. Everything else stacks later.
+        </p>
+        <div class="mt-12 flex justify-center">
+          <a
+            class="rounded-xl bg-white px-10 py-4 text-base font-extrabold text-ink-900 shadow hover:bg-white/90"
+            href="https://secure.lentax.co/memberSignup"
+            rel="noopener"
+          >
+            Sign Up for a 30-Day Free Trial Today
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+  <!-- MENU -->
+  <section class="border-t border-white/10">
+    <div class="mx-auto max-w-6-5xl px-4 py-12">
+      <div class="flex flex-col items-center gap-4">
+        <a class="flex items-center gap-3" href="./index.html" aria-label="Lentax home">
+          <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
+          <span class="text-base font-extrabold tracking-wide">Lentax.co</span>
+        </a>
+
+        <nav class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/80">
+          <a class="hover:text-white" href="./about.html">About</a>
+          <a class="hover:text-white" href="./installs.html">Installs</a>
+          <a class="hover:text-white" href="./pricing.html">Pricing</a>
+          <a class="hover:text-white" href="./book.html">Book / Demo</a>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="border-t border-white/10">
+    <div class="mx-auto flex max-w-6-5xl flex-col gap-4 px-4 py-8 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
+      <div>
+        © <span id="year"></span> Lentax.co. All rights reserved.
+      </div>
+      <div class="flex gap-6">
+        <a class="hover:text-white" href="./privacy.html">Privacy Policy</a>
+        <a class="hover:text-white" href="./terms.html">Terms of Service</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+
+    (function () {
+      const panels = Array.from(document.querySelectorAll("[data-preview]"));
+      const tabs = Array.from(document.querySelectorAll("[data-tab]"));
+
+      if (!panels.length || !tabs.length) return;
+
+      function setActive(key) {
+        tabs.forEach((t) => {
+          const isActive = t.getAttribute("data-tab") === key;
+          t.classList.toggle("tab--active", isActive);
+          t.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+
+        panels.forEach((p) => {
+          const isActive = p.getAttribute("data-preview") === key;
+          p.classList.toggle("preview--hidden", !isActive);
+        });
+      }
+
+      tabs.forEach((t) => t.addEventListener("click", () => setActive(t.getAttribute("data-tab"))));
+
+      const defaultKey = (document.querySelector(".tab--active") || tabs[0]).getAttribute("data-tab");
+      setActive(defaultKey);
     })();
   </script>
 </body>
