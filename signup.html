@@ -12,8 +12,8 @@
     href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&display=swap"
     rel="stylesheet"
   />
-  <script src="https://cdn.tailwindcss.com"></script>
 
+  <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -75,57 +75,11 @@
   <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px] lentax-glow-drift"></div>
   <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px] lentax-glow-drift"></div>
 
-  <!-- HEADER (matches book.html) -->
-  <div class="sticky top-0 z-50 pt-4">
-    <header class="mx-auto max-w-6-5xl px-4">
-      <div class="rounded-2xl border border-white/10 bg-ink-950/80 shadow-topbar backdrop-blur">
-        <div class="flex items-center justify-between px-4 py-4 md:px-6">
-          <a class="flex items-center" href="./index.html" aria-label="VirtualLaunch.pro home">
-            <span aria-hidden="true" class="inline-flex items-center">
-              <img
-                src="https://secure.virtuallaunch.pro/file/af3e273dd6c612a5ce5d71f5545c5c12/0f5b048e-4920-4003-a505-cb85f588d1a1/SVG_Virtual+Launch+Pro_Logo_300x140.svg"
-                alt="VirtualLaunch.pro logo"
-                class="h-11 w-auto"
-                loading="eager"
-                decoding="async"
-              />
-            </span>
-          </a>
-
-          <div class="hidden items-center gap-4 md:flex">
-            <nav class="flex items-center gap-4 text-sm font-semibold text-white/80">
-              <a class="hover:text-white" href="./about.html">About</a>
-              <a class="hover:text-white" href="./installs.html">Installs</a>
-              <a class="hover:text-white" href="./pricing.html">Pricing</a>
-              <a class="hover:text-white" href="./book.html">Book / Demo</a>
-              <a class="hover:text-white" href="https://secure.virtuallaunch.pro/site/login" rel="noopener">Login</a>
-            </nav>
-
-            <a
-              class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
-              href="./book.html"
-              rel="noopener"
-            >
-              Schedule Demo Call
-            </a>
-          </div>
-
-          <div class="flex items-center gap-3 md:hidden">
-            <a
-              class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
-              href="./book.html"
-              rel="noopener"
-            >
-              Schedule Demo Call
-            </a>
-          </div>
-        </div>
-      </div>
-    </header>
-  </div>
+  <!-- Shared header include (ONLY header on page) -->
+  <div data-include="header"></div>
 
   <!-- MAIN -->
-  <main class="mx-auto max-w-6-5xl px-4 py-14 md:py-20">
+  <main class="mx-auto max-w-6-5xl px-4 py-14 md:py-20" id="top">
     <div class="mb-10 max-w-3xl">
       <p class="mb-4 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80">
         Secure onboarding
@@ -188,40 +142,39 @@
     </div>
   </main>
 
-  <!-- MENU (matches book.html) -->
-  <section class="border-t border-white/10">
-    <div class="mx-auto max-w-6-5xl px-4 py-12">
-      <div class="flex flex-col items-center gap-4">
-        <a class="flex items-center gap-3" href="./index.html" aria-label="VirtualLaunch.pro home">
-          <div class="h-9 w-9 rounded-xl bg-gradient-to-br from-brand-500 to-emerald-300"></div>
-          <span class="text-base font-extrabold tracking-wide">VirtualLaunch.pro</span>
-        </a>
-
-        <nav class="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-white/80">
-          <a class="hover:text-white" href="./about.html">About</a>
-          <a class="hover:text-white" href="./installs.html">Installs</a>
-          <a class="hover:text-white" href="./pricing.html">Pricing</a>
-          <a class="hover:text-white" href="./book.html">Book / Demo</a>
-        </nav>
-      </div>
-    </div>
-  </section>
-
-  <!-- FOOTER (matches book.html) -->
-  <footer class="border-t border-white/10">
-    <div class="mx-auto flex max-w-6-5xl flex-col gap-4 px-4 py-8 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
-      <div>
-        © <span id="year"></span> VirtualLaunch.pro. All rights reserved.
-      </div>
-      <div class="flex gap-6">
-        <a class="hover:text-white" href="./privacy.html">Privacy Policy</a>
-        <a class="hover:text-white" href="./terms.html">Terms of Service</a>
-      </div>
-    </div>
-  </footer>
+  <!-- FOOTER (shared include) -->
+  <div data-include="footer"></div>
 
   <script>
-    document.getElementById("year").textContent = new Date().getFullYear();
+    (function () {
+      function loadIncludes() {
+        var nodes = Array.prototype.slice.call(document.querySelectorAll("[data-include]"));
+        if (!nodes.length) return;
+
+        nodes.forEach(function (node) {
+          var key = node.getAttribute("data-include");
+          var url = "/partials/" + key + ".html";
+
+          fetch(url, { cache: "no-store" })
+            .then(function (res) {
+              if (!res.ok) throw new Error("Include failed: " + url);
+              return res.text();
+            })
+            .then(function (html) {
+              node.innerHTML = html;
+            })
+            .catch(function (err) {
+              console.error(err);
+            });
+        });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", loadIncludes);
+      } else {
+        loadIncludes();
+      }
+    })();
   </script>
 </body>
 </html>
