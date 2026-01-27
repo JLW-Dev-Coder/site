@@ -1,0 +1,150 @@
+<!-- /privacy.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Privacy Policy | Lentax.co</title>
+  <meta name="description" content="Lentax.co privacy policy." />
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          maxWidth: {
+            '6-5xl': '77.5rem'
+          },
+          colors: {
+            brand: { 500: "#f97316", 400: "#fb923c" },
+            ink: { 950: "#070a10", 900: "#0b1220", 800: "#111a2e", 700: "#152237" }
+          },
+          boxShadow: {
+            soft: "0 10px 30px rgba(0,0,0,0.12)",
+            topbar: "0 18px 50px rgba(0,0,0,0.18)"
+          }
+        }
+      }
+    };
+  </script>
+
+  <link rel="stylesheet" href="./styles.css" />
+
+  <style>
+    html { scroll-behavior: smooth; }
+
+    .lentax-grid {
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(circle at 50% 18%, rgba(0,0,0,1), rgba(0,0,0,0) 58%);
+    }
+
+    .lentax-grid-pan { animation: lentaxGridPan 22s linear infinite; }
+
+    @keyframes lentaxGridPan {
+      from { transform: translate3d(0,0,0); }
+      to { transform: translate3d(-56px,-56px,0); }
+    }
+
+    .policy-embed iframe {
+      width: 100%;
+      min-height: 85vh;
+      border: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .lentax-grid-pan { animation: none; }
+    }
+  </style>
+</head>
+
+<body class="bg-ink-950 text-white antialiased">
+  <div class="pointer-events-none fixed inset-0 -z-20 lentax-grid lentax-grid-pan opacity-60"></div>
+  <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px]"></div>
+  <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px]"></div>
+
+  <!-- HEADER (matches index.html) -->
+  <div class="sticky top-0 z-50 pt-4">
+    <header class="mx-auto max-w-6-5xl px-4">
+      <div class="rounded-2xl border border-white/10 bg-ink-950/80 shadow-topbar backdrop-blur">
+        <div class="flex items-center justify-between px-4 py-4 md:px-6">
+          <a class="flex items-center" href="./index.html" aria-label="Lentax home">
+            <img
+              src="https://secure.virtuallaunch.pro/file/af3e273dd6c612a5ce5d71f5545c5c12/0f5b048e-4920-4003-a505-cb85f588d1a1/SVG_Virtual+Launch+Pro_Logo_300x140.svg"
+              alt="VirtualLaunch.pro logo"
+              class="h-11 w-auto"
+              loading="eager"
+              decoding="async"
+            />
+          </a>
+
+          <div class="hidden items-center gap-4 md:flex">
+            <nav class="flex items-center gap-4 text-sm font-semibold text-white/80">
+              <a class="hover:text-white" href="./about.html">About</a>
+              <a class="hover:text-white" href="./installs.html">Installs</a>
+              <a class="hover:text-white" href="./pricing.html">Pricing</a>
+              <a class="hover:text-white" href="./book.html">Book / Demo</a>
+              <a class="hover:text-white" href="https://secure.lentax.co/site/login" rel="noopener">Login</a>
+            </nav>
+
+            <a
+              class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+              href="./book.html"
+            >
+              Schedule Demo Call
+            </a>
+          </div>
+        </div>
+      </div>
+    </header>
+  </div>
+
+  <main class="mx-auto max-w-6-5xl px-4 py-14 md:py-20">
+    <div class="mb-10 max-w-3xl">
+      <p class="mb-4 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80">
+        Legal
+      </p>
+      <h1 class="text-4xl font-extrabold tracking-tight md:text-5xl">Privacy Policy</h1>
+      <p class="mt-3 text-base text-white/75">
+        This page outlines how Lentax.co collects, uses, and protects information.
+      </p>
+    </div>
+
+    <section class="rounded-2xl border border-white/10 bg-white/5 shadow-soft">
+      <div class="policy-embed">
+        <iframe
+          src="https://doc.clickup.com/8402511/p/h/80djf-13088/b52d2e2a57046df"
+          title="Lentax Privacy Policy"
+          loading="lazy"
+          referrerpolicy="no-referrer"
+        ></iframe>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER (matches index.html) -->
+  <footer class="border-t border-white/10">
+    <div class="mx-auto flex max-w-6-5xl flex-col gap-4 px-4 py-8 text-sm text-white/70 md:flex-row md:items-center md:justify-between">
+      <div>
+        © <span id="year"></span> Lentax.co. All rights reserved.
+      </div>
+      <div class="flex gap-6">
+        <a class="hover:text-white" href="./privacy.html">Privacy Policy</a>
+        <a class="hover:text-white" href="./terms.html">Terms of Service</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    document.getElementById("year").textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>
