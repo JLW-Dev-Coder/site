@@ -1,0 +1,85 @@
+<!-- FOOTER -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>Virtual Launch Pro — Sign Up</title>
+  <meta
+    name="description"
+    content="Sign up for Virtual Launch Pro. Secure onboarding starts here."
+  />
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-ink-950 text-white antialiased">
+
+  <!-- HEADER -->
+  <div data-include="header"></div>
+
+  <!-- MAIN -->
+  <main class="mx-auto max-w-3xl px-4 py-20">
+    <header class="mb-10">
+      <h1 class="text-3xl font-extrabold tracking-tight">
+        Create your account
+      </h1>
+      <p class="mt-2 text-white/70">
+        Secure signup for Virtual Launch Pro.
+      </p>
+    </header>
+
+    <!-- SIGNUP FORM -->
+    <section
+      class="rounded-2xl border border-white/10 bg-white/5 p-6 md:p-8"
+      aria-label="Signup form"
+    >
+      <script src="https://secure.virtuallaunch.pro/frm/vqZB3BPQpFQUbadA.js"></script>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <div data-include="footer"></div>
+
+  <!-- INCLUDE LOADER -->
+  <script>
+    (function () {
+      function loadIncludes() {
+        var nodes = Array.prototype.slice.call(document.querySelectorAll("[data-include]"));
+        if (!nodes.length) return;
+
+        nodes.forEach(function (node) {
+          var key = node.getAttribute("data-include");
+          var url = "/partials/" + key + ".html";
+
+          fetch(url, { cache: "no-store" })
+            .then(function (res) {
+              if (!res.ok) throw new Error("Include failed: " + url);
+              return res.text();
+            })
+            .then(function (html) {
+              node.innerHTML = html;
+            })
+            .catch(function (err) {
+              console.error(err);
+            });
+        });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", loadIncludes);
+      } else {
+        loadIncludes();
+      }
+    })();
+  </script>
+
+</body>
+</html>
