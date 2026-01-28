@@ -1,5 +1,387 @@
 <!-- /partials/dashboard-preview.html -->
 <section class="border-t border-white/10" id="dashboard-preview">
+  <style>
+/* ============================= */
+/* Dashboard Preview Patch Only */
+/* ============================= */
+
+.container--wide {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1400px;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.dash-preview-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.dash-preview-wrap > [data-preview] {
+  display: none;
+  width: 100%;
+}
+
+.dash-preview-wrap > [data-preview].is-active {
+  display: block;
+}
+
+.dash-preview-wrap > div {
+  width: 100%;
+}
+
+.page-loader {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.page-loader__dot {
+  animation: loaderPulse 1.4s ease-in-out infinite;
+  border-radius: 999px;
+  height: 8px;
+  width: 8px;
+}
+
+.product {
+  border-radius: 0.75rem;
+  position: relative;
+}
+
+.qa__a {
+  line-height: 1.6;
+  margin-top: 0.5rem;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.security__item {
+  border-radius: 0.75rem;
+  position: relative;
+}
+
+.tabs-inline {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.tm-admin-preview {
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 1200px;
+  padding: 1rem;
+  width: 100%;
+}
+
+.va-agency-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.va-agency-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.va-agency-nav__icon {
+  height: 16px;
+  width: 16px;
+}
+
+.va-agency-nav__item {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.va-agency-nav__item--active {
+  font-weight: 700;
+}
+
+.va-agency-nav__label {
+  white-space: nowrap;
+}
+
+.va-agency-panel {
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.va-agency-panel--tasks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.va-agency-panel__head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.va-agency-panel__title {
+  font-weight: 700;
+}
+
+.va-agency-panel__tools {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.va-agency-phase {
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+.va-agency-phase--active {
+  font-weight: 700;
+}
+
+.va-agency-phase__kebab {
+  cursor: pointer;
+}
+
+.va-agency-phase__meta {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.va-agency-phase__name {
+  font-weight: 600;
+}
+
+.va-agency-phase__sub {
+  font-size: 0.75rem;
+}
+
+.va-agency-phase__top {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.va-agency-pill {
+  border-radius: 999px;
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+}
+
+.va-agency-pill--warn {
+  font-weight: 700;
+}
+
+.va-agency-preview {
+  width: 100%;
+}
+
+.va-agency-profile {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.va-agency-profile__avatar {
+  border-radius: 999px;
+  height: 28px;
+  width: 28px;
+}
+
+.va-agency-profile__link {
+  text-decoration: none;
+}
+
+.va-agency-profile__meta {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.va-agency-profile__name {
+  font-weight: 600;
+}
+
+.va-agency-projectbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.va-agency-projectbar__left,
+.va-agency-projectbar__right {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.va-agency-rightcol {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.va-agency-row {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.va-agency-row--thin {
+  padding-bottom: 0.25rem;
+  padding-top: 0.25rem;
+}
+
+.va-agency-select {
+  width: 100%;
+}
+
+.va-agency-shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.va-agency-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.va-agency-split {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr 3fr;
+}
+
+.va-agency-subnav {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.va-agency-subnav__item {
+  padding: 0.25rem 0.5rem;
+}
+
+.va-agency-subnav__item--active {
+  font-weight: 700;
+}
+
+.va-agency-table {
+  width: 100%;
+}
+
+.va-agency-table__cell {
+  padding: 0.5rem;
+}
+
+.va-agency-table__cell--assignee {
+  white-space: nowrap;
+}
+
+.va-agency-table__cell--num {
+  text-align: right;
+}
+
+.va-agency-table__head {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.va-agency-table__row {
+  border-radius: 0.5rem;
+}
+
+.va-agency-taskmeta {
+  font-size: 0.75rem;
+  opacity: 0.75;
+}
+
+.va-agency-tasktitle {
+  font-weight: 600;
+}
+
+.va-agency-topbar {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.va-agency-topbar__icon {
+  height: 18px;
+  width: 18px;
+}
+
+.va-agency-topbar__iconbtn {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.va-agency-topbar__iconbtn--plus {
+  font-weight: 700;
+}
+
+.va-agency-topbar__left,
+.va-agency-topbar__right {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.va-agency-topbar__user {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.va-agency-topbar__userpic {
+  border-radius: 999px;
+  height: 24px;
+  width: 24px;
+}
+
+.va-agency-wrap {
+  width: 100%;
+}
+
+.vlp-grid {
+  position: relative;
+}
+
+.vlp-grid-pan {
+  animation: gridPan 40s linear infinite;
+}
+
+[data-anim="fade"] {
+  opacity: 0;
+}
+
+[data-anim="fade-up"] {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+@keyframes gridPan {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes loaderPulse {
+  0% { opacity: 0.3; }
+  50% { opacity: 1; }
+  100% { opacity: 0.3; }
+}
+</style>
+
   <div class="container container--wide">
     <div class="pt-12">
       <div class="flex justify-center" role="tablist" aria-label="Dashboard preview tabs">
@@ -845,4 +1227,48 @@
       </div>
     </div>
   </div>
+  <script>
+(function () {
+  "use strict";
+
+  function setActiveTab(root, tabName) {
+    var tabs = root.querySelectorAll(".tab[data-tab]");
+    var panels = root.querySelectorAll("[data-preview]");
+
+    tabs.forEach(function (btn) {
+      var isActive = btn.getAttribute("data-tab") === tabName;
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
+      btn.classList.toggle("tab--active", isActive);
+    });
+
+    panels.forEach(function (panel) {
+      var isActivePanel = panel.getAttribute("data-preview") === tabName;
+      panel.classList.toggle("is-active", isActivePanel);
+    });
+  }
+
+  function initDashboardPreview() {
+    var root = document.getElementById("dashboard-preview");
+    if (!root) return;
+
+    var tabs = root.querySelectorAll(".tab[data-tab]");
+    if (!tabs.length) return;
+
+    tabs.forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        setActiveTab(root, btn.getAttribute("data-tab"));
+      });
+    });
+
+    setActiveTab(root, "tax-monitor");
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initDashboardPreview);
+  } else {
+    initDashboardPreview();
+  }
+})();
+</script>
+
 </section>
