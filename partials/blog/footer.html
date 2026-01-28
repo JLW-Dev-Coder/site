@@ -37,9 +37,7 @@
         <div class="text-sm font-extrabold text-white">Subscribe</div>
         <p class="mt-2 text-xs text-white/60">Get the next Tide Report drop.</p>
 
-        <div class="mt-4 vl-form-embed w-full overflow-visible">
-          <script src="https://secure.virtuallaunch.pro/frm/2uxzgUhaTids8Ujq6.js"></script>
-        </div>
+        <div class="mt-4 vl-form-embed w-full overflow-visible" id="vl-subscribe-embed"></div>
       </div>
 
     </div>
@@ -55,20 +53,28 @@
     </a>
   </div>
 
-  <!-- ROBUST IFRAME FIX (timing-safe) -->
   <script>
     (function () {
-      var root = document.querySelector("#blog-footer-subscribe .vl-form-embed");
+      var root = document.getElementById("vl-subscribe-embed");
       if (!root) return;
+
+      if (!root.__vlEmbedLoaded) {
+        root.__vlEmbedLoaded = true;
+
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = "https://secure.virtuallaunch.pro/frm/2uxzgUhaTids8Ujq6.js";
+        root.appendChild(s);
+      }
 
       function styleIframe(iframe) {
         iframe.setAttribute("allowtransparency", "true");
         iframe.style.background = "#070a10";
         iframe.style.border = "0";
         iframe.style.display = "block";
-        iframe.style.width = "100%";
-        iframe.style.minHeight = "360px";
         iframe.style.height = "360px";
+        iframe.style.minHeight = "360px";
+        iframe.style.width = "100%";
       }
 
       function scan() {
@@ -88,4 +94,5 @@
       setTimeout(scan, 1200);
     })();
   </script>
+
 </section>
