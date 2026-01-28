@@ -1,8 +1,9 @@
 <!-- HEADER PARTIAL -->
-<div class="sticky top-0 z-50">
+<div class="fixed left-0 right-0 top-0 z-50">
   <header class="mx-auto max-w-6-5xl px-4 pt-4">
     <div class="rounded-2xl border border-white/10 bg-ink-950/70 shadow-topbar backdrop-blur">
       <div class="flex items-center justify-between px-4 py-4 md:px-6">
+        <!-- Logo -->
         <a class="flex items-center" href="/index.html" aria-label="Virtual Launch Pro home">
           <span aria-hidden="true" class="inline-flex items-center h-14">
             <img
@@ -16,20 +17,15 @@
           </span>
         </a>
 
+        <!-- Desktop Nav -->
         <div class="hidden items-center gap-4 md:flex">
           <nav class="flex items-center gap-4 text-sm font-semibold text-white/80" aria-label="Primary navigation">
             <a class="hover:text-white" href="/about.html">About</a>
             <a class="hover:text-white" href="/blog/">Blog</a>
             <a class="hover:text-white" href="/installs.html">Installs</a>
-            <a
-              class="hover:text-white"
-              href="https://secure.virtuallaunch.pro/site/login"
-              rel="noopener"
-            >
-              Login
-            </a>
-            <a class="hover:text-white" href="/book.html">Book / Demo</a>
             <a class="hover:text-white" href="/pricing.html">Pricing</a>
+            <a class="hover:text-white" href="/book.html">Book / Demo</a>
+            <a class="hover:text-white" href="https://secure.virtuallaunch.pro/site/login" rel="noopener">Login</a>
           </nav>
 
           <a
@@ -41,6 +37,7 @@
           </a>
         </div>
 
+        <!-- Mobile CTA -->
         <div class="flex items-center gap-3 md:hidden">
           <a
             class="inline-flex rounded-xl bg-brand-500 px-4 py-2 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
