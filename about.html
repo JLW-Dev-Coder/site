@@ -19,6 +19,18 @@
 
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
+  <link
+    href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <link
+    rel="preload"
+    as="image"
+    href="/assets/Virtual-Launch-Pro_Logo_200x60_Black.svg"
+    type="image/svg+xml"
+  />
+
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -30,7 +42,7 @@
           },
           colors: {
             brand: { 500: "#f97316", 400: "#fb923c" },
-            ink: { 950: "#070a10", 900: "#0b1220", 850: "#0e172a", 800: "#111a2e", 700: "#152237" }
+            ink: { 950: "#070a10", 900: "#0b1220", 800: "#111a2e", 700: "#152237" }
           },
           maxWidth: {
             "6-5xl": "77.5rem"
@@ -45,7 +57,7 @@
   <style>
     html { scroll-behavior: smooth; }
 
-    .lentax-grid {
+    .vlp-grid {
       background-image:
         linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
         linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
@@ -53,204 +65,254 @@
       mask-image: radial-gradient(circle at 50% 18%, rgba(0,0,0,1), rgba(0,0,0,0) 58%);
     }
 
-    .lentax-grid-pan {
-      animation: lentaxGridPan 22s linear infinite;
-      will-change: transform;
+    .vlp-grid-pan { animation: gridPan 22s linear infinite; }
+
+    @keyframes gridPan {
+      from { transform: translate3d(0,0,0); }
+      to { transform: translate3d(-56px,-56px,0); }
     }
 
-    @keyframes lentaxGridPan {
-      0% { transform: translate3d(0,0,0); }
-      100% { transform: translate3d(-56px,-56px,0); }
+    @media (prefers-reduced-motion: reduce) {
+      .vlp-grid-pan { animation: none; }
     }
   </style>
 </head>
 
-
 <body class="bg-ink-950 text-white antialiased">
-  <div class="pointer-events-none fixed inset-0 -z-20 lentax-grid lentax-grid-pan opacity-60"></div>
-  <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px] lentax-glow-drift"></div>
-  <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px] lentax-glow-drift"></div>
+  <div class="pointer-events-none fixed inset-0 -z-20 vlp-grid vlp-grid-pan opacity-60"></div>
+  <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px]"></div>
+  <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px]"></div>
 
   <!-- SHARED HEADER -->
   <div data-include="header"></div>
 
-  <main class="mx-auto max-w-6xl px-4 py-12 md:py-16">
-    <!-- HERO TITLE BLOCK -->
-    <section class="text-center">
-      <h1 class="text-4xl font-extrabold tracking-tight md:text-5xl">
+  <main id="top">
+    <!-- HERO -->
+    <section class="mx-auto max-w-6-5xl px-4 pb-10 pt-16 md:pb-14 md:pt-24">
+      <p class="mx-auto mb-5 w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
+        About the builder behind Lentax
+      </p>
+
+      <h1 class="mx-auto max-w-4xl text-center text-4xl font-extrabold leading-tight md:text-6xl">
         Get to Know Jamie L. Williams, EA
       </h1>
-      <p class="mx-auto mt-4 max-w-3xl text-base leading-relaxed text-white/75 md:text-lg">
-        The system engineer behind Lentax — built to give VAs, agency founders, and tax pros a cleaner, faster path to work.
+
+      <p class="mx-auto mt-6 max-w-3xl text-center text-base text-white/70 md:text-lg">
+        The systems engineer behind Lentax — built to give VAs, agency founders, and tax pros a cleaner, faster path to work.
       </p>
     </section>
 
     <!-- HERO ROW -->
-    <section class="mt-10 flex flex-col gap-10 md:flex-row md:items-start">
-      <div class="flex-1">
-        <div class="border-l-4 border-white/90 pl-5 text-base leading-relaxed text-white/85 md:text-lg">
-          <p>I’m Jamie L. Williams, EA, CB, OTC — a tax pro turned systems builder for virtual assistants, tax professionals, and remote workers.</p>
-          <p class="mt-4">I spent years inside messy back offices, watching smart people lose time and money because their systems could not keep up. I built Lentax.co to solve that problem.</p>
-          <p class="mt-4">Today, I help new and growing VAs, agency founders, and tax pros launch with clear offers, clean client portals, and simple workflows so they can earn without burning out.</p>
-        </div>
-      </div>
-
-      <aside class="w-full md:w-[320px] text-center">
-        <img class="mx-auto block w-full rounded-xl"
-             src="https://20896460.fs1.hubspotusercontent-na1.net/hubfs/20896460/Development%20Materials/Miscellaneous/Pic_JLW_Left-removebg-preview.png"
-             alt="Jamie L. Williams" />
-        <p class="mt-3 text-sm text-white/75">Jamie L. Williams, EA, CB, OTC</p>
-
-        <div class="mt-3 flex items-center justify-center gap-4">
-          <a class="inline-flex h-7 w-7 text-white/90 hover:text-white" href="https://www.facebook.com/taxdebtfreedom/" target="_blank" rel="noopener" aria-label="Facebook">
-            <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M22 12a10 10 0 1 0-11.5 9.9v-7h-2v-3h2v-2.3c0-2 1.2-3.1 3-3.1.9 0 1.8.1 1.8.1v2h-1c-1 0-1.3.6-1.3 1.2V12h2.3l-.4 3h-1.9v7A10 10 0 0 0 22 12"/></svg>
-          </a>
-          <a class="inline-flex h-7 w-7 text-white/90 hover:text-white" href="https://www.instagram.com/lentax.co/" target="_blank" rel="noopener" aria-label="Instagram">
-            <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M7 2C4.2 2 2 4.2 2 7v10c0 2.8 2.2 5 5 5h10c2.8 0 5-2.2 5-5V7c0-2.8-2.2-5-5-5H7zm10 2a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h10zm-5 3.3A4.7 4.7 0 1 0 16.7 12 4.7 4.7 0 0 0 12 7.3zm0 7.7A3 3 0 1 1 15 12a3 3 0 0 1-3 3zm4.8-8.9a1.1 1.1 0 1 1-1.1-1.1 1.1 1.1 0 0 1 1.1 1.1z"/></svg>
-          </a>
-          <a class="inline-flex h-7 w-7 text-white/90 hover:text-white" href="https://www.linkedin.com/in/lenoreinc/" target="_blank" rel="noopener" aria-label="LinkedIn">
-            <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M4.98 3.5C4.98 4.88 3.88 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.4 8h4.1v14H.4V8zm7.2 0h3.9v1.9h.1c.5-.9 1.8-1.9 3.7-1.9 3.9 0 4.6 2.6 4.6 6V22H15V14.1c0-1.9 0-4.3-2.6-4.3-2.6 0-3 2-3 4.1V22H7.6V8z"/></svg>
-          </a>
-          <a class="inline-flex h-7 w-7 text-white/90 hover:text-white" href="https://www.threads.com/@lentax.co" target="_blank" rel="noopener" aria-label="Threads">
-            <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm4.3 13.9c-.8 1.2-2.2 2.1-4.3 2.1-2.7 0-4.9-1.6-4.9-4.6 0-2.7 1.9-4.6 4.5-4.6 2.4 0 4.1 1.3 4.4 3.5h-2c-.2-1-.9-1.7-2.4-1.7-1.5 0-2.5 1-2.5 2.7 0 1.8 1 2.7 2.6 2.7 1.3 0 2.1-.5 2.4-1.4H12v-1.7h4.6c.1.5.1 1 .1 1.5 0 .8-.1 1.5-.4 2.1z"/></svg>
-          </a>
-        </div>
-      </aside>
-    </section>
-
-    <!-- SECTION: About Jamie -->
-    <section class="mt-14">
-      <div class="text-center">
-        <h2 class="text-2xl font-extrabold">About Jamie</h2>
-        <div class="mx-auto mt-4 h-[2px] w-[90px] bg-gradient-to-r from-ink-900 to-[#c89b3c]"></div>
-      </div>
-
-      <div class="mx-auto mt-8 max-w-3xl space-y-4 text-base leading-relaxed text-white/80 md:text-lg">
-        <p>I started where many people start — managing the work, managing clients, and juggling systems that were never built for growth.</p>
-        <p>Lentax.co is the system I wish existed years ago. A clean, launch-ready platform for VAs, tax pros, and remote workers who want to begin professionally instead of piecing things together.</p>
-      </div>
-    </section>
-
-    <!-- SECTION: How I Work With You -->
-    <section class="mt-14">
-      <div class="text-center">
-        <h2 class="text-2xl font-extrabold">How I Work With You</h2>
-        <div class="mx-auto mt-4 h-[2px] w-[90px] bg-gradient-to-r from-ink-900 to-[#c89b3c]"></div>
-      </div>
-
-      <div class="mx-auto mt-8 max-w-3xl text-base leading-relaxed text-white/80 md:text-lg">
-        <p>I work best with people who are ready to treat their skills like a real business. I support:</p>
-
-        <div class="mt-6 space-y-5">
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div>New and aspiring VA agency owners seeking done-for-you structure.</div>
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="grid gap-10 md:grid-cols-12 md:items-start">
+          <div class="md:col-span-8">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft md:p-10">
+              <div class="border-l-4 border-white/80 pl-5 text-base leading-relaxed text-white/80 md:text-lg">
+                <p>I’m Jamie L. Williams, EA, CB, OTC — a tax pro turned systems builder for virtual assistants, tax professionals, and remote workers.</p>
+                <p class="mt-4">I spent years inside messy back offices, watching smart people lose time and money because their systems could not keep up. I built Lentax.co to solve that problem.</p>
+                <p class="mt-4">Today, I help new and growing VAs, agency founders, and tax pros launch with clear offers, clean client portals, and simple workflows so they can earn without burning out.</p>
+              </div>
+            </div>
           </div>
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div>Remote workers who want a professional foundation for their services.</div>
-          </div>
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div>Tax professionals wanting clean workflows, portals, and automation.</div>
-          </div>
+
+          <aside class="md:col-span-4">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-6 text-center shadow-soft">
+              <img
+                class="mx-auto block w-full rounded-2xl border border-white/10 bg-ink-950/30 object-cover"
+                src="https://20896460.fs1.hubspotusercontent-na1.net/hubfs/20896460/Development%20Materials/Miscellaneous/Pic_JLW_Left-removebg-preview.png"
+                alt="Jamie L. Williams"
+                loading="lazy"
+                decoding="async"
+              />
+
+              <p class="mt-4 text-sm font-semibold text-white/85">Jamie L. Williams, EA, CB, OTC</p>
+              <p class="mt-1 text-xs text-white/60">Systems engineer • Delivery-first ops</p>
+
+              <div class="mt-5 flex items-center justify-center gap-4">
+                <a class="inline-flex h-7 w-7 text-white/80 hover:text-white" href="https://www.facebook.com/taxdebtfreedom/" target="_blank" rel="noopener" aria-label="Facebook">
+                  <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M22 12a10 10 0 1 0-11.5 9.9v-7h-2v-3h2v-2.3c0-2 1.2-3.1 3-3.1.9 0 1.8.1 1.8.1v2h-1c-1 0-1.3.6-1.3 1.2V12h2.3l-.4 3h-1.9v7A10 10 0 0 0 22 12"/></svg>
+                </a>
+
+                <a class="inline-flex h-7 w-7 text-white/80 hover:text-white" href="https://www.instagram.com/lentax.co/" target="_blank" rel="noopener" aria-label="Instagram">
+                  <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M7 2C4.2 2 2 4.2 2 7v10c0 2.8 2.2 5 5 5h10c2.8 0 5-2.2 5-5V7c0-2.8-2.2-5-5-5H7zm10 2a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h10zm-5 3.3A4.7 4.7 0 1 0 16.7 12 4.7 4.7 0 0 0 12 7.3zm0 7.7A3 3 0 1 1 15 12a3 3 0 0 1-3 3zm4.8-8.9a1.1 1.1 0 1 1-1.1-1.1 1.1 1.1 0 0 1 1.1 1.1z"/></svg>
+                </a>
+
+                <a class="inline-flex h-7 w-7 text-white/80 hover:text-white" href="https://www.linkedin.com/in/lenoreinc/" target="_blank" rel="noopener" aria-label="LinkedIn">
+                  <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M4.98 3.5C4.98 4.88 3.88 6 2.5 6S0 4.88 0 3.5 1.12 1 2.5 1s2.48 1.12 2.48 2.5zM.4 8h4.1v14H.4V8zm7.2 0h3.9v1.9h.1c.5-.9 1.8-1.9 3.7-1.9 3.9 0 4.6 2.6 4.6 6V22H15V14.1c0-1.9 0-4.3-2.6-4.3-2.6 0-3 2-3 4.1V22H7.6V8z"/></svg>
+                </a>
+
+                <a class="inline-flex h-7 w-7 text-white/80 hover:text-white" href="https://www.threads.com/@lentax.co" target="_blank" rel="noopener" aria-label="Threads">
+                  <svg viewBox="0 0 24 24" class="h-full w-full fill-current"><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm4.3 13.9c-.8 1.2-2.2 2.1-4.3 2.1-2.7 0-4.9-1.6-4.9-4.6 0-2.7 1.9-4.6 4.5-4.6 2.4 0 4.1 1.3 4.4 3.5h-2c-.2-1-.9-1.7-2.4-1.7-1.5 0-2.5 1-2.5 2.7 0 1.8 1 2.7 2.6 2.7 1.3 0 2.1-.5 2.4-1.4H12v-1.7h4.6c.1.5.1 1 .1 1.5 0 .8-.1 1.5-.4 2.1z"/></svg>
+                </a>
+              </div>
+
+              <div class="mt-6">
+                <a class="inline-flex w-full justify-center rounded-xl bg-brand-500 px-6 py-3 text-sm font-extrabold text-ink-900 hover:bg-brand-400" href="/signup.html" rel="noopener">
+                  Explore the system
+                </a>
+              </div>
+            </div>
+          </aside>
         </div>
       </div>
     </section>
 
-    <!-- SECTION: Results You Can Expect -->
-    <section class="mt-14">
-      <div class="text-center">
-        <h2 class="text-2xl font-extrabold">Results You Can Expect</h2>
-        <div class="mx-auto mt-4 h-[2px] w-[90px] bg-gradient-to-r from-ink-900 to-[#c89b3c]"></div>
-      </div>
-
-      <div class="mx-auto mt-8 max-w-3xl text-base leading-relaxed text-white/80 md:text-lg">
-        <p>When we work together, you can expect:</p>
-
-        <div class="mt-6 space-y-5">
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div><strong class="text-white">Clarity</strong> — A clean path from lead → client → delivery.</div>
-          </div>
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div><strong class="text-white">Clean Systems</strong> — Intake, communication, tasks, and billing in one place.</div>
-          </div>
-          <div class="flex gap-3">
-            <span class="relative top-[2px] text-white">▌</span>
-            <div><strong class="text-white">Confidence</strong> — Clients see you as a professional from day one.</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- FEATURED QUOTE -->
-    <section class="mt-14">
-      <div class="mx-auto max-w-3xl rounded-xl border-l-4 border-[#ffd700] bg-white/5 px-6 py-6 text-base italic leading-relaxed text-white/85 md:text-lg">
-        <div class="relative">
-          <span class="absolute -left-3 -top-3 text-4xl font-extrabold text-[#ffd700]">“</span>
-          <p class="pl-3">
-            You bring your goals. I bring the map, the system, and the workflow that keeps the business moving. We'll build cleaner systems so you have room to scale.<br>— JLW
+    <!-- ABOUT JAMIE -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">ABOUT</p>
+          <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">About Jamie</h2>
+          <p class="mt-5 text-base text-white/70 md:text-lg">
+            Built from real back-office experience — and designed to keep delivery calm, consistent, and visible.
           </p>
-          <span class="absolute -right-1 -bottom-5 text-4xl font-extrabold text-[#ffd700]">”</span>
+        </div>
+
+        <div class="mx-auto mt-10 max-w-3xl space-y-4 text-base leading-relaxed text-white/75 md:text-lg">
+          <p>I started where many people start — managing the work, managing clients, and juggling systems that were never built for growth.</p>
+          <p>Lentax.co is the system I wish existed years ago: a clean, launch-ready platform for VAs, tax pros, and remote workers who want to begin professionally instead of piecing things together.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW I WORK WITH YOU -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">WORKING STYLE</p>
+          <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">How I Work With You</h2>
+          <p class="mt-5 text-base text-white/70 md:text-lg">
+            This is built for people who are ready to run their skill like a real business.
+          </p>
+        </div>
+
+        <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
+          <p class="text-base text-white/75 md:text-lg">I support:</p>
+
+          <div class="mt-6 space-y-4">
+            <div class="flex gap-3">
+              <span aria-hidden="true" class="mt-2 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+              <div class="text-sm text-white/70 md:text-base">New and aspiring VA agency owners seeking done-for-you structure.</div>
+            </div>
+
+            <div class="flex gap-3">
+              <span aria-hidden="true" class="mt-2 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+              <div class="text-sm text-white/70 md:text-base">Remote workers who want a professional foundation for their services.</div>
+            </div>
+
+            <div class="flex gap-3">
+              <span aria-hidden="true" class="mt-2 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+              <div class="text-sm text-white/70 md:text-base">Tax professionals wanting clean workflows, portals, and automation.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">OUTCOMES</p>
+          <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">Results You Can Expect</h2>
+          <p class="mt-5 text-base text-white/70 md:text-lg">
+            Clean systems reduce friction. Reduced friction increases delivery capacity.
+          </p>
+        </div>
+
+        <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
+          <div class="space-y-4">
+            <div class="flex gap-3">
+              <span aria-hidden="true" class="mt-2 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+              <div class="text-sm text-white/70 md:text-base"><span class="font-extrabold text-white">Clean systems</span> — Intake, communication, tasks, and billing in one place.</div>
+            </div>
+
+            <div class="flex gap-3">
+              <span aria-hidden="true" class="mt-2 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+              <div class="text-sm text-white/70 md:text-base"><span class="font-extrabold text-white">Clarity</span> — A clean path from lead → client → delivery.</div>
+            </div>
+
+            <div class="flex gap-3">
+              <span aria-hidden="true" class="mt-2 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+              <div class="text-sm text-white/70 md:text-base"><span class="font-extrabold text-white">Confidence</span> — Clients see you as a professional from day one.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUOTE -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
+          <div class="flex gap-4">
+            <div class="h-full w-1 rounded-full bg-brand-500"></div>
+            <div>
+              <p class="text-base italic leading-relaxed text-white/80 md:text-lg">
+                You bring your goals. I bring the map, the system, and the workflow that keeps the business moving.
+                We&apos;ll build cleaner systems so you have room to scale.
+              </p>
+              <p class="mt-4 text-sm font-extrabold text-white/85">— JLW</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- CTA GRID -->
-    <section class="mt-14">
-      <div class="text-center">
-        <h2 class="text-2xl font-extrabold">Choose Your Next Step</h2>
-        <div class="mx-auto mt-4 h-[2px] w-[90px] bg-gradient-to-r from-ink-900 to-[#c89b3c]"></div>
-        <p class="mx-auto mt-6 max-w-2xl text-base text-white/75 md:text-lg">
-          Select the option that matches where you are right now.
-        </p>
-      </div>
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">NEXT STEP</p>
+          <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">Choose Your Next Step</h2>
+          <p class="mt-5 text-base text-white/70 md:text-lg">
+            Select the option that matches where you are right now.
+          </p>
+        </div>
 
-      <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        <a href="https://secure.lentax.co/va-setup-discovery"
-           class="group rounded-xl border border-white/10 bg-white/5 p-5 text-center hover:border-white/20"
-           rel="noopener">
-          <div class="text-lg font-extrabold text-transparent bg-gradient-to-b from-white to-white/70 bg-clip-text">
-            Book a Strategy Call
-          </div>
-          <div class="mt-2 text-sm text-transparent bg-gradient-to-b from-white/90 to-white/60 bg-clip-text">
-            Clarify your goals and map the right setup.
-          </div>
-        </a>
+        <div class="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <a
+            href="https://secure.lentax.co/va-setup-discovery"
+            class="group rounded-2xl border border-white/10 bg-white/5 p-6 text-center shadow-soft hover:border-white/20"
+            rel="noopener"
+          >
+            <div class="text-lg font-extrabold text-white">Book a Strategy Call</div>
+            <div class="mt-2 text-sm text-white/70">Clarify your goals and map the right setup.</div>
+          </a>
 
-        <a href="./installs.html"
-           class="group rounded-xl border border-white/10 bg-white/5 p-5 text-center hover:border-white/20">
-          <div class="text-lg font-extrabold text-transparent bg-gradient-to-b from-white to-white/70 bg-clip-text">
-            Explore Installs
-          </div>
-          <div class="mt-2 text-sm text-transparent bg-gradient-to-b from-white/90 to-white/60 bg-clip-text">
-            Review the install types and outcomes.
-          </div>
-        </a>
+          <a
+            href="./installs.html"
+            class="group rounded-2xl border border-white/10 bg-white/5 p-6 text-center shadow-soft hover:border-white/20"
+          >
+            <div class="text-lg font-extrabold text-white">Explore Installs</div>
+            <div class="mt-2 text-sm text-white/70">Review the install types and outcomes.</div>
+          </a>
 
-        <a href="https://secure.lentax.co/i/EA-tax-monitor-setup-template"
-           class="group rounded-xl border border-white/10 bg-white/5 p-5 text-center hover:border-white/20"
-           rel="noopener">
-          <div class="text-lg font-extrabold text-transparent bg-gradient-to-b from-white to-white/70 bg-clip-text">
-            Start the VA Starter Track
-          </div>
-          <div class="mt-2 text-sm text-transparent bg-gradient-to-b from-white/90 to-white/60 bg-clip-text">
-            Get structured onboarding for VAs and remote workers.
-          </div>
-        </a>
+          <a
+            href="https://secure.lentax.co/i/EA-tax-monitor-setup-template"
+            class="group rounded-2xl border border-white/10 bg-white/5 p-6 text-center shadow-soft hover:border-white/20"
+            rel="noopener"
+          >
+            <div class="text-lg font-extrabold text-white">Start the VA Starter Track</div>
+            <div class="mt-2 text-sm text-white/70">Get structured onboarding for VAs and remote workers.</div>
+          </a>
 
-        <a href="https://secure.lentax.co/i/lentax-blog-port"
-           class="group rounded-xl border border-white/10 bg-white/5 p-5 text-center hover:border-white/20"
-           rel="noopener">
-          <div class="text-lg font-extrabold text-transparent bg-gradient-to-b from-white to-white/70 bg-clip-text">
-            Visit the Blog Port
-          </div>
-          <div class="mt-2 text-sm text-transparent bg-gradient-to-b from-white/90 to-white/60 bg-clip-text">
-            Read the Tide Report and system breakdowns.
-          </div>
-        </a>
+          <a
+            href="https://secure.lentax.co/i/lentax-blog-port"
+            class="group rounded-2xl border border-white/10 bg-white/5 p-6 text-center shadow-soft hover:border-white/20"
+            rel="noopener"
+          >
+            <div class="text-lg font-extrabold text-white">Visit the Blog Port</div>
+            <div class="mt-2 text-sm text-white/70">Read the Tide Report and system breakdowns.</div>
+          </a>
+        </div>
+
+        <div class="mt-12 flex justify-center">
+          <a class="rounded-xl bg-brand-500 px-8 py-4 text-sm font-extrabold text-ink-900 hover:bg-brand-400" href="/signup.html" rel="noopener">
+            Sign Up for a 30-Day Free Trial Today
+          </a>
+        </div>
       </div>
     </section>
   </main>
