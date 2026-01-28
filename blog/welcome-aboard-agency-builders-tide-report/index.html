@@ -410,113 +410,64 @@
 
 <div data-include="footer"></div>
 
-<script>
-  (function () {
-    function loadIncludes() {
-      var nodes = Array.prototype.slice.call(document.querySelectorAll("[data-include]"));
-      if (!nodes.length) return;
-
-      nodes.forEach(function (node) {
-        var key = node.getAttribute("data-include");
-        var url = "/partials/" + key + ".html";
-
-        fetch(url, { cache: "no-store" })
-          .then(function (res) {
-            if (!res.ok) throw new Error("Include failed: " + url);
-            return res.text();
-          })
-          .then(function (html) {
-            node.innerHTML = html;
-          })
-          .catch(function (err) {
-            console.error(err);
-          });
-      });
-    }
-
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", loadIncludes);
-    } else {
-      loadIncludes();
-    }
-  })();
-</script>
-
-<!-- FORM BACKGROUND + HEIGHT HARD FIX (merged + improved; keep only this one) -->
+<!-- FORM BACKGROUND + HEIGHT HARD FIX (darkened iframe) -->
 <script>
   (function () {
     var ROOT_SELECTOR = ".vl-form-embed";
     var IFRAME_SELECTOR = ROOT_SELECTOR + " iframe";
-    var STYLE_BG_SELECTOR = ROOT_SELECTOR + " [style*='background']";
 
-    function setTransparentStyles(el) {
-      if (!el || el.nodeType !== 1) return;
+    var DARK_BG = "#070a10"; // ink-950
+    var DARK_BG_SOFT = "#0b1220"; // ink-900 (fallback)
 
-      var tag = (el.tagName || "").toUpperCase();
+    function styleIframe(iframe) {
+      if (!iframe) return;
 
-      if (tag === "IFRAME") {
-        el.setAttribute("allowtransparency", "true");
-        el.style.background = "transparent";
-        el.style.border = "0";
-        el.style.display = "block";
-        el.style.width = "100%";
-      }
+      iframe.setAttribute("allowtransparency", "true");
+      iframe.style.background = DARK_BG;
+      iframe.style.border = "0";
+      iframe.style.display = "block";
+      iframe.style.width = "100%";
 
-      var styleAttr = (el.getAttribute && el.getAttribute("style")) ? el.getAttribute("style") : "";
-      if (styleAttr && styleAttr.toLowerCase().indexOf("background") !== -1) {
-        el.style.background = "transparent";
-        el.style.backgroundColor = "transparent";
-      }
-    }
+      // Height baseline
+      iframe.style.minHeight = "560px";
+      iframe.style.height = "560px";
 
-    function injectIframeCss(iframe) {
       try {
         var d = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
         if (!d || !d.head) return;
 
-        if (d.getElementById("vlp-transparent-iframe-css")) return;
+        if (d.getElementById("vlp-dark-iframe-css")) return;
 
         var s = d.createElement("style");
-        s.id = "vlp-transparent-iframe-css";
-        s.textContent = "html,body{background:transparent!important;}";
+        s.id = "vlp-dark-iframe-css";
+        s.textContent = `
+          html, body {
+            background: ${DARK_BG} !important;
+            color-scheme: dark;
+          }
+        `;
         d.head.appendChild(s);
-      } catch (e) {
-        /* cross-origin safety */
-      }
-    }
 
-    function setIframeHeight(iframe) {
-      if (!iframe) return;
-
-      var h = 560;
-
-      try {
-        var d = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-        if (d && d.body) {
-          var bodyH = d.body.scrollHeight || 0;
-          var docH = d.documentElement ? (d.documentElement.scrollHeight || 0) : 0;
+        // Adjust height based on content
+        setTimeout(function () {
+          var bodyH = d.body ? d.body.scrollHeight : 0;
+          var docH = d.documentElement ? d.documentElement.scrollHeight : 0;
           var maxH = Math.max(bodyH, docH);
-          if (maxH > 0) h = Math.min(Math.max(maxH, 420), 900);
-        }
+          if (maxH > 0) {
+            iframe.style.height = Math.min(Math.max(maxH, 520), 900) + "px";
+          }
+        }, 150);
       } catch (e) {
-        /* cross-origin safety */
+        // cross-origin safe fallback
+        iframe.style.background = DARK_BG_SOFT;
       }
-
-      iframe.style.height = h + "px";
     }
 
     function scan() {
       var root = document.querySelector(ROOT_SELECTOR);
       if (!root) return;
 
-      root.querySelectorAll(IFRAME_SELECTOR).forEach(function (iframe) {
-        setTransparentStyles(iframe);
-        injectIframeCss(iframe);
-        setIframeHeight(iframe);
-      });
-
-      root.querySelectorAll(STYLE_BG_SELECTOR).forEach(setTransparentStyles);
-      setTransparentStyles(root);
+      root.querySelectorAll(IFRAME_SELECTOR).forEach(styleIframe);
     }
 
     function observe() {
@@ -525,33 +476,18 @@
 
       root.__vlpObserverAttached = true;
 
-      new MutationObserver(function (mutations) {
-        mutations.forEach(function (m) {
-          Array.prototype.slice.call(m.addedNodes || []).forEach(function (n) {
-            setTransparentStyles(n);
-
-            if (n.querySelectorAll) {
-              n.querySelectorAll("iframe").forEach(function (iframe) {
-                setTransparentStyles(iframe);
-                injectIframeCss(iframe);
-                setIframeHeight(iframe);
-              });
-
-              n.querySelectorAll("[style*='background']").forEach(setTransparentStyles);
-            }
-          });
-        });
-
-        scan();
-      }).observe(root, { childList: true, subtree: true });
+      new MutationObserver(scan).observe(root, {
+        childList: true,
+        subtree: true
+      });
     }
 
     function boot() {
       scan();
       observe();
-      setTimeout(scan, 200);
+      setTimeout(scan, 300);
       setTimeout(scan, 800);
-      setTimeout(scan, 1600);
+      setTimeout(scan, 1500);
     }
 
     if (document.readyState === "loading") {
@@ -560,17 +496,7 @@
       boot();
     }
 
-    window.addEventListener("load", function () {
-      scan();
-      setTimeout(scan, 300);
-      setTimeout(scan, 1000);
-    });
-
-    window.addEventListener("resize", function () {
-      scan();
-    });
+    window.addEventListener("load", boot);
+    window.addEventListener("resize", scan);
   })();
 </script>
-
-</body>
-</html>
