@@ -1,4 +1,4 @@
-<!-- /blog/footer.html -->
+<!-- /partials/blog/footer.html -->
 <section class="mt-10" id="blog-footer-subscribe">
 
   <!-- SUBSCRIBE FRAME -->
@@ -37,13 +37,16 @@
         <div class="text-sm font-extrabold text-white">Subscribe</div>
         <p class="mt-2 text-xs text-white/60">Get the next Tide Report drop.</p>
 
-        <div class="mt-4 vl-form-embed w-full overflow-visible" id="vl-subscribe-embed"></div>
+        <div
+          class="mt-4 vl-form-embed w-full overflow-visible"
+          id="vl-subscribe-embed"
+        ></div>
       </div>
 
     </div>
   </div>
 
-  <!-- VIEW ALL BLOG (CENTERED, BELOW FRAME) -->
+  <!-- VIEW ALL BLOG -->
   <div class="mt-6 flex justify-center">
     <a
       href="/blog/"
@@ -55,43 +58,97 @@
 
   <script>
     (function () {
-      var root = document.getElementById("vl-subscribe-embed");
+      var EMBED_ID = "vl-subscribe-embed";
+      var SCRIPT_SRC = "https://secure.virtuallaunch.pro/frm/2uxzgUhaTids8Ujq6.js";
+
+      var root = document.getElementById(EMBED_ID);
       if (!root) return;
 
-      if (!root.__vlEmbedLoaded) {
-        root.__vlEmbedLoaded = true;
-
-        var s = document.createElement("script");
-        s.async = true;
-        s.src = "https://secure.virtuallaunch.pro/frm/2uxzgUhaTids8Ujq6.js";
-        root.appendChild(s);
+      function getIframe() {
+        return root.querySelector("iframe");
       }
 
       function styleIframe(iframe) {
+        if (!iframe || iframe.__vlStyled) return;
+        iframe.__vlStyled = true;
+
         iframe.setAttribute("allowtransparency", "true");
         iframe.style.background = "#070a10";
         iframe.style.border = "0";
         iframe.style.display = "block";
+        iframe.style.width = "100%";
         iframe.style.height = "360px";
         iframe.style.minHeight = "360px";
-        iframe.style.width = "100%";
       }
 
       function scan() {
-        var iframe = root.querySelector("iframe");
-        if (iframe && !iframe.__vlStyled) {
-          iframe.__vlStyled = true;
-          styleIframe(iframe);
-        }
+        styleIframe(getIframe());
       }
 
+      function ensureEmbedScript() {
+        if (getIframe()) return;
+
+        if (document.querySelector('script[src="' + SCRIPT_SRC + '"]')) return;
+
+        var s = document.createElement("script");
+        s.async = true;
+        s.src = SCRIPT_SRC;
+
+        s.onerror = function () {
+          root.__vlEmbedFailed = true;
+        };
+
+        document.head.appendChild(s);
+      }
+
+      function resetScriptForRetry() {
+        var tag = document.querySelector('script[src="' + SCRIPT_SRC + '"]');
+        if (tag && tag.parentNode) tag.parentNode.removeChild(tag);
+      }
+
+      if (!root.__vlObserverAttached) {
+        root.__vlObserverAttached = true;
+        new MutationObserver(scan).observe(root, {
+          childList: true,
+          subtree: true
+        });
+      }
+
+      ensureEmbedScript();
       scan();
 
-      var observer = new MutationObserver(scan);
-      observer.observe(root, { childList: true, subtree: true });
+      if (!root.__vlRetryTimer) {
+        var attempts = 0;
+        var maxAttempts = 6;
 
-      setTimeout(scan, 500);
-      setTimeout(scan, 1200);
+        root.__vlRetryTimer = setInterval(function () {
+          attempts += 1;
+
+          if (getIframe()) {
+            clearInterval(root.__vlRetryTimer);
+            root.__vlRetryTimer = null;
+            return;
+          }
+
+          if (root.__vlEmbedFailed) {
+            root.__vlEmbedFailed = false;
+            resetScriptForRetry();
+          }
+
+          ensureEmbedScript();
+          scan();
+
+          if (attempts >= maxAttempts) {
+            clearInterval(root.__vlRetryTimer);
+            root.__vlRetryTimer = null;
+          }
+        }, 2500);
+      }
+
+      window.addEventListener("load", function () {
+        ensureEmbedScript();
+        scan();
+      });
     })();
   </script>
 
