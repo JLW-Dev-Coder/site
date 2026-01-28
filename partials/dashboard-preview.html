@@ -23,6 +23,10 @@
   width: 100%;
 }
 
+.dash-preview-wrap > [data-preview="tax-monitor"] {
+  display: block;
+}
+
 .dash-preview-wrap > [data-preview].is-active {
   display: block;
 }
@@ -380,7 +384,7 @@
   50% { opacity: 1; }
   100% { opacity: 0.3; }
 }
-</style>
+  </style>
 
   <div class="container container--wide">
     <div class="pt-12">
@@ -422,7 +426,7 @@
         <!-- =========================
              TAX MONITOR (existing) — wrapped for tab switching
              ========================= -->
-        <div data-preview="tax-monitor">
+        <div class="is-active" data-preview="tax-monitor">
           <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
             <div class="tm-admin-shell">
 
@@ -815,7 +819,7 @@
 
                   <div class="va-agency-projectbar">
                     <div class="va-agency-projectbar__left">
-                      THREADS: REMOTEJOBS | MARKETING AGENCIES | HIRING VA — INTERMEDIATE (1–2 YEARS) | SUPPORT & COORDINATION
+                      THREADS: REMOTEJOBS | MARKETING AGENCIES | HIRING VA — INTERMEDIATE (1–2 YEARS) | SUPPORT &amp; COORDINATION
                     </div>
                     <div class="va-agency-projectbar__right">
                       <span class="va-agency-pill">PROJ_309</span>
@@ -1227,6 +1231,7 @@
       </div>
     </div>
   </div>
+
   <script>
 (function () {
   "use strict";
@@ -1269,6 +1274,5 @@
     initDashboardPreview();
   }
 })();
-</script>
-
+  </script>
 </section>
