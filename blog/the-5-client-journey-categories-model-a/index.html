@@ -427,92 +427,95 @@
     })();
   </script>
 
-  <!-- FORM BACKGROUND + HEIGHT HARD FIX (darkened iframe) -->
-  <script>
-    (function () {
-      var ROOT_SELECTOR = ".vl-form-embed";
-      var IFRAME_SELECTOR = ROOT_SELECTOR + " iframe";
+ <!-- FORM BACKGROUND + HEIGHT HARD FIX (darkened iframe) -->
+ <script>
+  (function () {
+    var ROOT_SELECTOR = ".vl-form-embed";
+    var IFRAME_SELECTOR = "iframe";
 
-      var DARK_BG = "#070a10";
-      var DARK_BG_SOFT = "#0b1220";
+    var DARK_BG = "#070a10";
+    var DARK_BG_SOFT = "#0b1220";
 
-      function styleIframe(iframe) {
-        if (!iframe) return;
+    function styleIframe(iframe) {
+      if (!iframe || iframe.__vlpStyled) return;
+      iframe.__vlpStyled = true;
 
-        iframe.setAttribute("allowtransparency", "true");
-        iframe.style.background = DARK_BG;
-        iframe.style.border = "0";
-        iframe.style.display = "block";
-        iframe.style.width = "100%";
+      iframe.setAttribute("allowtransparency", "true");
+      iframe.style.background = DARK_BG;
+      iframe.style.border = "0";
+      iframe.style.display = "block";
+      iframe.style.height = "360px";
+      iframe.style.minHeight = "360px";
+      iframe.style.width = "100%";
 
-        iframe.style.minHeight = "360px";
-        iframe.style.height = "360px";
+      try {
+        var d = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+        if (!d || !d.head) return;
 
-        try {
-          var d = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-          if (!d || !d.head) return;
-
-          if (d.getElementById("vlp-dark-iframe-css")) return;
-
+        if (!d.getElementById("vlp-dark-iframe-css")) {
           var s = d.createElement("style");
           s.id = "vlp-dark-iframe-css";
-          s.textContent = `
-            html, body {
-              background: ${DARK_BG} !important;
-              color-scheme: dark;
-            }
-          `;
+          s.textContent = "html,body{background:" + DARK_BG + " !important;color-scheme:dark;}";
           d.head.appendChild(s);
-
-          setTimeout(function () {
-            var bodyH = d.body ? d.body.scrollHeight : 0;
-            var docH = d.documentElement ? d.documentElement.scrollHeight : 0;
-            var maxH = Math.max(bodyH, docH);
-            if (maxH > 0) {
-              iframe.style.height = Math.min(Math.max(maxH, 520), 900) + "px";
-            }
-          }, 150);
-        } catch (e) {
-          iframe.style.background = DARK_BG_SOFT;
         }
+
+        setTimeout(function () {
+          var bodyH = d.body ? d.body.scrollHeight : 0;
+          var docH = d.documentElement ? d.documentElement.scrollHeight : 0;
+          var maxH = Math.max(bodyH, docH);
+          if (maxH > 0) {
+            iframe.style.height = Math.min(Math.max(maxH, 360), 900) + "px";
+          }
+        }, 150);
+      } catch (e) {
+        iframe.style.background = DARK_BG_SOFT;
       }
+    }
 
-      function scan() {
-        var root = document.querySelector(ROOT_SELECTOR);
-        if (!root) return;
+    function scanWithin(root) {
+      if (!root) return;
+      var iframe = root.querySelector(IFRAME_SELECTOR);
+      if (iframe) styleIframe(iframe);
+    }
 
-        root.querySelectorAll(IFRAME_SELECTOR).forEach(styleIframe);
-      }
+    function attachRootObserver(root) {
+      if (!root || root.__vlpRootObserverAttached) return;
+      root.__vlpRootObserverAttached = true;
 
-      function observe() {
-        var root = document.querySelector(ROOT_SELECTOR);
-        if (!root || root.__vlpObserverAttached) return;
+      scanWithin(root);
 
-        root.__vlpObserverAttached = true;
+      new MutationObserver(function () {
+        scanWithin(root);
+      }).observe(root, { childList: true, subtree: true });
+    }
 
-        new MutationObserver(scan).observe(root, {
-          childList: true,
-          subtree: true
-        });
-      }
+    function boot() {
+      // 1) If root already exists, attach immediately
+      document.querySelectorAll(ROOT_SELECTOR).forEach(attachRootObserver);
 
-      function boot() {
-        scan();
-        observe();
-        setTimeout(scan, 300);
-        setTimeout(scan, 800);
-        setTimeout(scan, 1500);
-      }
+      // 2) Always watch the document for the footer/root being injected later
+      if (document.__vlpDocObserverAttached) return;
+      document.__vlpDocObserverAttached = true;
 
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", boot);
-      } else {
-        boot();
-      }
+      new MutationObserver(function () {
+        document.querySelectorAll(ROOT_SELECTOR).forEach(attachRootObserver);
+      }).observe(document.documentElement, { childList: true, subtree: true });
 
-      window.addEventListener("load", boot);
-      window.addEventListener("resize", scan);
-    })();
-  </script>
+      // 3) Extra timing scans (cheap + safe)
+      setTimeout(function () { document.querySelectorAll(ROOT_SELECTOR).forEach(attachRootObserver); }, 300);
+      setTimeout(function () { document.querySelectorAll(ROOT_SELECTOR).forEach(attachRootObserver); }, 800);
+      setTimeout(function () { document.querySelectorAll(ROOT_SELECTOR).forEach(attachRootObserver); }, 1500);
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot);
+    } else {
+      boot();
+    }
+
+    window.addEventListener("load", boot);
+  })();
+</script>
+
 </body>
 </html>
