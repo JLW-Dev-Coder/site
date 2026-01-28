@@ -8,81 +8,120 @@
   <title>Tax Monitor — Transcript-Backed Clarity Before Risk Escalates</title>
   <meta name="description" content="Transcript-backed IRS visibility for tax attorneys, EAs, and CPAs. Start with verified facts before escalation." />
 
-  <!-- Canonical -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Tax Monitor — Transcript-Backed Clarity" />
+  <meta property="og:description" content="Early IRS visibility for disciplined case evaluation before advice or escalation." />
+
   <link rel="canonical" href="https://virtuallaunch.pro/lp/tax-monitor/" />
 
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:title" content="Tax Monitor — Start With Facts" />
-  <meta property="og:description" content="Early IRS visibility for disciplined case evaluation before advice or escalation." />
-  <meta property="og:url" content="https://virtuallaunch.pro/lp/tax-monitor/" />
-
-  <!-- Favicons -->
   <link rel="icon" href="/assets/favicon.ico" sizes="any" />
   <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <meta name="theme-color" content="#070a10" />
 
-  <!-- Site CSS -->
-  <link rel="stylesheet" href="/styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrollTrigger.min.js"></script>
+  <script defer src="/site.js?v=20260127-1"></script>
 
-  <!-- Tailwind (Play CDN for LPs only) -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <link
+    rel="preload"
+    as="image"
+    href="/assets/Virtual-Launch-Pro_Logo_200x60_Black.svg"
+    type="image/svg+xml"
+  />
+
+  <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
-          fontFamily: {
-            sans: [
-              "Inter",
-              "Raleway",
-              "system-ui",
-              "-apple-system",
-              "Segoe UI",
-              "Roboto",
-              "Helvetica",
-              "Arial",
-              "sans-serif"
-            ]
+          boxShadow: {
+            soft: "0 10px 30px rgba(0,0,0,0.12)",
+            topbar: "0 18px 50px rgba(0,0,0,0.18)"
+          },
+          colors: {
+            brand: { 500: "#f97316", 400: "#fb923c" },
+            ink: { 950: "#070a10", 900: "#0b1220", 800: "#111a2e", 700: "#152237" }
+          },
+          maxWidth: {
+            "6-5xl": "77.5rem"
           }
         }
       }
     };
   </script>
-  <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Site JS -->
-  <script defer src="/site.js"></script>
+  <link rel="stylesheet" href="/styles.css?v=20260127-1" />
+
+  <style>
+    html { scroll-behavior: smooth; }
+
+    .vlp-grid {
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(circle at 50% 18%, rgba(0,0,0,1), rgba(0,0,0,0) 58%);
+    }
+
+    .vlp-grid-pan { animation: gridPan 22s linear infinite; }
+
+    @keyframes gridPan {
+      from { transform: translate3d(0,0,0); }
+      to { transform: translate3d(-56px,-56px,0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .vlp-grid-pan { animation: none; }
+    }
+  </style>
 </head>
 
-<body class="min-h-screen bg-white font-sans text-slate-800">
+<body class="bg-ink-950 text-white antialiased">
+  <div class="pointer-events-none fixed inset-0 -z-20 vlp-grid vlp-grid-pan opacity-60"></div>
+  <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px]"></div>
+  <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px]"></div>
 
-  <!-- GLOBAL HEADER -->
-  <header class="sticky top-0 z-50 border-b border-black/10 bg-white/80 backdrop-blur">
-    <div class="mx-auto flex max-w-[1200px] items-center justify-between px-6 py-3">
-      <a href="/" class="flex items-center gap-3" aria-label="Virtual Launch Pro home">
-        <img
-          src="/assets/Virtual-Launch-Pro_Logo_200x60_Black.svg"
-          alt="Virtual Launch Pro"
-          class="h-10 w-auto"
-          decoding="async"
-          loading="eager"
-        />
+  <header class="sticky top-0 z-50 border-b border-white/10 bg-ink-950/70 backdrop-blur">
+    <div class="mx-auto flex max-w-6-5xl items-center justify-between px-4 py-3">
+      <a class="flex items-center" href="/index.html" aria-label="Virtual Launch Pro home">
+        <span aria-hidden="true" class="inline-flex items-center h-10">
+          <img
+            src="/assets/Virtual-Launch-Pro_Logo_200x60_Black.svg"
+            alt="Virtual Launch Pro logo"
+            class="h-10 w-auto"
+            decoding="async"
+            fetchpriority="high"
+            loading="eager"
+            style="filter: invert(1);"
+          />
+        </span>
       </a>
 
       <a
+        class="rounded-xl bg-brand-500 px-5 py-2.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
         href="/login"
-        class="inline-flex items-center justify-center rounded-lg border border-black/10 bg-white px-4 py-2 text-sm font-extrabold text-black/80 shadow-sm transition hover:bg-black/5"
+        rel="noopener"
       >
         Go to Login
       </a>
     </div>
   </header>
 
-  <!-- HERO -->
-  <section class="w-full pt-12" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-    <div class="mx-auto max-w-[1200px] px-6 py-16">
-      <div class="mx-auto max-w-[860px] text-center">
+  <main id="top">
+    <!-- HERO -->
+    <section class="mx-auto max-w-6-5xl px-4 pb-10 pt-14 md:pb-14 md:pt-20">
+      <p class="mx-auto mb-6 w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
+        Tax Monitor Setup
+      </p>
 
-        <!-- LOTTIE -->
+      <div class="mx-auto max-w-4xl text-center">
         <div class="mx-auto mb-4 flex h-[250px] w-[250px] items-center justify-center">
           <iframe
             src="https://lottie.host/embed/48591e87-dae7-4b0f-bd95-03195178927c/T9xTM8Dgj8.lottie"
@@ -92,89 +131,381 @@
           ></iframe>
         </div>
 
-        <h1 class="mb-6 text-[44px] font-extrabold leading-tight text-slate-900 md:text-[52px]">
+        <h1 class="text-4xl font-extrabold leading-tight md:text-6xl">
           Add Transcript-Backed Clarity Before Risk Escalates
         </h1>
 
-        <p class="mb-10 text-xl leading-relaxed text-slate-600">
+        <p class="mx-auto mt-6 max-w-3xl text-base text-white/70 md:text-lg">
           Most clients arrive without complete records—and recollection is not evidence.<br />
           Tax Monitor provides early IRS visibility so attorneys and tax professionals can assess facts,
           exposure, and compliance posture before advice, escalation, or enforcement decisions are made.
         </p>
 
-        <div class="flex flex-wrap justify-center gap-4">
+        <div class="mt-10 flex flex-wrap justify-center gap-4">
           <a
+            class="rounded-xl bg-brand-500 px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
             href="#book-my-demo"
-            class="rounded-lg bg-orange-500 px-8 py-4 text-lg font-semibold text-white transition hover:bg-orange-600"
           >
             See How It Supports Case Assessment
           </a>
 
           <a
+            class="rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 text-sm font-extrabold text-white hover:bg-white/10"
             href="#submit-payment"
-            class="rounded-lg border-2 border-slate-300 px-8 py-4 text-lg font-medium text-slate-600 transition hover:bg-slate-100"
           >
             Activate Monitoring Access
           </a>
         </div>
 
-        <p class="mt-6 text-sm text-slate-500">
-          Built for tax attorneys, EAs, and CPAs who prioritize verified facts,
-          disciplined judgment, and informed next steps.
+        <p class="mx-auto mt-6 max-w-3xl text-xs text-white/60 md:text-sm">
+          Built for tax attorneys, EAs, and CPAs who prioritize verified facts, disciplined judgment, and informed next steps.
         </p>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- BOOK DEMO -->
-  <section id="book-my-demo" class="w-full bg-white px-6 py-20">
-    <div class="mx-auto max-w-[1200px]">
-      <div class="mx-auto max-w-[860px] text-center">
-        <h2 class="mb-4 text-3xl font-bold text-slate-900">
-          Review the Tax Monitor Workflow
-        </h2>
-        <p class="mb-8 text-lg text-slate-600">
-          Review how Tax Monitor surfaces verified IRS signals early, supports disciplined case evaluation,
-          and integrates cleanly before representation or resolution begins.
-        </p>
+    <!-- BOOK DEMO -->
+    <section id="book-my-demo" class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">WALKTHROUGH</p>
+          <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">Review the Tax Monitor Workflow</h2>
+          <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
+            Review how Tax Monitor surfaces verified IRS signals early, supports disciplined case evaluation,
+            and integrates cleanly before representation or resolution begins.
+          </p>
+        </div>
 
-<div class="mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
-  <div class="vlp-signup-embed">
-    <script src="https://secure.virtuallaunch.pro/frm/vqZB3BPQpFQUbadA.js"></script>
-  </div>
-</div>
-
+        <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
+          <div class="mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
+            <div class="vlp-signup-embed">
+              <script src="https://secure.virtuallaunch.pro/frm/vqZB3BPQpFQUbadA.js"></script>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </section>
+    </section>
 
-  <!-- PAYMENT -->
-  <section id="submit-payment" class="w-full bg-slate-50 px-6 py-20">
-    <div class="mx-auto max-w-[1200px] text-center">
-      <h2 class="mb-4 text-3xl font-bold text-slate-900">
-        Start Tax Monitor
-      </h2>
-      <p class="mb-8 text-lg text-slate-600">
-        Complete checkout to activate monitoring access for your practice.
-      </p>
+    <!-- THE RISK -->
+    <section class="border-t border-white/10 bg-ink-950">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">THE RISK</p>
+          <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">The Risk of Incomplete Visibility</h2>
+          <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
+            When the facts surface late, risk compounds. Monitoring creates transparency without speculation.
+          </p>
+        </div>
 
-<div class="mx-auto mt-5 max-w-[900px] rounded-xl border border-white/10 bg-ink-900/60 p-4">
-  <div class="vlp-signup-embed">
-    <script src="https://secure.virtuallaunch.pro/frm/vqZB3BPQpFQUbadA.js"></script>
-  </div>
-</div>
+        <div class="mt-14 grid gap-8 md:grid-cols-3">
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5z" stroke="#FFA500" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M2 17l10 5 10-5" stroke="#FFA500" stroke-width="2" stroke-linejoin="round"/>
+                <path d="M2 12l10 5 10-5" stroke="#FFA500" stroke-width="2" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Case evaluation starts with gaps</h3>
+            <p class="mt-3 text-sm text-white/70">
+              Prior-year filings, income sources, and account activity are frequently unknown—creating blind spots that affect advice, strategy, and outcomes.
+            </p>
+          </div>
 
-    </div>
-  </section>
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="#FFA500" stroke-width="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18" stroke="#FFA500" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Late facts increase exposure</h3>
+            <p class="mt-3 text-sm text-white/70">
+              Late-discovered income or filing discrepancies can shift exposure, increase enforcement risk, and undermine early guidance.
+            </p>
+          </div>
 
-  <!-- GLOBAL FOOTER -->
-  <footer class="w-full bg-slate-900 px-6 py-12">
-    <p class="mx-auto max-w-[1200px] text-center text-sm text-slate-400">
-      Tax Monitor provides monitoring summaries based on available IRS records at the time of review.
-      It is not IRS representation, tax advice, legal advice, or a guarantee of outcomes.
-      Any additional services require a separate written agreement.
-    </p>
-  </footer>
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#FFA500" stroke-width="2"/>
+                <path d="M12 7v5l3 3" stroke="#FFA500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Clients escalate without visibility</h3>
+            <p class="mt-3 text-sm text-white/70">
+              When activity is invisible, anxiety rises. Monitoring creates transparency without reassurance unsupported by facts.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
 
+    <!-- WHAT TAX MONITOR DOES -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="mx-auto max-w-4xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">WHAT IT ADDS</p>
+          <h2 class="mt-4 text-4xl font-extrabold md:text-5xl">What Tax Monitor Adds to a Tax Law Practice</h2>
+
+          <p class="mx-auto mt-5 max-w-3xl text-base text-white/70 md:text-lg">
+            Tax Monitor supports professional judgment with verified IRS signals and account visibility.
+            It does not replace legal analysis, representation, or strategy—it ensures those decisions begin with facts.
+          </p>
+        </div>
+
+        <div class="mx-auto mt-12 max-w-4xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft md:p-10">
+          <div class="space-y-6">
+            <div class="flex gap-4">
+              <div class="mt-0.5 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand-500 text-ink-900 font-extrabold">✓</div>
+              <div>
+                <h3 class="text-lg font-extrabold text-white">Account activity & enforcement visibility</h3>
+                <p class="mt-2 text-sm text-white/70">
+                  Creates clearer visibility into account movement so clients see progress without guesswork.
+                </p>
+              </div>
+            </div>
+
+            <div class="flex gap-4">
+              <div class="mt-0.5 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand-500 text-ink-900 font-extrabold">✓</div>
+              <div>
+                <h3 class="text-lg font-extrabold text-white">Early fact discipline before escalation</h3>
+                <p class="mt-2 text-sm text-white/70">
+                  A structured, repeatable layer that reduces back-and-forth and supports decisions based on verified signals, not assumptions.
+                </p>
+              </div>
+            </div>
+
+            <div class="flex gap-4">
+              <div class="mt-0.5 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand-500 text-ink-900 font-extrabold">✓</div>
+              <div>
+                <h3 class="text-lg font-extrabold text-white">Transcript-based income verification</h3>
+                <p class="mt-2 text-sm text-white/70">
+                  Reduce “forgotten” forms and underreported income risk by anchoring intake to IRS record signals.
+                </p>
+              </div>
+            </div>
+
+            <div class="flex gap-4">
+              <div class="mt-0.5 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand-500 text-ink-900 font-extrabold">✓</div>
+              <div>
+                <h3 class="text-lg font-extrabold text-white">Verified filing history & compliance signals</h3>
+                <p class="mt-2 text-sm text-white/70">
+                  Faster confirmation of key account details that reduce wrong-path decisions and missed history before strategy is chosen.
+                </p>
+              </div>
+            </div>
+
+            <div class="flex gap-4">
+              <div class="mt-0.5 inline-flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-brand-500 text-ink-900 font-extrabold">✓</div>
+              <div>
+                <h3 class="text-lg font-extrabold text-white">Neutral monitoring layer that preserves boundaries</h3>
+                <p class="mt-2 text-sm text-white/70">
+                  Adds visibility without turning your practice into a resolution shop—use it to support assessment, planning, prep, or representation workflows.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHO THIS IS FOR -->
+    <section class="border-t border-white/10 bg-ink-950">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">
+            WHO TAX MONITOR IS FOR
+          </p>
+          <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">
+            Built for disciplined case evaluation
+          </h2>
+          <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
+            This is for tax attorneys and tax professionals who want verified facts on the table before advice is given,
+            risk escalates, or resolution paths are discussed.
+          </p>
+        </div>
+
+        <div class="mt-14 grid gap-8 md:grid-cols-3">
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5z" stroke="#FFA500" stroke-width="2"/>
+                <path d="M3 21a9 9 0 0 1 18 0" stroke="#FFA500" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Verified IRS facts first</h3>
+            <p class="mt-3 text-sm text-white/70">
+              “I want verified IRS facts before advising clients on next steps or legal exposure.”
+            </p>
+          </div>
+
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M3 17l6-6 4 4 7-7" stroke="#FFA500" stroke-width="2"/>
+                <path d="M14 8h6v6" stroke="#FFA500" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Discipline before escalation</h3>
+            <p class="mt-3 text-sm text-white/70">
+              “I prefer disciplined visibility before escalation, not reactive investigation.”
+            </p>
+          </div>
+
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M12 2l3 7h7l-5.5 4 2.5 7-7-4.5L5 20l2.5-7L2 9h7l3-7z" stroke="#FFA500" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Neutral monitoring boundary</h3>
+            <p class="mt-3 text-sm text-white/70">
+              “I want a neutral monitoring layer that supports judgment without pushing resolution.”
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-14 grid gap-8 md:grid-cols-3">
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="#FFA500" stroke-width="2"/>
+                <path d="M16 2v4M8 2v4M3 10h18" stroke="#FFA500" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Clean authorization workflow</h3>
+            <p class="mt-3 text-sm text-white/70">
+              “I want a clean authorization workflow and faster access to IRS records without extra admin load.”
+            </p>
+          </div>
+
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M7 7h10M7 12h10M7 17h6" stroke="#FFA500" stroke-width="2" stroke-linecap="round"/>
+                <path d="M5 4h14a2 2 0 0 1 2 2v12a4 4 0 0 1-4 4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="#FFA500" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Fewer missed forms</h3>
+            <p class="mt-3 text-sm text-white/70">
+              “I want fewer missed forms (1099s, W-2s, and other income sources) before filings or strategy decisions are made.”
+            </p>
+          </div>
+
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#FFA500" stroke-width="2"/>
+                <path d="M12 7v5l3 3" stroke="#FFA500" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Guided post-filing visibility</h3>
+            <p class="mt-3 text-sm text-white/70">
+              “I want clients to feel guided after filing, with visibility that reduces panic and follow-up noise.”
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHAT THIS IS NOT -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">BOUNDARIES</p>
+          <h2 class="mt-4 text-4xl font-extrabold md:text-5xl">What This Is Not</h2>
+          <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
+            Tax Monitor exists to support judgment—not replace it.
+          </p>
+        </div>
+
+        <div class="mx-auto mt-12 grid max-w-4xl gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 text-center shadow-soft">
+            <div class="text-sm font-extrabold text-white">Not legal advice</div>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 text-center shadow-soft">
+            <div class="text-sm font-extrabold text-white">Not IRS representation</div>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 text-center shadow-soft">
+            <div class="text-sm font-extrabold text-white">Not resolution software</div>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 text-center shadow-soft">
+            <div class="text-sm font-extrabold text-white">Not outcome guarantees</div>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-5 text-center shadow-soft">
+            <div class="text-sm font-extrabold text-white">Not a sales funnel</div>
+          </div>
+        </div>
+
+        <p class="mx-auto mt-10 max-w-3xl text-center text-xs text-white/60 md:text-sm">
+          IRS currently lists Forms 2848 and 8821 as processed about 4 business days after receipt, and notes Tax Pro Account can provide real-time processing visibility. Timing can vary.
+        </p>
+      </div>
+    </section>
+
+    <!-- SUBMIT PAYMENT -->
+    <section id="submit-payment" class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">CHECKOUT</p>
+          <h2 class="mt-4 text-4xl font-extrabold md:text-5xl">Start Tax Monitor</h2>
+          <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
+            Complete checkout to activate monitoring access for your practice.
+          </p>
+        </div>
+
+        <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
+          <div class="mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
+            <div class="vlp-signup-embed">
+              <script src="https://secure.virtuallaunch.pro/frm/vqZB3BPQpFQUbadA.js"></script>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CONVERSION (orange panel) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="rounded-2xl bg-brand-500 px-6 py-10 shadow-soft md:px-10 md:py-14">
+          <div class="mx-auto max-w-4xl text-center">
+            <p class="text-xs font-semibold tracking-widest text-white/90">DECISION</p>
+            <h2 class="mt-3 text-4xl font-extrabold text-white md:text-5xl">Start With Facts. Then Decide What Comes Next.</h2>
+
+            <div class="mx-auto mt-8 max-w-2xl space-y-3 text-base text-white/95 md:text-lg">
+              <p>Clearer case evaluation</p>
+              <p>Fewer unnecessary escalations</p>
+              <p>More confident, better-informed clients</p>
+            </div>
+
+            <div class="mt-10 flex flex-wrap justify-center gap-4">
+              <a
+                class="rounded-xl bg-white px-8 py-4 text-sm font-extrabold text-ink-900 hover:bg-white/90"
+                href="#book-my-demo"
+              >
+                Get The Walkthrough
+              </a>
+
+              <a
+                class="rounded-xl border border-white/30 bg-white/10 px-8 py-4 text-sm font-extrabold text-white hover:bg-white/15"
+                href="#submit-payment"
+              >
+                Activate Monitoring Access
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DISCLAIMER -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-12">
+        <p class="mx-auto max-w-4xl text-center text-xs text-white/60 md:text-sm">
+          Tax Monitor provides monitoring summaries based on available IRS records at the time of review. It is not IRS representation, tax advice, legal advice, or a guarantee of outcomes. Any additional services require a separate written agreement.
+        </p>
+      </div>
+    </section>
+  </main>
 </body>
 </html>
