@@ -358,16 +358,16 @@
           systems, pillars, and pipelines you’re about to master.
         </p>
       </div>
+
+      <!-- Blog-specific subscribe footer MUST be INSIDE the article -->
+      <div class="mt-10" data-include="blog/footer"></div>
     </article>
   </main>
 
-  <!-- Blog-specific subscribe footer (MUST exist at /partials/blog/footer.html) -->
-  <div data-include="blog/footer"></div>
-
-  <!-- Global site footer (MUST exist at /partials/footer.html) -->
+  <!-- Global site footer stays at the bottom of the page -->
   <div data-include="footer"></div>
 
-  <!-- INCLUDE LOADER (guard against SPA fallbacks injecting the homepage) -->
+  <!-- INCLUDE LOADER -->
   <script>
     (function () {
       function looksLikeFullDocument(html) {
@@ -391,9 +391,7 @@
             })
             .then(function (payload) {
               if (!payload.ok) throw new Error("Include failed: " + url);
-              if (looksLikeFullDocument(payload.text)) {
-                throw new Error("Include blocked (got full document): " + url);
-              }
+              if (looksLikeFullDocument(payload.text)) throw new Error("Include blocked (got full document): " + url);
               node.innerHTML = payload.text;
             })
             .catch(function (err) {
