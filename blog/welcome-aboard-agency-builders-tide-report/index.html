@@ -78,10 +78,7 @@
       "image": "https://virtuallaunch.pro/assets/blog/blog-hero-steering-boat.webp",
       "datePublished": "2025-11-23",
       "dateModified": "2025-11-23",
-      "author": {
-        "@type": "Person",
-        "name": "JLW"
-      },
+      "author": { "@type": "Person", "name": "JLW" },
       "publisher": {
         "@type": "Organization",
         "name": "VirtualLaunch.pro",
@@ -364,8 +361,54 @@
     </article>
   </main>
 
+  <!-- Blog-specific subscribe footer (MUST exist at /partials/blog/footer.html) -->
   <div data-include="blog/footer"></div>
+
+  <!-- Global site footer (MUST exist at /partials/footer.html) -->
   <div data-include="footer"></div>
+
+  <!-- INCLUDE LOADER (guard against SPA fallbacks injecting the homepage) -->
+  <script>
+    (function () {
+      function looksLikeFullDocument(html) {
+        var s = String(html || "").toLowerCase();
+        return s.indexOf("<!doctype") !== -1 || s.indexOf("<html") !== -1 || s.indexOf("<head") !== -1 || s.indexOf("<body") !== -1;
+      }
+
+      function loadIncludes() {
+        var nodes = Array.prototype.slice.call(document.querySelectorAll("[data-include]"));
+        if (!nodes.length) return;
+
+        nodes.forEach(function (node) {
+          var key = node.getAttribute("data-include");
+          var url = "/partials/" + key + ".html";
+
+          fetch(url, { cache: "no-store" })
+            .then(function (res) {
+              return res.text().then(function (text) {
+                return { ok: res.ok, text: text };
+              });
+            })
+            .then(function (payload) {
+              if (!payload.ok) throw new Error("Include failed: " + url);
+              if (looksLikeFullDocument(payload.text)) {
+                throw new Error("Include blocked (got full document): " + url);
+              }
+              node.innerHTML = payload.text;
+            })
+            .catch(function (err) {
+              console.error(err);
+            });
+        });
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", loadIncludes);
+      } else {
+        loadIncludes();
+      }
+    })();
+  </script>
 
   <!-- FORM BACKGROUND + HEIGHT HARD FIX (darkened iframe) -->
   <script>
