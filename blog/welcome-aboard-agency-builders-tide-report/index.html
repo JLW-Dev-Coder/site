@@ -102,10 +102,70 @@
       <a class="text-sm text-white/70 hover:text-white" href="/">Home</a>
     </div>
 
+    <div class="mt-6 flex justify-center">
+      <a
+        class="rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-extrabold text-white hover:bg-white/10"
+        href="/blog/"
+      >
+        Click to view all blog articles
+      </a>
+    </div>
 
+    <!-- TOP STRIP (AUTHOR + TIDE REPORT + SUBSCRIBE) -->
+    <section class="mt-8 grid gap-6 lg:grid-cols-3" id="subscribe-top">
+      <!-- AUTHOR CARD -->
+      <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+        <div class="flex items-center gap-4">
+          <div class="h-12 w-12 overflow-hidden rounded-full border border-white/10">
+            <img
+              src="/assets/blog/authors/jlw-avatar.webp"
+              alt="JLW Avatar"
+              width="96"
+              height="96"
+              loading="lazy"
+              decoding="async"
+              class="h-full w-full object-cover"
+            />
+          </div>
+
+          <div class="min-w-0">
+            <div class="text-sm font-extrabold text-white">
+              By JLW
+              <span class="text-white/60">— Owner/Manager, Lenore, Inc., EA</span>
+            </div>
+            <div class="mt-1 text-xs text-white/60">
+              Sunday, November 23, 2025
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TIDE REPORT CARD -->
+      <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+        <div class="inline-flex rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-extrabold text-white">
+          The Agency Builder’s Tide Report
+        </div>
+        <p class="mt-3 text-sm text-white/70">
+          Field-tested insights, fresh research, and practical systems to help agencies grow, stabilize, and scale without burning out the team.
+        </p>
+      </div>
+
+      <!-- SUBSCRIBE CARD -->
+      <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+        <div class="text-sm font-extrabold text-white">
+          Subscribe
+        </div>
+        <p class="mt-2 text-xs text-white/60">
+          Get the next Tide Report drop.
+        </p>
+
+        <div class="mt-4 vl-form-embed">
+          <script src="https://secure.virtuallaunch.pro/frm/2uxzgUhaTids8Ujq6.js"></script>
+        </div>
+      </div>
+    </section>
 
     <article class="mt-8 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft md:p-10">
-
       <!-- HERO -->
       <div class="mb-8 overflow-hidden rounded-2xl border border-white/10">
         <img
@@ -119,42 +179,8 @@
         />
       </div>
 
-      <!-- AUTHOR -->
-      <div class="blog-header-info">
-        <div class="blog-author-avatar">
-          <img
-            src="/assets/blog/authors/jlw-avatar.webp"
-            alt="JLW Avatar"
-            width="96"
-            height="96"
-            loading="lazy"
-            decoding="async"
-          />
-        </div>
-        <div class="blog-author-text">
-          <div class="blog-author-name">
-            <strong>By JLW</strong> — Owner/Manager, Lenore, Inc., EA
-          </div>
-          <div class="blog-flag">
-            Sunday, November 23, 2025
-          </div>
-        </div>
-      </div>
-
-      <!-- KICKER -->
-      <p class="mt-4">
-        <span class="blog-kicker text-black">The Agency Builder’s Tide Report</span>
-      </p>
-
-      <!-- DECK -->
-      <div class="text-default">
-        <p class="blog-flag-description">
-          Field-tested insights, fresh research, and practical systems to help agencies grow, stabilize, and scale without burning out the team.
-        </p>
-      </div>
-
       <!-- TITLE -->
-      <h1 class="mt-8 text-2xl font-extrabold leading-tight md:text-4xl">
+      <h1 class="mt-2 text-2xl font-extrabold leading-tight md:text-4xl">
         <b class="voyage-progress">WELCOME ABOARD:<br />The Agency Builder’s Ship Sets Sail</b>
       </h1>
 
@@ -313,7 +339,7 @@
         </section>
 
         <hr class="border-white/10" />
-<!-- MODEL OVERVIEW -->
+
         <h3 class="text-lg font-extrabold">
           The 5-Step Agency Launch Plan <span class="text-white/60">(Model E — your final checkpoint in this series)</span>
         </h3>
@@ -329,7 +355,7 @@
         </div>
 
         <hr class="border-white/10" />
-<!-- ARTICLE LESSON OUTRO -->
+
         <p class="text-lg font-semibold">
           This five-step path is how we turn overwhelmed beginners and half-built agencies into clean, stable systems —
           even as a team of one.
@@ -347,7 +373,7 @@
         </p>
       </div>
 
-      <!-- SUBSCRIBE -->
+      <!-- SUBSCRIBE CTA (points to top form; avoids duplicate embed) -->
       <section class="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
         <div class="text-lg font-extrabold">
           The Agency Builder’s Tide Report — Your Map to Scalability
@@ -360,15 +386,16 @@
           Don’t drift. <span class="item-instructions-cta font-extrabold">Subscribe</span> and stay in the current.
         </div>
 
-        <div class="mt-6 vl-form-embed">
-          <script src="https://secure.virtuallaunch.pro/frm/2uxzgUhaTids8Ujq6.js"></script>
+        <div class="mt-6 flex justify-start">
+          <a
+            class="rounded-xl bg-brand-500 px-6 py-3 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+            href="#subscribe-top"
+          >
+            Subscribe now
+          </a>
         </div>
       </section>
-    <div class="mt-6 flex justify-center">
-      <a class="rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-sm font-extrabold hover:bg-white/10" href="/blog/">
-        Click to view all blog articles
-      </a>
-    </div>
+
       <!-- BOOK CTA -->
       <section class="mt-10 rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
         <div class="text-lg font-extrabold">Book Your Call To Launch Your Own Agency</div>
@@ -390,7 +417,6 @@
           </a>
         </div>
       </section>
-
     </article>
   </main>
 
@@ -428,6 +454,7 @@
     })();
   </script>
 
+  <!-- FORM BACKGROUND HARD FIX -->
   <script>
     (function () {
       function makeTransparent(el) {
