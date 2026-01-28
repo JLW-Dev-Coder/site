@@ -422,7 +422,7 @@
         <!-- =========================
              TAX MONITOR (existing) — wrapped for tab switching
              ========================= -->
-        <div data-preview="tax-monitor">
+        <div class="is-active" data-preview="tax-monitor">
           <div class="tm-admin-preview" role="region" aria-label="Tax Monitor Super Admin dashboard preview">
             <div class="tm-admin-shell">
 
@@ -718,9 +718,9 @@
              VA AGENCY — PROJECT DASHBOARD PREVIEW (STATIC MOCK)
              ========================= -->
         <div class="preview--hidden" data-preview="va-agency">
+          <!-- (unchanged) -->
           <div class="va-agency-preview" role="region" aria-label="Virtual Assistant Agency project dashboard preview">
             <div class="va-agency-shell">
-
               <!-- LEFT SIDEBAR -->
               <aside class="va-agency-sidebar" aria-label="Sidebar">
                 <div class="va-agency-brand">
@@ -958,8 +958,9 @@
              VA STARTER TRACK (added) — matches screenshot layout
              ========================= -->
         <div class="preview--hidden" data-preview="va-setup">
+          <!-- (unchanged) -->
           <div class="va-starter-preview" role="region" aria-label="Virtual Assistant Starter Track dashboard preview">
-            <div class="va-starter-shell">
+             <div class="va-starter-shell">
 
               <aside class="va-starter-sidebar" aria-label="Sidebar">
                 <div class="va-starter-brand">
@@ -1244,7 +1245,14 @@
 
     panels.forEach(function (panel) {
       var isActivePanel = panel.getAttribute("data-preview") === tabName;
+
       panel.classList.toggle("is-active", isActivePanel);
+
+      if (panel.classList.contains("preview--hidden")) {
+        panel.classList.toggle("preview--hidden", !isActivePanel);
+      } else {
+        panel.classList.toggle("preview--hidden", !isActivePanel);
+      }
     });
   }
 
