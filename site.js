@@ -1,4 +1,4 @@
-/* /site.js*/
+/* /site.js */
 /* global gsap, ScrollTrigger */
 
 (function () {
@@ -8,61 +8,19 @@
     return window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
 
-  function createLoader() {
-    var loader = document.createElement("div");
-    loader.id = "vlp-loader";
-    loader.setAttribute("aria-hidden", "true");
-    loader.style.cssText = [
-      "align-items:center",
-      "background:#070a10",
-      "display:flex",
-      "flex-direction:column",
-      "inset:0",
-      "justify-content:center",
-      "position:fixed",
-      "z-index:9999"
-    ].join(";");
-
-    var logo = document.createElement("img");
-    logo.alt = "";
-    logo.decoding = "async";
-    logo.fetchPriority = "high";
-    logo.height = 60;
-    logo.loading = "eager";
-    logo.src = "/assets/Virtual-Launch-Pro_Logo_200x60_Black.svg";
-    logo.style.cssText = "filter:invert(1);height:40px;width:auto";
-    logo.width = 200;
-
-    var bar = document.createElement("div");
-    bar.style.cssText = [
-      "background:rgba(255,255,255,0.12)",
-      "border-radius:999px",
-      "height:6px",
-      "margin-top:18px",
-      "overflow:hidden",
-      "width:220px"
-    ].join(";");
-
-    var fill = document.createElement("div");
-    fill.id = "vlp-loader-fill";
-    fill.style.cssText = [
-      "background:#f97316",
-      "height:100%",
-      "transform:translateX(-100%)",
-      "width:100%"
-    ].join(";");
-
-    bar.appendChild(fill);
-    loader.appendChild(logo);
-    loader.appendChild(bar);
-    document.body.appendChild(loader);
-    return loader;
+  function revealPage() {
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        document.documentElement.classList.remove("vlp-prepaint");
+      });
+    });
   }
 
   function fetchInclude(node) {
     var key = node.getAttribute("data-include");
     var url = "/partials/" + key + ".html";
-    return fetch(url, { cache: "no-store" })
+
+    return fetch(url)
       .then(function (res) {
         if (!res.ok) throw new Error("Include failed: " + url);
         return res.text();
@@ -93,11 +51,11 @@
         b.setAttribute("aria-selected", on ? "true" : "false");
         b.classList.toggle("artifact-tab--active", on);
         b.classList.toggle("bg-ink-950", on);
+        b.classList.toggle("bg-transparent", !on);
+        b.classList.toggle("border-transparent", !on);
         b.classList.toggle("border-white/10", on);
         b.classList.toggle("shadow-soft", on);
         b.classList.toggle("text-white", on);
-        b.classList.toggle("bg-transparent", !on);
-        b.classList.toggle("border-transparent", !on);
         b.classList.toggle("text-white/75", !on);
       });
 
@@ -172,8 +130,8 @@
       gsap.registerPlugin(ScrollTrigger);
     }
 
-    var hero = document.querySelector("main#top section");
     var header = document.querySelector("header");
+    var hero = document.querySelector("main#top section");
 
     if (header) {
       gsap.from(header, { duration: 0.6, ease: "power2.out", opacity: 0, y: -14 });
@@ -215,25 +173,16 @@
   }
 
   function run() {
-    // Loader intentionally disabled (no DOM injected, no overlay).
-    var loader = null;
-
     function finish() {
       initArtifactsTabs();
       initDashboardPreview();
+      initGsapAnimations();
 
-      var hasGsapNow = Boolean(window.gsap);
-
-      if (loader && hasGsapNow) {
-        gsap.timeline({ defaults: { ease: "power2.out" } })
-          .to("#vlp-loader-fill", { duration: 0.55, x: "100%" })
-          .to("#vlp-loader", { duration: 0.45, opacity: 0 }, "-=0.1")
-          .set("#vlp-loader", { display: "none" })
-          .add(initGsapAnimations, "-=0.15");
-      } else {
-        if (loader) loader.style.display = "none";
-        initGsapAnimations();
+      if (window.ScrollTrigger) {
+        ScrollTrigger.refresh(true);
       }
+
+      revealPage();
     }
 
     loadIncludes().then(function (results) {
