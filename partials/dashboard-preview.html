@@ -1042,6 +1042,21 @@
     text-align: left;
   }
 }
+      /* VA STARTER uses VA AGENCY sidebar widths + colors */
+  .va-starter-shell {
+    grid-template-columns: 250px 1fr;
+  }
+  
+  @media (max-width: 980px) {
+    .va-starter-shell {
+      grid-template-columns: 1fr;
+    }
+  
+    .va-agency-sidebar {
+      display: none;
+    }
+  }
+
 
   </style>
 
@@ -1617,267 +1632,261 @@
           </div>
         </div>
 
-        <!-- =========================
-             VA STARTER TRACK (added) — matches screenshot layout
-             ========================= -->
-        <div class="preview--hidden" data-preview="va-setup">
-          <!-- (unchanged) -->
-          <div class="va-starter-preview" role="region" aria-label="Virtual Assistant Starter Track dashboard preview">
-             <div class="va-starter-shell">
+   <!-- =========================
+     VA STARTER TRACK (updated) — VA AGENCY SIDEBAR
+     ========================= -->
+<div class="preview--hidden" data-preview="va-setup">
+  <div class="va-starter-preview" role="region" aria-label="Virtual Assistant Starter Track dashboard preview">
+    <div class="va-starter-shell">
 
-              <aside class="va-starter-sidebar" aria-label="Sidebar">
-                <div class="va-starter-brand">
-                  <div class="va-starter-brand__logo" aria-hidden="true">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Virtual Launch Pro icon">
-                      <circle cx="80" cy="80" r="72" fill="none" stroke="#000" stroke-width="10"/>
-                      <rect x="78" y="28" width="4" height="70" rx="2" fill="#000"/>
-                      <polygon points="74,32 36,78 74,78" fill="#000"/>
-                      <polygon points="86,32 124,78 86,78" fill="#FFA500"/>
-                      <path d="M 38 82 L 122 82 L 96 114 Q 80 126 64 114 Z" fill="#000"/>
-                    </svg>
-                  </div>
-                  <div>
-                    <div style="font-weight: 900; line-height: 1;">Virtual Launch Pro.co</div>
-                    <div style="color: rgba(0,0,0,0.60); font-size: 11px; margin-top: 2px;">Powered by Lenore, Inc.</div>
-                  </div>
-                </div>
-
-                <div class="va-starter-profile">
-                  <div class="va-starter-profile__avatar" aria-hidden="true"></div>
-                  <div>
-                    <div class="va-starter-profile__name">FIRE MARSHALL BILL</div>
-                    <a class="va-starter-profile__link" href="#" aria-label="Edit profile">Edit Profile</a>
-                  </div>
-                </div>
-
-                <nav class="va-starter-nav" aria-label="Primary navigation">
-                  <a class="va-starter-nav__item va-starter-nav__item--active" href="#dash">
-                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
-                    <span>Dashboard</span>
-                  </a>
-                  <a class="va-starter-nav__item" href="#start-here">
-                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
-                    <span>Start Here</span>
-                  </a>
-                  <a class="va-starter-nav__item" href="#calendar">
-                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
-                    <span>Calendar</span>
-                  </a>
-                  <a class="va-starter-nav__item" href="#crm">
-                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
-                    <span>CRM</span>
-                  </a>
-                  <a class="va-starter-nav__item" href="#messaging">
-                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
-                    <span>Messaging Inbox</span>
-                  </a>
-                  <a class="va-starter-nav__item" href="#office">
-                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
-                    <span>Office Space</span>
-                  </a>
-                  <a class="va-starter-nav__item" href="#orders">
-                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
-                    <span>Orders / Projects</span>
-                  </a>
-                  <a class="va-starter-nav__item" href="#resources">
-                    <span class="va-starter-nav__icon" aria-hidden="true"></span>
-                    <span>Free Resources</span>
-                  </a>
-                </nav>
-              </aside>
-
-              <div class="va-starter-main">
-                <div class="va-starter-topbar" aria-label="Top bar">
-                  <div class="va-starter-topbar__left">
-                    <button class="va-starter-iconbtn" type="button" aria-label="Collapse sidebar">
-                      <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
-                    </button>
-                    <button class="va-starter-iconbtn" type="button" aria-label="Create">
-                      <i class="fa-solid fa-plus" aria-hidden="true"></i>
-                    </button>
-                  </div>
-                  <div class="va-starter-topbar__right">
-                    <span class="va-starter-topbar__chip"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
-                    <span class="va-starter-topbar__chip"><i class="fa-solid fa-bell" aria-hidden="true"></i></span>
-                    <span class="va-starter-topbar__chip"><i class="fa-solid fa-message" aria-hidden="true"></i></span>
-                    <div class="va-starter-userpic" aria-hidden="true"></div>
-                  </div>
-                </div>
-
-                <section class="va-starter-content" aria-label="VA Starter dashboard content">
-                  <h2 class="va-starter-title">Good Morning, Fire Marshall</h2>
-                  <p class="va-starter-subtitle">Track your profile setup, earnings, active tasks, and enrolled project tracks.</p>
-
-                  <div class="va-starter-grid">
-                    <div class="va-card va-span-4">
-                      <div class="va-card__head">
-                        <div>
-                          <div class="va-card__title">
-                            Set Sail on Your Freelancer Journey! <i class="fa-solid fa-compass" aria-hidden="true"></i>
-                          </div>
-                          <div style="color: rgba(0,0,0,0.55); font-size: 12px; margin-top: 4px;">11/06/2025</div>
-                        </div>
-                      </div>
-                      <div class="va-card__body">
-                        <div class="va-welcome-box">
-                          <div class="va-mint" aria-hidden="true"></div>
-                          <div>
-                            <p class="va-welcome-title">Welcome aboard, Freelancer!</p>
-                            <p class="va-welcome-text" style="margin-top: 6px;">
-                              <strong>Mint</strong> here — your loyal first mate guiding you through your first voyage.
-                            </p>
-                            <p class="va-welcome-text" style="margin-top: 8px;">
-                              Follow the steps, complete your profile, and unlock your full set of starter track perks.
-                            </p>
-                            <div style="margin-top: 10px;">
-                              <span class="va-welcome-cta">Edit Your Profile</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="va-card va-span-4" style="background: rgba(236, 255, 253, 0.82);">
-                      <div class="va-card__head">
-                        <div class="va-card__title">My Freelancer Profile Setup</div>
-                        <div class="va-card__miniicon" aria-hidden="true"></div>
-                      </div>
-                      <div class="va-card__body">
-                        <div class="va-bars" aria-label="Progress bars">
-                          <div class="va-bar">
-                            <div class="va-bar__label">Activate Flow Organizer 100</div>
-                            <div class="va-bar__fill va-bar__fill--a"></div>
-                          </div>
-                          <div class="va-bar">
-                            <div class="va-bar__label">Background Info 100</div>
-                            <div class="va-bar__fill va-bar__fill--b"></div>
-                          </div>
-                          <div class="va-bar">
-                            <div class="va-bar__label">Profile Avatar 100</div>
-                            <div class="va-bar__fill va-bar__fill--c"></div>
-                          </div>
-                          <div class="va-bar">
-                            <div class="va-bar__label">Booking Link 100</div>
-                            <div class="va-bar__fill va-bar__fill--d"></div>
-                          </div>
-                          <div class="va-bar">
-                            <div class="va-bar__label">W9 Information 100</div>
-                            <div class="va-bar__fill va-bar__fill--e"></div>
-                          </div>
-                          <div class="va-bar">
-                            <div class="va-bar__label">Professional Standards 100</div>
-                            <div class="va-bar__fill va-bar__fill--f"></div>
-                          </div>
-                          <div class="va-bar">
-                            <div class="va-bar__label">Preview 100</div>
-                            <div class="va-bar__fill va-bar__fill--g"></div>
-                          </div>
-                          <div class="va-bar">
-                            <div class="va-bar__label">Launch 100</div>
-                            <div class="va-bar__fill va-bar__fill--h"></div>
-                          </div>
-                        </div>
-
-                        <button class="va-primary-btn" type="button" aria-label="Edit my profile">
-                          <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
-                          <span>Edit My Profile</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="va-card va-span-4" style="background: rgba(243, 241, 255, 0.82);">
-                      <div class="va-card__head">
-                        <div class="va-card__title">Your Freelancer Earnings</div>
-                        <div class="va-card__miniicon" aria-hidden="true"></div>
-                      </div>
-                      <div class="va-card__body">
-                        <div class="va-chart" aria-label="Earnings bar chart">
-                          <div class="va-chart-bars" aria-hidden="true">
-                            <div class="va-chart-bar va-chart-bar--a"></div>
-                            <div class="va-chart-bar va-chart-bar--b"></div>
-                            <div class="va-chart-bar va-chart-bar--c"></div>
-                            <div class="va-chart-bar va-chart-bar--d"></div>
-                          </div>
-                        </div>
-
-                        <button class="va-primary-btn" type="button" aria-label="View my payouts" style="margin-top: 12px;">
-                          <i class="fa-solid fa-receipt" aria-hidden="true"></i>
-                          <span>View My Payouts</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div class="va-card va-span-6" style="background: rgba(255, 247, 235, 0.92);">
-                      <div class="va-card__head">
-                        <div class="va-card__title">Your Work Tasks</div>
-                        <div class="va-card__miniicon" aria-hidden="true"></div>
-                      </div>
-                      <div class="va-card__body">
-                        <div class="va-table" aria-label="Tasks table">
-                          <div class="va-table__row">
-                            <div class="va-dot" aria-hidden="true"></div>
-                            <div>
-                              <div style="font-weight: 700;">My Tasks</div>
-                              <div class="va-pillline" aria-hidden="true">
-                                <span class="va-pill">Assigned</span>
-                                <span class="va-pill">Critical — Today</span>
-                                <span class="va-pill">Phase: P1</span>
-                              </div>
-                            </div>
-                            <div style="color: rgba(0,0,0,0.55); text-align: right;">Past due</div>
-                          </div>
-
-                          <div class="va-table__row">
-                            <div class="va-dot" aria-hidden="true"></div>
-                            <div>
-                              <div style="font-weight: 700;">New Work Post Arrived — Info Gathering Underway</div>
-                              <div style="color: rgba(0,0,0,0.60); margin-top: 4px;">See task description if interested [33387]</div>
-                            </div>
-                            <div style="color: rgba(0,0,0,0.55); text-align: right;">11/22/2025</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div class="va-card va-span-6" style="background: rgba(238, 243, 255, 0.92);">
-                      <div class="va-card__head">
-                        <div class="va-card__title">Today's Work Postings</div>
-                        <div class="va-card__miniicon" aria-hidden="true"></div>
-                      </div>
-                      <div class="va-card__body">
-                        <div class="va-table" aria-label="Work postings table">
-                          <div class="va-table__row">
-                            <div class="va-dot" aria-hidden="true"></div>
-                            <div>
-                              <div style="font-weight: 700;">All Project Tracks</div>
-                              <div class="va-pillline" aria-hidden="true">
-                                <span class="va-pill">Completed</span>
-                                <span class="va-pill">P1 General Info Capture</span>
-                                <span class="va-pill">VA Agencies</span>
-                              </div>
-                            </div>
-                            <div style="color: rgba(0,0,0,0.55); text-align: right;">Refreshed</div>
-                          </div>
-
-                          <div class="va-table__row">
-                            <div class="va-dot" aria-hidden="true"></div>
-                            <div>
-                              <div style="font-weight: 700;">Threads: WorkFromHomeHiring | VA Agencies</div>
-                              <div style="color: rgba(0,0,0,0.60); margin-top: 4px;">Hiring VA — Beginner (0–1 year) | Support &amp; Coordination</div>
-                            </div>
-                            <div style="color: rgba(0,0,0,0.55); text-align: right;">Past due</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                  </div>
-                </section>
-              </div>
-
-            </div>
+      <!-- LEFT SIDEBAR (use VA AGENCY sidebar) -->
+      <aside class="va-agency-sidebar" aria-label="Sidebar">
+        <div class="va-agency-brand">
+          <div class="va-agency-brand__mark" aria-hidden="true"></div>
+          <div class="va-agency-brand__text">
+            <div class="va-agency-brand__title">Virtual Launch Pro.co</div>
+            <div class="va-agency-brand__sub">Dashboard</div>
           </div>
         </div>
+
+        <div class="va-agency-profile">
+          <div class="va-agency-profile__avatar" aria-hidden="true"></div>
+          <div class="va-agency-profile__meta">
+            <div class="va-agency-profile__name">FIRE MARSHALL BILL</div>
+            <a class="va-agency-profile__link" href="#" aria-label="Edit Profile">Edit Profile</a>
+          </div>
+        </div>
+
+        <nav class="va-agency-nav" aria-label="Primary navigation">
+          <a class="va-agency-nav__item va-agency-nav__item--active" href="#dashboard">
+            <span class="va-agency-nav__icon" aria-hidden="true"></span>
+            <span class="va-agency-nav__label">Dashboard</span>
+          </a>
+          <a class="va-agency-nav__item" href="#start-here">
+            <span class="va-agency-nav__icon" aria-hidden="true"></span>
+            <span class="va-agency-nav__label">Start Here</span>
+          </a>
+          <a class="va-agency-nav__item" href="#calendar">
+            <span class="va-agency-nav__icon" aria-hidden="true"></span>
+            <span class="va-agency-nav__label">Calendar</span>
+          </a>
+          <a class="va-agency-nav__item" href="#crm">
+            <span class="va-agency-nav__icon" aria-hidden="true"></span>
+            <span class="va-agency-nav__label">CRM</span>
+          </a>
+          <a class="va-agency-nav__item" href="#messaging">
+            <span class="va-agency-nav__icon" aria-hidden="true"></span>
+            <span class="va-agency-nav__label">Messaging Inbox</span>
+          </a>
+          <a class="va-agency-nav__item" href="#office">
+            <span class="va-agency-nav__icon" aria-hidden="true"></span>
+            <span class="va-agency-nav__label">Office Space</span>
+          </a>
+          <a class="va-agency-nav__item" href="#orders">
+            <span class="va-agency-nav__icon" aria-hidden="true"></span>
+            <span class="va-agency-nav__label">Orders / Projects</span>
+          </a>
+          <a class="va-agency-nav__item" href="#resources">
+            <span class="va-agency-nav__icon" aria-hidden="true"></span>
+            <span class="va-agency-nav__label">Free Resources</span>
+          </a>
+        </nav>
+      </aside>
+
+      <!-- MAIN -->
+      <div class="va-starter-main">
+        <div class="va-starter-topbar" aria-label="Top bar">
+          <div class="va-starter-topbar__left">
+            <button class="va-starter-iconbtn" type="button" aria-label="Collapse sidebar">
+              <i class="fa-solid fa-angles-left" aria-hidden="true"></i>
+            </button>
+            <button class="va-starter-iconbtn" type="button" aria-label="Create">
+              <i class="fa-solid fa-plus" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="va-starter-topbar__right">
+            <span class="va-starter-topbar__chip"><i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i></span>
+            <span class="va-starter-topbar__chip"><i class="fa-solid fa-bell" aria-hidden="true"></i></span>
+            <span class="va-starter-topbar__chip"><i class="fa-solid fa-message" aria-hidden="true"></i></span>
+            <div class="va-starter-userpic" aria-hidden="true"></div>
+          </div>
+        </div>
+
+        <section class="va-starter-content" aria-label="VA Starter dashboard content">
+          <h2 class="va-starter-title">Good Morning, Fire Marshall</h2>
+          <p class="va-starter-subtitle">Track your profile setup, earnings, active tasks, and enrolled project tracks.</p>
+
+          <div class="va-starter-grid">
+            <div class="va-card va-span-4">
+              <div class="va-card__head">
+                <div>
+                  <div class="va-card__title">
+                    Set Sail on Your Freelancer Journey! <i class="fa-solid fa-compass" aria-hidden="true"></i>
+                  </div>
+                  <div style="color: rgba(0,0,0,0.55); font-size: 12px; margin-top: 4px;">11/06/2025</div>
+                </div>
+              </div>
+              <div class="va-card__body">
+                <div class="va-welcome-box">
+                  <div class="va-mint" aria-hidden="true"></div>
+                  <div>
+                    <p class="va-welcome-title">Welcome aboard, Freelancer!</p>
+                    <p class="va-welcome-text" style="margin-top: 6px;">
+                      <strong>Mint</strong> here — your loyal first mate guiding you through your first voyage.
+                    </p>
+                    <p class="va-welcome-text" style="margin-top: 8px;">
+                      Follow the steps, complete your profile, and unlock your full set of starter track perks.
+                    </p>
+                    <div style="margin-top: 10px;">
+                      <span class="va-welcome-cta">Edit Your Profile</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="va-card va-span-4" style="background: rgba(236, 255, 253, 0.82);">
+              <div class="va-card__head">
+                <div class="va-card__title">My Freelancer Profile Setup</div>
+                <div class="va-card__miniicon" aria-hidden="true"></div>
+              </div>
+              <div class="va-card__body">
+                <div class="va-bars" aria-label="Progress bars">
+                  <div class="va-bar">
+                    <div class="va-bar__label">Activate Flow Organizer 100</div>
+                    <div class="va-bar__fill va-bar__fill--a"></div>
+                  </div>
+                  <div class="va-bar">
+                    <div class="va-bar__label">Background Info 100</div>
+                    <div class="va-bar__fill va-bar__fill--b"></div>
+                  </div>
+                  <div class="va-bar">
+                    <div class="va-bar__label">Profile Avatar 100</div>
+                    <div class="va-bar__fill va-bar__fill--c"></div>
+                  </div>
+                  <div class="va-bar">
+                    <div class="va-bar__label">Booking Link 100</div>
+                    <div class="va-bar__fill va-bar__fill--d"></div>
+                  </div>
+                  <div class="va-bar">
+                    <div class="va-bar__label">W9 Information 100</div>
+                    <div class="va-bar__fill va-bar__fill--e"></div>
+                  </div>
+                  <div class="va-bar">
+                    <div class="va-bar__label">Professional Standards 100</div>
+                    <div class="va-bar__fill va-bar__fill--f"></div>
+                  </div>
+                  <div class="va-bar">
+                    <div class="va-bar__label">Preview 100</div>
+                    <div class="va-bar__fill va-bar__fill--g"></div>
+                  </div>
+                  <div class="va-bar">
+                    <div class="va-bar__label">Launch 100</div>
+                    <div class="va-bar__fill va-bar__fill--h"></div>
+                  </div>
+                </div>
+
+                <button class="va-primary-btn" type="button" aria-label="Edit my profile">
+                  <i class="fa-solid fa-pen-to-square" aria-hidden="true"></i>
+                  <span>Edit My Profile</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="va-card va-span-4" style="background: rgba(243, 241, 255, 0.82);">
+              <div class="va-card__head">
+                <div class="va-card__title">Your Freelancer Earnings</div>
+                <div class="va-card__miniicon" aria-hidden="true"></div>
+              </div>
+              <div class="va-card__body">
+                <div class="va-chart" aria-label="Earnings bar chart">
+                  <div class="va-chart-bars" aria-hidden="true">
+                    <div class="va-chart-bar va-chart-bar--a"></div>
+                    <div class="va-chart-bar va-chart-bar--b"></div>
+                    <div class="va-chart-bar va-chart-bar--c"></div>
+                    <div class="va-chart-bar va-chart-bar--d"></div>
+                  </div>
+                </div>
+
+                <button class="va-primary-btn" type="button" aria-label="View my payouts" style="margin-top: 12px;">
+                  <i class="fa-solid fa-receipt" aria-hidden="true"></i>
+                  <span>View My Payouts</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="va-card va-span-6" style="background: rgba(255, 247, 235, 0.92);">
+              <div class="va-card__head">
+                <div class="va-card__title">Your Work Tasks</div>
+                <div class="va-card__miniicon" aria-hidden="true"></div>
+              </div>
+              <div class="va-card__body">
+                <div class="va-table" aria-label="Tasks table">
+                  <div class="va-table__row">
+                    <div class="va-dot" aria-hidden="true"></div>
+                    <div>
+                      <div style="font-weight: 700;">My Tasks</div>
+                      <div class="va-pillline" aria-hidden="true">
+                        <span class="va-pill">Assigned</span>
+                        <span class="va-pill">Critical — Today</span>
+                        <span class="va-pill">Phase: P1</span>
+                      </div>
+                    </div>
+                    <div style="color: rgba(0,0,0,0.55); text-align: right;">Past due</div>
+                  </div>
+
+                  <div class="va-table__row">
+                    <div class="va-dot" aria-hidden="true"></div>
+                    <div>
+                      <div style="font-weight: 700;">New Work Post Arrived — Info Gathering Underway</div>
+                      <div style="color: rgba(0,0,0,0.60); margin-top: 4px;">See task description if interested [33387]</div>
+                    </div>
+                    <div style="color: rgba(0,0,0,0.55); text-align: right;">11/22/2025</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="va-card va-span-6" style="background: rgba(238, 243, 255, 0.92);">
+              <div class="va-card__head">
+                <div class="va-card__title">Today's Work Postings</div>
+                <div class="va-card__miniicon" aria-hidden="true"></div>
+              </div>
+              <div class="va-card__body">
+                <div class="va-table" aria-label="Work postings table">
+                  <div class="va-table__row">
+                    <div class="va-dot" aria-hidden="true"></div>
+                    <div>
+                      <div style="font-weight: 700;">All Project Tracks</div>
+                      <div class="va-pillline" aria-hidden="true">
+                        <span class="va-pill">Completed</span>
+                        <span class="va-pill">P1 General Info Capture</span>
+                        <span class="va-pill">VA Agencies</span>
+                      </div>
+                    </div>
+                    <div style="color: rgba(0,0,0,0.55); text-align: right;">Refreshed</div>
+                  </div>
+
+                  <div class="va-table__row">
+                    <div class="va-dot" aria-hidden="true"></div>
+                    <div>
+                      <div style="font-weight: 700;">Threads: WorkFromHomeHiring | VA Agencies</div>
+                      <div style="color: rgba(0,0,0,0.60); margin-top: 4px;">Hiring VA — Beginner (0–1 year) | Support &amp; Coordination</div>
+                    </div>
+                    <div style="color: rgba(0,0,0,0.55); text-align: right;">Past due</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </section>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 
         <div class="mt-10 flex justify-center pb-12">
           <a
