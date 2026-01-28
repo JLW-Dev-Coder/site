@@ -88,73 +88,22 @@
   letter-spacing: 0.02em;
 }
 
-.vl-form-embed {
-  background: transparent !important;
-}
+/* vl-form-embed — final, authoritative rules */
 
-.vl-form-embed * {
-  background-color: transparent;
-}
-
-.vl-form-embed button,
-.vl-form-embed input[type="submit"] {
-  background: rgba(255, 255, 255, 0.92) !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  border-radius: 12px !important;
-  color: #070a10 !important;
-  font-weight: 800 !important;
-  padding: 12px 16px !important;
-}
-
-.vl-form-embed iframe {
-  background: transparent !important;
-  border: 0 !important;
-  width: 100% !important;
-}
-
-.vl-form-embed input,
-.vl-form-embed select,
-.vl-form-embed textarea {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border: 1px solid rgba(255, 255, 255, 0.14) !important;
-  border-radius: 12px !important;
-  color: rgba(255, 255, 255, 0.92) !important;
-  outline: none !important;
-  padding: 12px 14px !important;
-}
-
-.vl-form-embed label,
-.vl-form-embed p,
-.vl-form-embed span {
-  color: rgba(255, 255, 255, 0.85) !important;
-}
-/* /blog/blog.css */
-
-/* vl-form-embed */
 .vl-form-embed {
   background: transparent !important;
   border: 0 !important;
 }
 
+/* Clamp iframe height to real form size */
 .vl-form-embed iframe {
   background: transparent !important;
   border: 0 !important;
   display: block;
-  height: 100%;
-  min-height: 240px;
-  width: 100%;
-}
+  width: 100% !important;
 
-/* vl-form-embed (fix common inline wrappers) */
-.vl-form-embed * {
-  background: transparent !important;
-}
-
-.vl-form-embed [style*="background"] {
-  background: transparent !important;
-  background-color: transparent !important;
-}
-
-.vl-form-embed [style*="border"] {
-  border-color: transparent !important;
+  /* THIS is the key */
+  height: 320px !important;
+  min-height: 300px !important;
+  max-height: 360px !important;
 }
