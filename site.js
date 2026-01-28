@@ -126,6 +126,7 @@
     function setActive(key) {
       tabs.forEach(function (t) {
         var isActive = t.getAttribute("data-tab") === key;
+        var dot = t.querySelector("span[aria-hidden='true']");
 
         t.setAttribute("aria-selected", isActive ? "true" : "false");
 
@@ -140,6 +141,11 @@
         t.classList.toggle("border-transparent", !isActive);
         t.classList.toggle("font-semibold", !isActive);
         t.classList.toggle("text-white/60", !isActive);
+
+        if (dot) {
+          dot.classList.toggle("bg-emerald-300", isActive);
+          dot.classList.toggle("bg-white/35", !isActive);
+        }
       });
 
       panels.forEach(function (p) {
