@@ -76,23 +76,33 @@
         iframe.style.background = "#070a10";
         iframe.style.border = "0";
         iframe.style.display = "block";
-        iframe.style.width = "100%";
         iframe.style.height = "360px";
         iframe.style.minHeight = "360px";
+        iframe.style.width = "100%";
       }
 
       function scan() {
         styleIframe(getIframe());
       }
 
-      function ensureEmbedScript() {
+      function removeEmbedScripts() {
+        var scripts = document.querySelectorAll('script[src^="' + SCRIPT_SRC + '"]');
+        for (var i = 0; i < scripts.length; i += 1) {
+          if (scripts[i] && scripts[i].parentNode) scripts[i].parentNode.removeChild(scripts[i]);
+        }
+      }
+
+      function injectEmbedScript(force) {
         if (getIframe()) return;
 
-        if (document.querySelector('script[src="' + SCRIPT_SRC + '"]')) return;
+        if (force) {
+          removeEmbedScripts();
+          root.innerHTML = "";
+        }
 
         var s = document.createElement("script");
         s.async = true;
-        s.src = SCRIPT_SRC;
+        s.src = SCRIPT_SRC + (SCRIPT_SRC.indexOf("?") >= 0 ? "&" : "?") + "cb=" + Date.now();
 
         s.onerror = function () {
           root.__vlEmbedFailed = true;
@@ -101,25 +111,18 @@
         document.head.appendChild(s);
       }
 
-      function resetScriptForRetry() {
-        var tag = document.querySelector('script[src="' + SCRIPT_SRC + '"]');
-        if (tag && tag.parentNode) tag.parentNode.removeChild(tag);
-      }
-
       if (!root.__vlObserverAttached) {
         root.__vlObserverAttached = true;
-        new MutationObserver(scan).observe(root, {
-          childList: true,
-          subtree: true
-        });
+        new MutationObserver(scan).observe(root, { childList: true, subtree: true });
       }
 
-      ensureEmbedScript();
+      // First attempt (force reload in case the script ran earlier elsewhere before this node existed)
+      injectEmbedScript(true);
       scan();
 
       if (!root.__vlRetryTimer) {
         var attempts = 0;
-        var maxAttempts = 6;
+        var maxAttempts = 10;
 
         root.__vlRetryTimer = setInterval(function () {
           attempts += 1;
@@ -130,23 +133,32 @@
             return;
           }
 
-          if (root.__vlEmbedFailed) {
+          // If it errored or still hasn't rendered, force a clean reload
+          if (root.__vlEmbedFailed || attempts % 2 === 0) {
             root.__vlEmbedFailed = false;
-            resetScriptForRetry();
+            injectEmbedScript(true);
+          } else {
+            injectEmbedScript(false);
           }
 
-          ensureEmbedScript();
           scan();
 
           if (attempts >= maxAttempts) {
             clearInterval(root.__vlRetryTimer);
             root.__vlRetryTimer = null;
           }
-        }, 2500);
+        }, 1500);
       }
 
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible" && !getIframe()) {
+          injectEmbedScript(true);
+          scan();
+        }
+      });
+
       window.addEventListener("load", function () {
-        ensureEmbedScript();
+        if (!getIframe()) injectEmbedScript(true);
         scan();
       });
     })();
