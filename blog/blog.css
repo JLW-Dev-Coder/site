@@ -80,8 +80,8 @@
 }
 
 .booking-embed > iframe {
-  height: 450px !important;
-  min-height: 450px !important;
+  height: 500px !important;
+  min-height: 500px !important;
   width: 100% !important;
 }
 
