@@ -84,11 +84,152 @@
     .vlp-header-spacer { height: 64px; }
     @media (min-width: 768px) { .vlp-header-spacer { height: 72px; } }
 
-    .vlp-tab-btn[aria-selected="true"] {
-      background: rgba(249,115,22,0.18);
-      border-color: rgba(249,115,22,0.45);
-      color: rgba(255,255,255,0.95);
+    /* ====== TOUR + MAP (ORIGINAL WHITE LOOK) ====== */
+
+    .model-items { margin: 0 auto; max-width: 880px; }
+
+    .model-item {
+      color: #111827;
+      font-size: 15px;
+      line-height: 1.6;
+      margin-top: 10px;
     }
+
+    .model-slide { display: none; padding-top: 18px; }
+    .model-slide.active { display: block; }
+
+    .model-subtitle {
+      color: #6b7280;
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .model-tabs {
+      align-items: center;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      gap: 22px;
+      justify-content: center;
+      margin: 18px auto 0;
+      max-width: 980px;
+      padding-bottom: 10px;
+    }
+
+    .model-tab {
+      border-bottom: 3px solid transparent;
+      color: #111827;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      padding: 10px 6px;
+      text-transform: uppercase;
+      user-select: none;
+    }
+
+    .model-tab.active {
+      border-bottom-color: #f97316;
+      color: #111827;
+    }
+
+    .model-title {
+      color: #111827;
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: 0.02em;
+      margin-top: 14px;
+      text-transform: uppercase;
+    }
+
+    .template-layout {
+      display: grid;
+      gap: 26px;
+      grid-template-columns: 280px 1fr;
+      margin-top: 18px;
+    }
+
+    @media (max-width: 900px) {
+      .template-layout { grid-template-columns: 1fr; }
+    }
+
+    .template-panels {
+      border-left: 1px solid #e5e7eb;
+      padding-left: 26px;
+    }
+
+    @media (max-width: 900px) {
+      .template-panels {
+        border-left: none;
+        padding-left: 0;
+      }
+    }
+
+    .template-panel { display: none; }
+    .template-panel.active { display: block; }
+
+    .template-panel h3 {
+      color: #111827;
+      font-size: 18px;
+      font-weight: 900;
+      margin-top: 0;
+    }
+
+    .template-panel p {
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.6;
+      margin-top: 8px;
+      max-width: 720px;
+    }
+
+    .template-panel ul {
+      color: #111827;
+      font-size: 13px;
+      line-height: 1.7;
+      margin-top: 10px;
+      padding-left: 18px;
+    }
+
+    .template-panel ul li { margin-top: 6px; }
+
+    .template-tab {
+      background: #f3f4f6;
+      border-radius: 6px;
+      color: #111827;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      margin-top: 8px;
+      padding: 7px 10px;
+      text-transform: uppercase;
+      user-select: none;
+    }
+
+    .template-tab.active {
+      background: #e5e7eb;
+      outline: 2px solid rgba(249,115,22,0.35);
+      outline-offset: 0;
+    }
+
+    .template-tabs { width: 100%; }
+
+    .vlp-white-panel {
+      background: rgba(255,255,255,0.98);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 18px;
+    }
+
+    .vlp-white-panel h2 {
+      color: #111827;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+    }
+
+    .vlp-white-panel p { color: #6b7280; }
+
+    .vlp-white-wrap { padding: 26px; }
+    @media (min-width: 768px) { .vlp-white-wrap { padding: 36px; } }
   </style>
 </head>
 
@@ -109,6 +250,16 @@
       </p>
 
       <div class="mx-auto max-w-4xl text-center">
+        <!-- LOTTIE (MATCH /lp/tax-monitor/) -->
+        <div class="mx-auto mb-4 flex h-[220px] w-[220px] items-center justify-center md:h-[250px] md:w-[250px]">
+          <iframe
+            src="https://lottie.host/embed/48591e87-dae7-4b0f-bd95-03195178927c/T9xTM8Dgj8.lottie"
+            class="h-full w-full border-0"
+            loading="lazy"
+            aria-hidden="true"
+          ></iframe>
+        </div>
+
         <h1 class="text-4xl font-extrabold leading-tight md:text-6xl">
           Model Tour + Template Map
         </h1>
@@ -119,7 +270,7 @@
       </div>
     </section>
 
-    <!-- SIMPLE TABS (MATCH “ARTIFACTS” LOOK) -->
+    <!-- CONTENT (NO INTERNAL TOP BUTTONS; USE YOUR EXISTING OVERVIEW / MODEL TOUR / TEMPLATE MAP BUTTONS) -->
     <section class="relative border-t border-white/10 overflow-hidden" id="template-views">
       <!-- AURORA BACKGROUND -->
       <div class="pointer-events-none absolute inset-0 -z-10">
@@ -137,191 +288,179 @@
           </p>
         </div>
 
-        <!-- TAB BUTTONS -->
-        <div class="mx-auto mt-10 max-w-4xl">
-          <div class="grid gap-3 sm:grid-cols-2">
-            <button
-              type="button"
-              class="vlp-tab-btn rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-left shadow-soft hover:bg-white/10"
-              data-tab="model-tour"
-              aria-selected="true"
-            >
-              <div class="text-[10px] font-extrabold uppercase tracking-widest text-white/70">View</div>
-              <div class="mt-1 text-lg font-extrabold">Model Tour</div>
-              <div class="mt-1 text-sm text-white/70">Guided walkthrough of the setup structure.</div>
-            </button>
+        <!-- WHITE PANEL (ORIGINAL LOOK INSIDE) -->
+        <div class="mx-auto mt-10 max-w-5xl vlp-white-panel shadow-soft">
+          <div class="vlp-white-wrap">
+            <!-- MODEL TOUR -->
+            <div id="panel-model-tour" data-panel="model-tour">
+              <div id="modelTour">
+                <h2 class="text-center text-3xl md:text-4xl">The 5 Models That Run Tax Monitor</h2>
+                <p class="mt-3 text-center text-sm md:text-base">
+                  Same headers. Rewritten for monitoring, authorization, transcripts, and report delivery.
+                </p>
 
-            <button
-              type="button"
-              class="vlp-tab-btn rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-left shadow-soft hover:bg-white/10"
-              data-tab="template-map"
-              aria-selected="false"
-            >
-              <div class="text-[10px] font-extrabold uppercase tracking-widest text-white/70">View</div>
-              <div class="mt-1 text-lg font-extrabold">Template Map</div>
-              <div class="mt-1 text-sm text-white/70">Full layout and included components.</div>
-            </button>
-          </div>
-        </div>
-
-        <!-- CONTENT PANEL -->
-        <div class="mx-auto mt-6 max-w-4xl rounded-2xl border border-white/10 bg-ink-900/60 p-6 shadow-soft md:p-8">
-          <!-- MODEL TOUR -->
-          <div data-panel="model-tour">
-            <div id="modelTour" class="view-section is-inactive">
-              <h2 style="font-size:34px;font-weight:800;color:#ffb300;text-align:center;">The 5 Models That Run Tax Monitor</h2>
-              <p style="font-size:18px;color:#d1d5db;text-align:center;margin-bottom:20px;">Same headers. Rewritten for monitoring, authorization, transcripts, and report delivery.</p>
-
-              <div class="model-tabs">
-                <div class="model-tab active" data-step="0">Client Journey</div>
-                <div class="model-tab" data-step="1">DOMSSS</div>
-                <div class="model-tab" data-step="2">Pipeline</div>
-                <div class="model-tab" data-step="3">Portal</div>
-                <div class="model-tab" data-step="4">Launch</div>
-              </div>
-
-              <div class="model-slide active" data-index="0">
-                <div class="model-title">MODEL A · CLIENT JOURNEY</div>
-                <div class="model-subtitle">From prospect to active monitoring, with clean expectations.</div>
-
-                <div class="model-items">
-                  <p class="model-item"><strong>Lead Development</strong> — Nurture-based education and clarity.</p>
-                  <p class="model-item"><strong>Prospect Engagement</strong> — Booking → intake triage → offer.</p>
-                  <p class="model-item"><strong>Client Experience</strong> — Payment → onboarding → progress visibility.</p>
-                  <p class="model-item"><strong>Plan Management</strong> — Term-based delivery (6/8/12 weeks + one-time).</p>
-                  <p class="model-item"><strong>Lifecycle Outcomes</strong> — Report, review appointment, upgrade, or exit.</p>
+                <div class="model-tabs">
+                  <div class="model-tab active" data-step="0">Client Journey</div>
+                  <div class="model-tab" data-step="1">DOMSSS</div>
+                  <div class="model-tab" data-step="2">Pipeline</div>
+                  <div class="model-tab" data-step="3">Portal</div>
+                  <div class="model-tab" data-step="4">Launch</div>
                 </div>
 
-                <div class="model-actions">
-                  <button class="item-btn-cta model-back-btn">← Back to overview</button>
-                  <button class="model-next-btn" data-next="1">Next: DOMSSS →</button>
-                </div>
-              </div>
+                <div class="model-slide active" data-index="0">
+                  <div class="model-title">MODEL A · CLIENT JOURNEY</div>
+                  <div class="model-subtitle">From prospect to active monitoring, with clean expectations.</div>
 
-              <div class="model-slide" data-index="1">
-                <div class="model-title">MODEL B · DOMSSS</div>
-                <div class="model-subtitle">Six functions that keep delivery consistent.</div>
-
-                <div class="model-items">
-                  <p class="model-item"><strong>Development</strong> — Service scope, doc standards, and module architecture.</p>
-                  <p class="model-item"><strong>Operations</strong> — Tasks, dependencies, and audit-ready tracking.</p>
-                  <p class="model-item"><strong>Marketing</strong> — Drips that teach what monitoring is (and isn’t).</p>
-                  <p class="model-item"><strong>Sales</strong> — Proposals, eSign, payment, and intake routing.</p>
-                  <p class="model-item"><strong>Services</strong> — Onboarding → 2848 → transcripts → compliance record → report.</p>
-                  <p class="model-item"><strong>Support</strong> — Dedicated vs onboarding support and messaging handoffs.</p>
+                  <div class="model-items">
+                    <p class="model-item"><strong>Lead Development</strong> — Nurture-based education and clarity.</p>
+                    <p class="model-item"><strong>Prospect Engagement</strong> — Booking → intake triage → offer.</p>
+                    <p class="model-item"><strong>Client Experience</strong> — Payment → onboarding → progress visibility.</p>
+                    <p class="model-item"><strong>Plan Management</strong> — Term-based delivery (6/8/12 weeks + one-time).</p>
+                    <p class="model-item"><strong>Lifecycle Outcomes</strong> — Report, review appointment, upgrade, or exit.</p>
+                  </div>
                 </div>
 
-                <div class="model-actions">
-                  <button class="item-btn-cta model-back-btn">← Back to overview</button>
-                  <button class="model-next-btn" data-next="2">Next: Pipeline →</button>
-                </div>
-              </div>
+                <div class="model-slide" data-index="1">
+                  <div class="model-title">MODEL B · DOMSSS</div>
+                  <div class="model-subtitle">Six functions that keep delivery consistent.</div>
 
-              <div class="model-slide" data-index="2">
-                <div class="model-title">MODEL C · PIPELINE</div>
-                <div class="model-subtitle">How the system moves prospects into delivery.</div>
-
-                <div class="model-items">
-                  <p class="model-item"><strong>Lead Capture</strong> — Landing + booking + nurture.</p>
-                  <p class="model-item"><strong>Qualification</strong> — Intake triage and expectation-setting.</p>
-                  <p class="model-item"><strong>Discovery</strong> — Confirm scope, term, and transcript access method.</p>
-                  <p class="model-item"><strong>Offer &amp; Close</strong> — Proposal → eSign → payment.</p>
-                  <p class="model-item"><strong>Onboarding</strong> — Welcome intro, filing status, address update.</p>
-                  <p class="model-item"><strong>Authorization</strong> — 2848 eSign and processing progress updates.</p>
-                  <p class="model-item"><strong>Delivery</strong> — Transcripts + compliance record + report + scheduling.</p>
+                  <div class="model-items">
+                    <p class="model-item"><strong>Development</strong> — Service scope, doc standards, and module architecture.</p>
+                    <p class="model-item"><strong>Operations</strong> — Tasks, dependencies, and audit-ready tracking.</p>
+                    <p class="model-item"><strong>Marketing</strong> — Drips that teach what monitoring is (and isn’t).</p>
+                    <p class="model-item"><strong>Sales</strong> — Proposals, eSign, payment, and intake routing.</p>
+                    <p class="model-item"><strong>Services</strong> — Onboarding → 2848 → transcripts → compliance record → report.</p>
+                    <p class="model-item"><strong>Support</strong> — Dedicated vs onboarding support and messaging handoffs.</p>
+                  </div>
                 </div>
 
-                <div class="model-actions">
-                  <button class="item-btn-cta model-back-btn">← Back to overview</button>
-                  <button class="model-next-btn" data-next="3">Next: Portal →</button>
-                </div>
-              </div>
+                <div class="model-slide" data-index="2">
+                  <div class="model-title">MODEL C · PIPELINE</div>
+                  <div class="model-subtitle">How the system moves prospects into delivery.</div>
 
-              <div class="model-slide" data-index="3">
-                <div class="model-title">MODEL D · PORTAL</div>
-                <div class="model-subtitle">Client and staff visibility by stage.</div>
-
-                <div class="model-items">
-                  <p class="model-item"><strong>Explore</strong> — Service overview with scope boundaries.</p>
-                  <p class="model-item"><strong>Payment</strong> — Prospect checkout dashboard and conversion path.</p>
-                  <p class="model-item"><strong>Onboarding</strong> — Forms, flow, and progress indicators.</p>
-                  <p class="model-item"><strong>Monitoring</strong> — Service dashboard and report access.</p>
-                  <p class="model-item"><strong>Support</strong> — Messaging + appointments tied to service stage.</p>
+                  <div class="model-items">
+                    <p class="model-item"><strong>Lead Capture</strong> — Landing + booking + nurture.</p>
+                    <p class="model-item"><strong>Qualification</strong> — Intake triage and expectation-setting.</p>
+                    <p class="model-item"><strong>Discovery</strong> — Confirm scope, term, and transcript access method.</p>
+                    <p class="model-item"><strong>Offer &amp; Close</strong> — Proposal → eSign → payment.</p>
+                    <p class="model-item"><strong>Onboarding</strong> — Welcome intro, filing status, address update.</p>
+                    <p class="model-item"><strong>Authorization</strong> — 2848 eSign and processing progress updates.</p>
+                    <p class="model-item"><strong>Delivery</strong> — Transcripts + compliance record + report + scheduling.</p>
+                  </div>
                 </div>
 
-                <div class="model-actions">
-                  <button class="item-btn-cta model-back-btn">← Back to overview</button>
-                  <button class="model-next-btn" data-next="4">Next: Launch →</button>
-                </div>
-              </div>
+                <div class="model-slide" data-index="3">
+                  <div class="model-title">MODEL D · PORTAL</div>
+                  <div class="model-subtitle">Client and staff visibility by stage.</div>
 
-              <div class="model-slide" data-index="4">
-                <div class="model-title">MODEL E · LAUNCH</div>
-                <div class="model-subtitle">A repeatable path to sell and deliver cleanly.</div>
-
-                <div class="model-items">
-                  <p class="model-item"><strong>Weigh Anchor</strong> — Position monitoring as “before resolution.”</p>
-                  <p class="model-item"><strong>Hoist the Sails</strong> — Deploy portal pages, dashboards, and branding.</p>
-                  <p class="model-item"><strong>Raise Your Flag</strong> — Launch booking + nurture + proposal routing.</p>
-                  <p class="model-item"><strong>Trim the Weight</strong> — Auto-templates and dependencies prevent drift.</p>
-                  <p class="model-item"><strong>Steer Ahead</strong> — Report delivery, review scheduling, and exit flow.</p>
+                  <div class="model-items">
+                    <p class="model-item"><strong>Explore</strong> — Service overview with scope boundaries.</p>
+                    <p class="model-item"><strong>Payment</strong> — Prospect checkout dashboard and conversion path.</p>
+                    <p class="model-item"><strong>Onboarding</strong> — Forms, flow, and progress indicators.</p>
+                    <p class="model-item"><strong>Monitoring</strong> — Service dashboard and report access.</p>
+                    <p class="model-item"><strong>Support</strong> — Messaging + appointments tied to service stage.</p>
+                  </div>
                 </div>
 
-                <div class="model-actions">
-                  <button class="item-btn-cta model-back-btn">← Back to overview</button>
+                <div class="model-slide" data-index="4">
+                  <div class="model-title">MODEL E · LAUNCH</div>
+                  <div class="model-subtitle">A repeatable path to sell and deliver cleanly.</div>
+
+                  <div class="model-items">
+                    <p class="model-item"><strong>Weigh Anchor</strong> — Position monitoring as “before resolution.”</p>
+                    <p class="model-item"><strong>Hoist the Sails</strong> — Deploy portal pages, dashboards, and branding.</p>
+                    <p class="model-item"><strong>Raise Your Flag</strong> — Launch booking + nurture + proposal routing.</p>
+                    <p class="model-item"><strong>Trim the Weight</strong> — Auto-templates and dependencies prevent drift.</p>
+                    <p class="model-item"><strong>Steer Ahead</strong> — Report delivery, review scheduling, and exit flow.</p>
+                  </div>
                 </div>
               </div>
             </div>
 
-            <script>
-              document.getElementById("modelTour")?.classList.add("is-active");
-              document.getElementById("modelTour")?.classList.remove("is-inactive");
-            </script>
-          </div>
+            <!-- TEMPLATE MAP -->
+            <div id="panel-template-map" class="hidden" data-panel="template-map">
+              <div id="templateFrame">
+                <h2 class="text-3xl md:text-4xl">Tax Monitor Template Map</h2>
+                <p class="mt-2 text-sm md:text-base">
+                  All 20 modules included in the reseller template. Click a module to preview what’s installed and how it’s used.
+                </p>
 
-          <!-- TEMPLATE MAP -->
-          <div class="hidden" data-panel="template-map">
-            <div id="templateFrame" class="view-section is-inactive">
-              <h2 style="font-size:34px;font-weight:800;color:#ffb300;">Tax Monitor Template Map</h2>
-              <p style="font-size:18px;color:#d1d5db;">All 20 modules included in the reseller template. Click a module to preview what’s installed and how it’s used.</p>
+                <div class="template-layout">
+                  <div class="template-tabs">
+                    <div class="template-tab active" data-template-step="0">Appointments</div>
+                    <div class="template-tab" data-template-step="1">Auto-Templates</div>
+                    <div class="template-tab" data-template-step="2">Business Sectors</div>
+                    <div class="template-tab" data-template-step="3">Circles</div>
+                    <div class="template-tab" data-template-step="4">Content Categories</div>
+                    <div class="template-tab" data-template-step="5">Custom Fields</div>
+                    <div class="template-tab" data-template-step="6">Dashes</div>
+                    <div class="template-tab" data-template-step="7">Document Generators</div>
+                    <div class="template-tab" data-template-step="8">Drip Sequences</div>
+                    <div class="template-tab" data-template-step="9">Email Marketing</div>
+                    <div class="template-tab" data-template-step="10">Flows</div>
+                    <div class="template-tab" data-template-step="11">Forms</div>
+                    <div class="template-tab" data-template-step="12">Invoice Items</div>
+                    <div class="template-tab" data-template-step="13">Landing Pages</div>
+                    <div class="template-tab" data-template-step="14">Menus</div>
+                    <div class="template-tab" data-template-step="15">Platform Branding</div>
+                    <div class="template-tab" data-template-step="16">Portal Pages</div>
+                    <div class="template-tab" data-template-step="17">Projects</div>
+                    <div class="template-tab" data-template-step="18">Proposals</div>
+                    <div class="template-tab" data-template-step="19">Tasks</div>
+                  </div>
 
-              <div class="template-layout">
-                <div class="template-tabs">
-                  <div class="template-tab active" data-template-step="0">Appointments</div><div class="template-tab" data-template-step="1">Auto-Templates</div><div class="template-tab" data-template-step="2">Business Sectors</div><div class="template-tab" data-template-step="3">Circles</div><div class="template-tab" data-template-step="4">Content Categories</div><div class="template-tab" data-template-step="5">Custom Fields</div><div class="template-tab" data-template-step="6">Dashes</div><div class="template-tab" data-template-step="7">Document Generators</div><div class="template-tab" data-template-step="8">Drip Sequences</div><div class="template-tab" data-template-step="9">Email Marketing</div><div class="template-tab" data-template-step="10">Flows</div><div class="template-tab" data-template-step="11">Forms</div><div class="template-tab" data-template-step="12">Invoice Items</div><div class="template-tab" data-template-step="13">Landing Pages</div><div class="template-tab" data-template-step="14">Menus</div><div class="template-tab" data-template-step="15">Platform Branding</div><div class="template-tab" data-template-step="16">Portal Pages</div><div class="template-tab" data-template-step="17">Projects</div><div class="template-tab" data-template-step="18">Proposals</div><div class="template-tab" data-template-step="19">Tasks</div>
-                </div>
+                  <div class="template-panels">
+                    <div class="template-panel active" data-template-index="0">
+                      <h3>Appointments</h3>
+                      <p>Route clients by stage and centralize support into scheduled checkpoints tied to FLOW and compliance.</p>
+                      <ul><li><strong>Tax Monitor — Dedicated Support</strong></li><li><strong>Tax Monitor — Onboarding Support</strong></li></ul>
+                      <ul><li>Centralize support into scheduled appointments</li><li>Create documented checkpoints tied to FLOW and compliance</li><li>Route clients by service stage (onboarding vs. active monitoring)</li></ul>
+                    </div>
 
-                <div class="template-panels">
-                  <div class="template-panel active" data-template-index="0">
-                    <h3>Appointments</h3>
-                    <p>Route clients by stage and centralize support into scheduled checkpoints tied to FLOW and compliance.</p>
-                    <ul><li><strong>Tax Monitor — Dedicated Support</strong></li><li><strong>Tax Monitor — Onboarding Support</strong></li></ul>
-                    <ul><li>Centralize support into scheduled appointments</li><li>Create documented checkpoints tied to FLOW and compliance</li><li>Route clients by service stage (onboarding vs. active monitoring)</li></ul>
-                  </div><div class="template-panel" data-template-index="1">
-                    <h3>Auto-Templates</h3>
-                    <p>Auto-start onboarding after approval or payment and trigger the correct tasks, pages, and emails.</p>
-                    <ul><li><strong>TM — Activate Onboarding FLOW</strong></li></ul>
-                    <ul><li>Auto-start onboarding after payment or approval</li><li>Reduce manual setup and missed steps</li><li>Trigger correct tasks, pages, and emails</li></ul>
-                  </div><div class="template-panel" data-template-index="2">
-                    <h3>Business Sectors</h3>
-                    <p>Single-service sector designed for quarterly delivery; add-ons optional.</p>
-                    <ul><li><strong>Tax Monitoring</strong></li></ul>
-                    <ul><li>Designed for quarterly (12-week) service delivery</li><li>EA can add-on as needed</li><li>One-service</li></ul>
-                  </div><div class="template-panel" data-template-index="3">
-                    <h3>Circles</h3>
-                    <p>Lifecycle circles for nurture, MFJ linking, and post-payment delivery.</p>
-                    <ul><li><strong>Tax Monitor — Lead / Re-Engagement (Nurture) — Email Drip — 12 Weeks</strong></li><li><strong>Tax Monitor — MFJ Adjustment — Email Drip — 8 Weeks</strong></li><li><strong>Tax Monitor — Post-Payment (Client / Delivery) — Email Drip — 12 Weeks</strong></li></ul>
-                    <ul><li>Assigned via Form 1 — Intake Triage (Bucket 1 add-on)</li><li>Email-only educational series</li><li>Runs the 12-week client email drip</li></ul>
-                  </div><div class="template-panel" data-template-index="4">
-                    <h3>Content Categories</h3>
-                    <p>Scoped categories that keep CRM, delivery, and portal assets organized and deployable.</p>
-                    <ul><li><strong>CRM Company</strong></li><li><strong>CRM Deals</strong></li><li><strong>CRM Follow-Ups</strong></li><li><strong>Custom Fields</strong></li><li><strong>Expenses</strong></li><li><strong>LMS Products</strong></li><li><strong>Phase Statuses</strong></li><li><strong>Plans</strong></li><li><strong>Portal Pages</strong></li><li><strong>Project Statuses</strong></li><li><strong>Task Priorities</strong></li><li><strong>Task Statuses</strong></li><li><strong>Task Types</strong></li><li><strong>Workspace Pages (beta)</strong></li></ul>
-                    <ul><li>EA can add-on as needed</li><li>One-service</li></ul>
-                  </div><div class="template-panel" data-template-index="5">
-                    <h3>Custom Fields</h3>
-                    <p>Complete CF set to track progress (0%–100%), authorization, transcripts, compliance, and outcomes.</p>
-                    <details>
-                      <summary>Show Full Custom Fields List</summary>
-                      <pre>CF_2848_Acts_Auth_Additional
+                    <div class="template-panel" data-template-index="1">
+                      <h3>Auto-Templates</h3>
+                      <p>Auto-start onboarding after approval or payment and trigger the correct tasks, pages, and emails.</p>
+                      <ul><li><strong>TM — Activate Onboarding FLOW</strong></li></ul>
+                      <ul><li>Auto-start onboarding after payment or approval</li><li>Reduce manual setup and missed steps</li><li>Trigger correct tasks, pages, and emails</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="2">
+                      <h3>Business Sectors</h3>
+                      <p>Single-service sector designed for quarterly delivery; add-ons optional.</p>
+                      <ul><li><strong>Tax Monitoring</strong></li></ul>
+                      <ul><li>Designed for quarterly (12-week) service delivery</li><li>EA can add-on as needed</li><li>One-service</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="3">
+                      <h3>Circles</h3>
+                      <p>Lifecycle circles for nurture, MFJ linking, and post-payment delivery.</p>
+                      <ul>
+                        <li><strong>Tax Monitor — Lead / Re-Engagement (Nurture) — Email Drip — 12 Weeks</strong></li>
+                        <li><strong>Tax Monitor — MFJ Adjustment — Email Drip — 8 Weeks</strong></li>
+                        <li><strong>Tax Monitor — Post-Payment (Client / Delivery) — Email Drip — 12 Weeks</strong></li>
+                      </ul>
+                      <ul><li>Assigned via Form 1 — Intake Triage (Bucket 1 add-on)</li><li>Email-only educational series</li><li>Runs the 12-week client email drip</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="4">
+                      <h3>Content Categories</h3>
+                      <p>Scoped categories that keep CRM, delivery, and portal assets organized and deployable.</p>
+                      <ul>
+                        <li><strong>CRM Company</strong></li><li><strong>CRM Deals</strong></li><li><strong>CRM Follow-Ups</strong></li>
+                        <li><strong>Custom Fields</strong></li><li><strong>Expenses</strong></li><li><strong>LMS Products</strong></li>
+                        <li><strong>Phase Statuses</strong></li><li><strong>Plans</strong></li><li><strong>Portal Pages</strong></li>
+                        <li><strong>Project Statuses</strong></li><li><strong>Task Priorities</strong></li><li><strong>Task Statuses</strong></li>
+                        <li><strong>Task Types</strong></li><li><strong>Workspace Pages (beta)</strong></li>
+                      </ul>
+                      <ul><li>EA can add-on as needed</li><li>One-service</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="5">
+                      <h3>Custom Fields</h3>
+                      <p>Complete CF set to track progress (0%–100%), authorization, transcripts, compliance, and outcomes.</p>
+                      <details>
+                        <summary>Show Full Custom Fields List</summary>
+                        <pre style="background:#0b1220;color:#e5e7eb;border-radius:10px;padding:14px;margin-top:10px;overflow:auto;max-height:320px;">CF_2848_Acts_Auth_Additional
 CF_2848_Acts_Auth_Desc_of_Matter
 CF_2848_Acts_Auth_Tax_Form_Number
 CF_2848_Rep_1_Address_City
@@ -446,168 +585,209 @@ CF_Urgency_Level
 CF_Wet_Sig_2848_Confirmed
 CF_Wet_Sig_2848_Notes
 CF_Wet_Sig_2848_Upload</pre>
-                    </details>
-                    <ul><li>All CFs to determine low cost or best resolution</li><li>For prospect and client journey progress status (0% - 100%)</li></ul>
-                  </div><div class="template-panel" data-template-index="6">
-                    <h3>Dashes</h3>
-                    <p>Dashboards for prospect payment, client visibility, and staff oversight.</p>
-                    <ul><li><strong>My Tax Monitor Service</strong></li><li><strong>Super Admin Dashboard</strong></li><li><strong>Tax Monitor Payment</strong></li></ul>
-                    <ul><li>Payment page converted to dashboard for prospect visibility</li><li>Service page converted to dashboard for client visibility</li><li>Super admin page displays service progression</li></ul>
-                  </div><div class="template-panel" data-template-index="7">
-                    <h3>Document Generators</h3>
-                    <p>Standardized docs for authorization, scope, and report delivery.</p>
-                    <ul><li><strong>2848 — Signed, Pending EA Completion</strong></li><li><strong>Simple Service Agreement</strong></li><li><strong>Tax Monitor Report Overview</strong></li></ul>
-                    <ul><li>Already IRS-accepted 2848 (add-on power-up, $20/mo.)</li><li>Data-valuable, monitor report, downloadable/print-ready</li><li>Plain English contract, no difficult wording</li></ul>
-                  </div><div class="template-panel" data-template-index="8">
-                    <h3>Drip Sequences</h3>
-                    <p>Education-first sequences by lifecycle stage to reduce manual follow-ups and clarify expectations.</p>
-                    <ul><li><strong>Tax Monitor — Lead / Re-Engagement (Nurture) — 12 Weeks</strong></li><li><strong>Tax Monitor — MFJ Adjustment (Client / Spouse Linking) — 12 Weeks</strong></li><li><strong>Tax Monitor — Post-Payment (Client / Delivery) — 12 Weeks</strong></li></ul>
-                    <ul><li>Automate messaging by lifecycle stage</li><li>Maintain low-pressure progression</li><li>Reduce manual follow-ups</li></ul>
-                  </div><div class="template-panel" data-template-index="9">
-                    <h3>Email Marketing</h3>
-                    <p>Email marketing containers aligned to each drip sequence set.</p>
-                    <ul><li><strong>Tax Monitor — Lead / Re-Engagement (Nurture) — 12 Weeks</strong></li><li><strong>Tax Monitor — MFJ Adjustment (Client / Spouse Linking) — 12 Weeks</strong></li><li><strong>Tax Monitor — Post-Payment (Client / Delivery) — 12 Weeks</strong></li></ul>
-                    <ul><li>Clarify expectations after intake</li><li>Reduce pre-proposal confusion</li><li>Route questions to Messaging Inbox</li></ul>
-                  </div><div class="template-panel" data-template-index="10">
-                    <h3>Flows</h3>
-                    <p>Primary onboarding FLOW to populate triage, track authorization, and prepare delivery steps.</p>
-                    <ul><li><strong>Tax Monitor Onboarding – Authorization &amp; Intake</strong></li></ul>
-                    <ul><li>Intake lowers risk of resolution denials</li><li>Populate triage fields</li><li>Prepare authorization (flow) and track delivery (pages)</li></ul>
-                  </div><div class="template-panel" data-template-index="11">
-                    <h3>Forms</h3>
-                    <p>Progress-coded forms that move clients from booking through compliance and report delivery.</p>
-                    <ul><li><strong>Clients: 3 Welcome Intro (30%) — Confirm filing status.</strong></li><li><strong>Clients: 4 Filing Status (40%) — Confirm address.</strong></li><li><strong>Clients: 5 Address Update (60%) — Prepare for 2848.</strong></li><li><strong>Clients: 6 IRS Authorization (2848) (80%) — eSigned 2848 received; processing begins (2–3 weeks).</strong></li><li><strong>Clients: 7 Wet Sig 2848 Download / Upload (85%) — Wet-signed received; processing begins.</strong></li><li><strong>Clients: 8 Client Exit Survey — Thank you; serve again soon.</strong></li><li><strong>Lead: 0 Booking Form (0%) — Booking recorded — next step: intake.</strong></li><li><strong>Prospects: 1 Intake Triage (5%) — Proposal offer will be generated.</strong></li><li><strong>Prospects: 2 Checkout/Payment (25%) — Payment received; begin onboarding.</strong></li><li><strong>Staff/Team: 10 Compliance Records (100%) — Monitoring records updated; report generated.</strong></li><li><strong>Staff/Team: 9 2848 Processing (95%) — 2848 processed; compliance begins.</strong></li></ul>
-                    <ul><li>Intake lowers risk of resolution denials</li><li>Populate triage fields</li><li>Prepare authorization (flow) and track delivery (pages)</li></ul>
-                  </div><div class="template-panel" data-template-index="12">
-                    <h3>Invoice Items</h3>
-                    <p>Term-based offers aligned to quarterly delivery and optional MFJ linking.</p>
-                    <ul><li><strong>🥇 Tax Monitoring — Gold (12-Week Term): $425 — Full-quarter oversight</strong></li><li><strong>🥈 Tax Monitoring — Silver (8-Week Term): $325 — Ongoing monitoring</strong></li><li><strong>🥉 Tax Monitoring — Bronze (6-Week Term): $275 — Stabilization</strong></li><li><strong>🏅 Tax Monitoring — One-Time Service: $299 — Snapshot only</strong></li><li><strong>💍 Tax Monitoring — Married Filing Jointly (8-Week Term): $325 — Linked MFJ monitoring</strong></li></ul>
-                    <ul><li>Displayed in proposals and flow embedded checkout form</li><li>Suggested pricing can be changed as needed</li></ul>
-                  </div><div class="template-panel" data-template-index="13">
-                    <h3>Landing Pages</h3>
-                    <p>Inbound capture and qualification before onboarding and payment routing.</p>
-                    <ul><li><strong>Explore Tax Monitor Service</strong></li></ul>
-                    <ul><li>Capture and qualify inbound leads</li><li>Explain service value before onboarding</li><li>Route prospects into intake and payment flow</li></ul>
-                  </div><div class="template-panel" data-template-index="14">
-                    <h3>Menus</h3>
-                    <p>Central navigation for client actions, dashboards, and support access.</p>
-                    <ul><li><strong>Calendar (default)</strong></li><li><strong>Dashboard (default)</strong></li><li><strong>Files (default)</strong></li><li><strong>Messaging (default)</strong></li><li><strong>My Pages (default)</strong></li><li><strong>My Tax Monitor Service</strong></li><li><strong>Office (default)</strong></li><li><strong>Projects (default)</strong></li><li><strong>Super Admin Dashboard</strong></li><li><strong>Support (default)</strong></li></ul>
-                    <ul><li>Centralize navigation across all client actions</li><li>Converts Super Admin &amp; service page into live dashboards</li><li>Provide consistent access to support and tools</li></ul>
-                  </div><div class="template-panel" data-template-index="15">
-                    <h3>Platform Branding</h3>
-                    <p>Branding package to enforce consistent portal UI and reduce per-page overrides.</p>
-                    <ul><li><strong>Tax Monitor - Custom CSS</strong></li><li><strong>Tax Monitor - Custom URL &amp; Login</strong></li><li><strong>Tax Monitor - Email Branding</strong></li></ul>
-                    <ul><li>Enforce consistent portal branding</li><li>Reduce per-page styling overrides</li><li>Standardize layouts and UI behavior</li></ul>
-                  </div><div class="template-panel" data-template-index="16">
-                    <h3>Portal Pages</h3>
-                    <p>Prospect, client, and staff pages aligned to progress, dashboards, and delivery.</p>
-                    <ul><li><strong>Client: Exit Survey</strong></li><li><strong>Client: My Tax Monitor Report</strong></li><li><strong>Client: My Tax Monitor Service</strong></li><li><strong>Client: Tax Monitor Intake</strong></li><li><strong>Client: Tax Monitor Support</strong></li><li><strong>Prospect: Explore Tax Monitor Service</strong></li><li><strong>Prospect: Tax Monitor Payment</strong></li><li><strong>Staff/Team: Super Admin Dashboard</strong></li><li><strong>Staff/Team: Tax Monitor 2848 Processing</strong></li><li><strong>Staff/Team: Tax Monitor Compliance Report</strong></li></ul>
-                    <ul><li>Client progress on service page and dashboard</li><li>Main service and Super Admin pages convert to dashboard</li></ul>
-                  </div><div class="template-panel" data-template-index="17">
-                    <h3>Projects</h3>
-                    <p>Organized by purchased term to track authorization, monitoring, and compliance activity.</p>
-                    <ul><li><strong>Tax Monitoring – Bronze (Stabilization)</strong></li><li><strong>Tax Monitoring – Gold (Full-Quarter Oversight)</strong></li><li><strong>Tax Monitoring – MFJ Linked Monitoring</strong></li><li><strong>Tax Monitoring – One-Time Snapshot</strong></li><li><strong>Tax Monitoring – Silver (Ongoing Monitoring)</strong></li></ul>
-                    <ul><li>Organize Tax Monitor work by purchased service term</li><li>Provide staff-only visibility into client status, timelines, and progress</li><li>Track authorization, monitoring, and compliance activity per engagement</li></ul>
-                  </div><div class="template-panel" data-template-index="18">
-                    <h3>Proposals</h3>
-                    <p>Tiered proposal template with standard steps and term options.</p>
-                    <ul><li><strong>Options: Bronze (6-Week); Gold (12-Week); Silver (8-Week); One-Time; MFJ</strong></li><li><strong>Steps: Our Offer; What’s Included; What’s Not Included; Price; Accept &amp; Sign; Thank You</strong></li><li><strong>Tax Monitoring — One-Time or Tier</strong></li></ul>
-                    <ul><li>Allows tax pros to send proposals to prospects or clients</li><li>Available via a kickoff form</li><li>Send via email or invite to view in portal</li></ul>
-                  </div>
+                      </details>
+                      <ul><li>All CFs to determine low cost or best resolution</li><li>For prospect and client journey progress status (0% - 100%)</li></ul>
+                    </div>
 
-                  <div class="template-panel" data-template-index="19">
-                    <h3>Tasks</h3>
-                    <p>Step-by-step task execution to enforce compliance, authorization, processing, and documented outcomes.</p>
+                    <div class="template-panel" data-template-index="6">
+                      <h3>Dashes</h3>
+                      <p>Dashboards for prospect payment, client visibility, and staff oversight.</p>
+                      <ul><li><strong>My Tax Monitor Service</strong></li><li><strong>Super Admin Dashboard</strong></li><li><strong>Tax Monitor Payment</strong></li></ul>
+                      <ul><li>Payment page converted to dashboard for prospect visibility</li><li>Service page converted to dashboard for client visibility</li><li>Super admin page displays service progression</li></ul>
+                    </div>
 
-                    <details open>
-                      <summary>Phase 1 — eSign 2848 / Review</summary>
+                    <div class="template-panel" data-template-index="7">
+                      <h3>Document Generators</h3>
+                      <p>Standardized docs for authorization, scope, and report delivery.</p>
+                      <ul><li><strong>2848 — Signed, Pending EA Completion</strong></li><li><strong>Simple Service Agreement</strong></li><li><strong>Tax Monitor Report Overview</strong></li></ul>
+                      <ul><li>Already IRS-accepted 2848 (add-on power-up, $20/mo.)</li><li>Data-valuable, monitor report, downloadable/print-ready</li><li>Plain English contract, no difficult wording</li></ul>
+                    </div>
 
+                    <div class="template-panel" data-template-index="8">
+                      <h3>Drip Sequences</h3>
+                      <p>Education-first sequences by lifecycle stage to reduce manual follow-ups and clarify expectations.</p>
+                      <ul><li><strong>Tax Monitor — Lead / Re-Engagement (Nurture) — 12 Weeks</strong></li><li><strong>Tax Monitor — MFJ Adjustment (Client / Spouse Linking) — 12 Weeks</strong></li><li><strong>Tax Monitor — Post-Payment (Client / Delivery) — 12 Weeks</strong></li></ul>
+                      <ul><li>Automate messaging by lifecycle stage</li><li>Maintain low-pressure progression</li><li>Reduce manual follow-ups</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="9">
+                      <h3>Email Marketing</h3>
+                      <p>Email marketing containers aligned to each drip sequence set.</p>
+                      <ul><li><strong>Tax Monitor — Lead / Re-Engagement (Nurture) — 12 Weeks</strong></li><li><strong>Tax Monitor — MFJ Adjustment (Client / Spouse Linking) — 12 Weeks</strong></li><li><strong>Tax Monitor — Post-Payment (Client / Delivery) — 12 Weeks</strong></li></ul>
+                      <ul><li>Clarify expectations after intake</li><li>Reduce pre-proposal confusion</li><li>Route questions to Messaging Inbox</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="10">
+                      <h3>Flows</h3>
+                      <p>Primary onboarding FLOW to populate triage, track authorization, and prepare delivery steps.</p>
+                      <ul><li><strong>Tax Monitor Onboarding – Authorization &amp; Intake</strong></li></ul>
+                      <ul><li>Intake lowers risk of resolution denials</li><li>Populate triage fields</li><li>Prepare authorization (flow) and track delivery (pages)</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="11">
+                      <h3>Forms</h3>
+                      <p>Progress-coded forms that move clients from booking through compliance and report delivery.</p>
                       <ul>
-                        <li><strong>Task Template — MFJ Client UID Review &amp; Linking</strong></li>
-                        <ul>
-                          <li>1A — Form 4 Submitted — Review Spouse’s Client UID</li>
-                          <li>1B — Spouse’s Client UID Not Found — Forward Email to Spouse to Link Required</li>
-                          <li>1C — Spouse’s Client UID Verified — Link Records &amp; Forward to Phase 2</li>
-                        </ul>
-
-                        <li><strong>Task Template — 2848 Authorization Review</strong></li>
-                        <ul>
-                          <li>1A — Doc Received — Review eSigned 2848</li>
-                          <li>1B — eSigned 2848 Ineligible — Set New eSigned 2848 Required</li>
-                          <li>1C — eSigned 2848 Verified — Forward to Phase 2</li>
-                        </ul>
+                        <li><strong>Clients: 3 Welcome Intro (30%) — Confirm filing status.</strong></li>
+                        <li><strong>Clients: 4 Filing Status (40%) — Confirm address.</strong></li>
+                        <li><strong>Clients: 5 Address Update (60%) — Prepare for 2848.</strong></li>
+                        <li><strong>Clients: 6 IRS Authorization (2848) (80%) — eSigned 2848 received; processing begins (2–3 weeks).</strong></li>
+                        <li><strong>Clients: 7 Wet Sig 2848 Download / Upload (85%) — Wet-signed received; processing begins.</strong></li>
+                        <li><strong>Clients: 8 Client Exit Survey — Thank you; serve again soon.</strong></li>
+                        <li><strong>Lead: 0 Booking Form (0%) — Booking recorded — next step: intake.</strong></li>
+                        <li><strong>Prospects: 1 Intake Triage (5%) — Proposal offer will be generated.</strong></li>
+                        <li><strong>Prospects: 2 Checkout/Payment (25%) — Payment received; begin onboarding.</strong></li>
+                        <li><strong>Staff/Team: 10 Compliance Records (100%) — Monitoring records updated; report generated.</strong></li>
+                        <li><strong>Staff/Team: 9 2848 Processing (95%) — 2848 processed; compliance begins.</strong></li>
                       </ul>
-                    </details>
+                      <ul><li>Intake lowers risk of resolution denials</li><li>Populate triage fields</li><li>Prepare authorization (flow) and track delivery (pages)</li></ul>
+                    </div>
 
-                    <details>
-                      <summary>Phase 2 — Processing / Due Diligence</summary>
-
+                    <div class="template-panel" data-template-index="12">
+                      <h3>Invoice Items</h3>
+                      <p>Term-based offers aligned to quarterly delivery and optional MFJ linking.</p>
                       <ul>
-                        <li><strong>Task Template — 2848 Processing &amp; CAF Verification</strong></li>
-                        <ul>
-                          <li>2A — eSigned 2848 Verified — Submit eSigned 2848 Form</li>
-                          <li>2B — Form 9 Submitted — Upload 2848 to CAF</li>
-                          <li>2C — CAF Failed — Wet-Signed 2848 Required</li>
-                          <li>2D — CAF Processing Verified — Forward to Phase 3</li>
-                        </ul>
-
-                        <li><strong>Task Template — 2848 Wet-Signature Processing</strong></li>
-                        <ul>
-                          <li>2A — Form 7 Received — Review Wet-Signed 2848</li>
-                          <li>2B — Wet-Signed 2848 Ineligible — New Wet-Signed 2848 Required</li>
-                          <li>2C — Wet-Signed 2848 Verified — Forward to Phase 3</li>
-                        </ul>
+                        <li><strong>🥇 Tax Monitoring — Gold (12-Week Term): $425 — Full-quarter oversight</strong></li>
+                        <li><strong>🥈 Tax Monitoring — Silver (8-Week Term): $325 — Ongoing monitoring</strong></li>
+                        <li><strong>🥉 Tax Monitoring — Bronze (6-Week Term): $275 — Stabilization</strong></li>
+                        <li><strong>🏅 Tax Monitoring — One-Time Service: $299 — Snapshot only</strong></li>
+                        <li><strong>💍 Tax Monitoring — Married Filing Jointly (8-Week Term): $325 — Linked MFJ monitoring</strong></li>
                       </ul>
-                    </details>
+                      <ul><li>Displayed in proposals and flow embedded checkout form</li><li>Suggested pricing can be changed as needed</li></ul>
+                    </div>
 
-                    <details>
-                      <summary>Phase 3 — Tax Record / Discuss Results</summary>
+                    <div class="template-panel" data-template-index="13">
+                      <h3>Landing Pages</h3>
+                      <p>Inbound capture and qualification before onboarding and payment routing.</p>
+                      <ul><li><strong>Explore Tax Monitor Service</strong></li></ul>
+                      <ul><li>Capture and qualify inbound leads</li><li>Explain service value before onboarding</li><li>Route prospects into intake and payment flow</li></ul>
+                    </div>
 
+                    <div class="template-panel" data-template-index="14">
+                      <h3>Menus</h3>
+                      <p>Central navigation for client actions, dashboards, and support access.</p>
                       <ul>
-                        <li><strong>Task Template — Compliance Record Review &amp; Client Scheduling</strong></li>
-                        <ul>
-                          <li>3A — CAF Processing / Wet-Signed 2848 Verified — Submit Compliance Record Form</li>
-                          <li>3B — Client Acknowledgment — Additional Time Required</li>
-                          <li>3C — Form 10 Submitted — Review Compliance Record &amp; Generate Report</li>
-                          <li>3D — Compliance Received — Analyze Data &amp; Schedule Appointment</li>
-                          <li>3E — Compliance Report Appointment Scheduled — Submit Exit Survey Form 8</li>
-                        </ul>
+                        <li><strong>Calendar (default)</strong></li>
+                        <li><strong>Dashboard (default)</strong></li>
+                        <li><strong>Files (default)</strong></li>
+                        <li><strong>Messaging (default)</strong></li>
+                        <li><strong>My Pages (default)</strong></li>
+                        <li><strong>My Tax Monitor Service</strong></li>
+                        <li><strong>Office (default)</strong></li>
+                        <li><strong>Projects (default)</strong></li>
+                        <li><strong>Super Admin Dashboard</strong></li>
+                        <li><strong>Support (default)</strong></li>
                       </ul>
-                    </details>
+                      <ul><li>Centralize navigation across all client actions</li><li>Converts Super Admin &amp; service page into live dashboards</li><li>Provide consistent access to support and tools</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="15">
+                      <h3>Platform Branding</h3>
+                      <p>Branding package to enforce consistent portal UI and reduce per-page overrides.</p>
+                      <ul><li><strong>Tax Monitor - Custom CSS</strong></li><li><strong>Tax Monitor - Custom URL &amp; Login</strong></li><li><strong>Tax Monitor - Email Branding</strong></li></ul>
+                      <ul><li>Enforce consistent portal branding</li><li>Reduce per-page styling overrides</li><li>Standardize layouts and UI behavior</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="16">
+                      <h3>Portal Pages</h3>
+                      <p>Prospect, client, and staff pages aligned to progress, dashboards, and delivery.</p>
+                      <ul>
+                        <li><strong>Client: Exit Survey</strong></li>
+                        <li><strong>Client: My Tax Monitor Report</strong></li>
+                        <li><strong>Client: My Tax Monitor Service</strong></li>
+                        <li><strong>Client: Tax Monitor Intake</strong></li>
+                        <li><strong>Client: Tax Monitor Support</strong></li>
+                        <li><strong>Prospect: Explore Tax Monitor Service</strong></li>
+                        <li><strong>Prospect: Tax Monitor Payment</strong></li>
+                        <li><strong>Staff/Team: Super Admin Dashboard</strong></li>
+                        <li><strong>Staff/Team: Tax Monitor 2848 Processing</strong></li>
+                        <li><strong>Staff/Team: Tax Monitor Compliance Report</strong></li>
+                      </ul>
+                      <ul><li>Client progress on service page and dashboard</li><li>Main service and Super Admin pages convert to dashboard</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="17">
+                      <h3>Projects</h3>
+                      <p>Organized by purchased term to track authorization, monitoring, and compliance activity.</p>
+                      <ul>
+                        <li><strong>Tax Monitoring – Bronze (Stabilization)</strong></li>
+                        <li><strong>Tax Monitoring – Gold (Full-Quarter Oversight)</strong></li>
+                        <li><strong>Tax Monitoring – MFJ Linked Monitoring</strong></li>
+                        <li><strong>Tax Monitoring – One-Time Snapshot</strong></li>
+                        <li><strong>Tax Monitoring – Silver (Ongoing Monitoring)</strong></li>
+                      </ul>
+                      <ul><li>Organize Tax Monitor work by purchased service term</li><li>Provide staff-only visibility into client status, timelines, and progress</li><li>Track authorization, monitoring, and compliance activity per engagement</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="18">
+                      <h3>Proposals</h3>
+                      <p>Tiered proposal template with standard steps and term options.</p>
+                      <ul><li><strong>Options: Bronze (6-Week); Gold (12-Week); Silver (8-Week); One-Time; MFJ</strong></li><li><strong>Steps: Our Offer; What’s Included; What’s Not Included; Price; Accept &amp; Sign; Thank You</strong></li><li><strong>Tax Monitoring — One-Time or Tier</strong></li></ul>
+                      <ul><li>Allows tax pros to send proposals to prospects or clients</li><li>Available via a kickoff form</li><li>Send via email or invite to view in portal</li></ul>
+                    </div>
+
+                    <div class="template-panel" data-template-index="19">
+                      <h3>Tasks</h3>
+                      <p>Step-by-step task execution to enforce compliance, authorization, processing, and documented outcomes.</p>
+
+                      <details open>
+                        <summary>Phase 1 — eSign 2848 / Review</summary>
+                        <ul>
+                          <li><strong>Task Template — MFJ Client UID Review &amp; Linking</strong></li>
+                          <ul>
+                            <li>1A — Form 4 Submitted — Review Spouse’s Client UID</li>
+                            <li>1B — Spouse’s Client UID Not Found — Forward Email to Spouse to Link Required</li>
+                            <li>1C — Spouse’s Client UID Verified — Link Records &amp; Forward to Phase 2</li>
+                          </ul>
+
+                          <li><strong>Task Template — 2848 Authorization Review</strong></li>
+                          <ul>
+                            <li>1A — Doc Received — Review eSigned 2848</li>
+                            <li>1B — eSigned 2848 Ineligible — Set New eSigned 2848 Required</li>
+                            <li>1C — eSigned 2848 Verified — Forward to Phase 2</li>
+                          </ul>
+                        </ul>
+                      </details>
+
+                      <details>
+                        <summary>Phase 2 — Processing / Due Diligence</summary>
+                        <ul>
+                          <li><strong>Task Template — 2848 Processing &amp; CAF Verification</strong></li>
+                          <ul>
+                            <li>2A — eSigned 2848 Verified — Submit eSigned 2848 Form</li>
+                            <li>2B — Form 9 Submitted — Upload 2848 to CAF</li>
+                            <li>2C — CAF Failed — Wet-Signed 2848 Required</li>
+                            <li>2D — CAF Processing Verified — Forward to Phase 3</li>
+                          </ul>
+
+                          <li><strong>Task Template — 2848 Wet-Signature Processing</strong></li>
+                          <ul>
+                            <li>2A — Form 7 Received — Review Wet-Signed 2848</li>
+                            <li>2B — Wet-Signed 2848 Ineligible — New Wet-Signed 2848 Required</li>
+                            <li>2C — Wet-Signed 2848 Verified — Forward to Phase 3</li>
+                          </ul>
+                        </ul>
+                      </details>
+
+                      <details>
+                        <summary>Phase 3 — Tax Record / Discuss Results</summary>
+                        <ul>
+                          <li><strong>Task Template — Compliance Record Review &amp; Client Scheduling</strong></li>
+                          <ul>
+                            <li>3A — CAF Processing / Wet-Signed 2848 Verified — Submit Compliance Record Form</li>
+                            <li>3B — Client Acknowledgment — Additional Time Required</li>
+                            <li>3C — Form 10 Submitted — Review Compliance Record &amp; Generate Report</li>
+                            <li>3D — Compliance Received — Analyze Data &amp; Schedule Appointment</li>
+                            <li>3E — Compliance Report Appointment Scheduled — Submit Exit Survey Form 8</li>
+                          </ul>
+                        </ul>
+                      </details>
+                    </div>
                   </div>
                 </div>
               </div>
-
-              <div class="template-bottom-cta">
-                <button class="item-btn-cta" id="templateBackBtnBottom">← Back to overview</button>
-              </div>
             </div>
-
-            <script>
-              document.getElementById("templateFrame")?.classList.add("is-active");
-              document.getElementById("templateFrame")?.classList.remove("is-inactive");
-            </script>
-
-            <script>
-              (function () {
-                var templateTabs = document.querySelectorAll(".template-tab");
-                var templatePanels = document.querySelectorAll(".template-panel");
-
-                function setTemplateTab(index) {
-                  templateTabs.forEach(function (t) { t.classList.remove("active"); });
-                  templatePanels.forEach(function (p) { p.classList.remove("active"); });
-
-                  if (templateTabs[index]) templateTabs[index].classList.add("active");
-                  if (templatePanels[index]) templatePanels[index].classList.add("active");
-                }
-
-                templateTabs.forEach(function (tab) {
-                  tab.addEventListener("click", function () {
-                    setTemplateTab(parseInt(tab.dataset.templateStep, 10));
-                  });
-                });
-              })();
-            </script>
+            <!-- /TEMPLATE MAP -->
           </div>
         </div>
       </div>
@@ -669,94 +849,29 @@ CF_Wet_Sig_2848_Upload</pre>
     })();
   </script>
 
-  <!-- TAB SWITCHER -->
+  <!-- VIEW SWITCHER (DRIVEN BY ?view=model-tour OR ?view=template-map) -->
   <script>
     (function () {
-      var btns = document.querySelectorAll("[data-tab]");
-      var panels = document.querySelectorAll("[data-panel]");
+      var modelPanel = document.getElementById("panel-model-tour");
+      var templatePanel = document.getElementById("panel-template-map");
 
-      function setTab(key) {
-        btns.forEach(function (b) {
-          var on = b.getAttribute("data-tab") === key;
-          b.setAttribute("aria-selected", on ? "true" : "false");
-        });
+      function setView(view) {
+        var isTemplate = view === "template-map";
 
-        panels.forEach(function (p) {
-          p.classList.toggle("hidden", p.getAttribute("data-panel") !== key);
-        });
+        if (modelPanel) modelPanel.classList.toggle("hidden", isTemplate);
+        if (templatePanel) templatePanel.classList.toggle("hidden", !isTemplate);
       }
 
-      btns.forEach(function (b) {
-        b.addEventListener("click", function () {
-          setTab(b.getAttribute("data-tab"));
-        });
-      });
-
-      setTab("model-tour");
+      var params = new URLSearchParams(window.location.search);
+      setView(params.get("view") || "model-tour");
     })();
   </script>
 
-  <!-- MODEL TOUR SWITCHER -->
+  <!-- MODEL TOUR TABS -->
   <script>
     (function () {
-      var pathHero = document.getElementById("pathHero");
-      var modelTour = document.getElementById("modelTour");
-      var templateFrame = document.getElementById("templateFrame");
-
-      var heroBegin = document.getElementById("heroBeginTour");
-      var skipToTemplate = document.getElementById("skipToTemplate");
-
       var modelTabs = document.querySelectorAll(".model-tab");
       var modelSlides = document.querySelectorAll(".model-slide");
-      var nextBtns = document.querySelectorAll("[data-next]");
-      var modelBackBtns = document.querySelectorAll(".model-back-btn");
-
-      var templateTabs = document.querySelectorAll(".template-tab");
-      var templatePanels = document.querySelectorAll(".template-panel");
-
-      var templateBackBtnBottom = document.getElementById("templateBackBtnBottom");
-
-      function goToView(view) {
-        var url = new URL(window.location.href);
-        url.searchParams.set("view", view);
-        window.location.href = url.toString();
-      }
-
-      function setView(target) {
-        if (!target) return;
-
-        [pathHero, modelTour, templateFrame].forEach(function (section) {
-          if (!section) return;
-          section.classList.remove("is-active", "is-inactive");
-        });
-
-        target.classList.add("is-active");
-
-        [pathHero, modelTour, templateFrame].forEach(function (section) {
-          if (section && section !== target) section.classList.add("is-inactive");
-        });
-      }
-
-      function showHero() {
-        if (pathHero) return setView(pathHero);
-        goToView("hero");
-      }
-
-      function showTemplate() {
-        if (templateFrame) return setView(templateFrame);
-        goToView("template-map");
-      }
-
-      function showTour() {
-        if (modelTour) return setView(modelTour);
-        goToView("model-tour");
-      }
-
-      if (heroBegin) heroBegin.addEventListener("click", showTour);
-      if (skipToTemplate) skipToTemplate.addEventListener("click", showTemplate);
-
-      modelBackBtns.forEach(function (btn) { btn.addEventListener("click", showHero); });
-      if (templateBackBtnBottom) templateBackBtnBottom.addEventListener("click", showHero);
 
       function setModelTab(index) {
         modelTabs.forEach(function (t) { t.classList.remove("active"); });
@@ -771,12 +886,14 @@ CF_Wet_Sig_2848_Upload</pre>
           setModelTab(parseInt(tab.dataset.step, 10));
         });
       });
+    })();
+  </script>
 
-      nextBtns.forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          setModelTab(parseInt(btn.dataset.next, 10));
-        });
-      });
+  <!-- TEMPLATE MAP TABS -->
+  <script>
+    (function () {
+      var templateTabs = document.querySelectorAll(".template-tab");
+      var templatePanels = document.querySelectorAll(".template-panel");
 
       function setTemplateTab(index) {
         templateTabs.forEach(function (t) { t.classList.remove("active"); });
