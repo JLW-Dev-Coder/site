@@ -1,0 +1,1596 @@
+<!-- /lp/tax-monitor/details/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <title>Tax Monitor Setup — Spacecraft Deck (Module Details)</title>
+  <meta name="description" content="A spacecraft-style control deck that previews everything included in the Tax Monitor Setup—20 modules, each with a dedicated bay." />
+
+  <meta property="og:description" content="Everything included in the Tax Monitor Setup—20 modules, each with a dedicated bay." />
+  <meta property="og:title" content="Tax Monitor Setup — Module Deck" />
+  <meta property="og:type" content="website" />
+
+  <link rel="canonical" href="https://virtuallaunch.pro/lp/tax-monitor-setup/details/" />
+
+  <link rel="icon" href="/assets/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <meta name="theme-color" content="#070a10" />
+
+  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrollTrigger.min.js"></script>
+  <script defer src="/site.js?v=20260127-1"></script>
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <link
+    rel="preload"
+    as="image"
+    href="/assets/Virtual-Launch-Pro_Logo_200x60_Black.svg"
+    type="image/svg+xml"
+  />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          boxShadow: {
+            soft: "0 10px 30px rgba(0,0,0,0.12)",
+            topbar: "0 18px 50px rgba(0,0,0,0.18)"
+          },
+          colors: {
+            brand: { 500: "#f97316", 400: "#fb923c" },
+            ink: { 950: "#070a10", 900: "#0b1220", 800: "#111a2e", 700: "#152237" }
+          },
+          maxWidth: {
+            "6-5xl": "77.5rem"
+          }
+        }
+      }
+    };
+  </script>
+
+  <link rel="stylesheet" href="/styles.css?v=20260127-1" />
+
+  <style>
+    html { scroll-behavior: smooth; }
+
+    .vlp-header-spacer { height: 64px; }
+    @media (min-width: 768px) { .vlp-header-spacer { height: 72px; } }
+
+    .vlp-space-bg {
+      background:
+        radial-gradient(1200px 600px at 22% 26%, rgba(255, 255, 255, 0.06), transparent 55%),
+        radial-gradient(900px 520px at 76% 22%, rgba(251, 146, 60, 0.10), transparent 60%),
+        radial-gradient(1100px 680px at 60% 86%, rgba(110, 231, 255, 0.10), transparent 65%),
+        radial-gradient(1400px 820px at 20% 92%, rgba(249, 115, 22, 0.18), transparent 60%),
+        radial-gradient(2200px 1400px at 50% 115%, rgba(249, 115, 22, 0.25), transparent 55%),
+        linear-gradient(180deg, rgba(7, 10, 16, 0.92), rgba(7, 10, 16, 0.98));
+      position: relative;
+    }
+
+    .vlp-space-bg::before {
+      background:
+        radial-gradient(circle at 18% 32%, rgba(255,255,255,0.28) 0 1px, transparent 2px) 0 0/240px 240px,
+        radial-gradient(circle at 62% 18%, rgba(255,255,255,0.22) 0 1px, transparent 2px) 0 0/260px 260px,
+        radial-gradient(circle at 44% 66%, rgba(255,255,255,0.18) 0 1px, transparent 2px) 0 0/220px 220px,
+        radial-gradient(circle at 80% 54%, rgba(255,255,255,0.14) 0 1px, transparent 2px) 0 0/280px 280px,
+        radial-gradient(circle at 25% 78%, rgba(255,255,255,0.12) 0 1px, transparent 2px) 0 0/300px 300px;
+      content: "";
+      inset: 0;
+      opacity: 0.65;
+      pointer-events: none;
+      position: fixed;
+      transform: translate3d(0,0,0);
+      z-index: -30;
+    }
+
+    .vlp-space-bg::after {
+      background:
+        radial-gradient(900px 380px at 18% 88%, rgba(249,115,22,0.34), transparent 60%),
+        radial-gradient(720px 280px at 26% 92%, rgba(251,146,60,0.22), transparent 60%),
+        radial-gradient(1200px 520px at 70% 80%, rgba(255,255,255,0.06), transparent 62%),
+        linear-gradient(90deg, transparent, rgba(249,115,22,0.14), transparent);
+      content: "";
+      inset: 0;
+      mix-blend-mode: screen;
+      opacity: 0.75;
+      pointer-events: none;
+      position: fixed;
+      z-index: -25;
+    }
+
+    .vlp-scanlines {
+      background: repeating-linear-gradient(
+        180deg,
+        rgba(255,255,255,0.00) 0px,
+        rgba(255,255,255,0.00) 6px,
+        rgba(255,255,255,0.03) 7px
+      );
+      inset: 0;
+      opacity: 0.12;
+      pointer-events: none;
+      position: fixed;
+      z-index: -10;
+    }
+
+    .vlp-deck-shell {
+      background: radial-gradient(1000px 520px at 20% 10%, rgba(255,255,255,0.06), transparent 55%),
+                  linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.10);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.35);
+    }
+
+    .vlp-deck-shell::before {
+      content: "";
+      inset: 0;
+      position: absolute;
+      pointer-events: none;
+      border-radius: 1rem;
+      background:
+        linear-gradient(90deg, rgba(255,255,255,0.00), rgba(255,255,255,0.08), rgba(255,255,255,0.00)),
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 28px);
+      opacity: 0.25;
+      mask-image: radial-gradient(circle at 40% 10%, rgba(0,0,0,1), rgba(0,0,0,0) 60%);
+    }
+
+    .vlp-led {
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.25), 0 0 18px rgba(249,115,22,0.65);
+    }
+
+    .vlp-module-btn {
+      align-items: center;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      padding: 12px 14px;
+      position: relative;
+      transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+      user-select: none;
+      width: 100%;
+    }
+
+    .vlp-module-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .vlp-module-btn--active {
+      background: rgba(249,115,22,0.14);
+      border-color: rgba(249,115,22,0.35);
+    }
+
+    .vlp-module-btn--active .vlp-led {
+      box-shadow: 0 0 0 2px rgba(0,0,0,0.25), 0 0 22px rgba(249,115,22,0.95);
+    }
+
+    .vlp-bay {
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.05);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .vlp-bay::before {
+      content: "";
+      inset: 0;
+      position: absolute;
+      pointer-events: none;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.00)),
+        radial-gradient(900px 420px at 50% 0%, rgba(251,146,60,0.12), transparent 60%);
+      opacity: 0.45;
+    }
+
+    .vlp-bay-door {
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      background: rgba(7,10,16,0.55);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .vlp-bay-door::after {
+      content: "";
+      inset: 0;
+      position: absolute;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(90deg, rgba(255,255,255,0.02) 0, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 22px),
+        linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+      opacity: 0.35;
+    }
+
+    .vlp-shot {
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+      background:
+        radial-gradient(700px 300px at 30% 0%, rgba(255,255,255,0.08), transparent 60%),
+        linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      overflow: hidden;
+      position: relative;
+    }
+
+    .vlp-shot::before {
+      content: "";
+      inset: 0;
+      pointer-events: none;
+      position: absolute;
+      background:
+        repeating-linear-gradient(0deg, rgba(255,255,255,0.02) 0, rgba(255,255,255,0.02) 1px, transparent 1px, transparent 26px);
+      opacity: 0.25;
+    }
+
+    .vlp-shot__placeholder {
+      align-items: center;
+      display: flex;
+      justify-content: center;
+      min-height: 220px;
+      padding: 22px;
+      text-align: center;
+    }
+
+    .vlp-shot__placeholder span {
+      border: 1px dashed rgba(255,255,255,0.18);
+      border-radius: 14px;
+      display: inline-flex;
+      padding: 12px 14px;
+      color: rgba(255,255,255,0.70);
+      font-size: 12px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    @media (min-width: 1024px) {
+      .vlp-shot__placeholder { min-height: 320px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .vlp-module-btn { transition: none; }
+      .vlp-module-btn:hover { transform: none; }
+    }
+  </style>
+</head>
+
+<body class="vlp-space-bg text-white antialiased">
+  <div class="vlp-scanlines" aria-hidden="true"></div>
+
+  <div data-include="header"></div>
+  <div class="vlp-header-spacer" aria-hidden="true"></div>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="mx-auto max-w-6-5xl px-4 pb-10 pt-3 md:pb-14 md:pt-6">
+      <div class="mx-auto max-w-4xl text-center">
+        <p class="mx-auto mb-4 w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
+          Tax Monitor Setup • Module Bay Deck
+        </p>
+
+        <h1 class="text-4xl font-extrabold leading-tight md:text-6xl">
+          Everything included. Ready for launch.
+        </h1>
+
+        <p class="mx-auto mt-6 max-w-3xl text-base text-white/70 md:text-lg">
+          Use the control deck to open each module bay and preview what ships inside the Tax Monitor Setup.
+          Each module is designed to reduce ambiguity, control scope, and keep clients informed without staff churn.
+        </p>
+
+        <div class="mt-10 flex flex-wrap justify-center gap-4">
+          <a
+            class="rounded-xl bg-brand-500 px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+            href="#book-my-demo"
+          >
+            Book a walkthrough
+          </a>
+
+          <a
+            class="rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 text-sm font-extrabold text-white hover:bg-white/10"
+            href="#submit-payment"
+          >
+            Buy the install
+          </a>
+        </div>
+
+        <div class="mx-auto mt-8 grid max-w-4xl gap-3 sm:grid-cols-3">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft">
+            <div class="text-xs font-semibold text-white/60">Status</div>
+            <div class="mt-1 text-lg font-extrabold">Launch-ready</div>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft">
+            <div class="text-xs font-semibold text-white/60">Modules</div>
+            <div class="mt-1 text-lg font-extrabold">20 bays</div>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft">
+            <div class="text-xs font-semibold text-white/60">Focus</div>
+            <div class="mt-1 text-lg font-extrabold">Pre-resolution control</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DECK -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-12 md:py-14">
+        <div class="relative overflow-hidden rounded-2xl vlp-deck-shell p-4 md:p-6">
+          <div class="grid gap-6 lg:grid-cols-12">
+            <!-- CONTROL DECK -->
+            <div class="lg:col-span-5">
+              <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft md:p-5">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <div class="text-xs font-semibold tracking-widest text-brand-400">CONTROL DECK</div>
+                    <h2 class="mt-2 text-2xl font-extrabold">Open a module bay</h2>
+                    <p class="mt-2 text-sm text-white/70">
+                      Select a module to load its details into the bay display.
+                    </p>
+                  </div>
+
+                  <div class="rounded-xl border border-white/10 bg-ink-950/60 px-3 py-2 text-xs text-white/70">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex h-2 w-2 rounded-full bg-brand-500 vlp-led" aria-hidden="true"></span>
+                      <span>Systems online</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                  <button type="button" class="vlp-module-btn bg-white/5 vlp-module-btn--active" data-module-tab="appointments" aria-selected="true">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-brand-500 vlp-led" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Appointments</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="auto-templates" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Auto-Templates</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="business-sectors" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Business Sectors</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="circles" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Circles</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="content-categories" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Content Categories</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="custom-fields" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Custom Fields</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="dashes" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Dashes</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="document-generators" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Document Generators</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="drip-sequences" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Drip Sequences</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="email-marketing" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Email Marketing</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="flows" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Flows</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="forms" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Forms</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="invoice-items" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Invoice Items</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="landing-pages" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Landing Pages</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="menus" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Menus</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="platform-branding" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Platform Branding</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="portal-pages" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Portal Pages</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="projects" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Projects</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="proposals" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Proposals</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+
+                  <button type="button" class="vlp-module-btn bg-white/5" data-module-tab="tasks" aria-selected="false">
+                    <span class="flex items-center gap-3">
+                      <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                      <span class="text-sm font-extrabold">Tasks</span>
+                    </span>
+                    <span class="text-[10px] font-semibold tracking-widest text-white/60">OPEN</span>
+                  </button>
+                </div>
+
+                <div class="mt-5 rounded-2xl border border-white/10 bg-ink-950/50 p-4">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="text-xs font-semibold tracking-widest text-white/60">BAY DISPLAY</div>
+                    <div class="flex items-center gap-2 text-xs text-white/70">
+                      <span class="inline-flex h-2 w-2 rounded-full bg-emerald-300/80" aria-hidden="true"></span>
+                      <span>Signal lock</span>
+                    </div>
+                  </div>
+                  <p class="mt-2 text-sm text-white/70">
+                    Each bay includes: what it is, why it matters, what it automates, and what it produces.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- MODULE BAY (DRAWER-LIKE PANEL) -->
+            <div class="lg:col-span-7">
+              <div class="vlp-bay shadow-soft">
+                <div class="relative p-4 md:p-6">
+                  <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <div class="text-xs font-semibold tracking-widest text-brand-400">MODULE BAY</div>
+                      <h3 class="mt-2 text-2xl font-extrabold" id="module-title">Appointments</h3>
+                      <p class="mt-2 text-sm text-white/70" id="module-subtitle">
+                        Booking paths that route the right meeting type to the right stage of monitoring.
+                      </p>
+                    </div>
+
+                    <div class="rounded-xl border border-white/10 bg-ink-950/60 px-3 py-2 text-xs text-white/70">
+                      <div class="flex items-center gap-2">
+                        <span class="inline-flex h-2 w-2 rounded-full bg-brand-500 vlp-led" aria-hidden="true"></span>
+                        <span id="module-status">Bay open</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="mt-5 grid gap-4 md:grid-cols-5">
+                    <div class="md:col-span-2">
+                      <div class="vlp-bay-door p-4">
+                        <div class="text-xs font-semibold tracking-widest text-white/60">WHY IT EXISTS</div>
+                        <ul class="mt-3 space-y-2 text-sm text-white/75" id="module-why">
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true"></span><span>Prevents “wrong call, wrong time” scheduling.</span></li>
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true"></span><span>Routes consults, monitoring reviews, and next-step decisions cleanly.</span></li>
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true"></span><span>Creates consistent expectations at each stage.</span></li>
+                        </ul>
+                      </div>
+
+                      <div class="mt-4 vlp-bay-door p-4">
+                        <div class="text-xs font-semibold tracking-widest text-white/60">WHAT IT PRODUCES</div>
+                        <ul class="mt-3 space-y-2 text-sm text-white/75" id="module-outputs">
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300/80" aria-hidden="true"></span><span>Clear appointment types by client state.</span></li>
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300/80" aria-hidden="true"></
+                        <ul class="mt-3 space-y-2 text-sm text-white/75" id="module-outputs">
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300/80" aria-hidden="true"></span><span>Clear appointment types by client state.</span></li>
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300/80" aria-hidden="true"></span><span>Scheduling confirmations that match the current workflow stage.</span></li>
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-emerald-300/80" aria-hidden="true"></span><span>Fewer reschedules and fewer “what are we meeting for?” moments.</span></li>
+                        </ul>
+                      </div>
+
+                      <div class="mt-4 vlp-bay-door p-4">
+                        <div class="text-xs font-semibold tracking-widest text-white/60">WHAT IT AUTOMATES</div>
+                        <ul class="mt-3 space-y-2 text-sm text-white/75" id="module-automations">
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true"></span><span>Stage-aware booking links and appointment labeling.</span></li>
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true"></span><span>Routing rules that prevent “wrong meeting type” selection.</span></li>
+                          <li class="flex gap-3"><span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full bg-brand-500" aria-hidden="true"></span><span>Client reminders and internal notifications tied to the correct workflow lane.</span></li>
+                        </ul>
+                      </div>
+
+                      <div class="mt-4 rounded-2xl border border-white/10 bg-ink-950/50 p-4">
+                        <div class="text-xs font-semibold tracking-widest text-white/60">MODULE LOADOUT</div>
+                        <div class="mt-3 grid gap-3 sm:grid-cols-2" id="module-loadout">
+                          <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                            <div class="text-[10px] font-semibold tracking-widest text-white/60">SHIPS WITH</div>
+                            <div class="mt-1 text-sm font-extrabold text-white">Stage-based appointment types</div>
+                          </div>
+                          <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                            <div class="text-[10px] font-semibold tracking-widest text-white/60">SHIPS WITH</div>
+                            <div class="mt-1 text-sm font-extrabold text-white">Client confirmations</div>
+                          </div>
+                          <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                            <div class="text-[10px] font-semibold tracking-widest text-white/60">SHIPS WITH</div>
+                            <div class="mt-1 text-sm font-extrabold text-white">Internal routing alerts</div>
+                          </div>
+                          <div class="rounded-xl border border-white/10 bg-white/5 p-3">
+                            <div class="text-[10px] font-semibold tracking-widest text-white/60">SHIPS WITH</div>
+                            <div class="mt-1 text-sm font-extrabold text-white">Decision-call scheduling</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="md:col-span-3">
+                      <div class="vlp-shot">
+                        <div class="vlp-shot__placeholder" id="module-shot">
+                          <span>mock screenshot — appointments bay</span>
+                        </div>
+                      </div>
+
+                      <div class="mt-4 grid gap-3 sm:grid-cols-3" id="module-metrics">
+                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft">
+                          <div class="text-xs font-semibold text-white/60">Impact</div>
+                          <div class="mt-1 text-lg font-extrabold">Fewer reschedules</div>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft">
+                          <div class="text-xs font-semibold text-white/60">Outcome</div>
+                          <div class="mt-1 text-lg font-extrabold">Cleaner handoffs</div>
+                        </div>
+                        <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft">
+                          <div class="text-xs font-semibold text-white/60">Signal</div>
+                          <div class="mt-1 text-lg font-extrabold">Stage clarity</div>
+                        </div>
+                      </div>
+
+                      <div class="mt-4 rounded-2xl border border-white/10 bg-ink-950/50 p-4">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                          <div class="text-xs font-semibold tracking-widest text-white/60">NEXT</div>
+                          <a class="text-xs font-semibold text-brand-400 hover:text-brand-300" href="#book-my-demo">
+                            Walkthrough → 
+                          </a>
+                        </div>
+                        <p class="mt-2 text-sm text-white/70" id="module-next">
+                          Use appointment routing to keep the monitoring lane calm—and reserve “decision calls” for when facts are ready.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- PANELS (HIDDEN DATA SOURCES) -->
+                  <div class="hidden">
+                    <section data-module-panel="appointments">
+                      <h4 data-title>Appointments</h4>
+                      <p data-subtitle>Booking paths that route the right meeting type to the right stage of monitoring.</p>
+
+                      <ul data-why>
+                        <li>Prevents “wrong call, wrong time” scheduling.</li>
+                        <li>Routes consults, monitoring reviews, and next-step decisions cleanly.</li>
+                        <li>Creates consistent expectations at each stage.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Clear appointment types by client state.</li>
+                        <li>Scheduling confirmations that match the current workflow stage.</li>
+                        <li>Fewer reschedules and fewer “what are we meeting for?” moments.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Stage-aware booking links and appointment labeling.</li>
+                        <li>Routing rules that prevent “wrong meeting type” selection.</li>
+                        <li>Client reminders and internal notifications tied to the correct workflow lane.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Stage-based appointment types</li>
+                        <li>Client confirmations</li>
+                        <li>Decision-call scheduling</li>
+                        <li>Internal routing alerts</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Fewer reschedules</li>
+                        <li><strong>Outcome</strong>: Cleaner handoffs</li>
+                        <li><strong>Signal</strong>: Stage clarity</li>
+                      </ul>
+
+                      <p data-next>Use appointment routing to keep the monitoring lane calm—and reserve “decision calls” for when facts are ready.</p>
+                      <p data-shot>mock screenshot — appointments bay</p>
+                      <p data-status>Bay open</p>
+                    </section>
+
+                    <section data-module-panel="auto-templates">
+                      <h4 data-title>Auto-Templates</h4>
+                      <p data-subtitle>Prebuilt message and document scaffolds that keep staff from rewriting the same explanations.</p>
+
+                      <ul data-why>
+                        <li>Stops “blank page” messaging and inconsistent phrasing.</li>
+                        <li>Creates predictable tone, timing, and boundary language.</li>
+                        <li>Reduces inbox churn by answering questions before they are asked.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Consistent update language for each monitoring state.</li>
+                        <li>Client-ready next-step prompts (without overpromising).</li>
+                        <li>Reusable internal notes and staff handoff blurbs.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>State-driven template insertion for messages and tasks.</li>
+                        <li>Standardized snippets for portal pages and dashboards.</li>
+                        <li>Rapid staff response without custom drafting.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>State-based message templates</li>
+                        <li>Boundary + expectation language</li>
+                        <li>Internal handoff snippets</li>
+                        <li>Client “next step” prompts</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Faster responses</li>
+                        <li><strong>Outcome</strong>: Fewer follow-ups</li>
+                        <li><strong>Signal</strong>: Consistent tone</li>
+                      </ul>
+
+                      <p data-next>Use templates to keep reassurance consistent while protecting scope—especially during non-actionable periods.</p>
+                      <p data-shot>mock screenshot — auto-templates bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="business-sectors">
+                      <h4 data-title>Business Sectors</h4>
+                      <p data-subtitle>Segmentation that supports risk framing, messaging, and workflow routing by client type.</p>
+
+                      <ul data-why>
+                        <li>Prevents one-size-fits-all guidance in mixed client bases.</li>
+                        <li>Supports cleaner intake assumptions and transcript review focus.</li>
+                        <li>Improves how you explain risk without speculation.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Organized client groupings for dashboards and reporting.</li>
+                        <li>Better messaging context for updates and next steps.</li>
+                        <li>More consistent internal triage.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Routing tags that set dashboard views and checklists.</li>
+                        <li>Content + education prompts matched to sector context.</li>
+                        <li>Default workflow pathways by client type.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Sector group definitions</li>
+                        <li>Routing tags</li>
+                        <li>Dashboard segmentation</li>
+                        <li>Education alignment</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Cleaner triage</li>
+                        <li><strong>Outcome</strong>: Better context</li>
+                        <li><strong>Signal</strong>: Lower confusion</li>
+                      </ul>
+
+                      <p data-next>Use sectors to keep your review disciplined—focus the transcript lens based on what the client actually does.</p>
+                      <p data-shot>mock screenshot — business sectors bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="circles">
+                      <h4 data-title>Circles</h4>
+                      <p data-subtitle>Lifecycle visibility that keeps staff and clients aligned on the same “truth state.”</p>
+
+                      <ul data-why>
+                        <li>Stops the “where are we?” loop by making status visible.</li>
+                        <li>Separates monitoring from resolution so scope stays clean.</li>
+                        <li>Creates a controlled waiting state that protects staff load.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Clear client-state groupings across the portal.</li>
+                        <li>Consistent internal routing for the next required step.</li>
+                        <li>Better handoff readiness when monitoring ends.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>State transitions that trigger updates and task gates.</li>
+                        <li>Client-facing dashboard changes by stage.</li>
+                        <li>Automatic assignment and follow-up logic by circle.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Monitoring lifecycle circles</li>
+                        <li>Staff + client alignment states</li>
+                        <li>Triggers and gates</li>
+                        <li>Handoff readiness markers</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Fewer pings</li>
+                        <li><strong>Outcome</strong>: Controlled waiting</li>
+                        <li><strong>Signal</strong>: Status visibility</li>
+                      </ul>
+
+                      <p data-next>Use circles to own the waiting period—clients see movement even when the IRS is quiet.</p>
+                      <p data-shot>mock screenshot — circles bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="content-categories">
+                      <h4 data-title>Content Categories</h4>
+                      <p data-subtitle>Organized knowledge blocks that support education without turning staff into a call center.</p>
+
+                      <ul data-why>
+                        <li>Reduces repetitive explaining of basic IRS concepts.</li>
+                        <li>Gives clients a calm, structured learning path.</li>
+                        <li>Supports better expectation-setting without advice creep.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Clean portal help sections tied to monitoring states.</li>
+                        <li>Reusable FAQ blocks for common questions.</li>
+                        <li>Educational references staff can point to quickly.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>State-based links to the right help content.</li>
+                        <li>Education prompts attached to drip sequences.</li>
+                        <li>Reduced need for custom explanations.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Knowledge organization map</li>
+                        <li>FAQ category structure</li>
+                        <li>State-linked education blocks</li>
+                        <li>Quick-reference links</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Less explaining</li>
+                        <li><strong>Outcome</strong>: Better understanding</li>
+                        <li><strong>Signal</strong>: Fewer repeats</li>
+                      </ul>
+
+                      <p data-next>Use categories to standardize education—answer the common questions once, then reuse forever.</p>
+                      <p data-shot>mock screenshot — content categories bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="custom-fields">
+                      <h4 data-title>Custom Fields</h4>
+                      <p data-subtitle>Structured intake and tracking fields that power routing, reporting, and state logic.</p>
+
+                      <ul data-why>
+                        <li>Turns vague intake into usable operational data.</li>
+                        <li>Supports repeatable review checklists based on facts.</li>
+                        <li>Prevents “we forgot to ask” gaps.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Cleaner client records with consistent data points.</li>
+                        <li>Fields that feed dashboards, tasks, and templates.</li>
+                        <li>Better handoff summaries when monitoring ends.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Field-based triggers for workflow branching.</li>
+                        <li>Auto-populated labels and internal notes.</li>
+                        <li>Conditional checklist items based on intake responses.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Client data field set</li>
+                        <li>Monitoring status fields</li>
+                        <li>Risk/flag markers</li>
+                        <li>Handoff summary fields</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Fewer gaps</li>
+                        <li><strong>Outcome</strong>: Better routing</li>
+                        <li><strong>Signal</strong>: Cleaner records</li>
+                      </ul>
+
+                      <p data-next>Use custom fields to make the system do the remembering—so staff doesn’t have to.</p>
+                      <p data-shot>mock screenshot — custom fields bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="dashes">
+                      <h4 data-title>Dashes</h4>
+                      <p data-subtitle>Staff and client dashboards that show progress, status, and next steps without noise.</p>
+
+                      <ul data-why>
+                        <li>Creates reassurance without manual status updates.</li>
+                        <li>Gives staff a clean operational cockpit per case.</li>
+                        <li>Separates internal complexity from client clarity.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Client-facing “what happens next” visibility.</li>
+                        <li>Staff-facing checklist and risk signal panels.</li>
+                        <li>Reduced status emails and calls.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>State-driven dashboard content swaps.</li>
+                        <li>Auto-surfaced tasks and links by stage.</li>
+                        <li>Conditional visibility for internal-only elements.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Client cockpit dash</li>
+                        <li>Staff operations dash</li>
+                        <li>Status + next-step panels</li>
+                        <li>Internal-only views</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Less noise</li>
+                        <li><strong>Outcome</strong>: Better confidence</li>
+                        <li><strong>Signal</strong>: Visible progress</li>
+                      </ul>
+
+                      <p data-next>Dashboards turn “waiting” into a managed state—clients see structure even when the IRS is quiet.</p>
+                      <p data-shot>mock screenshot — dashes bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="document-generators">
+                      <h4 data-title>Document Generators</h4>
+                      <p data-subtitle>Repeatable outputs for monitoring summaries, requests, and standardized client deliverables.</p>
+
+                      <ul data-why>
+                        <li>Stops ad-hoc “summary writing” that varies by staff member.</li>
+                        <li>Creates consistent deliverables tied to facts.</li>
+                        <li>Protects scope by standardizing what “monitoring” produces.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Monitoring summary deliverables.</li>
+                        <li>Request letters and client-ready explanation docs.</li>
+                        <li>Internal handoff-ready notes.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Pre-filled templates based on client data fields.</li>
+                        <li>Output generation tied to stage completion.</li>
+                        <li>Standard naming and storage patterns.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Monitoring summary template</li>
+                        <li>Request letter scaffolds</li>
+                        <li>Internal notes format</li>
+                        <li>Deliverable naming rules</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Faster deliverables</li>
+                        <li><strong>Outcome</strong>: Consistent outputs</li>
+                        <li><strong>Signal</strong>: Scope clarity</li>
+                      </ul>
+
+                      <p data-next>Generators make deliverables consistent—clients receive “proof,” not vague updates.</p>
+                      <p data-shot>mock screenshot — document generators bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="drip-sequences">
+                      <h4 data-title>Drip Sequences</h4>
+                      <p data-subtitle>Timed updates and education that reduce status pings during non-actionable periods.</p>
+
+                      <ul data-why>
+                        <li>Clients interpret silence as neglect—drips prevent that.</li>
+                        <li>Reduces inbound “any update?” messages.</li>
+                        <li>Supports calmer client behavior while waiting.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Consistent reassurance updates by stage.</li>
+                        <li>Education timed to the client’s current reality.</li>
+                        <li>Lower staff interruption rate.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Sequence enrollment tied to circle/state.</li>
+                        <li>Auto-exit logic when stage changes.</li>
+                        <li>Conditional content based on risk flags.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Monitoring reassurance drips</li>
+                        <li>Education timing map</li>
+                        <li>State entry/exit triggers</li>
+                        <li>Quiet-period messaging</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Fewer pings</li>
+                        <li><strong>Outcome</strong>: Calm clients</li>
+                        <li><strong>Signal</strong>: Controlled waiting</li>
+                      </ul>
+
+                      <p data-next>Drips own the waiting period—clients stay informed without staff babysitting.</p>
+                      <p data-shot>mock screenshot — drip sequences bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="email-marketing">
+                      <h4 data-title>Email Marketing</h4>
+                      <p data-subtitle>Structured messaging tied to monitoring states—updates, boundaries, and next-step prompts.</p>
+
+                      <ul data-why>
+                        <li>Prevents “random emails” with inconsistent messaging.</li>
+                        <li>Supports reputation by sounding organized and calm.</li>
+                        <li>Keeps clients aligned with what monitoring is and isn’t.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>State-based email sequences.</li>
+                        <li>Cleaner expectation-setting language.</li>
+                        <li>Reduced confusion and scope creep.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Trigger-based sends based on stage updates.</li>
+                        <li>Templates pulled automatically into comms.</li>
+                        <li>Consistent cadence without manual scheduling.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Stage messaging map</li>
+                        <li>Boundary statements</li>
+                        <li>Next-step prompts</li>
+                        <li>Consistency rules</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Better consistency</li>
+                        <li><strong>Outcome</strong>: Less confusion</li>
+                        <li><strong>Signal</strong>: Higher trust</li>
+                      </ul>
+
+                      <p data-next>Email marketing here is not hype—it’s operational reassurance tied to real states.</p>
+                      <p data-shot>mock screenshot — email marketing bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="flows">
+                      <h4 data-title>Flows</h4>
+                      <p data-subtitle>Gated workflows that control what happens next and prevent premature escalation.</p>
+
+                      <ul data-why>
+                        <li>Stops “skipping steps” when clients pressure for action.</li>
+                        <li>Keeps staff aligned on the same checklist and order.</li>
+                        <li>Protects scope by defining what monitoring includes.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Step-by-step monitoring progression.</li>
+                        <li>Clear stage gates for decisions and handoffs.</li>
+                        <li>Reduced internal chaos.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Auto-generated next tasks based on completion.</li>
+                        <li>Client view updates tied to stage movement.</li>
+                        <li>Stop/start logic for drips and reminders.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Monitoring workflow map</li>
+                        <li>Stage gate rules</li>
+                        <li>Decision/handoff paths</li>
+                        <li>Automation triggers</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Less skipping</li>
+                        <li><strong>Outcome</strong>: Predictable delivery</li>
+                        <li><strong>Signal</strong>: Gated steps</li>
+                      </ul>
+
+                      <p data-next>Flows enforce discipline—facts first, then decisions.</p>
+                      <p data-shot>mock screenshot — flows bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="forms">
+                      <h4 data-title>Forms</h4>
+                      <p data-subtitle>Structured intake and authorization capture that turns client claims into usable data.</p>
+
+                      <ul data-why>
+                        <li>Reduces missing docs and incomplete intake.</li>
+                        <li>Creates cleaner transcript pulls and review prep.</li>
+                        <li>Supports boundary language and consent steps.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Consistent client intake submissions.</li>
+                        <li>Authorization/consent capture.</li>
+                        <li>Fewer “we’re missing…” back-and-forth loops.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Auto-routing into the correct circle/state.</li>
+                        <li>Task creation from form submissions.</li>
+                        <li>Conditional follow-ups based on missing info.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Monitoring intake form</li>
+                        <li>Authorization capture steps</li>
+                        <li>Conditional questions</li>
+                        <li>Submission routing</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Cleaner intake</li>
+                        <li><strong>Outcome</strong>: Less back-and-forth</li>
+                        <li><strong>Signal</strong>: Higher completeness</li>
+                      </ul>
+
+                      <p data-next>Forms create the data spine—everything downstream works better when intake is structured.</p>
+                      <p data-shot>mock screenshot — forms bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="invoice-items">
+                      <h4 data-title>Invoice Items</h4>
+                      <p data-subtitle>Standardized line items that keep offers, add-ons, and billing clean and consistent.</p>
+
+                      <ul data-why>
+                        <li>Stops custom billing descriptions that confuse clients.</li>
+                        <li>Supports upsells without rewriting your pricing language.</li>
+                        <li>Creates cleaner scope definition tied to what’s delivered.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Consistent invoice language.</li>
+                        <li>Cleaner add-on structures.</li>
+                        <li>Fewer payment disputes driven by ambiguity.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Auto-populated invoice items by offer.</li>
+                        <li>Consistent naming and categorization.</li>
+                        <li>Billing steps tied to workflow gates.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Standard invoice catalog</li>
+                        <li>Add-on item structure</li>
+                        <li>Offer mapping</li>
+                        <li>Billing gate tie-ins</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Less confusion</li>
+                        <li><strong>Outcome</strong>: Cleaner billing</li>
+                        <li><strong>Signal</strong>: Clear scope</li>
+                      </ul>
+
+                      <p data-next>Invoice items keep pricing disciplined—clients buy defined deliverables, not vague promises.</p>
+                      <p data-shot>mock screenshot — invoice items bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="landing-pages">
+                      <h4 data-title>Landing Pages</h4>
+                      <p data-subtitle>Entry points that explain the offer clearly and route prospects into the right next step.</p>
+
+                      <ul data-why>
+                        <li>Stops “explaining the same thing” on every call.</li>
+                        <li>Creates consistent messaging and positioning.</li>
+                        <li>Supports conversion without overpromising.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Offer explanation pages.</li>
+                        <li>Checkout and scheduling entry points.</li>
+                        <li>Cleaner conversion paths.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Routing into booking and checkout flows.</li>
+                        <li>State-aligned language and templates.</li>
+                        <li>Reduced reliance on manual follow-up.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Offer explanation page</li>
+                        <li>Walkthrough CTA path</li>
+                        <li>Checkout CTA path</li>
+                        <li>Message consistency</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Better conversion</li>
+                        <li><strong>Outcome</strong>: Less explaining</li>
+                        <li><strong>Signal</strong>: Clear positioning</li>
+                      </ul>
+
+                      <p data-next>Landing pages let the system explain itself—calls become confirmation, not education.</p>
+                      <p data-shot>mock screenshot — landing pages bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="menus">
+                      <h4 data-title>Menus</h4>
+                      <p data-subtitle>Navigation that keeps the portal calm, predictable, and hard to misuse.</p>
+
+                      <ul data-why>
+                        <li>Reduces confusion and “where do I click?” messages.</li>
+                        <li>Keeps clients in the right place for their stage.</li>
+                        <li>Protects internal pages from client wandering.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Clean portal navigation structure.</li>
+                        <li>Stage-appropriate menu items.</li>
+                        <li>Less support overhead.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Conditional access by role and state.</li>
+                        <li>Direct links from dashboards to next steps.</li>
+                        <li>Reduced navigation friction.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Menu map</li>
+                        <li>Role/state gating</li>
+                        <li>Dashboard deep links</li>
+                        <li>Client-safe navigation</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Fewer “where is…”</li>
+                        <li><strong>Outcome</strong>: Cleaner experience</li>
+                        <li><strong>Signal</strong>: Lower friction</li>
+                      </ul>
+
+                      <p data-next>Menus are part of scope control—if clients can’t find the wrong thing, they can’t request it.</p>
+                      <p data-shot>mock screenshot — menus bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="platform-branding">
+                      <h4 data-title>Platform Branding</h4>
+                      <p data-subtitle>White-label trust layer: your brand, your tone, your client experience.</p>
+
+                      <ul data-why>
+                        <li>Clients trust what feels cohesive and professional.</li>
+                        <li>Reduces tool confusion and “third-party system” anxiety.</li>
+                        <li>Makes monitoring feel like a premium service.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Consistent visual identity.</li>
+                        <li>Aligned portal language and tone.</li>
+                        <li>Higher perceived value.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Brand-consistent templates and dashboards.</li>
+                        <li>Reduced “what is this platform?” support.</li>
+                        <li>Cleaner client adoption.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Brand styling application</li>
+                        <li>Portal language alignment</li>
+                        <li>Visual consistency</li>
+                        <li>Trust polish</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Higher trust</li>
+                        <li><strong>Outcome</strong>: Better adoption</li>
+                        <li><strong>Signal</strong>: Premium feel</li>
+                      </ul>
+
+                      <p data-next>Branding is not decoration—it reduces hesitation and increases compliance.</p>
+                      <p data-shot>mock screenshot — platform branding bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="portal-pages">
+                      <h4 data-title>Portal Pages</h4>
+                      <p data-subtitle>Client-facing “single source of truth” pages for status, uploads, and next steps.</p>
+
+                      <ul data-why>
+                        <li>Stops the inbox-as-dashboard problem.</li>
+                        <li>Creates a predictable place for clients to check progress.</li>
+                        <li>Supports scope boundaries with visible steps.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Client home pages by stage.</li>
+                        <li>Upload and request areas.</li>
+                        <li>Clear “what’s next” sections.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Page content changes by circle/state.</li>
+                        <li>Auto links to tasks, forms, and resources.</li>
+                        <li>Reduced need for manual updates.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Client status pages</li>
+                        <li>Uploads + requests areas</li>
+                        <li>Next-step panels</li>
+                        <li>State-linked content</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Fewer pings</li>
+                        <li><strong>Outcome</strong>: Clearer next steps</li>
+                        <li><strong>Signal</strong>: Portal trust</li>
+                      </ul>
+
+                      <p data-next>Portal pages replace “checking in” with “checking the dashboard.”</p>
+                      <p data-shot>mock screenshot — portal pages bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="projects">
+                      <h4 data-title>Projects</h4>
+                      <p data-subtitle>Internal containers that package monitoring work into trackable, auditable delivery units.</p>
+
+                      <ul data-why>
+                        <li>Stops scattered work across tools and inboxes.</li>
+                        <li>Creates repeatable delivery checkpoints.</li>
+                        <li>Supports clean handoffs and accountability.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Standard project structures per client.</li>
+                        <li>Defined deliverable milestones.</li>
+                        <li>Cleaner internal ops visibility.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Project creation on intake completion.</li>
+                        <li>Milestone-driven task generation.</li>
+                        <li>Automatic movement through stages.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Project templates</li>
+                        <li>Milestone checkpoints</li>
+                        <li>Audit-friendly structure</li>
+                        <li>Handoff readiness</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Less scatter</li>
+                        <li><strong>Outcome</strong>: More control</li>
+                        <li><strong>Signal</strong>: Clean milestones</li>
+                      </ul>
+
+                      <p data-next>Projects keep monitoring work contained—so “one-off” tasks don’t become chaos.</p>
+                      <p data-shot>mock screenshot — projects bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="proposals">
+                      <h4 data-title>Proposals</h4>
+                      <p data-subtitle>Controlled scope documents that define what monitoring includes and what it doesn’t.</p>
+
+                      <ul data-why>
+                        <li>Prevents scope creep and mismatched expectations.</li>
+                        <li>Creates a clean line between monitoring and representation/resolution.</li>
+                        <li>Improves conversion by clarifying deliverables.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Monitoring offer proposals.</li>
+                        <li>Defined deliverables and boundaries.</li>
+                        <li>Cleaner next-step upsell paths.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Proposal templates prefilled from intake fields.</li>
+                        <li>Signature/payment gates tied to workflow start.</li>
+                        <li>Automatic next steps after acceptance.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Monitoring scope template</li>
+                        <li>Boundary language</li>
+                        <li>Deliverable definitions</li>
+                        <li>Acceptance triggers</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Less creep</li>
+                        <li><strong>Outcome</strong>: Cleaner sales</li>
+                        <li><strong>Signal</strong>: Defined deliverables</li>
+                      </ul>
+
+                      <p data-next>Proposals keep monitoring clean—clients buy clarity, not implied outcomes.</p>
+                      <p data-shot>mock screenshot — proposals bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+
+                    <section data-module-panel="tasks">
+                      <h4 data-title>Tasks</h4>
+                      <p data-subtitle>Staff execution lists that match the monitoring flow—no missing steps, no guesswork.</p>
+
+                      <ul data-why>
+                        <li>Prevents “tribal knowledge” delivery.</li>
+                        <li>Keeps multi-staff operations consistent.</li>
+                        <li>Supports capacity planning and workload clarity.</li>
+                      </ul>
+
+                      <ul data-outputs>
+                        <li>Standard task sequences per stage.</li>
+                        <li>Clear assignment and due-date logic.</li>
+                        <li>Reduced internal misfires.</li>
+                      </ul>
+
+                      <ul data-automations>
+                        <li>Auto-task creation tied to stage entry.</li>
+                        <li>Auto-close/move logic on completion.</li>
+                        <li>Assignments and reminders by role.</li>
+                      </ul>
+
+                      <ul data-loadout>
+                        <li>Stage checklist tasks</li>
+                        <li>Role-based assignment</li>
+                        <li>Due-date triggers</li>
+                        <li>Completion gates</li>
+                      </ul>
+
+                      <ul data-metrics>
+                        <li><strong>Impact</strong>: Less forgetting</li>
+                        <li><strong>Outcome</strong>: Consistent delivery</li>
+                        <li><strong>Signal</strong>: Predictable steps</li>
+                      </ul>
+
+                      <p data-next>Tasks make delivery repeatable—monitoring becomes a system, not a memory test.</p>
+                      <p data-shot>mock screenshot — tasks bay</p>
+                      <p data-status>Bay ready</p>
+                    </section>
+                  </div>
+                  <!-- /PANELS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BOOK DEMO -->
+    <section id="book-my-demo" class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">WALKTHROUGH</p>
+          <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">Book a walkthrough</h2>
+          <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
+            Walk through the Tax Monitor module deck and see how each bay supports disciplined case evaluation and client reassurance.
+          </p>
+        </div>
+
+        <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+          <!-- embed / button placeholder -->
+          <div class="text-center text-sm text-white/70">
+            Demo scheduler embed goes here.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUY INSTALL -->
+    <section id="submit-payment" class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">INSTALL</p>
+          <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">Buy the install</h2>
+          <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
+            One-time setup. White-labeled. Delivered ready to operate.
+          </p>
+        </div>
+
+        <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+          <div class="text-center text-sm text-white/70">
+            Checkout embed goes here.
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <!-- MODULE SWITCHER -->
+  <script>
+    (function () {
+      var tabs = document.querySelectorAll("[data-module-tab]");
+      var panels = document.querySelectorAll("[data-module-panel]");
+
+      var title = document.getElementById("module-title");
+      var subtitle = document.getElementById("module-subtitle");
+      var status = document.getElementById("module-status");
+      var shot = document.getElementById("module-shot");
+      var next = document.getElementById("module-next");
+
+      var why = document.getElementById("module-why");
+      var outputs = document.getElementById("module-outputs");
+      var automations = document.getElementById("module-automations");
+      var loadout = document.getElementById("module-loadout");
+      var metrics = document.getElementById("module-metrics");
+
+      function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+      function li(text, color) {
+        var li = document.createElement("li");
+        li.className = "flex gap-3";
+        li.innerHTML =
+          '<span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full ' +
+          color +
+          '" aria-hidden="true"></span><span>' +
+          text +
+          "</span>";
+        return li;
+      }
+
+      function card(label, value) {
+        var d = document.createElement("div");
+        d.className = "rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft";
+        d.innerHTML =
+          '<div class="text-xs font-semibold text-white/60">' +
+          label +
+          '</div><div class="mt-1 text-lg font-extrabold">' +
+          value +
+          "</div>";
+        return d;
+      }
+
+      function activate(key) {
+        tabs.forEach(function (b) {
+          b.classList.toggle("vlp-module-btn--active", b.dataset.moduleTab === key);
+          b.setAttribute("aria-selected", b.dataset.moduleTab === key);
+        });
+
+        var panel = document.querySelector('[data-module-panel="' + key + '"]');
+        if (!panel) return;
+
+        title.textContent = panel.querySelector("[data-title]").textContent;
+        subtitle.textContent = panel.querySelector("[data-subtitle]").textContent;
+        status.textContent = panel.querySelector("[data-status]").textContent;
+        shot.querySelector("span").textContent = panel.querySelector("[data-shot]").textContent;
+        next.textContent = panel.querySelector("[data-next]").textContent;
+
+        clear(why); clear(outputs); clear(automations); clear(loadout); clear(metrics);
+
+        panel.querySelectorAll("[data-why] li").forEach(function (i) {
+          why.appendChild(li(i.textContent, "bg-brand-500"));
+        });
+        panel.querySelectorAll("[data-outputs] li").forEach(function (i) {
+          outputs.appendChild(li(i.textContent, "bg-emerald-300/80"));
+        });
+        panel.querySelectorAll("[data-automations] li").forEach(function (i) {
+          automations.appendChild(li(i.textContent, "bg-brand-500"));
+        });
+        panel.querySelectorAll("[data-loadout] li").forEach(function (i) {
+          var c = document.createElement("div");
+          c.className = "rounded-xl border border-white/10 bg-white/5 p-3";
+          c.innerHTML =
+            '<div class="text-[10px] font-semibold tracking-widest text-white/60">SHIPS WITH</div>' +
+            '<div class="mt-1 text-sm font-extrabold text-white">' +
+            i.textContent +
+            "</div>";
+          loadout.appendChild(c);
+        });
+        panel.querySelectorAll("[data-metrics] li").forEach(function (i) {
+          var parts = i.textContent.split(":");
+          metrics.appendChild(card(parts[0], parts[1].trim()));
+        });
+
+        if (window.gsap) {
+          gsap.fromTo(
+            ".vlp-bay",
+            { opacity: 0.85, y: 8 },
+            { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }
+          );
+        }
+      }
+
+      tabs.forEach(function (b) {
+        b.addEventListener("click", function () {
+          activate(b.dataset.moduleTab);
+        });
+      });
+
+      activate("appointments");
+    })();
+  </script>
+</body>
+</html>
+
+
+
