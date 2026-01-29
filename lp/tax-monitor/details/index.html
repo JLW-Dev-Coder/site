@@ -145,6 +145,30 @@
       box-shadow: 0 0 0 2px rgba(0,0,0,0.25), 0 0 18px rgba(249,115,22,0.65);
     }
 
+    .vlp-view-btn {
+      align-items: center;
+      border: 1px solid rgba(255,255,255,0.10);
+      border-radius: 14px;
+      display: inline-flex;
+      gap: 10px;
+      justify-content: center;
+      padding: 10px 14px;
+      transition: transform 140ms ease, background 140ms ease, border-color 140ms ease;
+      user-select: none;
+      width: 100%;
+    }
+
+    .vlp-view-btn:hover {
+      transform: translateY(-1px);
+      border-color: rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06);
+    }
+
+    .vlp-view-btn--active {
+      background: rgba(249,115,22,0.14);
+      border-color: rgba(249,115,22,0.35);
+    }
+
     .vlp-module-btn {
       align-items: center;
       border: 1px solid rgba(255,255,255,0.10);
@@ -259,6 +283,8 @@
     @media (prefers-reduced-motion: reduce) {
       .vlp-module-btn { transition: none; }
       .vlp-module-btn:hover { transform: none; }
+      .vlp-view-btn { transition: none; }
+      .vlp-view-btn:hover { transform: none; }
     }
   </style>
 </head>
@@ -319,132 +345,103 @@
       </div>
     </section>
 
-  <!-- MODEL TOUR + TEMPLATE MAP (TWO-TAB DECK) -->
-<section class="border-t border-white/10">
-  <div class="mx-auto max-w-6-5xl px-4 py-12 md:py-14">
-    <div class="relative overflow-hidden rounded-2xl vlp-deck-shell p-4 md:p-6">
+    <!-- DECK (MODEL TOUR + TEMPLATE MAP) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-12 md:py-14">
+        <div class="relative overflow-hidden rounded-2xl vlp-deck-shell p-4 md:p-6">
+          <div class="grid gap-6 lg:grid-cols-12">
+            <!-- CONTROL DECK -->
+            <div class="lg:col-span-4">
+              <div class="rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft md:p-5">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <div class="text-xs font-semibold tracking-widest text-brand-400">CONTROL DECK</div>
+                    <h2 class="mt-2 text-2xl font-extrabold">Choose your view</h2>
+                    <p class="mt-2 text-sm text-white/70">
+                      Switch between the Model Tour and the Template Map.
+                    </p>
+                  </div>
 
-      <!-- TOP TOGGLE -->
-      <div class="mb-6 flex flex-wrap items-center justify-center gap-3">
-        <button
-          type="button"
-          class="vlp-view-btn vlp-view-btn--active rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-extrabold tracking-widest text-white/80"
-          data-deck-view="model-tour"
-          aria-selected="true"
-        >
-          MODEL TOUR
-        </button>
+                  <div class="rounded-xl border border-white/10 bg-ink-950/60 px-3 py-2 text-xs text-white/70">
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex h-2 w-2 rounded-full bg-brand-500 vlp-led" aria-hidden="true"></span>
+                      <span>Systems online</span>
+                    </div>
+                  </div>
+                </div>
 
-        <button
-          type="button"
-          class="vlp-view-btn rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-extrabold tracking-widest text-white/80"
-          data-deck-view="template-map"
-          aria-selected="false"
-        >
-          TEMPLATE MAP
-        </button>
-      </div>
+                <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    class="vlp-view-btn vlp-view-btn--active bg-white/5"
+                    data-deck-view="model-tour"
+                    aria-selected="true"
+                  >
+                    <span class="inline-flex h-2.5 w-2.5 rounded-full bg-brand-500 vlp-led" aria-hidden="true"></span>
+                    <span class="text-sm font-extrabold">Model Tour</span>
+                  </button>
 
-      <!-- VIEW: MODEL TOUR -->
-      <div class="vlp-deck-view" data-deck-panel="model-tour">
-        <div class="mx-auto max-w-4xl">
-          <div class="text-center">
-            <div class="text-xs font-semibold tracking-widest text-brand-400">MODEL TOUR</div>
-            <h2 class="mt-2 text-3xl font-extrabold md:text-4xl">The 5 Models That Run Tax Monitor</h2>
-            <p class="mt-2 text-sm text-white/70 md:text-base">
-              Same structure. Rewritten for monitoring, authorization, transcripts, and report delivery.
-            </p>
-          </div>
+                  <button
+                    type="button"
+                    class="vlp-view-btn bg-white/5"
+                    data-deck-view="template-map"
+                    aria-selected="false"
+                  >
+                    <span class="inline-flex h-2.5 w-2.5 rounded-full bg-white/30" aria-hidden="true"></span>
+                    <span class="text-sm font-extrabold">Template Map</span>
+                  </button>
+                </div>
 
-          <div class="mt-6 grid gap-4 md:grid-cols-2">
-            <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
-              <div class="text-xs font-semibold tracking-widest text-white/60">MODEL A</div>
-              <div class="mt-2 text-lg font-extrabold">Client Journey</div>
-              <p class="mt-2 text-sm text-white/70">Prospect → onboarding → monitoring → report → review call.</p>
+                <div class="mt-5 rounded-2xl border border-white/10 bg-ink-950/50 p-4">
+                  <div class="flex flex-wrap items-center justify-between gap-3">
+                    <div class="text-xs font-semibold tracking-widest text-white/60">DISPLAY</div>
+                    <div class="flex items-center gap-2 text-xs text-white/70">
+                      <span class="inline-flex h-2 w-2 rounded-full bg-emerald-300/80" aria-hidden="true"></span>
+                      <span>Signal lock</span>
+                    </div>
+                  </div>
+                  <p class="mt-2 text-sm text-white/70">
+                    Model Tour shows the walkthrough. Template Map shows the full layout.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
-              <div class="text-xs font-semibold tracking-widest text-white/60">MODEL B</div>
-              <div class="mt-2 text-lg font-extrabold">DOMSSS</div>
-              <p class="mt-2 text-sm text-white/70">Delivery stays consistent across ops, marketing, sales, and support.</p>
-            </div>
+            <!-- DISPLAY BAY -->
+            <div class="lg:col-span-8">
+              <div class="vlp-bay shadow-soft">
+                <div class="relative p-4 md:p-6">
+                  <!-- MODEL TOUR VIEW -->
+                  <div class="vlp-deck-view" data-deck-panel="model-tour">
+                    <div id="modelTour" class="is-active">
+                      $partial_model_tour$
+                    </div>
 
-            <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
-              <div class="text-xs font-semibold tracking-widest text-white/60">MODEL C</div>
-              <div class="mt-2 text-lg font-extrabold">Pipeline</div>
-              <p class="mt-2 text-sm text-white/70">Moves leads into scoped monitoring without implied outcomes.</p>
-            </div>
+                    <script>
+                      document.getElementById("modelTour")?.classList.add("is-active");
+                      document.getElementById("modelTour")?.classList.remove("is-inactive");
+                    </script>
+                  </div>
 
-            <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
-              <div class="text-xs font-semibold tracking-widest text-white/60">MODEL D</div>
-              <div class="mt-2 text-lg font-extrabold">Portal</div>
-              <p class="mt-2 text-sm text-white/70">Client + staff visibility by stage with calm next-step clarity.</p>
-            </div>
-          </div>
+                  <!-- TEMPLATE MAP VIEW -->
+                  <div class="vlp-deck-view hidden" data-deck-panel="template-map">
+                    <div id="templateFrame" class="is-inactive">
+                      $partial_template_map$
+                    </div>
 
-          <div class="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
-            <div class="text-xs font-semibold tracking-widest text-white/60">MODEL E</div>
-            <div class="mt-2 text-lg font-extrabold">Launch</div>
-            <p class="mt-2 text-sm text-white/70">
-              Position “clarity before escalation,” deploy the template, and deliver repeatably.
-            </p>
+                    <script>
+                      document.getElementById("templateFrame")?.classList.add("is-active");
+                      document.getElementById("templateFrame")?.classList.remove("is-inactive");
+                    </script>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- /DISPLAY BAY -->
           </div>
         </div>
       </div>
-
-      <!-- VIEW: TEMPLATE MAP -->
-      <div class="vlp-deck-view hidden" data-deck-panel="template-map">
-        <!-- KEEP YOUR EXISTING “MODULE BAY” CONTENT HERE (the right-side bay + panels, or any template map UI you want) -->
-        <!-- Paste your current Template Map markup in this slot. -->
-        <div class="rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
-          <div class="text-xs font-semibold tracking-widest text-brand-400">TEMPLATE MAP</div>
-          <h2 class="mt-2 text-2xl font-extrabold md:text-3xl">Module Map</h2>
-          <p class="mt-2 text-sm text-white/70 md:text-base">
-            Paste your template map layout here.
-          </p>
-        </div>
-      </div>
-
-    </div>
-  </div>
-
-  <script>
-    (function () {
-      var btns = document.querySelectorAll("[data-deck-view]");
-      var panels = document.querySelectorAll("[data-deck-panel]");
-
-      function setDeckView(view) {
-        btns.forEach(function (b) {
-          var on = b.getAttribute("data-deck-view") === view;
-          b.classList.toggle("vlp-view-btn--active", on);
-          b.setAttribute("aria-selected", on ? "true" : "false");
-        });
-
-        panels.forEach(function (p) {
-          var on = p.getAttribute("data-deck-panel") === view;
-          p.classList.toggle("hidden", !on);
-        });
-      }
-
-      btns.forEach(function (b) {
-        b.addEventListener("click", function () {
-          setDeckView(b.getAttribute("data-deck-view"));
-        });
-      });
-
-      setDeckView("model-tour");
-    })();
-  </script>
-
-  <style>
-    .vlp-view-btn--active {
-      background: rgba(255,255,255,0.10) !important;
-      border-color: rgba(255,255,255,0.20) !important;
-      color: rgba(255,255,255,0.95) !important;
-    }
-  </style>
-</section>
-
+    </section>
 
     <!-- BOOK DEMO -->
     <section id="book-my-demo" class="border-t border-white/10">
@@ -458,7 +455,6 @@
         </div>
 
         <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
-          <!-- embed / button placeholder -->
           <div class="text-center text-sm text-white/70">
             Demo scheduler embed goes here.
           </div>
@@ -488,111 +484,32 @@
 
   <div data-include="footer"></div>
 
-  <!-- MODULE SWITCHER -->
+  <!-- DECK VIEW SWITCHER -->
   <script>
     (function () {
-      var tabs = document.querySelectorAll("[data-module-tab]");
-      var panels = document.querySelectorAll("[data-module-panel]");
+      var btns = document.querySelectorAll("[data-deck-view]");
+      var panels = document.querySelectorAll("[data-deck-panel]");
 
-      var title = document.getElementById("module-title");
-      var subtitle = document.getElementById("module-subtitle");
-      var status = document.getElementById("module-status");
-      var shot = document.getElementById("module-shot");
-      var next = document.getElementById("module-next");
+      function setDeckView(view) {
+        btns.forEach(function (b) {
+          var on = b.dataset.deckView === view;
+          b.classList.toggle("vlp-view-btn--active", on);
+          b.setAttribute("aria-selected", on ? "true" : "false");
+        });
 
-      var why = document.getElementById("module-why");
-      var outputs = document.getElementById("module-outputs");
-      var automations = document.getElementById("module-automations");
-      var loadout = document.getElementById("module-loadout");
-      var metrics = document.getElementById("module-metrics");
-
-      function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
-
-      function li(text, color) {
-        var li = document.createElement("li");
-        li.className = "flex gap-3";
-        li.innerHTML =
-          '<span class="mt-2 inline-flex h-1.5 w-1.5 rounded-full ' +
-          color +
-          '" aria-hidden="true"></span><span>' +
-          text +
-          "</span>";
-        return li;
+        panels.forEach(function (p) {
+          p.classList.toggle("hidden", p.dataset.deckPanel !== view);
+        });
       }
 
-      function card(label, value) {
-        var d = document.createElement("div");
-        d.className = "rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft";
-        d.innerHTML =
-          '<div class="text-xs font-semibold text-white/60">' +
-          label +
-          '</div><div class="mt-1 text-lg font-extrabold">' +
-          value +
-          "</div>";
-        return d;
-      }
-
-      function activate(key) {
-        tabs.forEach(function (b) {
-          b.classList.toggle("vlp-module-btn--active", b.dataset.moduleTab === key);
-          b.setAttribute("aria-selected", b.dataset.moduleTab === key);
-        });
-
-        var panel = document.querySelector('[data-module-panel="' + key + '"]');
-        if (!panel) return;
-
-        title.textContent = panel.querySelector("[data-title]").textContent;
-        subtitle.textContent = panel.querySelector("[data-subtitle]").textContent;
-        status.textContent = panel.querySelector("[data-status]").textContent;
-        shot.querySelector("span").textContent = panel.querySelector("[data-shot]").textContent;
-        next.textContent = panel.querySelector("[data-next]").textContent;
-
-        clear(why); clear(outputs); clear(automations); clear(loadout); clear(metrics);
-
-        panel.querySelectorAll("[data-why] li").forEach(function (i) {
-          why.appendChild(li(i.textContent, "bg-brand-500"));
-        });
-        panel.querySelectorAll("[data-outputs] li").forEach(function (i) {
-          outputs.appendChild(li(i.textContent, "bg-emerald-300/80"));
-        });
-        panel.querySelectorAll("[data-automations] li").forEach(function (i) {
-          automations.appendChild(li(i.textContent, "bg-brand-500"));
-        });
-        panel.querySelectorAll("[data-loadout] li").forEach(function (i) {
-          var c = document.createElement("div");
-          c.className = "rounded-xl border border-white/10 bg-white/5 p-3";
-          c.innerHTML =
-            '<div class="text-[10px] font-semibold tracking-widest text-white/60">SHIPS WITH</div>' +
-            '<div class="mt-1 text-sm font-extrabold text-white">' +
-            i.textContent +
-            "</div>";
-          loadout.appendChild(c);
-        });
-        panel.querySelectorAll("[data-metrics] li").forEach(function (i) {
-          var parts = i.textContent.split(":");
-          metrics.appendChild(card(parts[0], parts[1].trim()));
-        });
-
-        if (window.gsap) {
-          gsap.fromTo(
-            ".vlp-bay",
-            { opacity: 0.85, y: 8 },
-            { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }
-          );
-        }
-      }
-
-      tabs.forEach(function (b) {
+      btns.forEach(function (b) {
         b.addEventListener("click", function () {
-          activate(b.dataset.moduleTab);
+          setDeckView(b.dataset.deckView);
         });
       });
 
-      activate("appointments");
+      setDeckView("model-tour");
     })();
   </script>
 </body>
 </html>
-
-
-
