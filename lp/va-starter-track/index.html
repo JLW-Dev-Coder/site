@@ -1,0 +1,785 @@
+<!-- /lp/va-starter-track/index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+  <title>VA Starter Track — Virtual Launch Pro</title>
+  <meta name="description" content="A calm, white-labeled starter track for VAs and VA teams. Install once. Sell service. Deliver calmly. Repeat." />
+
+  <meta property="og:title" content="VA Starter Track — Virtual Launch Pro" />
+  <meta property="og:description" content="A calm, white-labeled starter track for VAs and VA teams. Install once. Sell service. Deliver calmly. Repeat." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" href="/assets/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <meta name="theme-color" content="#070a10" />
+
+  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/gsap@3/dist/ScrollTrigger.min.js"></script>
+  <script defer src="/site.js?v=20260127-1"></script>
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+
+  <link
+    rel="preload"
+    as="image"
+    href="/assets/Virtual-Launch-Pro_Logo_200x60_Black.svg"
+    type="image/svg+xml"
+  />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          boxShadow: {
+            soft: "0 10px 30px rgba(0,0,0,0.12)",
+            topbar: "0 18px 50px rgba(0,0,0,0.18)"
+          },
+          colors: {
+            brand: { 500: "#f97316", 400: "#fb923c" },
+            ink: { 950: "#070a10", 900: "#0b1220", 800: "#111a2e", 700: "#152237" }
+          },
+          maxWidth: {
+            "6-5xl": "77.5rem"
+          }
+        }
+      }
+    };
+  </script>
+
+  <link rel="stylesheet" href="/styles.css?v=20260127-1" />
+
+  <style>
+    html { scroll-behavior: smooth; }
+
+    .container {
+      margin-left: auto;
+      margin-right: auto;
+      max-width: 72rem;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .container--wide { max-width: 75rem; }
+
+    .dash-preview-wrap { margin-top: 24px; }
+    .dash-preview-wrap > [data-preview] { width: 100%; }
+    .preview--hidden { display: none; }
+
+    .tab--active {
+      background: rgba(7,10,16,1);
+      border-color: rgba(255,255,255,0.15);
+      color: rgba(255,255,255,1);
+    }
+
+    .vlp-grid {
+      background-image:
+        linear-gradient(to right, rgba(255,255,255,0.06) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(circle at 50% 18%, rgba(0,0,0,1), rgba(0,0,0,0) 58%);
+    }
+
+    .vlp-grid-pan { animation: gridPan 22s linear infinite; }
+
+    @keyframes gridPan {
+      from { transform: translate3d(0,0,0); }
+      to { transform: translate3d(-56px,-56px,0); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .vlp-grid-pan { animation: none; }
+    }
+  </style>
+</head>
+
+<body class="bg-ink-950 text-white antialiased">
+  <div class="pointer-events-none fixed inset-0 -z-20 vlp-grid vlp-grid-pan opacity-60"></div>
+  <div class="pointer-events-none fixed -left-40 -top-40 h-[520px] w-[520px] -z-10 rounded-full bg-brand-500/35 blur-[80px]"></div>
+  <div class="pointer-events-none fixed -right-40 -bottom-40 h-[520px] w-[520px] -z-10 rounded-full bg-emerald-300/25 blur-[80px]"></div>
+
+  <div data-include="header"></div>
+
+  <main id="top">
+    <!-- HERO -->
+    <section class="mx-auto max-w-6-5xl px-4 pb-10 pt-16 md:pb-14 md:pt-24">
+      <p class="mx-auto mb-5 w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
+        VA Starter Track — calm delivery for VAs
+      </p>
+
+      <h1 class="mx-auto max-w-4xl text-center text-4xl font-extrabold leading-tight md:text-6xl">
+        Install once. Sell service. Deliver calmly. Repeat.
+      </h1>
+
+      <p class="mx-auto mt-6 max-w-3xl text-center text-base text-white/70 md:text-lg">
+        A white-labeled starter track that turns scattered VA delivery into a visible path:
+        clear steps, clean intake, defined deliverables, and fewer follow-ups.
+      </p>
+
+      <div class="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+        <a
+          class="rounded-xl bg-brand-500 px-7 py-3.5 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+          href="/signup.html"
+          rel="noopener"
+        >
+          Start the VA Starter Track
+        </a>
+        <a
+          class="rounded-xl border border-white/20 bg-white/5 px-7 py-3.5 text-sm font-extrabold text-white hover:bg-white/10"
+          href="#artifacts"
+        >
+          See the deliverables
+        </a>
+      </div>
+    </section>
+
+    <!-- VA AGENCIES — MOCKUP B (Agency Inbox) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="grid gap-10 lg:grid-cols-12 lg:items-center">
+          <div class="lg:col-span-6">
+            <p class="text-xs font-semibold tracking-widest text-brand-400">AGENCY INBOX</p>
+            <h2 class="mt-3 text-3xl font-extrabold md:text-4xl">
+              A clean ops flow your team can actually run
+            </h2>
+            <p class="mt-5 text-sm text-white/75 md:text-base">
+              Requests stop living in DMs, email threads, and “did you see this?” chaos.
+              The VA Starter Track turns work into visible items with assignment, status, and next steps.
+            </p>
+
+            <div class="mt-6 grid gap-4 sm:grid-cols-2">
+              <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">Assignment is obvious</div>
+                <p class="mt-2 text-sm text-white/70">Each request gets routed to the right lane instead of floating.</p>
+              </div>
+              <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+                <div class="text-sm font-extrabold">ETA stops being a question</div>
+                <p class="mt-2 text-sm text-white/70">Statuses and handoffs reduce follow-up pings automatically.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-6">
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft">
+              <div style="text-align:center">
+                <div class="mailui" role="region" aria-label="Agency inbox mockup">
+                  <style>
+                    .mailui{background:#0f1113;border-radius:16px;color:#e8eaed;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;overflow:hidden;width:100%}
+                    .mailui__top{align-items:center;background:#121416;border-bottom:1px solid rgba(255,255,255,.10);display:flex;gap:12px;padding:12px 14px}
+                    .mailui__brand{font-weight:800}
+                    .mailui__body{padding:14px}
+                    .mailui__item{background:#111315;border:1px solid rgba(255,255,255,.08);border-radius:14px;margin:0 0 12px 0;padding:12px}
+                    .mailui__subj{font-size:13px;font-weight:900;margin:0 0 6px 0}
+                    .mailui__snip{color:rgba(232,234,237,.86);font-size:12px;font-weight:800;line-height:1.45;margin:0}
+                    .mailui__tag{border-radius:999px;display:inline-block;font-size:12px;font-weight:900;margin-top:10px;padding:6px 10px}
+                    .mailui__tag--a{background:#00e5ff;color:#0b0d10}
+                    .mailui__tag--c{background:#ff5c8a;color:#0b0d10}
+                  </style>
+                  <div class="mailui__top">
+                    <div class="mailui__brand">Inbox</div>
+                    <div style="color:rgba(232,234,237,.72);font-weight:800">Ops Flow</div>
+                  </div>
+                  <div class="mailui__body">
+                    <div class="mailui__item">
+                      <div class="mailui__subj">Client request</div>
+                      <p class="mailui__snip">New task submitted. Needs assignment and ETA.</p>
+                      <span class="mailui__tag mailui__tag--c">Assigned</span>
+                    </div>
+                    <div class="mailui__item" style="margin-bottom:0;">
+                      <div class="mailui__subj">QA review</div>
+                      <p class="mailui__snip">Deliverable ready. Needs final check and send.</p>
+                      <span class="mailui__tag mailui__tag--a">Ready</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <p class="mt-5 text-center text-xs text-white/60">
+                Mockup example: requests become trackable work with clear status.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHY IT WORKS -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="mx-auto max-w-4xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">WHY THE VA STARTER TRACK WORKS</p>
+          <h2 class="mt-3 text-4xl font-extrabold md:text-5xl">Predictable delivery, built for calm</h2>
+
+          <p class="mx-auto mt-6 max-w-3xl text-base text-white/70 md:text-lg">
+            VA delivery breaks down when clients can’t see what happens next, and your team has to answer the same questions repeatedly.
+            The VA Starter Track fixes that with visible steps, defined deliverables, and automations that reduce noise.
+          </p>
+
+          <p class="mx-auto mt-4 max-w-3xl text-base text-white/70 md:text-lg">
+            Install once, then stack add-ons only when you’re ready.
+            You stay in control of scope, timelines, and client expectations—without rebuilding your process every month.
+          </p>
+        </div>
+
+        <div class="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-6">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft lg:col-span-2">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M9 12l2 2 4-5" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              </svg>
+            </div>
+
+            <h3 class="text-lg font-extrabold">Clear steps</h3>
+
+            <ul class="mt-4 space-y-3 text-sm text-white/70">
+              <li class="flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+                <span>Clients follow a guided path instead of guessing what to do next.</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+                <span>Your team works from the same checklist, every time.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft lg:col-span-2">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M12 22s8-3 8-10V6l-8-3-8 3v6c0 7 8 10 8 10z" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                <path d="M9 12l2 2 4-5" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              </svg>
+            </div>
+
+            <h3 class="text-lg font-extrabold">Controlled scope</h3>
+
+            <ul class="mt-4 space-y-3 text-sm text-white/70">
+              <li class="flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+                <span>Deliverables define what’s included, so “one more thing” doesn’t take over.</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+                <span>Work stays predictable even when client complexity spikes.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft lg:col-span-2">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                <path d="M12 7v5l3 3" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              </svg>
+            </div>
+
+            <h3 class="text-lg font-extrabold">Fewer follow-ups</h3>
+
+            <ul class="mt-4 space-y-3 text-sm text-white/70">
+              <li class="flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+                <span>Automations send updates before clients feel the need to ask.</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+                <span>Your inbox stays clear for real issues—not status checks.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft lg:col-span-3">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M7 7h10M7 12h10M7 17h6" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                <path d="M5 4h14a2 2 0 0 1 2 2v12a4 4 0 0 1-4 4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              </svg>
+            </div>
+
+            <h3 class="text-lg font-extrabold">Faster onboarding</h3>
+
+            <ul class="mt-4 space-y-3 text-sm text-white/70">
+              <li class="flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+                <span>Clients get started quickly without manual back-and-forth.</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+                <span>Intake, files, messages, and payments live in one clean portal.</span>
+              </li>
+            </ul>
+          </div>
+
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft lg:col-span-3">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M12 2l3 7h7l-5.5 4 2.5 7-7-4.5L5 20l2.5-7L2 9h7l3-7z" stroke="#FFA500" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+              </svg>
+            </div>
+
+            <h3 class="text-lg font-extrabold">White-labeled trust</h3>
+
+            <ul class="mt-4 space-y-3 text-sm text-white/70">
+              <li class="flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+                <span>Consistency builds confidence and makes the service feel premium.</span>
+              </li>
+              <li class="flex items-start gap-3">
+                <span aria-hidden="true" class="mt-1 h-1.5 w-1.5 rounded-full bg-brand-500"></span>
+                <span>Your client sees your brand and your process—not a patchwork of tools.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mt-12 flex justify-center">
+          <a
+            class="rounded-xl bg-brand-500 px-8 py-4 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+            href="/signup.html"
+            rel="noopener"
+          >
+            Sign Up for a 30-Day Free Trial Today
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- BENEFITS (orange panel) -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="rounded-2xl bg-brand-500 px-6 py-10 shadow-soft md:px-10 md:py-14">
+          <div class="grid gap-10 text-center md:grid-cols-4 md:gap-8">
+            <div>
+              <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-white/10">
+                <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                  <path d="M12 8v4l3 3" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                  <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="text-lg font-extrabold text-white">Save Time</div>
+              <p class="mx-auto mt-3 max-w-xs text-sm text-white/90">
+                Spend less time answering status questions and more time delivering real work.
+              </p>
+            </div>
+
+            <div>
+              <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-white/10">
+                <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                  <path d="M3 17l6-6 4 4 7-7" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                  <path d="M14 8h6v6" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="text-lg font-extrabold text-white">Increase Revenue</div>
+              <p class="mx-auto mt-3 max-w-xs text-sm text-white/90">
+                Defined deliverables and follow-ups help convert more clients with less friction.
+              </p>
+            </div>
+
+            <div>
+              <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-white/10">
+                <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                  <path d="M10 4h4v4h-4V4z" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                  <path d="M4 10h4v4H4v-4z" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                  <path d="M16 10h4v4h-4v-4z" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                  <path d="M10 16h4v4h-4v-4z" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                  <path d="M12 8v2M8 12h2M14 12h2M12 14v2" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="text-lg font-extrabold text-white">Stay Organized</div>
+              <p class="mx-auto mt-3 max-w-xs text-sm text-white/90">
+                Keep intake, files, messages, and payments in one calm, structured system.
+              </p>
+            </div>
+
+            <div>
+              <div class="mx-auto mb-4 inline-flex h-12 w-12 items-center justify-center rounded-full border border-white/30 bg-white/10">
+                <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                  <path d="M12 3v18" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                  <path d="M16 7H9a3 3 0 0 0 0 6h6a3 3 0 0 1 0 6H8" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
+                </svg>
+              </div>
+              <div class="text-lg font-extrabold text-white">Grow Affordably</div>
+              <p class="mx-auto mt-3 max-w-xs text-sm text-white/90">
+                Install once, then add modules only when your practice is ready to expand.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHO IT’S FOR -->
+    <section class="border-t border-white/10 bg-ink-950">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold tracking-widest text-brand-400">
+            WHO THE VA STARTER TRACK IS FOR
+          </p>
+          <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">
+            Built for calm, scalable VA delivery
+          </h2>
+          <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
+            The VA Starter Track supports solo VAs and small teams that want a clean process before scaling.
+          </p>
+        </div>
+
+        <div class="mt-14 grid gap-8 md:grid-cols-3">
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5z" stroke="#FFA500" stroke-width="2"/>
+                <path d="M3 21a9 9 0 0 1 18 0" stroke="#FFA500" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Solo VAs</h3>
+            <p class="mt-3 text-sm text-white/70">
+              Look premium and organized without stitching together a fragile tool stack.
+            </p>
+          </div>
+
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M17 20v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2" stroke="#FFA500" stroke-width="2"/>
+                <path d="M7 10a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" stroke="#FFA500" stroke-width="2"/>
+                <path d="M17 11a3 3 0 1 0-3-3 3 3 0 0 0 3 3z" stroke="#FFA500" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Small VA teams</h3>
+            <p class="mt-3 text-sm text-white/70">
+              Stay consistent when multiple people touch the work and handoffs start stacking.
+            </p>
+          </div>
+
+          <div class="rounded-2xl border-2 border-[#FFA500] bg-[#FFA500]/10 p-8 shadow-soft backdrop-blur-sm">
+            <div class="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-xl border border-[#FFA500]/40 bg-[#FFA500]/15">
+              <svg aria-hidden="true" class="h-6 w-6" fill="none" viewBox="0 0 24 24">
+                <path d="M3 17l6-6 4 4 7-7" stroke="#FFA500" stroke-width="2"/>
+                <path d="M14 8h6v6" stroke="#FFA500" stroke-width="2"/>
+              </svg>
+            </div>
+            <h3 class="text-lg font-extrabold text-white">Agencies preparing to scale</h3>
+            <p class="mt-3 text-sm text-white/70">
+              Increase capacity without adding chaos, context switching, or silent scope creep.
+            </p>
+          </div>
+        </div>
+
+        <div class="mt-14 flex justify-center">
+          <a
+            class="rounded-xl bg-brand-500 px-8 py-4 text-sm font-extrabold text-ink-900 hover:bg-brand-400"
+            href="/signup.html"
+            rel="noopener"
+          >
+            Sign Up for a 30-Day Free Trial Today
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ARTIFACTS -->
+    <section id="artifacts" class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="grid gap-6 lg:grid-cols-12">
+          <div class="lg:col-span-5">
+            <div class="lg:sticky lg:top-28">
+              <div class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-500/30 to-emerald-300/10 p-8 shadow-soft">
+                <p class="text-xs font-semibold tracking-widest text-white/85">ARTIFACTS</p>
+                <h2 class="mt-3 text-3xl font-extrabold">See what problems the VA Starter Track solves</h2>
+                <p class="mt-4 text-sm text-white/75">
+                  Toggle between views to preview the “problem-solved” artifacts this track ships with.
+                </p>
+
+                <div class="mt-6">
+                  <div class="inline-flex items-end gap-1 border-b border-white/15" role="tablist" aria-label="Artifacts tabs">
+                    <button
+                      type="button"
+                      class="artifact-tab artifact-tab--active inline-flex items-center rounded-xl border border-white/10 bg-ink-950 px-4 py-2 text-sm font-extrabold text-white shadow-soft"
+                      data-artifacts-tab="va-starter"
+                      aria-selected="true"
+                    >
+                      VA Starter Track
+                    </button>
+                    <button
+                      type="button"
+                      class="artifact-tab inline-flex items-center rounded-xl border border-transparent bg-transparent px-4 py-2 text-sm font-semibold text-white/75 hover:text-white"
+                      data-artifacts-tab="agency-inbox"
+                      aria-selected="false"
+                    >
+                      Agency Inbox
+                    </button>
+                    <button
+                      type="button"
+                      class="artifact-tab inline-flex items-center rounded-xl border border-transparent bg-transparent px-4 py-2 text-sm font-semibold text-white/75 hover:text-white"
+                      data-artifacts-tab="handoff"
+                      aria-selected="false"
+                    >
+                      Handoff
+                    </button>
+                  </div>
+                </div>
+
+                <div class="mt-6">
+                  <a
+                    class="inline-flex rounded-xl bg-white px-5 py-3 text-sm font-extrabold text-ink-900 hover:bg-white/90"
+                    href="/signup.html"
+                  >
+                    Start the track
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="lg:col-span-7">
+            <div class="relative rounded-2xl border border-white/10 bg-white/5 p-4 shadow-soft md:p-5">
+              <div data-artifacts-panel="va-starter" role="tabpanel" aria-label="VA Starter Track artifacts">
+                <div class="grid gap-4 md:grid-cols-2">
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Clients know the next step.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: stalled projects.</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Deliverables stop being vague.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: scope creep.</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Payment is clean and simple.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: awkward invoicing.</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Updates happen without chasing.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: status pings.</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Work stays organized.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: scattered files.</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Your brand looks premium.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: tool confusion.</p>
+                  </article>
+                </div>
+              </div>
+
+              <div data-artifacts-panel="agency-inbox" class="hidden" role="tabpanel" aria-label="Agency Inbox artifacts">
+                <div class="grid gap-4 md:grid-cols-2">
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Requests stop slipping.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: missed follow-up.</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Assignments are visible.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: unclear ownership.</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft md:col-span-2">
+                    <div class="text-sm font-extrabold">Agency inbox mockup</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: DMs as project management.</p>
+                    <div class="mt-4 rounded-xl border border-white/10 bg-white/5 p-4">
+                      <div style="text-align:center">
+                        <div class="mailui" role="region" aria-label="Agency inbox mockup (artifacts)">
+                          <div class="mailui__top">
+                            <div class="mailui__brand">Inbox</div>
+                            <div style="color:rgba(232,234,237,.72);font-weight:800">Ops Flow</div>
+                          </div>
+                          <div class="mailui__body">
+                            <div class="mailui__item">
+                              <div class="mailui__subj">Client request</div>
+                              <p class="mailui__snip">New task submitted. Needs assignment and ETA.</p>
+                              <span class="mailui__tag mailui__tag--c">Assigned</span>
+                            </div>
+                            <div class="mailui__item" style="margin-bottom:0;">
+                              <div class="mailui__subj">QA review</div>
+                              <p class="mailui__snip">Deliverable ready. Needs final check and send.</p>
+                              <span class="mailui__tag mailui__tag--a">Ready</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              </div>
+
+              <div data-artifacts-panel="handoff" class="hidden" role="tabpanel" aria-label="Handoff artifacts">
+                <div class="grid gap-4 md:grid-cols-2">
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Handoffs don’t drop context.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: re-explaining work.</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“QA becomes a step, not a scramble.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: last-minute fixes.</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Delivery is consistent.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: uneven client experience.</p>
+                  </article>
+
+                  <article class="rounded-2xl border border-white/10 bg-ink-950/40 p-6 shadow-soft">
+                    <div class="text-sm font-extrabold">“Next steps are defined.”</div>
+                    <p class="mt-3 text-sm text-white/70">Problem solved: post-delivery drift.</p>
+                  </article>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-14 md:py-16">
+        <div class="mx-auto max-w-3xl text-center">
+          <h2 class="text-3xl font-extrabold md:text-4xl">Frequently asked questions</h2>
+        </div>
+
+        <div class="mx-auto mt-10 max-w-3xl space-y-4">
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              Can I cancel anytime?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              Yes. If you’re on a plan, you can cancel. If you purchased an install, you keep what was delivered.
+            </p>
+          </details>
+
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              Is it hard to set up?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              No. The track is structured and configured cleanly. You get a guided handoff so you can operate immediately.
+            </p>
+          </details>
+
+          <details class="group rounded-2xl border border-white/10 bg-white/5 p-5 shadow-soft">
+            <summary class="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
+              What makes the VA Starter Track different?
+              <span class="ml-4 text-white/60 group-open:rotate-180 transition-transform">▾</span>
+            </summary>
+            <p class="mt-3 text-sm text-white/70">
+              Built around deliverables, workflow visibility, and scope protection—not “more tools.”
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- FINAL CTA -->
+    <section class="border-t border-white/10">
+      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+        <div class="rounded-2xl border border-white/10 bg-gradient-to-br from-brand-500/25 to-emerald-300/10 p-10 text-center shadow-soft md:p-14">
+          <h2 class="text-3xl font-extrabold md:text-4xl">Start calm. Stay consistent. Scale when ready.</h2>
+          <p class="mx-auto mt-5 max-w-2xl text-sm text-white/75 md:text-base">
+            Install the VA Starter Track once, then deliver with the same clean path for every new client.
+          </p>
+          <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <a class="rounded-xl bg-brand-500 px-8 py-4 text-sm font-extrabold text-ink-900 hover:bg-brand-400" href="/signup.html">
+              Sign Up for a 30-Day Free Trial Today
+            </a>
+            <a class="rounded-xl border border-white/20 bg-white/5 px-8 py-4 text-sm font-extrabold text-white hover:bg-white/10" href="#top">
+              Back to top
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div data-include="footer"></div>
+
+  <script>
+    (function () {
+      function initArtifacts() {
+        var buttons = Array.prototype.slice.call(document.querySelectorAll("[data-artifacts-tab]"));
+        var panels = Array.prototype.slice.call(document.querySelectorAll("[data-artifacts-panel]"));
+        if (!buttons.length || !panels.length) return;
+
+        function setActive(key) {
+          buttons.forEach(function (b) {
+            var on = b.getAttribute("data-artifacts-tab") === key;
+            b.setAttribute("aria-selected", on ? "true" : "false");
+            b.classList.toggle("artifact-tab--active", on);
+            b.classList.toggle("bg-ink-950", on);
+            b.classList.toggle("border-white/10", on);
+            b.classList.toggle("shadow-soft", on);
+            b.classList.toggle("text-white", on);
+
+            b.classList.toggle("bg-transparent", !on);
+            b.classList.toggle("border-transparent", !on);
+            b.classList.toggle("text-white/75", !on);
+          });
+
+          panels.forEach(function (p) {
+            var show = p.getAttribute("data-artifacts-panel") === key;
+            p.classList.toggle("hidden", !show);
+          });
+        }
+
+        buttons.forEach(function (b) {
+          b.addEventListener("click", function () {
+            setActive(b.getAttribute("data-artifacts-tab"));
+          });
+        });
+
+        setActive("va-starter");
+      }
+
+      function loadIncludes() {
+        var nodes = Array.prototype.slice.call(document.querySelectorAll("[data-include]"));
+        if (!nodes.length) return;
+
+        nodes.forEach(function (node) {
+          var key = node.getAttribute("data-include");
+          var url = "/partials/" + key + ".html";
+
+          fetch(url, { cache: "no-store" })
+            .then(function (res) {
+              if (!res.ok) throw new Error("Include failed: " + url);
+              return res.text();
+            })
+            .then(function (html) {
+              node.innerHTML = html;
+            })
+            .catch(function (err) {
+              console.error(err);
+            });
+        });
+      }
+
+      function boot() {
+        initArtifacts();
+        loadIncludes();
+      }
+
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", boot);
+      } else {
+        boot();
+      }
+    })();
+  </script>
+</body>
+</html>
