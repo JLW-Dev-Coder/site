@@ -83,6 +83,33 @@
 
     .vlp-header-spacer { height: 64px; }
     @media (min-width: 768px) { .vlp-header-spacer { height: 72px; } }
+
+    /* =========================================================
+       EMBED HEIGHT FIX (FOR SUITEDASH FORM/CO CHECKOUT EMBEDS)
+       Ensures injected iframes show full checkout steps.
+       ========================================================= */
+    .vlp-signup-embed {
+      height: 980px;
+      min-height: 980px;
+      position: relative;
+      width: 100%;
+    }
+
+    .vlp-signup-embed > div,
+    .vlp-signup-embed > span {
+      height: 980px !important;
+      min-height: 980px !important;
+      width: 100% !important;
+    }
+
+    .vlp-signup-embed iframe {
+      border: 0 !important;
+      display: block !important;
+      height: 980px !important;
+      min-height: 980px !important;
+      max-height: none !important;
+      width: 100% !important;
+    }
   </style>
 </head>
 
@@ -112,7 +139,6 @@
             title="VA Agency System Animation"
           ></iframe>
         </div>
-
 
         <h1 class="text-4xl font-extrabold leading-tight md:text-6xl">
           Launch Your VA Agency in Days — Using the Same System We Use to Hire Top-Tier Virtual Assistants
@@ -156,8 +182,7 @@
         </div>
 
         <div class="mt-14 grid gap-8 md:grid-cols-3">
-          <!-- Alphabetical cards -->
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft acknowledge">
             <h3 class="text-lg font-extrabold text-white">Access specialized skills</h3>
             <p class="mt-3 text-sm text-white/70">Grow your talent with courses tailored to your business niche.</p>
           </div>
@@ -190,7 +215,6 @@
       </div>
     </section>
 
-   
     <!-- HOW IT WORKS -->
     <section id="how" class="border-t border-white/10">
       <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
@@ -317,7 +341,6 @@
             </p>
 
             <ul class="mt-4 list-disc pl-5 text-sm text-white/70 space-y-2">
-              <!-- Alphabetical -->
               <li>Advanced dashboards &amp; reporting: dashboards for pipeline health, task activity, VA performance, and client delivery metrics.</li>
               <li>Global translation pack: enable translations so pages, emails, and labels match your team's preferred language.</li>
               <li>LMS &amp; training paths: setup of training products, learning paths, and progress tracking.</li>
@@ -385,7 +408,6 @@
             <div class="rounded-2xl border border-white/10 bg-ink-950/60 p-6">
               <div class="text-sm font-extrabold text-white">Why VAs work for agencies using this system</div>
               <ul class="mt-3 list-disc pl-5 text-sm text-white/70 space-y-2">
-                <!-- Alphabetical -->
                 <li>FLOW organizers: training paths, templates, and instructions keep every VA aligned and performance-ready.</li>
                 <li>Pre-built dashboards: charts, activity logs, project tracking, and clear direction.</li>
                 <li>Rapid setup: VAs move from signup → active pipeline fast, guided every step of the way.</li>
@@ -397,7 +419,6 @@
             <div class="rounded-2xl border border-white/10 bg-ink-950/60 p-6">
               <div class="text-sm font-extrabold text-white">Upside you can unlock later</div>
               <ul class="mt-3 list-disc pl-5 text-sm text-white/70 space-y-2">
-                <!-- Alphabetical -->
                 <li>Additional templates and modules as you scale services.</li>
                 <li>Priority support options when your workflow expands.</li>
                 <li>Training products and internal certifications for your team.</li>
@@ -435,10 +456,6 @@
         <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
           <div class="rounded-xl border border-white/10 bg-ink-900/60 p-4">
             <div class="vlp-signup-embed">
-              <!-- APPOINTMENT FORM (JS EMBED): replace with the correct booking form if different -->
-              <!-- Example:
-              <script src="https://secure.virtuallaunch.pro/frm/XXXXXXXXXXXXXXX.js"></script>
-              -->
               <script src="https://secure.virtuallaunch.pro/frm/24YCVCM33WMidzDw1.js"></script>
             </div>
           </div>
@@ -465,11 +482,7 @@
               <p class="mt-2 text-sm text-white/70">Activate access directly.</p>
 
               <div class="mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
-                <div class="vlp-signup-embed" style="min-height: 760px;">
-                  <!-- Replace with VA Agency Setup checkout embed -->
-                  <!-- Example:
-                  <script src="https://secure.virtuallaunch.pro/frm/XXXXXXXXXXXXXXX.js"></script>
-                  -->
+                <div class="vlp-signup-embed" style="height: 980px; min-height: 980px;">
                   <script src="https://secure.virtuallaunch.pro/frm/2tsobPr8VeraNcRjd.js"></script>
                 </div>
               </div>
@@ -481,11 +494,7 @@
               <p class="mt-2 text-sm text-white/70">Use this if someone referred you.</p>
 
               <div class="mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
-                <div class="vlp-signup-embed" style="min-height: 760px;">
-                  <!-- Replace with VA Agency Setup Referral checkout embed -->
-                  <!-- Example:
-                  <script src="https://secure.virtuallaunch.pro/frm/XXXXXXXXXXXXXXX.js"></script>
-                  -->
+                <div class="vlp-signup-embed" style="height: 980px; min-height: 980px;">
                   <script src="https://secure.virtuallaunch.pro/frm/23davdkPhgJH9Tvih.js"></script>
                 </div>
               </div>
@@ -508,7 +517,6 @@
             <h2 class="mt-3 text-4xl font-extrabold text-white md:text-5xl">Stop patching tools. Start operating like an agency.</h2>
 
             <div class="mx-auto mt-8 max-w-2xl space-y-3 text-base text-white/95 md:text-lg">
-              <!-- Alphabetical -->
               <p>Client-ready portals</p>
               <p>Team dashboards</p>
               <p>Workflow that scales</p>
