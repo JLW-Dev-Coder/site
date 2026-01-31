@@ -189,14 +189,14 @@
       </div>
     </section>
 
-    <!-- INVITE -->
+    <!-- INVITE (APPOINTMENT BOOKING) -->
     <section id="invite" class="border-t border-white/10 bg-ink-950">
       <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
         <div class="mx-auto max-w-3xl text-center">
-          <p class="text-xs font-semibold tracking-widest text-brand-400">INVITE</p>
-          <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">Request your freelancer invite</h2>
+          <p class="text-xs font-semibold tracking-widest text-brand-400">APPOINTMENT</p>
+          <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">Book your next step</h2>
           <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
-            Submit your details to receive your portal invite and start your FLOW checklist.
+            Choose either a demo or a setup info appointment — pick what you need and grab a time.
           </p>
           <p class="mx-auto mt-3 max-w-2xl text-xs text-white/60 md:text-sm">
             Company name: enter your company name if applicable; otherwise enter your name or username.
@@ -206,8 +206,7 @@
         <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
           <div class="rounded-xl border border-white/10 bg-ink-900/60 p-4">
             <div class="vlp-signup-embed">
-              <!-- INVITE FORM (JS EMBED) -->
-              <!-- Replace FORM_ID_INVITE with your actual embed id -->
+              <!-- APPOINTMENT FORM (JS EMBED): demo OR setup info -->
               <script src="https://secure.virtuallaunch.pro/frm/24YCVCM33WMidzDw1.js"></script>
             </div>
           </div>
@@ -321,40 +320,51 @@
       </div>
     </section>
 
-    <!-- ARTIFACTS -->
-    <section id="artifacts" class="relative border-t border-white/10 overflow-hidden">
-      <div class="pointer-events-none absolute inset-0 -z-10">
-        <div class="absolute -top-32 -left-32 h-[520px] w-[520px] rounded-full bg-brand-500/30 blur-[120px]"></div>
-        <div class="absolute top-1/3 -right-32 h-[520px] w-[520px] rounded-full bg-emerald-300/25 blur-[120px]"></div>
-        <div class="absolute bottom-0 left-1/4 h-[420px] w-[420px] rounded-full bg-fuchsia-400/15 blur-[140px]"></div>
+   <!-- ARTIFACTS -->
+<section id="artifacts" class="relative border-t border-white/10 overflow-hidden">
+  <!-- AURORA BACKGROUND -->
+  <div class="pointer-events-none absolute inset-0 -z-10">
+    <div class="absolute -top-32 -left-32 h-[520px] w-[520px] rounded-full bg-brand-500/30 blur-[120px]"></div>
+    <div class="absolute top-1/3 -right-32 h-[520px] w-[520px] rounded-full bg-emerald-300/25 blur-[120px]"></div>
+    <div class="absolute bottom-0 left-1/4 h-[420px] w-[420px] rounded-full bg-fuchsia-400/15 blur-[140px]"></div>
+  </div>
+
+  <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
+    <div class="mx-auto max-w-3xl text-center">
+      <p class="text-xs font-semibold tracking-widest text-brand-400">APPOINTMENT BOOKING</p>
+      <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">
+        How clients book you
+      </h2>
+      <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
+        This video shows the appointment generator in action. It’s the same booking experience you’ll have embedded
+        on your own landing page, so visitors can book you directly — without DMs, emails, or back-and-forth.
+      </p>
+    </div>
+
+    <div class="mx-auto mt-12 max-w-4xl rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft md:p-10">
+      <div class="rounded-2xl border border-white/10 bg-ink-950/60 p-4 overflow-hidden">
+        <video
+          class="w-full rounded-xl border border-white/10 bg-ink-900/60"
+          controls
+          preload="metadata"
+          playsinline
+        >
+          <source src="/assets/vlp-va-starter-track-artifacts.webm" type="video/webm" />
+          Your browser does not support the video tag.
+        </video>
       </div>
 
-      <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
-        <div class="mx-auto max-w-3xl text-center">
-          <p class="text-xs font-semibold tracking-widest text-brand-400">ARTIFACTS</p>
-          <h2 class="mt-4 text-4xl font-extrabold text-white md:text-5xl">This is the type of structure you walk into</h2>
-          <p class="mx-auto mt-5 max-w-2xl text-base text-white/70">
-            Clean intake. Clear assignments. Predictable delivery. No scattered messages.
-          </p>
-        </div>
+      <p class="mx-auto mt-6 max-w-3xl text-center text-sm text-white/65">
+        This appointment generator is embedded inside your booking form.
+        When clients visit your page, they select a service, choose a time, and submit a request —
+        all routed cleanly into the agency workflow.
+      </p>
+    </div>
+  </div>
+</section>
 
-        <div class="mx-auto mt-12 max-w-4xl rounded-2xl border border-white/10 bg-white/5 p-6 shadow-soft md:p-10">
-          <div class="rounded-2xl border border-white/10 bg-ink-950/60 p-4 overflow-hidden">
-            <video
-              class="w-full rounded-xl border border-white/10 bg-ink-900/60"
-              controls
-              preload="metadata"
-              playsinline
-            >
-              <source src="/assets/vlp-va-starter-track-artifacts.webm" type="video/webm" />
-              Your browser does not support the video tag.
-            </video>
-          </div>
-        </div>
-      </div>
-    </section>
 
-    <!-- CHECKOUT -->
+    <!-- CHECKOUT (LEFT = MAIN, RIGHT = REFERRAL) -->
     <section id="checkout" class="border-t border-white/10 bg-ink-950">
       <div class="mx-auto max-w-6-5xl px-4 py-16 md:py-20">
         <div class="mx-auto max-w-3xl text-center">
@@ -365,15 +375,38 @@
           </p>
         </div>
 
-        <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
-          <div class="rounded-xl border border-white/10 bg-ink-900/60 p-4">
-            <div class="vlp-signup-embed">
-              <!-- CHECKOUT FORM (JS EMBED) -->
-              <!-- Replace FORM_ID_CHECKOUT with your actual embed id -->
-              <script src="https://secure.virtuallaunch.pro/frm/2tsobPr8VeraNcRjd.js"></script>
+        <div class="mx-auto mt-10 max-w-6xl">
+          <div class="grid gap-6 md:grid-cols-2">
+            <!-- LEFT: STANDARD CHECKOUT -->
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
+              <div class="text-sm font-extrabold text-white">Standard checkout</div>
+              <p class="mt-2 text-sm text-white/70">
+                Activate access directly.
+              </p>
+
+              <div class="mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
+                <div class="vlp-signup-embed">
+                  <script src="https://secure.virtuallaunch.pro/frm/2tsobPr8VeraNcRjd.js"></script>
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT: REFERRAL CHECKOUT -->
+            <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
+              <div class="text-sm font-extrabold text-white">Referral checkout</div>
+              <p class="mt-2 text-sm text-white/70">
+                Use this if someone referred you.
+              </p>
+
+              <div class="mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
+                <div class="vlp-signup-embed">
+                  <script src="https://secure.virtuallaunch.pro/frm/23davdkPhgJH9Tvih.js"></script>
+                </div>
+              </div>
             </div>
           </div>
         </div>
+
       </div>
     </section>
 
@@ -393,7 +426,7 @@
 
             <div class="mt-10 flex flex-wrap justify-center gap-4">
               <a class="rounded-xl bg-white px-8 py-4 text-sm font-extrabold text-ink-900 hover:bg-white/90" href="#invite">
-                Request invite
+                Book appointment
               </a>
               <a class="rounded-xl border border-white/30 bg-white/10 px-8 py-4 text-sm font-extrabold text-white hover:bg-white/15" href="#checkout">
                 Activate access
