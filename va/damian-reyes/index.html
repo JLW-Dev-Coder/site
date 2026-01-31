@@ -42,8 +42,7 @@
       theme: {
         extend: {
           boxShadow: {
-            soft: "0 10px 30px rgba(0,0,0,0.18)",
-            topbar: "0 18px 50px rgba(0,0,0,0.22)"
+            soft: "0 10px 30px rgba(0,0,0,0.18)"
           },
           colors: {
             brand: { 500: "#f97316", 400: "#fb923c" },
@@ -62,12 +61,11 @@
   <style>
     html { scroll-behavior: smooth; }
 
-    .vlp-space {
+    .vlp-space-bg {
       background:
-        radial-gradient(1100px 760px at 14% 12%, rgba(249,115,22,0.22), transparent 58%),
-        radial-gradient(900px 640px at 82% 76%, rgba(16,185,129,0.14), transparent 60%),
-        radial-gradient(900px 600px at 55% 18%, rgba(255,255,255,0.06), transparent 55%),
-        radial-gradient(1200px 820px at 50% 110%, rgba(255,255,255,0.05), transparent 62%),
+        radial-gradient(1200px 700px at 12% 12%, rgba(249,115,22,0.20), transparent 60%),
+        radial-gradient(1000px 700px at 88% 80%, rgba(16,185,129,0.14), transparent 62%),
+        radial-gradient(900px 600px at 55% 22%, rgba(255,255,255,0.05), transparent 60%),
         linear-gradient(180deg, #070a10 0%, #05070d 100%);
       position: relative;
     }
@@ -107,16 +105,37 @@
       width: 2px;
     }
 
-    .vlp-card {
+    .vlp-glass {
       backdrop-filter: blur(10px);
       background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.10);
     }
 
-    .vlp-hairline {
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.14), transparent);
-      height: 1px;
-      width: 100%;
+    .vlp-card-frame {
+      background: rgba(7,10,16,0.40);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 16px;
+    }
+
+    .vlp-hero-wrap {
+      position: relative;
+    }
+
+    .vlp-hero-img {
+      bottom: 0;
+      height: auto;
+      max-width: 520px;
+      position: absolute;
+      right: 0;
+      width: 48vw;
+    }
+
+    @media (max-width: 1023px) {
+      .vlp-hero-img {
+        margin: 18px auto 0 auto;
+        max-width: 520px;
+        position: static;
+        width: 100%;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -125,20 +144,21 @@
   </style>
 </head>
 
-<body class="vlp-space vlp-stars text-white antialiased">
+<body class="vlp-space-bg vlp-stars text-white antialiased">
   <main id="top">
-    <section class="mx-auto max-w-6-5xl px-4 pb-12 pt-10 md:pb-16">
+    <!-- HERO -->
+    <section class="mx-auto max-w-6-5xl px-4 pb-10 pt-10 md:pb-14">
       <div class="mx-auto max-w-6xl">
-        <div class="mb-6 flex flex-wrap items-center gap-3">
-          <span class="w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
+        <div class="mb-5">
+          <span class="inline-flex w-fit rounded-full border border-white/10 bg-white/5 px-4 py-1 text-xs text-white/80">
             VA Starter Track • Profile Preview
           </span>
         </div>
 
-        <div class="grid gap-8 lg:grid-cols-12">
-          <!-- LEFT -->
-          <div class="lg:col-span-7">
-            <div class="vlp-card rounded-2xl p-8 shadow-soft md:p-10">
+        <div class="vlp-hero-wrap">
+          <div class="grid gap-8 lg:grid-cols-12">
+            <!-- LEFT CONTENT -->
+            <div class="lg:col-span-8">
               <h1 class="text-4xl font-extrabold leading-tight md:text-6xl">
                 Damian Reyes
               </h1>
@@ -149,231 +169,206 @@
 
               <div class="mt-6 flex flex-wrap gap-3">
                 <a
-                  class="rounded-xl bg-brand-500 px-6 py-3 text-xs font-extrabold text-ink-900 hover:bg-brand-400"
+                  class="inline-flex items-center gap-2 rounded-xl bg-brand-500 px-6 py-3 text-xs font-extrabold text-ink-900 hover:bg-brand-400"
                   href="#book"
                 >
+                  <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <path d="M8 7h8M8 11h8M8 15h6" stroke="#070a10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="#070a10" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                  </svg>
                   Book an intro
                 </a>
 
                 <a
-                  class="rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-xs font-extrabold text-white hover:bg-white/10"
+                  class="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/5 px-6 py-3 text-xs font-extrabold text-white hover:bg-white/10"
                   href="#cv"
                 >
+                  <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <path d="M8 7h8M8 11h8M8 15h6" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                  </svg>
                   View CV
                 </a>
               </div>
 
-              <div class="mt-8 grid gap-4 md:grid-cols-3">
-                <div class="rounded-2xl border border-white/10 bg-ink-950/40 p-6">
-                  <div class="text-xs font-extrabold text-white/80">Availability</div>
+              <!-- ONLY THESE THREE HAVE FRAMES -->
+              <div class="mt-7 grid gap-4 md:grid-cols-3">
+                <div class="vlp-card-frame p-5">
+                  <div class="flex items-center gap-2 text-xs font-extrabold text-white/80">
+                    <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <path d="M12 6v6l4 2" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                      <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                    Availability
+                  </div>
                   <div class="mt-2 text-sm font-extrabold">Weekdays</div>
                   <div class="mt-1 text-xs text-white/70">Pacific Time</div>
                 </div>
 
-                <div class="rounded-2xl border border-white/10 bg-ink-950/40 p-6">
-                  <div class="text-xs font-extrabold text-white/80">Best for</div>
+                <div class="vlp-card-frame p-5">
+                  <div class="flex items-center gap-2 text-xs font-extrabold text-white/80">
+                    <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <path d="M7 8h10M7 12h10M7 16h6" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                      <path d="M5 4h14a2 2 0 0 1 2 2v10a4 4 0 0 1-4 4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                    Best for
+                  </div>
                   <div class="mt-2 text-sm text-white/80">
                     Admin ops, inbox cleanup, scheduling
                   </div>
                 </div>
 
-                <div class="rounded-2xl border border-white/10 bg-ink-950/40 p-6">
-                  <div class="text-xs font-extrabold text-white/80">Tools</div>
+                <div class="vlp-card-frame p-5">
+                  <div class="flex items-center gap-2 text-xs font-extrabold text-white/80">
+                    <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <path d="M9 12h6M10 7h4M10 17h4" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                      <path d="M7 4h10a2 2 0 0 1 2 2v14H5V6a2 2 0 0 1 2-2z" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                    </svg>
+                    Tools
+                  </div>
                   <div class="mt-2 text-sm text-white/80">
                     ClickUp, Google Workspace, SuiteDash
                   </div>
                 </div>
               </div>
 
-              <div class="mt-8 vlp-hairline"></div>
-
-              <section id="about" class="mt-8">
-                <div class="flex items-center justify-between gap-4">
-                  <h2 class="text-2xl font-extrabold">About Damian</h2>
-                  <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-extrabold tracking-widest text-white/70">
-                    VERIFIED WORK STYLE
-                  </span>
-                </div>
-
-                <div class="mt-5 rounded-2xl border border-white/10 bg-ink-950/35 p-6">
-                  <p class="text-sm text-white/75 md:text-base">
-                    Damian is a structured Virtual Assistant built for calm execution. He performs best with clear inputs,
-                    defined outcomes, and clean workflows. If your team is overloaded, behind on follow-up, or stuck in inbox chaos,
-                    Damian restores order and delivers client-ready output without creating rework.
-                  </p>
-                </div>
-
-                <div class="mt-4 rounded-2xl border border-white/10 bg-ink-950/35 p-6">
-                  <p class="text-sm text-white/75 md:text-base">
-                    He is trained inside Virtual Launch Pro systems, including SuiteDash portals and ClickUp delivery lanes,
-                    so tasks get tracked, clarified, completed, and closed out with visible progress and clean handoff.
-                  </p>
-                </div>
+              <!-- ABOUT (NO FRAME) -->
+              <section id="about" class="mt-12">
+                <h2 class="text-3xl font-extrabold">About Damian</h2>
+                <p class="mt-4 max-w-3xl text-sm text-white/75 md:text-base">
+                  Damian is a structured Virtual Assistant built for calm execution. He performs best with clear inputs,
+                  defined outcomes, and clean workflows. If your team is overloaded, behind on follow-up, or stuck in inbox chaos,
+                  Damian restores order and delivers client-ready output without creating rework.
+                </p>
               </section>
-            </div>
-          </div>
 
-          <!-- RIGHT (PORTRAIT LIKE PIC 1) -->
-          <div class="lg:col-span-5">
-            <div class="relative">
-              <div class="vlp-card overflow-hidden rounded-2xl shadow-soft">
-                <div class="relative">
-                  <!-- Use your actual avatar path here -->
-                  <!-- Suggested: /assets/va/damian-reyes.png -->
-                  <img
-                    alt="Damian Reyes portrait"
-                    class="h-[560px] w-full object-cover object-center md:h-[660px]"
-                    src="/assets/va/damian-reyes.png"
-                  />
-                  <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink-950/65 via-ink-950/10 to-transparent"></div>
+              <div class="mt-8 vlp-glass rounded-2xl p-6">
+                <div class="flex items-center gap-2 text-sm font-extrabold">
+                  <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <path d="M12 3l3 6 6 .9-4.5 4.4 1.1 6.2-5.6-3-5.6 3 1.1-6.2L3 9.9 9 9z" stroke="#f97316" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                  </svg>
+                  About Damian
                 </div>
+                <p class="mt-3 text-sm text-white/75">
+                  Trained inside Virtual Launch Pro systems, including SuiteDash portals and ClickUp delivery lanes, so tasks get tracked,
+                  clarified, completed, and closed out with visible progress and clean handoff.
+                </p>
               </div>
+            </div>
 
-              <div class="pointer-events-none absolute -left-10 -top-10 h-[260px] w-[260px] rounded-full bg-brand-500/20 blur-[70px]"></div>
+            <!-- RIGHT IMAGE (INTEGRATED) -->
+            <div class="lg:col-span-4">
+              <div class="relative min-h-[520px] lg:min-h-[720px]">
+                <img
+                  alt="Damian Reyes portrait"
+                  class="vlp-hero-img"
+                  src="/assets/va/va-profile-damian-reyes-hero.png"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- SERVICES (MATCH PIC 1 GRID FEEL) -->
-        <section id="services" class="mt-10">
-          <div class="vlp-card rounded-2xl p-8 shadow-soft md:p-10">
-            <h2 class="text-2xl font-extrabold">Services</h2>
+        <!-- SERVICES -->
+        <section id="services" class="mt-14">
+          <h2 class="text-3xl font-extrabold text-brand-500">Services</h2>
 
-            <div class="mt-6 grid gap-4 md:grid-cols-2">
-              <div class="rounded-2xl border border-white/10 bg-ink-950/35 p-6">
-                <div class="text-sm font-extrabold">Calendar operations</div>
-                <ul class="mt-3 space-y-2 text-sm text-white/75">
-                  <li>Booking confirmations</li>
-                  <li>Calendar cleanup</li>
-                  <li>Reminder sequences</li>
-                </ul>
+          <div class="mt-6 grid gap-4 md:grid-cols-2">
+            <div class="vlp-glass rounded-2xl p-6">
+              <div class="flex items-center gap-2 text-sm font-extrabold">
+                <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <path d="M8 7h8M8 11h8M8 15h6" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                  <path d="M7 3h10a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                </svg>
+                Calendar operations
               </div>
-
-              <div class="rounded-2xl border border-white/10 bg-ink-950/35 p-6">
-                <div class="text-sm font-extrabold">Client follow-up</div>
-                <ul class="mt-3 space-y-2 text-sm text-white/75">
-                  <li>Client status updates</li>
-                  <li>Document reminders</li>
-                  <li>Next-step routing</li>
-                </ul>
-              </div>
-
-              <div class="rounded-2xl border border-white/10 bg-ink-950/35 p-6">
-                <div class="text-sm font-extrabold">Inbox triage</div>
-                <ul class="mt-3 space-y-2 text-sm text-white/75">
-                  <li>Labeling and sorting</li>
-                  <li>Priority queues</li>
-                  <li>Response drafting</li>
-                </ul>
-              </div>
-
-              <div class="rounded-2xl border border-white/10 bg-ink-950/35 p-6">
-                <div class="text-sm font-extrabold">SOP execution</div>
-                <ul class="mt-3 space-y-2 text-sm text-white/75">
-                  <li>Checklist-based delivery</li>
-                  <li>Standardized outputs</li>
-                  <li>Task closure notes</li>
-                </ul>
-              </div>
-            </div>
-
-            <div class="mt-8 vlp-hairline"></div>
-
-            <section id="workflow" class="mt-8">
-              <h3 class="text-xl font-extrabold">Workflow</h3>
-              <div class="mt-4 rounded-2xl border border-white/10 bg-ink-950/35 p-6">
-                <ol class="list-decimal space-y-2 pl-5 text-sm text-white/75">
-                  <li>Scope confirmation and deliverable definition</li>
-                  <li>Checklist assignment and timeline alignment</li>
-                  <li>Execution inside ClickUp with status visibility</li>
-                  <li>QA review and client-ready formatting</li>
-                  <li>Delivery, closure notes, and next-step prompt</li>
-                </ol>
-              </div>
-            </section>
-          </div>
-        </section>
-
-        <!-- CV (BUTTON TARGET) -->
-        <section id="cv" class="mt-10">
-          <div class="vlp-card rounded-2xl p-8 shadow-soft md:p-10">
-            <div class="flex flex-wrap items-end justify-between gap-4">
-              <div>
-                <p class="text-xs font-semibold tracking-widest text-brand-400">CV</p>
-                <h2 class="mt-2 text-2xl font-extrabold">Curriculum Vitae</h2>
-              </div>
-              <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[10px] font-extrabold tracking-widest text-white/70">
-                PLACEHOLDER
-              </span>
-            </div>
-
-            <!-- Replace this entire block with your CV content when you send it -->
-            <div class="mt-6 grid gap-4 md:grid-cols-2">
-              <div class="rounded-2xl border border-white/10 bg-ink-950/35 p-6">
-                <div class="text-sm font-extrabold">Highlights</div>
-                <ul class="mt-3 space-y-2 text-sm text-white/75">
-                  <li>Operations-first delivery</li>
-                  <li>Client-ready formatting</li>
-                  <li>Scope confirmation to prevent drift</li>
-                </ul>
-              </div>
-
-              <div class="rounded-2xl border border-white/10 bg-ink-950/35 p-6">
-                <div class="text-sm font-extrabold">Tools</div>
-                <ul class="mt-3 space-y-2 text-sm text-white/75">
-                  <li>ClickUp</li>
-                  <li>Google Workspace</li>
-                  <li>SuiteDash</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- HOW BOOKING WORKS -->
-        <section id="booking-video" class="mt-10">
-          <div class="vlp-card rounded-2xl p-8 shadow-soft md:p-10">
-            <div class="mx-auto max-w-3xl text-center">
-              <p class="text-xs font-semibold tracking-widest text-brand-400">HOW BOOKING WORKS</p>
-              <h2 class="mt-4 text-3xl font-extrabold md:text-4xl">Visitors book you through an embedded appointment generator</h2>
-              <p class="mx-auto mt-5 max-w-2xl text-sm text-white/70 md:text-base">
-                This is the same appointment generator that can be embedded on your own landing page once you join the Starter Track.
-                It allows visitors to book without back-and-forth messages.
-              </p>
-            </div>
-
-            <div class="mx-auto mt-10 max-w-4xl rounded-2xl border border-white/10 bg-ink-950/60 p-4">
-              <video
-                class="w-full rounded-xl border border-white/10 bg-ink-900/60"
-                controls
-                preload="metadata"
-                playsinline
-              >
-                <source src="/assets/vlp-va-starter-track-artifacts.webm" type="video/webm" />
-                Your browser does not support the video tag.
-              </video>
-            </div>
-
-            <div class="mx-auto mt-6 max-w-3xl rounded-2xl border border-white/10 bg-ink-950/35 p-6">
-              <div class="text-sm font-extrabold">What this means for Starter Track VAs</div>
               <ul class="mt-3 space-y-2 text-sm text-white/75">
-                <li>Appointments are captured through embedded forms</li>
-                <li>Bookings route into a clean portal workflow</li>
-                <li>Clients see a structured process, not a freelance scramble</li>
+                <li>Booking confirmations</li>
+                <li>Calendar cleanup</li>
+                <li>Reminder sequences</li>
+              </ul>
+            </div>
+
+            <div class="vlp-glass rounded-2xl p-6">
+              <div class="flex items-center gap-2 text-sm font-extrabold">
+                <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <path d="M7 8h10M7 12h10M7 16h6" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                  <path d="M5 4h14a2 2 0 0 1 2 2v10a4 4 0 0 1-4 4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                </svg>
+                Client follow-up
+              </div>
+              <ul class="mt-3 space-y-2 text-sm text-white/75">
+                <li>Client status updates</li>
+                <li>Document reminders</li>
+                <li>Next-step routing</li>
+              </ul>
+            </div>
+
+            <div class="vlp-glass rounded-2xl p-6">
+              <div class="flex items-center gap-2 text-sm font-extrabold">
+                <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <path d="M4 6h16M4 10h16M4 14h10" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                  <path d="M6 18h8" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                </svg>
+                Inbox triage
+              </div>
+              <ul class="mt-3 space-y-2 text-sm text-white/75">
+                <li>Labeling and sorting</li>
+                <li>Priority queues</li>
+                <li>Response drafting</li>
+              </ul>
+            </div>
+
+            <div class="vlp-glass rounded-2xl p-6">
+              <div class="flex items-center gap-2 text-sm font-extrabold">
+                <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                  <path d="M9 12l2 2 4-6" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                  <path d="M6 6h12v14H6z" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                </svg>
+                SOP execution
+              </div>
+              <ul class="mt-3 space-y-2 text-sm text-white/75">
+                <li>Checklist-based delivery</li>
+                <li>Standardized outputs</li>
+                <li>Task closure notes</li>
               </ul>
             </div>
           </div>
         </section>
 
-        <!-- BOTTOM: BOOK + 2 CHECKOUTS (MOVED TO BOTTOM) -->
-        <section class="mt-10 grid gap-6 lg:grid-cols-12">
-          <section id="book" class="vlp-card rounded-2xl p-6 shadow-soft lg:col-span-4">
-            <div class="text-xs font-semibold tracking-widest text-brand-400">BOOK</div>
-            <h2 class="mt-2 text-lg font-extrabold">Book an intro</h2>
-            <p class="mt-3 text-sm text-white/70">
-              Choose either a demo call or a setup info appointment.
+        <!-- CV -->
+        <section id="cv" class="mt-14">
+          <div class="vlp-glass rounded-2xl p-8 md:p-10">
+            <p class="text-xs font-semibold tracking-widest text-brand-400">CV</p>
+            <h2 class="mt-3 text-3xl font-extrabold">Curriculum Vitae</h2>
+            <p class="mt-4 max-w-3xl text-sm text-white/70 md:text-base">
+              Paste your CV section content here and I will replace the placeholder blocks below.
             </p>
 
+            <div class="mt-8 grid gap-4 md:grid-cols-2">
+              <div class="vlp-glass rounded-2xl p-6">
+                <div class="text-sm font-extrabold">Experience</div>
+                <p class="mt-2 text-sm text-white/70">Placeholder.</p>
+              </div>
+              <div class="vlp-glass rounded-2xl p-6">
+                <div class="text-sm font-extrabold">Skills</div>
+                <p class="mt-2 text-sm text-white/70">Placeholder.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- BOTTOM FORMS (BOOK + CHECKOUTS) -->
+        <section class="mt-14 grid gap-6 lg:grid-cols-12">
+          <section id="book" class="vlp-glass rounded-2xl p-6 shadow-soft lg:col-span-4">
+            <div class="flex items-center gap-2 text-xs font-semibold tracking-widest text-brand-400">
+              <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <path d="M12 6v6l4 2" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+              BOOK
+            </div>
+            <h2 class="mt-2 text-lg font-extrabold">Book an intro</h2>
             <div class="mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
               <div class="vlp-signup-embed">
                 <script src="https://secure.virtuallaunch.pro/frm/24YCVCM33WMidzDw1.js"></script>
@@ -381,28 +376,31 @@
             </div>
           </section>
 
-          <section id="checkout-a" class="vlp-card rounded-2xl p-6 shadow-soft lg:col-span-4">
-            <div class="text-xs font-semibold tracking-widest text-brand-400">CHECKOUT</div>
+          <section id="checkout-a" class="vlp-glass rounded-2xl p-6 shadow-soft lg:col-span-4">
+            <div class="flex items-center gap-2 text-xs font-semibold tracking-widest text-brand-400">
+              <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <path d="M7 8h10M7 12h10M7 16h6" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                <path d="M5 4h14a2 2 0 0 1 2 2v10a4 4 0 0 1-4 4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+              CHECKOUT
+            </div>
             <h2 class="mt-2 text-lg font-extrabold">Activate access</h2>
-            <p class="mt-3 text-sm text-white/70">
-              Complete checkout to activate Starter Track access.
-            </p>
-
             <div class="mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
               <div class="vlp-signup-embed">
-                <!-- Replace with your “Activate access” checkout embed if different -->
                 <script src="https://secure.virtuallaunch.pro/frm/23davdkPhgJH9Tvih.js"></script>
               </div>
             </div>
           </section>
 
-          <section id="checkout-b" class="vlp-card rounded-2xl p-6 shadow-soft lg:col-span-4">
-            <div class="text-xs font-semibold tracking-widest text-brand-400">CHECKOUT</div>
+          <section id="checkout-b" class="vlp-glass rounded-2xl p-6 shadow-soft lg:col-span-4">
+            <div class="flex items-center gap-2 text-xs font-semibold tracking-widest text-brand-400">
+              <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24">
+                <path d="M12 21s-6-3.3-6-10V6l6-3 6 3v5c0 6.7-6 10-6 10z" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+                <path d="M10 12h4" stroke="#fb923c" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+              </svg>
+              CHECKOUT
+            </div>
             <h2 class="mt-2 text-lg font-extrabold">Use a referral checkout link</h2>
-            <p class="mt-3 text-sm text-white/70">
-              If you were sent a referral link, complete checkout here.
-            </p>
-
             <div class="mt-5 rounded-xl border border-white/10 bg-ink-900/60 p-4">
               <div class="vlp-signup-embed">
                 <script src="https://secure.virtuallaunch.pro/frm/23davdkPhgJH9Tvih.js"></script>
@@ -411,88 +409,17 @@
           </section>
         </section>
 
-        <!-- WANT YOUR OWN PAGE (BOTTOM) -->
-        <section class="mt-6">
-          <div class="vlp-card rounded-2xl p-8 shadow-soft md:p-10">
-            <div class="text-xs font-semibold tracking-widest text-brand-400">STARTER TRACK</div>
-            <h2 class="mt-2 text-2xl font-extrabold">Want your own page like this one?</h2>
-            <p class="mt-3 max-w-3xl text-sm text-white/70 md:text-base">
-              Join the VA Starter Track to get verified opportunities, a clean portal workflow, and embedded booking that converts visitors into appointments.
-            </p>
-
-            <div class="mt-6 flex flex-wrap gap-3">
-              <a
-                class="rounded-xl bg-brand-500 px-5 py-3 text-xs font-extrabold text-ink-900 hover:bg-brand-400"
-                href="/lp/va-starter-track/#invite"
-              >
-                Request invite
-              </a>
-              <a
-                class="rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-xs font-extrabold text-white hover:bg-white/10"
-                href="/lp/va-starter-track/#checkout"
-              >
-                Activate access
-              </a>
-            </div>
-
-            <p class="mt-6 text-xs text-white/60">
-              This is a sample VA profile preview inside Virtual Launch Pro. Availability, timelines, and scope are confirmed before work begins.
-            </p>
-          </div>
+        <!-- WANT YOUR OWN PAGE -->
+        <section class="mt-6 border-t border-white/10 pt-8">
+          <p class="text-sm text-white/70">
+            Want your own page like this one?
+          </p>
+          <p class="mt-2 text-xs text-white/60">
+            This is a sample VA profile preview inside Virtual Launch Pro. Availability, timelines, and scope are confirmed before work begins.
+          </p>
         </section>
       </div>
     </section>
   </main>
-
-  <script>
-    (function () {
-      function runScripts(container) {
-        var scripts = container.querySelectorAll("script");
-        scripts.forEach(function (oldScript) {
-          var newScript = document.createElement("script");
-
-          for (var i = 0; i < oldScript.attributes.length; i++) {
-            var attr = oldScript.attributes[i];
-            newScript.setAttribute(attr.name, attr.value);
-          }
-
-          if (!oldScript.src) {
-            newScript.text = oldScript.textContent || "";
-          }
-
-          oldScript.parentNode.replaceChild(newScript, oldScript);
-        });
-      }
-
-      function loadIncludes() {
-        var nodes = Array.prototype.slice.call(document.querySelectorAll("[data-include]"));
-        if (!nodes.length) return;
-
-        nodes.forEach(function (node) {
-          var key = node.getAttribute("data-include");
-          var url = "/partials/" + key + ".html";
-
-          fetch(url, { cache: "no-store" })
-            .then(function (res) {
-              if (!res.ok) throw new Error("Include failed: " + url);
-              return res.text();
-            })
-            .then(function (html) {
-              node.innerHTML = html;
-              runScripts(node);
-            })
-            .catch(function (err) {
-              console.error(err);
-            });
-        });
-      }
-
-      if (document.readyState === "loading") {
-        document.addEventListener("DOMContentLoaded", loadIncludes);
-      } else {
-        loadIncludes();
-      }
-    })();
-  </script>
 </body>
 </html>
