@@ -85,8 +85,7 @@
     @media (min-width: 768px) { .vlp-header-spacer { height: 72px; } }
 
     /* =========================================================
-       EMBED HEIGHT FIX (FOR SUITEDASH FORM/CO CHECKOUT EMBEDS)
-       Ensures injected iframes show full checkout steps.
+       EMBED HEIGHT FIX (SUITEDASH CHECKOUT EMBEDS)
        ========================================================= */
     .vlp-signup-embed {
       height: 980px;
@@ -107,6 +106,28 @@
       display: block !important;
       height: 980px !important;
       min-height: 980px !important;
+      max-height: none !important;
+      width: 100% !important;
+    }
+
+    /* =========================================================
+       APPOINTMENT EMBED HEIGHT (REDUCE EXTRA SPACE)
+       ========================================================= */
+    .vlp-signup-embed--appt {
+      height: 640px;
+      min-height: 640px;
+    }
+
+    .vlp-signup-embed--appt > div,
+    .vlp-signup-embed--appt > span {
+      height: 640px !important;
+      min-height: 640px !important;
+      width: 100% !important;
+    }
+
+    .vlp-signup-embed--appt iframe {
+      height: 640px !important;
+      min-height: 640px !important;
       max-height: none !important;
       width: 100% !important;
     }
@@ -182,7 +203,7 @@
         </div>
 
         <div class="mt-14 grid gap-8 md:grid-cols-3">
-          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft acknowledge">
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
             <h3 class="text-lg font-extrabold text-white">Access specialized skills</h3>
             <p class="mt-3 text-sm text-white/70">Grow your talent with courses tailored to your business niche.</p>
           </div>
@@ -455,7 +476,7 @@
 
         <div class="mx-auto mt-10 max-w-3xl rounded-2xl border border-white/10 bg-white/5 p-8 shadow-soft">
           <div class="rounded-xl border border-white/10 bg-ink-700/60 p-4">
-            <div class="vlp-signup-embed">
+            <div class="vlp-signup-embed vlp-signup-embed--appt">
               <script src="https://secure.virtuallaunch.pro/frm/24YCVCM33WMidzDw1.js"></script>
             </div>
           </div>
