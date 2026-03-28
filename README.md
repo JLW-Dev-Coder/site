@@ -49,16 +49,6 @@
 | Support Level                         | Community                    | Priority Email + Slack          |
 | Support Tickets                       | ✓                            | ✓                               |
 
-------------------------------------- | ---------------------------- | -------------------------------- |
-| Community Support & Resources         | ✓                            | ✓                                |
-| Curated Client Introductions (3–5/mo) | —                            | ✓                                |
-| Direct Messaging with Clients         | ✓                            | ✓                                |
-| Profile Optimization Review           | —                            | ✓                                |
-| Profile Visibility                    | ✓                            | ✓                                |
-| Project Browsing Access               | ✓                            | ✓                                |
-| Support Level                         | Community                    | Priority Email + Slack           |
-| 1-on-1 Kickoff Consultation           | —                            | ✓                                |
-
 ---
 
 ### Games Virtual Launch Pro (GVLP)
@@ -73,11 +63,6 @@
 | Support Level             | Basic support  | Email support      | Priority support    | Dedicated support       |
 | Support Tickets           | ✓              | ✓                  | ✓                   | ✓                       |
 | Tokens / Month            | 50 tokens      | 500 tokens         | 1,500 tokens        | 750 tokens              |
-
--------------------- | -------------- | ------------------- | -------------------- | ------------------------ |
-| Games Included       | 1 game         | 3 games             | 5 games              | All games                |
-| Support Level        | Basic support  | Email support       | Priority support     | Dedicated support        |
-| Tokens / Month       | 50 tokens      | 500 tokens          | 1,500 tokens         | 750 tokens               |
 
 ---
 
@@ -96,14 +81,6 @@
 | Profile Management                   | ✓             |
 | Support Tickets                      | ✓             |
 | Unlimited Client Access              | ✓             |
-
------------------------------------- | -------------- |
-| Auto Form 843 Generator              | ✓              |
-| Cancel Anytime (No Contract)         | ✓              |
-| Fully Branded Page (Logo + Colors)   | ✓              |
-| IRS Mailing Instructions (Per State) | ✓              |
-| Mobile Responsive & Print-Ready      | ✓              |
-| Unlimited Client Access              | ✓              |
 
 ---
 
@@ -193,14 +170,6 @@
 | Premium Domain Hosting    | ✓             |
 | Profile Management        | ✓             |
 | Support Tickets           | ✓             |
-
------------------------ | -------------- |
-| Cloudflare Security     | ✓              |
-| Easy Transfer Anytime   | ✓              |
-| High-Converting Website | ✓              |
-| Mobile Optimized        | ✓              |
-| Payment Integration     | ✓              |
-| Premium Domain Hosting  | ✓              |
 
 ---
 
