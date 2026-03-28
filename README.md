@@ -2,36 +2,11 @@
 
 ## Table of Contents
 
-- [Current Build State](#current-build-state)
 - [Memberships and Plans](#memberships-and-plans)
 - [Architecture and Write Pipeline](#architecture-and-write-pipeline)
 - [Platform Responsibilities](#platform-responsibilities)
 - [Route Surface and Storage Map](#route-surface-and-storage-map)
 - [Integrations](#integrations)
-
----
-
-## Current Build State
-
-Last updated: Phase 15 complete (post-CVE-2025-66478 Next.js patch)
-
-### Completed Phases
-
-- Phase 1: Next.js scaffold in /web (layouts, Tailwind, App Router)
-- Phase 2: React components from HTML partials
-- Phase 3: Cloudflare Worker — 64-route scaffold (deny-by-default)
-- Phase 4: Dashboard pages (account, calendar, receipts, support, token-usage)
-- Phase 5: Worker auth routes (Google OAuth, magic link, SSO, 2FA)
-- Phase 6: Worker Stripe billing (hosted + embedded checkout, webhooks)
-- Phase 7: Worker Cal.com (OAuth, bookings, profiles, webhook)
-- Phase 8: D1 migrations (15 files — NOTE: VLP has a duplicate 0002_ prefix and no 0014_*.sql; use clean sequential numbering in TMP/TTMP/TTTMP repos)
-- Phase 9: Frontend wired to live Worker (HttpOnly cookie session)
-- Phase 10: Deployed — virtuallaunch.pro live on Cloudflare Pages
-- Phase 11: All 64 Worker routes implemented (zero stubs)
-- Phase 12: Sign-in page (magic link + Google OAuth + verify flow)
-- Phase 13: Auth guard on dashboard routes
-- Phase 14: Marketing pages (about, pricing, features, how-it-works, contact)
-- Phase 15: Next.js security patch (CVE-2025-66478)
 
 ### Live URLs
 
