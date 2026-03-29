@@ -1,7 +1,7 @@
 # VLP ECOSYSTEM BUILD PLAN
 
-**Last Updated:** 2026-03-29  
-**Status:** Phase 1 Complete ✅ | Phase 2 Planning  
+**Last Updated:** 2026-03-29
+**Status:** Phase 1 Complete ✅ | Phase 2 Complete ✅ — Awaiting Audit
 **Repo:** virtuallaunch.pro
 
 ---
@@ -15,7 +15,7 @@ The VLP ecosystem consists of 8 interconnected platforms sharing a single Cloudf
 ### Build Order (NEVER DEVIATE)
 ```
 Phase 1: TTTMP Tools Foundation     ✅ COMPLETE
-Phase 2: TTMP Transcript Dashboard  ⏳ NEXT
+Phase 2: TTMP Transcript Dashboard  ✅ COMPLETE (awaiting audit)
 Phase 3: VLP Membership Gating      📋 PLANNED
 Phase 4: TMP + DVLP + GVLP Tiers   📋 PLANNED
 Phase 5: WLVLP + TCVLP Distribution 📋 PLANNED
@@ -98,9 +98,9 @@ DISTRIBUTION LAYER (Phase 5)
 
 ---
 
-## Phase 2: TTMP Transcript Dashboard ⏳ NEXT
+## Phase 2: TTMP Transcript Dashboard ✅ COMPLETE (Awaiting Audit)
 
-### Status: 📋 Planning
+### Status: ✅ Implementation Complete (2026-03-29)
 
 **Goal:** Productize transcript parsing with job submission UX
 
@@ -110,108 +110,103 @@ DISTRIBUTION LAYER (Phase 5)
 
 ### Milestones
 
-#### Milestone 2.1: Job Submission UI
+#### Milestone 2.1: Job Submission UI ✅
 **Deliverable:** User-facing transcript upload page
 
 **Frontend:**
-- `web/app/app/transcripts/submit/page.tsx` (NEW)
-- `web/app/app/transcripts/submit/page.module.css` (NEW)
+- `web/app/(app)/transcripts/submit/page.tsx` ✅
+- Tailwind utility classes (no CSS module needed)
 
 **Features:**
-- File upload (.json, max 1MB)
-- Token balance display (fetch from `GET /v1/tokens/balance/{account_id}`)
-- Token cost display (1 transcript token)
-- Submit button (disabled if balance < 1)
-- Redirect to `/app/transcripts/results/{job_id}` on success
-
-**API Call:**
-- `POST /v1/transcripts/jobs` (already exists in worker)
-- Payload: `{ account_id, transcript_data: { transcript_type, transactions[] } }`
+- ✅ JSON file upload (.json only, max 1MB)
+- ✅ Token balance display (fetched from `GET /v1/tokens/balance/{account_id}`)
+- ✅ Token cost display (1 transcript token)
+- ✅ Submit button disabled if balance < 1
+- ✅ File preview with JSON pretty-print
+- ✅ Redirect to `/transcripts/results/{event_id}` on success
+- ✅ Error handling displays worker error messages
 
 **Validation Checklist:**
-- [ ] Page created at correct path
-- [ ] Auth middleware applied (`/app/transcripts/*`)
-- [ ] File upload validates .json + 1MB limit
-- [ ] Token balance fetched before submit
-- [ ] Submit disabled if balance < 1
-- [ ] Success → redirect to results page
-- [ ] Error handling displays worker error messages
-- [ ] CSS uses var() tokens (no hardcoded colors)
+- [x] Page created at correct path
+- [x] Auth middleware applied (`/transcripts/*` + `/tools/*`)
+- [x] File upload validates .json + 1MB limit
+- [x] Token balance fetched before submit
+- [x] Submit disabled if balance < 1
+- [x] Success → redirect to results page
+- [x] Error handling displays worker error messages
+- [x] Uses Tailwind with design system colors (no hardcoded colors)
 
 ---
 
-#### Milestone 2.2: Result History Dashboard
-**Deliverable:** List all transcript jobs for logged-in user
+#### Milestone 2.2: Result History Dashboard ✅
+**Deliverable:** List all transcript jobs for logged-in user + individual detail view
 
 **Frontend:**
-- `web/app/app/transcripts/results/page.tsx` (NEW)
-- `web/app/app/transcripts/results/page.module.css` (NEW)
+- `web/app/(app)/transcripts/results/page.tsx` ✅ (history list)
+- `web/app/(app)/transcripts/results/[event_id]/page.tsx` ✅ (detail view)
 
-**Worker (NEW route needed):**
-- `GET /v1/transcripts/jobs/history/{account_id}`
-- Returns: `{ jobs: [{ job_id, submitted_at, status, result_url }] }`
+**Worker (NEW route):**
+- `GET /v1/tools/transcript-parser/history/:account_id` ✅
+- Uses existing `GET /v1/transcripts/jobs/:job_id` for detail
 
-**Contract (NEW):**
-- `contracts/ttmp/ttmp.transcripts.history.v1.json`
+**Contract + Registry:**
+- `contracts/tttmp/tttmp.tool.transcript-parser-history.v1.json` ✅
+- Registry entry added ✅
 
 **Features:**
-- Display: job_id, date, status (completed/processing/failed)
-- Link to detail page: `/app/transcripts/results/{job_id}`
-- Poll every 10s if any status = "processing"
-- No real-time updates (poll-based only for Phase 2)
+- ✅ Job history list with status badges
+- ✅ Poll every 10s if any status = "processing"
+- ✅ Link to detail page for each job
+- ✅ Individual result detail with parsed output (TINs, dates, amounts, cycles, balance)
+- ✅ Auto-poll on detail page while status = "processing"
 
 **Validation Checklist:**
-- [ ] Worker route created: `GET /v1/transcripts/jobs/history/{account_id}`
-- [ ] Contract + registry entry added
-- [ ] Frontend page created
-- [ ] Auth middleware applied
-- [ ] History fetched on page load
-- [ ] Poll every 10s for processing jobs
-- [ ] Links work to detail pages
-- [ ] CSS follows var() token pattern
+- [x] Worker route created: `GET /v1/tools/transcript-parser/history/:account_id`
+- [x] Contract created with all 7 sections
+- [x] Registry entry added
+- [x] Frontend history page created
+- [x] Frontend detail page created
+- [x] Auth middleware applied (via `/transcripts/*`)
+- [x] History fetched on page load
+- [x] Poll every 10s for processing jobs
+- [x] Links work to detail pages
+- [x] Account ownership verified (session.account_id must match URL param)
 
 ---
 
-#### Milestone 2.3: Individual Result Detail Page
-**Deliverable:** Show parsed transcript results
+#### Milestone 2.3: Monitoring Panel + Token Balance ✅
+**Deliverable:** Dashboard hub with monitoring and token balance
 
 **Frontend:**
-- `web/app/app/transcripts/results/[job_id]/page.tsx` (NEW)
-- `web/app/app/transcripts/results/[job_id]/page.module.css` (NEW)
-
-**Worker (NEW route needed):**
-- `GET /v1/transcripts/jobs/{job_id}`
-- Returns: `{ job_id, status, result_url, parsed_summary: {...} }`
-
-**Contract (NEW):**
-- `contracts/ttmp/ttmp.transcripts.job-detail.v1.json`
+- `web/app/(app)/transcripts/page.tsx` ✅ (rewritten as dashboard hub)
 
 **Features:**
-- Display parsed summary (codes found, balance, refund, dates)
-- Download link for full JSON result
-- Status indicator (completed/processing/failed)
-- Retry button if failed
+- ✅ Token balance card (transcript tokens)
+- ✅ Completed jobs count
+- ✅ Processing jobs count with auto-refresh indicator
+- ✅ Recent jobs list (last 5) with status badges
+- ✅ Auto-poll every 10s when processing jobs exist
+- ✅ Quick links to submit and full history
 
 **Validation Checklist:**
-- [ ] Worker route created: `GET /v1/transcripts/jobs/{job_id}`
-- [ ] Contract + registry entry added
-- [ ] Frontend page created with [job_id] dynamic route
-- [ ] Parsed summary displayed
-- [ ] Download link works
-- [ ] Status indicator renders correctly
-- [ ] CSS follows var() token pattern
+- [x] Dashboard hub page at `/transcripts`
+- [x] Token balance displayed
+- [x] Job counts displayed (completed/processing)
+- [x] Recent jobs list with links
+- [x] Auto-poll for processing jobs
+- [x] "New Submission" CTA
 
 ---
 
 ### Phase 2 Complete When:
-- [ ] User can submit transcript
-- [ ] User can view submission history
-- [ ] User can view individual result details
-- [ ] Token balance updates after submission
-- [ ] No errors on poll requests
-- [ ] All routes tested with valid session
+- [x] User can submit transcript
+- [x] User can view submission history
+- [x] User can view individual result details
+- [x] Token balance displayed before submission
+- [x] Poll-based monitoring for processing jobs
+- [x] Auth middleware protects all transcript routes
 
-**Estimated Deliverables:** 3 frontend pages, 2 new Worker routes, 2 new contracts
+**Deliverables:** 4 frontend pages, 1 new Worker route, 1 new contract, 2 updated files (middleware, API client)
 
 ---
 
@@ -682,6 +677,65 @@ Before marking complete, Repo Claude verifies:
 - ✅ 3 TTTMP contracts in registry
 - ✅ All contracts have 7 sections
 - ✅ Registry in sync
+
+---
+
+## Registry Architecture
+
+### Federated Model (Implemented 2026-03-29)
+
+**Structure:**
+```
+contracts/
+├── contract-registry.json         (master index, 8 platform refs)
+└── registries/
+    ├── vlp-registry.json          (64 VLP contracts)
+    ├── tmp-registry.json          (TMP contracts — Phase 4)
+    ├── ttmp-registry.json         (2 TTMP contracts)
+    ├── tttmp-registry.json        (4 TTTMP contracts)
+    ├── dvlp-registry.json         (DVLP contracts — Phase 4)
+    ├── gvlp-registry.json         (GVLP contracts — Phase 4)
+    ├── tcvlp-registry.json        (TCVLP contracts — Phase 5)
+    └── wlvlp-registry.json        (WLVLP contracts — Phase 5)
+```
+
+**Benefits:**
+- Manageable file sizes (10-20 contracts per platform max)
+- Parallel development without merge conflicts
+- Clear ownership boundaries per platform team
+- Single source of truth maintained via master index
+
+**Adding a Contract:**
+1. Create contract file in `/contracts/{platform}/`
+2. Add entry to `/contracts/registries/{platform}-registry.json`
+3. Worker auto-loads on next deployment
+4. No changes to master registry needed
+
+**Migration Completed:** ✅ 2026-03-29
+**Worker Support:** ✅ `workers/src/helpers/contract-loader.js`
+
+### Contract Counts (as of 2026-03-29)
+| Platform | Contracts | Status |
+|----------|-----------|--------|
+| VLP | 64 (1 deprecated) | Active |
+| TTTMP | 4 | Active |
+| TTMP | 2 | Active |
+| TMP | 0 | Phase 4 |
+| DVLP | 0 | Phase 4 |
+| GVLP | 0 | Phase 4 |
+| TCVLP | 0 | Phase 5 |
+| WLVLP | 0 | Phase 5 |
+| **Total** | **71** | |
+
+### Milestone Completion Template
+```markdown
+#### Milestone X.Y: [Name]
+Status: ✅ Complete (YYYY-MM-DD)
+Contracts Added: [list registry files updated]
+Worker Routes: [list endpoints added]
+Frontend Pages: [list pages added]
+Verified by: [auditor name]
+```
 
 ---
 

@@ -1,0 +1,42 @@
+{
+  "platform": "ttmp",
+  "name": "Transcript Tax Monitor",
+  "version": "1.0",
+  "lastUpdated": "2026-03-29",
+  "contracts": [
+    {
+      "id": "transcripts_job_submit",
+      "path": "/contracts/transcripts/transcripts.job.submit.v1.json",
+      "endpoint": "https://api.virtuallaunch.pro/v1/transcripts/jobs",
+      "method": "POST",
+      "status": "active",
+      "category": "form",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "payload.eventId",
+      "receiptSource": "transcripts_job",
+      "receiptKeyPattern": "receipts/transcripts/{eventId}.json",
+      "usedOnPages": ["/transcripts"],
+      "version": 1,
+      "writes": ["ttmp_transcript_jobs", "ttmp_transcript_results", "tokens"],
+      "addedDate": "2026-03-29"
+    },
+    {
+      "id": "transcripts_job_get",
+      "path": "/contracts/transcripts/transcripts.job.get.v1.json",
+      "endpoint": "https://api.virtuallaunch.pro/v1/transcripts/jobs/{jobId}",
+      "method": "GET",
+      "status": "active",
+      "category": "read-model",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "N/A",
+      "receiptSource": "N/A",
+      "receiptKeyPattern": "N/A",
+      "usedOnPages": ["/transcripts"],
+      "version": 1,
+      "writes": [],
+      "addedDate": "2026-03-29"
+    }
+  ]
+}

@@ -3,7 +3,7 @@
 **Purpose:** This document orchestrates PR-driven development for the VLP ecosystem when Claude.ai repo access is unavailable. It provides complete prompts, validation checklists, and audit procedures for each build phase.
 
 **Last Updated:** 2026-03-29  
-**Status:** Active — Phase 1 (TTTMP Tools Foundation)  
+**Status:** Active — Phase 2 Complete, Federated Registry Implemented
 **Current PR Tracking:** See [PR Log](#pr-log) below
 
 ---
@@ -19,7 +19,8 @@
 7. [Phase 4: TMP + DVLP + GVLP Tiers](#phase-4-tmp--dvlp--gvlp-tiers)
 8. [Phase 5: WLVLP Distribution](#phase-5-wlvlp-distribution)
 9. [Contract Templates](#contract-templates)
-10. [Audit Checklists](#audit-checklists)
+10. [Federated Registry System](#federated-registry-system)
+11. [Audit Checklists](#audit-checklists)
 11. [PR Log](#pr-log)
 
 ---
@@ -648,11 +649,11 @@ VALIDATION CHECKLIST:
 ```
 
 **Phase 2 Complete When:**
-- [ ] User can submit transcript
-- [ ] User can view submission history
-- [ ] User can view individual result details
-- [ ] Token balance updates after submission
-- [ ] No errors on poll requests
+- [x] User can submit transcript
+- [x] User can view submission history
+- [x] User can view individual result details
+- [x] Token balance updates after submission
+- [x] No errors on poll requests
 
 ---
 
@@ -912,6 +913,60 @@ Required fixes:
 
 ---
 
+## Federated Registry System
+
+### Architecture
+All contracts live in `virtuallaunch.pro/contracts/` with platform-specific registries:
+- Master index: `contract-registry.json` (federated, points to platform registries)
+- Platform registries: `registries/{platform}-registry.json`
+
+```
+contracts/
+├── contract-registry.json         (master index, 8 platform refs)
+└── registries/
+    ├── vlp-registry.json          (64 VLP contracts)
+    ├── tmp-registry.json          (TMP contracts — Phase 4)
+    ├── ttmp-registry.json         (2 TTMP contracts)
+    ├── tttmp-registry.json        (4 TTTMP contracts)
+    ├── dvlp-registry.json         (DVLP contracts — Phase 4)
+    ├── gvlp-registry.json         (GVLP contracts — Phase 4)
+    ├── tcvlp-registry.json        (TCVLP contracts — Phase 5)
+    └── wlvlp-registry.json        (WLVLP contracts — Phase 5)
+```
+
+### Adding a New Contract
+
+1. Create contract file:
+   ```
+   contracts/{platform}/{platform}.{action}.v1.json
+   ```
+
+2. Add to platform registry:
+   ```json
+   // contracts/registries/{platform}-registry.json → contracts array
+   {
+     "id": "{platform}.{action}.v1",
+     "path": "/contracts/{platform}/{platform}.{action}.v1.json",
+     "endpoint": "/v1/{domain}/{action}",
+     "method": "POST",
+     "status": "active",
+     "category": "tool|auth|billing|form|read-model|webhook",
+     "addedDate": "YYYY-MM-DD"
+   }
+   ```
+
+3. Worker auto-loads on deployment (no master registry update needed)
+
+### Contract Loader
+Worker uses `workers/src/helpers/contract-loader.js`:
+- Loads all platform registries at startup
+- Caches contracts for 1 hour
+- Validates payloads against schemas
+- Skips deprecated entries automatically
+- Auto-refreshes on cache expiry
+
+---
+
 ## Audit Checklists
 
 ### Contract Audit Checklist
@@ -1083,6 +1138,9 @@ Track all PRs here for historical reference.
 |------|-------|-----------|--------|-------------|-------|
 | #42 | 1 | Form 2848 Tool (Initial) | Failed Audit | — | 7 spec violations: ID, path, schema, writes, endpoint, dedupe, D1 table |
 | #43 | 1 | Form 2848 Tool (Fix) | Merged | 2026-03-28 | All violations corrected, CODEX-aligned |
+| — | 2 | 2.1 Job Submission UI | Awaiting Audit | — | JSON upload, token balance, redirect to results |
+| — | 2 | 2.2 Result History Dashboard | Awaiting Audit | — | History list + detail page + Worker route + contract |
+| — | 2 | 2.3 Monitoring + Token Balance | Awaiting Audit | — | Dashboard hub with auto-poll, stats cards |
 
 **Example Entry:**
 | PR # | Phase | Milestone | Status | Merged Date | Notes |

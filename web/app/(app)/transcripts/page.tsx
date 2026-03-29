@@ -1,227 +1,208 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
 
-type TranscriptType = 'account' | 'record_of_account' | 'return' | 'wage_and_income'
-
-interface ExtractedFields {
-  tins: string[]
-  dates: string[]
-  amounts: string[]
-  cycles: string[]
-  accountBalance: string | null
-  withheld: string | null
+interface TokenBalanceData {
+  transcriptTokens: number
+  taxGameTokens: number
 }
 
-interface TranscriptResult {
-  jobId: string
-  transcriptType: TranscriptType
-  taxYear: number | null
-  parsedAt: string
-  extractedFields: ExtractedFields
-  lineCount: number
-  charCount: number
+interface RecentJob {
+  job_id: string
+  transcript_type: string
+  tax_year: number | null
+  status: 'completed' | 'processing' | 'failed' | 'pending'
+  created_at: string
 }
 
-const TYPE_LABELS: Record<TranscriptType, string> = {
+const TYPE_LABELS: Record<string, string> = {
   account: 'Account Transcript',
-  record_of_account: 'Record of Account',
   return: 'Return Transcript',
-  wage_and_income: 'Wage & Income Transcript',
+  wage_income: 'Wage & Income',
+  record: 'Record of Account',
+  record_of_account: 'Record of Account',
+  wage_and_income: 'Wage & Income',
 }
 
-export default function TranscriptsPage() {
-  const [transcriptText, setTranscriptText] = useState('')
-  const [transcriptType, setTranscriptType] = useState<TranscriptType>('account')
-  const [taxYear, setTaxYear] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<TranscriptResult | null>(null)
+const STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  completed: { bg: 'bg-emerald-900/60', text: 'text-emerald-300', label: 'Completed' },
+  processing: { bg: 'bg-amber-900/60', text: 'text-amber-300', label: 'Processing' },
+  pending: { bg: 'bg-slate-700/60', text: 'text-slate-300', label: 'Pending' },
+  failed: { bg: 'bg-red-900/60', text: 'text-red-300', label: 'Failed' },
+}
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setError(null)
-    setResult(null)
-    setSubmitting(true)
+export default function TranscriptsDashboardPage() {
+  const [balance, setBalance] = useState<TokenBalanceData | null>(null)
+  const [recentJobs, setRecentJobs] = useState<RecentJob[]>([])
+  const [loading, setLoading] = useState(true)
+  const [accountId, setAccountId] = useState<string | null>(null)
+
+  const fetchData = useCallback(async () => {
     try {
-      const body: Record<string, unknown> = {
-        eventId: crypto.randomUUID(),
-        transcriptText,
-        transcriptType,
-      }
-      if (taxYear) body.taxYear = parseInt(taxYear, 10)
-
-      const res = await fetch('https://api.virtuallaunch.pro/v1/transcripts/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      // Get session
+      const sessionRes = await fetch('https://api.virtuallaunch.pro/v1/auth/session', {
         credentials: 'include',
-        body: JSON.stringify(body),
       })
-      const data = await res.json()
-      if (!res.ok || !data.ok) {
-        setError(data.message ?? data.error ?? 'Submission failed.')
-        return
+      const sessionData = await sessionRes.json()
+      if (!sessionData.ok) return
+
+      const acctId = sessionData.session.account_id
+      setAccountId(acctId)
+
+      // Fetch balance and history in parallel
+      const [balRes, histRes] = await Promise.all([
+        fetch(`https://api.virtuallaunch.pro/v1/tokens/balance/${acctId}`, {
+          credentials: 'include',
+        }),
+        fetch(`https://api.virtuallaunch.pro/v1/tools/transcript-parser/history/${acctId}`, {
+          credentials: 'include',
+        }),
+      ])
+
+      const balData = await balRes.json()
+      if (balData.ok) {
+        setBalance({
+          transcriptTokens: balData.balance.transcriptTokens,
+          taxGameTokens: balData.balance.taxGameTokens,
+        })
       }
-      setResult(data.result as TranscriptResult)
+
+      const histData = await histRes.json()
+      if (histData.ok) {
+        setRecentJobs((histData.jobs ?? []).slice(0, 5))
+      }
     } catch {
-      setError('Network error. Please try again.')
+      // Fail silently on dashboard
     } finally {
-      setSubmitting(false)
+      setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
+
+  // Poll if any jobs processing
+  useEffect(() => {
+    const hasProcessing = recentJobs.some((j) => j.status === 'processing')
+    if (!hasProcessing) return
+    const interval = setInterval(fetchData, 10_000)
+    return () => clearInterval(interval)
+  }, [recentJobs, fetchData])
+
+  const totalJobs = recentJobs.length
+  const completedJobs = recentJobs.filter((j) => j.status === 'completed').length
+  const processingJobs = recentJobs.filter((j) => j.status === 'processing').length
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-white">Transcript Parser</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Paste an IRS transcript to extract structured data. Costs{' '}
-          <span className="text-amber-400 font-semibold">1 transcript token</span> per parse.
-        </p>
+    <div className="mx-auto max-w-3xl space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-white">Transcript Dashboard</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Submit, monitor, and review transcript parsing jobs.
+          </p>
+        </div>
+        <Link
+          href="/transcripts/submit"
+          className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2.5 text-sm font-bold text-slate-950 hover:from-orange-400 hover:to-amber-400 transition"
+        >
+          New Submission
+        </Link>
       </div>
 
-      {result ? (
-        <div className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-white">Parse Result</h2>
-            <span className="rounded-full bg-emerald-900/60 px-3 py-1 text-xs font-semibold text-emerald-300">Completed</span>
-          </div>
+      {/* Token Balance + Stats */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Transcript Tokens
+          </span>
+          {loading ? (
+            <p className="mt-1 text-2xl font-bold text-slate-400">--</p>
+          ) : (
+            <p className="mt-1 text-2xl font-bold text-white">
+              {balance?.transcriptTokens.toLocaleString() ?? 0}
+            </p>
+          )}
+        </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 text-sm">
-            <Stat label="Transcript Type" value={TYPE_LABELS[result.transcriptType]} />
-            {result.taxYear && <Stat label="Tax Year" value={String(result.taxYear)} />}
-            <Stat label="Lines" value={result.lineCount.toLocaleString()} />
-            <Stat label="Characters" value={result.charCount.toLocaleString()} />
-          </div>
-
-          <div className="space-y-4">
-            <FieldGroup label="TINs Found" items={result.extractedFields.tins} empty="None detected" />
-            <FieldGroup label="Dates Found" items={result.extractedFields.dates} empty="None detected" />
-            <FieldGroup label="Amounts Found" items={result.extractedFields.amounts} empty="None detected" />
-            {result.extractedFields.cycles.length > 0 && (
-              <FieldGroup label="Cycle Codes" items={result.extractedFields.cycles} empty="None detected" />
-            )}
-            {result.extractedFields.accountBalance && (
-              <div className="rounded-xl border border-slate-800/40 bg-slate-950/40 px-4 py-3">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Account Balance</span>
-                <p className="mt-1 text-white font-mono">${result.extractedFields.accountBalance}</p>
-              </div>
-            )}
-            {result.extractedFields.withheld && (
-              <div className="rounded-xl border border-slate-800/40 bg-slate-950/40 px-4 py-3">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Withheld</span>
-                <p className="mt-1 text-white font-mono">${result.extractedFields.withheld}</p>
-              </div>
-            )}
-          </div>
-
-          <p className="text-xs text-slate-500">
-            Parsed {new Date(result.parsedAt).toLocaleString()} · Job ID: {result.jobId}
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Jobs Completed
+          </span>
+          <p className="mt-1 text-2xl font-bold text-emerald-400">
+            {loading ? '--' : completedJobs}
           </p>
-
-          <button
-            type="button"
-            onClick={() => { setResult(null); setTranscriptText('') }}
-            className="w-full rounded-xl border border-slate-700 bg-slate-900/60 py-2.5 text-sm font-semibold text-slate-300 hover:text-white transition"
-          >
-            Parse Another
-          </button>
         </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-5 space-y-4">
-            <div>
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Transcript Type
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {(Object.keys(TYPE_LABELS) as TranscriptType[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setTranscriptType(t)}
-                    className={`rounded-xl py-2 px-3 text-xs font-semibold text-left transition ${
-                      transcriptType === t
-                        ? 'bg-orange-500 text-slate-950'
-                        : 'border border-slate-700 bg-slate-800/60 text-slate-300 hover:border-orange-500/40'
-                    }`}
-                  >
-                    {TYPE_LABELS[t]}
-                  </button>
-                ))}
-              </div>
-            </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Tax Year (optional)
-              </label>
-              <input
-                type="number"
-                min={1990}
-                max={2100}
-                value={taxYear}
-                onChange={(e) => setTaxYear(e.target.value)}
-                placeholder="e.g. 2023"
-                className="w-full rounded-xl border border-slate-800/60 bg-slate-900/60 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-orange-500/60 focus:outline-none"
-              />
-            </div>
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-5">
+          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Processing
+          </span>
+          <p className={`mt-1 text-2xl font-bold ${processingJobs > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+            {loading ? '--' : processingJobs}
+          </p>
+          {processingJobs > 0 && (
+            <p className="mt-1 text-xs text-amber-400/70">Auto-refreshing every 10s</p>
+          )}
+        </div>
+      </div>
 
-            <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Transcript Text
-              </label>
-              <textarea
-                rows={14}
-                value={transcriptText}
-                onChange={(e) => setTranscriptText(e.target.value)}
-                placeholder="Paste your IRS transcript here…"
-                required
-                className="w-full rounded-xl border border-slate-800/60 bg-slate-950/60 px-4 py-3 text-sm font-mono text-white placeholder-slate-500 focus:border-orange-500/60 focus:outline-none resize-y"
-              />
-              <p className="mt-1 text-xs text-slate-600">{transcriptText.length.toLocaleString()} characters</p>
-            </div>
+      {/* Recent Jobs */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-bold text-white">Recent Jobs</h2>
+          <Link href="/transcripts/results" className="text-xs text-orange-400 hover:underline">
+            View all &rarr;
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-2xl border border-slate-800/60 bg-slate-900/60" />
+            ))}
           </div>
-
-          {error && <p className="rounded-xl bg-red-900/30 px-4 py-3 text-sm text-red-400">{error}</p>}
-
-          <button
-            type="submit"
-            disabled={submitting || !transcriptText.trim()}
-            className="w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-3 text-sm font-bold text-slate-950 hover:from-orange-400 hover:to-amber-400 transition disabled:opacity-60"
-          >
-            {submitting ? 'Parsing…' : 'Parse Transcript — 1 Token'}
-          </button>
-        </form>
-      )}
-    </div>
-  )
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-800/40 bg-slate-950/40 px-4 py-3">
-      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
-      <p className="mt-1 text-sm text-white">{value}</p>
-    </div>
-  )
-}
-
-function FieldGroup({ label, items, empty }: { label: string; items: string[]; empty: string }) {
-  return (
-    <div className="rounded-xl border border-slate-800/40 bg-slate-950/40 px-4 py-3">
-      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
-      {items.length === 0 ? (
-        <p className="mt-1 text-sm text-slate-600">{empty}</p>
-      ) : (
-        <div className="mt-2 flex flex-wrap gap-2">
-          {items.map((item, i) => (
-            <span key={i} className="rounded-lg bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">
-              {item}
-            </span>
-          ))}
-        </div>
-      )}
+        ) : recentJobs.length === 0 ? (
+          <div className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-8 text-center">
+            <p className="text-sm text-slate-500">No transcript jobs yet.</p>
+            <Link
+              href="/transcripts/submit"
+              className="mt-3 inline-block text-sm text-orange-400 underline"
+            >
+              Submit your first transcript
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recentJobs.map((job) => {
+              const status = STATUS_STYLES[job.status] ?? STATUS_STYLES.pending
+              return (
+                <Link
+                  key={job.job_id}
+                  href={`/transcripts/results/${job.job_id}`}
+                  className="block rounded-2xl border border-slate-800/60 bg-slate-900/60 p-4 transition hover:border-orange-500/30"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <span className="text-sm font-semibold text-white">
+                        {TYPE_LABELS[job.transcript_type] ?? job.transcript_type}
+                      </span>
+                      <p className="text-xs text-slate-500">
+                        {new Date(job.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${status.bg} ${status.text}`}>
+                      {status.label}
+                    </span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

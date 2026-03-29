@@ -173,6 +173,15 @@ export interface TranscriptJob {
   result: TranscriptResult | null
 }
 
+export interface TranscriptJobHistoryEntry {
+  job_id: string
+  transcript_type: TranscriptType
+  tax_year: number | null
+  status: 'completed' | 'failed' | 'pending' | 'processing'
+  created_at: string
+  completed_at: string | null
+}
+
 export interface ApiError {
   code: string
   message: string

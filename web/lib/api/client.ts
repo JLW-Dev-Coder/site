@@ -20,6 +20,7 @@ import type {
   ToolResult,
   TranscriptJobPayload,
   TranscriptJob,
+  TranscriptJobHistoryEntry,
   ApiResult,
 } from './types'
 import { getSessionToken } from '../auth/session'
@@ -349,4 +350,16 @@ export async function getTranscriptJob(jobId: string): Promise<TranscriptJob> {
   })
   if (!result.ok) throw new Error(result.error.message)
   return result.data
+}
+
+export async function getTranscriptHistory(accountId: string): Promise<TranscriptJobHistoryEntry[]> {
+  const token = await getSessionToken()
+  if (!token) throw new Error('No session token')
+
+  const result = await apiFetch<{ ok: boolean; jobs: TranscriptJobHistoryEntry[] }>(
+    `/v1/tools/transcript-parser/history/${accountId}`,
+    { headers: getAuthHeaders(token) }
+  )
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data.jobs
 }

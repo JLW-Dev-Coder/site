@@ -1,0 +1,69 @@
+{
+  "auth": {
+    "required": true,
+    "type": "session",
+    "trustClientIdentityFields": false
+  },
+  "contract": {
+    "authority": "TTTMP",
+    "governs": "Read-only access to transcript parser job history for a given account",
+    "path": "/contracts/tttmp/tttmp.tool.transcript-parser-history.v1.json",
+    "source": "tttmp",
+    "title": "TTTMP Tool: Transcript Parser History",
+    "usedOnPages": ["/app/transcripts/results"],
+    "validation": "Validates session, verifies account ownership, returns job list from D1 projection",
+    "version": "1.0"
+  },
+  "delivery": {
+    "endpoint": "/v1/tools/transcript-parser/history/{account_id}",
+    "method": "GET",
+    "receiptKeyPattern": "N/A",
+    "receiptSource": "N/A",
+    "signature": "TTTMP_TOOL_TRANSCRIPT_PARSER_HISTORY_READ"
+  },
+  "effects": {
+    "dedupeKey": "N/A",
+    "eventIdFrom": "N/A",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "type": "object",
+    "required": ["account_id"],
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "pattern": "^ACCT_[a-f0-9-]{36}$",
+        "description": "Account ID from URL parameter — must match session"
+      }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "success": {
+      "ok": true,
+      "jobs": [
+        {
+          "job_id": "EVT_...",
+          "transcript_type": "account",
+          "tax_year": 2023,
+          "status": "completed | processing | failed",
+          "created_at": "2026-03-28T12:00:00Z",
+          "completed_at": "2026-03-28T12:00:05Z"
+        }
+      ]
+    },
+    "error": {
+      "code": "FORBIDDEN | INTERNAL_ERROR",
+      "message": "Human-readable error"
+    },
+    "deduped": {
+      "message": "N/A — read-only endpoint",
+      "original_event_id": "N/A"
+    }
+  },
+  "schema": {
+    "name": "tttmp.tool.transcript-parser-history.v1",
+    "version": "1.0"
+  }
+}

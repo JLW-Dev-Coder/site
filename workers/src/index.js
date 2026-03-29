@@ -3981,6 +3981,42 @@ const ROUTES = [
     },
   },
 
+  // -------------------------------------------------------------------------
+  // TRANSCRIPT PARSER — HISTORY
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'GET', pattern: '/v1/tools/transcript-parser/history/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      // Authorization: account must match session
+      if (params.account_id !== session.account_id) {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Account mismatch' }, 403);
+      }
+
+      try {
+        const rows = await env.DB.prepare(
+          'SELECT job_id, transcript_type, tax_year, status, created_at, completed_at FROM transcript_jobs WHERE account_id = ? ORDER BY created_at DESC LIMIT 100'
+        ).bind(session.account_id).all();
+
+        const jobs = (rows.results ?? []).map(row => ({
+          job_id: row.job_id,
+          transcript_type: row.transcript_type,
+          tax_year: row.tax_year,
+          status: row.status,
+          created_at: row.created_at,
+          completed_at: row.completed_at,
+        }));
+
+        return json({ ok: true, jobs });
+      } catch {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript history' }, 500);
+      }
+    },
+  },
+
 ];
 // ---------------------------------------------------------------------------
 // Router
