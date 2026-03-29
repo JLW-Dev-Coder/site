@@ -1,0 +1,97 @@
+{
+  "auth": {
+    "required": true,
+    "type": "session",
+    "trustClientIdentityFields": false
+  },
+  "contract": {
+    "authority": "TTTMP",
+    "governs": "Token crediting for TTMP purchases or refunds — adds tokens to account balance",
+    "path": "/contracts/tttmp/tttmp.tokens.credit.v1.json",
+    "source": "tttmp",
+    "title": "TTTMP Tokens: Credit Tokens to Account Balance",
+    "usedOnPages": ["/app/billing/checkout", "/webhooks/stripe"],
+    "validation": "Validates account_id, amount is positive number, reason provided",
+    "version": "1.0"
+  },
+  "delivery": {
+    "endpoint": "/v1/tokens/credit",
+    "method": "POST",
+    "receiptKeyPattern": "/receipts/ttmp/credit/{request_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": "TTTMP_TOKEN_CREDIT_EXECUTED"
+  },
+  "effects": {
+    "dedupeKey": "{request_id}",
+    "eventIdFrom": "client",
+    "writeOrder": [
+      "receipt",
+      "tokens_canonical_update",
+      "tokens_d1_projection"
+    ],
+    "writes": [
+      {
+        "target": "R2",
+        "key": "/receipts/ttmp/credit/{request_id}.json",
+        "content": "Token credit event metadata + balances + reason"
+      },
+      {
+        "target": "R2",
+        "key": "/tokens/{account_id}.json",
+        "content": "Updated canonical token balance"
+      },
+      {
+        "target": "D1",
+        "key": "tokens table",
+        "content": "Updated token balance projection"
+      }
+    ]
+  },
+  "payload": {
+    "type": "object",
+    "required": ["account_id", "amount", "request_id", "reason"],
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "pattern": "^ACCT_[a-f0-9-]+$",
+        "description": "Account to credit tokens to"
+      },
+      "amount": {
+        "type": "number",
+        "minimum": 0.01,
+        "description": "Number of tokens to add to account balance"
+      },
+      "request_id": {
+        "type": "string",
+        "description": "UUID for deduplication - typically Stripe session ID or refund ID"
+      },
+      "reason": {
+        "type": "string",
+        "enum": ["purchase", "refund", "bonus", "support_credit"],
+        "description": "Reason for token credit"
+      }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "success": {
+      "ok": true,
+      "balance_after": 49,
+      "request_id": "uuid-string"
+    },
+    "error": {
+      "code": "VALIDATION_FAILED | UNAUTHORIZED",
+      "message": "Human-readable error"
+    },
+    "deduped": {
+      "ok": true,
+      "message": "Duplicate request detected — returning cached response",
+      "balance_after": 49,
+      "request_id": "uuid-string"
+    }
+  },
+  "schema": {
+    "name": "tttmp.tokens.credit.v1",
+    "version": "1.0"
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "auth": {
+    "required": true,
+    "type": "session",
+    "trustClientIdentityFields": false
+  },
+  "contract": {
+    "authority": "TTMP",
+    "governs": "Generate or retrieve short link for report sharing — creates shareable URL for report access",
+    "path": "/contracts/ttmp/ttmp.transcripts.report-link.v1.json",
+    "source": "ttmp",
+    "title": "TTMP Transcripts: Generate Short Link for Report Sharing",
+    "usedOnPages": ["/app/transcripts/share", "/app/transcripts/email"],
+    "validation": "Validates report_id exists and belongs to authenticated account",
+    "version": "1.0"
+  },
+  "delivery": {
+    "endpoint": "/v1/transcripts/report-link",
+    "method": "POST",
+    "receiptKeyPattern": "/ttmp/report-links/{report_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": "TTMP_TRANSCRIPT_REPORT_LINK_CREATED"
+  },
+  "effects": {
+    "dedupeKey": "{report_id}",
+    "eventIdFrom": "server",
+    "writeOrder": [
+      "link_storage"
+    ],
+    "writes": [
+      {
+        "target": "R2",
+        "key": "/ttmp/report-links/{report_id}.json",
+        "content": "Short link mapping and metadata"
+      }
+    ]
+  },
+  "payload": {
+    "type": "object",
+    "required": ["report_id"],
+    "properties": {
+      "report_id": {
+        "type": "string",
+        "pattern": "^RPT_\\d{8}_[a-z0-9]{8}$",
+        "description": "Report ID to generate short link for"
+      },
+      "short": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether to create a short URL (always true for this endpoint)"
+      }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "success": {
+      "ok": true,
+      "report_id": "RPT_20260329_abcd1234",
+      "short_url": "https://api.virtuallaunch.pro/v1/transcripts/report?r=RPT_20260329_abcd1234"
+    },
+    "error": {
+      "code": "VALIDATION_FAILED | UNAUTHORIZED | NOT_FOUND | INTERNAL_ERROR",
+      "message": "Human-readable error"
+    },
+    "deduped": {
+      "ok": true,
+      "message": "Short link already exists — returning cached URL",
+      "report_id": "RPT_...",
+      "short_url": "https://..."
+    }
+  },
+  "schema": {
+    "name": "ttmp.transcripts.report-link.v1",
+    "version": "1.0"
+  }
+}

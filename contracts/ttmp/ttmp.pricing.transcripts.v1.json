@@ -1,0 +1,81 @@
+{
+  "auth": {
+    "required": false,
+    "type": "none",
+    "trustClientIdentityFields": false
+  },
+  "contract": {
+    "authority": "TTMP",
+    "governs": "Public TTMP token package pricing — retrieves current Stripe prices for transcript packages",
+    "path": "/contracts/ttmp/ttmp.pricing.transcripts.v1.json",
+    "source": "ttmp",
+    "title": "TTMP Pricing: Public Token Package Pricing",
+    "usedOnPages": ["/pricing", "/app/tokens/purchase", "Public pricing pages"],
+    "validation": "No validation required - public endpoint",
+    "version": "1.0"
+  },
+  "delivery": {
+    "endpoint": "/v1/pricing/transcripts",
+    "method": "GET",
+    "receiptKeyPattern": "N/A",
+    "receiptSource": "N/A",
+    "signature": "TTMP_PRICING_TRANSCRIPTS_RETRIEVED"
+  },
+  "effects": {
+    "dedupeKey": "N/A",
+    "eventIdFrom": "N/A",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "type": "object",
+    "required": [],
+    "properties": {},
+    "additionalProperties": false
+  },
+  "response": {
+    "success": {
+      "ok": true,
+      "prices": [
+        {
+          "price_id": "price_10_tokens",
+          "amount": 1900,
+          "currency": "usd",
+          "credits": 10,
+          "recommended": false,
+          "label": "Starter Package",
+          "perks": ["10 transcript analyses", "Email delivery", "Professional reports"]
+        },
+        {
+          "price_id": "price_25_tokens",
+          "amount": 2900,
+          "currency": "usd",
+          "credits": 25,
+          "recommended": true,
+          "label": "Professional Package",
+          "perks": ["25 transcript analyses", "Email delivery", "Professional reports", "Priority support"]
+        },
+        {
+          "price_id": "price_100_tokens",
+          "amount": 12900,
+          "currency": "usd",
+          "credits": 100,
+          "recommended": false,
+          "label": "Enterprise Package",
+          "perks": ["100 transcript analyses", "Email delivery", "Professional reports", "Priority support", "Bulk processing"]
+        }
+      ]
+    },
+    "error": {
+      "code": "STRIPE_ERROR | INTERNAL_ERROR",
+      "message": "Human-readable error"
+    },
+    "deduped": {
+      "message": "N/A - read-only operation"
+    }
+  },
+  "schema": {
+    "name": "ttmp.pricing.transcripts.v1",
+    "version": "1.0"
+  }
+}

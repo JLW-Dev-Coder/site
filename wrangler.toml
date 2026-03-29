@@ -111,6 +111,10 @@ STRIPE_PRODUCT_VLP_STARTER_YEARLY = "prod_U7PDtTKvnjGuxE"
 
 STRIPE_PUBLISHABLE_KEY = "pk_live_51T99pl9ROeyeXOqedzg5KIWii7uWGBxKYlTEhRymUiKOSXUA2m2AZ2uO9Pq36iKewxMg872yeZubOIKjy8jjYgrm00IhXpjxd6"
 
+# Affiliate Program — Phase 3
+AFFILIATE_COMMISSION_RATE = "0.20"
+STRIPE_CONNECT_CLIENT_ID = "ca_UEvTMDrQCV82RNrJ4JIaEye4bimUM0RX"
+
 # =================================================
 # Secrets
 # =================================================

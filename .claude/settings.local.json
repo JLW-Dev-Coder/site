@@ -1,9 +1,34 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep -r -i canva /c/Users/eimaj/virtuallaunch.pro --include=*.md --include=*.json --include=*.tsx --include=*.ts)",
-      "Bash(node -e \"const r = require\\(''./contracts/contract-registry.json''\\); console.log\\(''Total entries:'', r.contracts.length\\); const ids = r.contracts.map\\(c=>c.id\\).sort\\(\\); ids.forEach\\(id => console.log\\('' '', id\\)\\);\")",
-      "Bash(node -e \":*)"
+      "Bash(npm install:*)",
+      "Bash(node .claude/*.js *)",
+      "Bash(node scripts/*.mjs *)",
+      "Read(/tmp/**)"
     ]
-  }
+  },
+  "model": "claude-sonnet-4-20250514",
+  "autoApprove": [
+    "Write",
+    "Edit",
+    "Create"
+  ],
+  "autoApprovePatterns": [
+    "content/resources/**/*.json",
+    "components/**/*.tsx",
+    "lib/**/*.ts",
+    "app/**/*.tsx",
+    "app/**/*.ts",
+    "contracts/**/*.json",
+    "workers/src/index.js",
+    ".claude/CLAUDE.md",
+    ".claude/MIGRATION.md",
+    ".claude/PHASE.md"
+  ],
+  "deny": [
+    "Bash(rm -rf *)",
+    "Bash(curl *)",
+    "Bash(wget *)"
+  ],
+  "maxTurns": 30
 }

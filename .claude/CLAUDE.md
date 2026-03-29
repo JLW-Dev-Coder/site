@@ -4,6 +4,124 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## Project Objective (Read This First)
+
+VLP (virtuallaunch.pro) is the canonical hub for all platforms in
+this ecosystem. Every other platform — TMP, TTMP, TTTMP, DVLP,
+GVLP, TCVLP, WLVLP — has or had its own legacy standalone
+Cloudflare Worker. The goal of this project is:
+
+1. Build all backend logic properly inside VLP's single Worker
+2. Update each platform's frontend to call VLP's API instead of
+   its own Worker
+3. Verify each platform works correctly against VLP
+4. Delete the legacy Worker from the platform repo and Cloudflare
+
+The legacy Workers are being replaced, not integrated. VLP is the
+permanent home for all backend logic.
+
+## Migration Status
+
+Track legacy Worker status here. Update this section as work completes.
+
+| Platform | Legacy Worker Exists | Routes Ported to VLP | Frontend Updated | Worker Deleted |
+|---|---|---|---|---|
+| TTMP | ✅ Yes | ✅ Complete (24/24) | 🔄 In Progress | ❌ No |
+| TTTMP | Unknown | Unknown | Unknown | Unknown |
+| TMP | Unknown | Unknown | Unknown | Unknown |
+| DVLP | Unknown | Unknown | Unknown | Unknown |
+| GVLP | Unknown | Unknown | Unknown | Unknown |
+| TCVLP | Unknown | Unknown | Unknown | Unknown |
+| WLVLP | Unknown | Unknown | Unknown | Unknown |
+
+## Current Build Phase
+
+**Phase 2: TTMP Transcript Dashboard**
+- Phase 2.0: PDF upload route (POST /v1/transcripts/upload) — DONE
+- Phase 2.1: VLP architecture review (in progress)
+- Phase 2.2: Transcript job history dashboard — NOT STARTED
+- Phase 2.3: Individual report display — NOT STARTED
+- Phase 2.4: Frontend updated to call VLP API — NOT STARTED
+- Phase 2.5: Legacy TTMP Worker deleted — NOT STARTED
+
+**Upcoming Phases:**
+- Phase 3: Affiliate program (VLP core feature, ecosystem-wide)
+  - Stripe Connect Express accounts
+  - Lifetime attribution
+  - Cash payouts
+  - AFFILIATE_COMMISSION_RATE = 0.20 (flat, all platforms)
+- Phase 4: Token purchase flow wired to membership gating
+- Phase 5: TMP + DVLP + GVLP membership tiers
+- Phase 6: WLVLP marketplace
+
+## Rules For Every Task (Self-Check Before Starting)
+
+Before writing any code, Repo Claude must answer these questions:
+
+1. Does this belong in VLP's Worker or a platform frontend?
+   - Backend logic → always VLP Worker
+   - UI/pages → platform frontend repo
+   - Never build new backend routes in platform repos
+
+2. Is there an existing contract for this route?
+   - Check /contracts/registries/ before creating anything new
+   - Never duplicate an existing contract
+
+3. Does this route already exist in workers/src/index.js?
+   - Grep for the route pattern first
+   - Never add a duplicate route
+
+4. Does this change the write pipeline?
+   - Order must always be: validate → receipt → R2 canonical → D1 projection
+   - Never deviate from this order
+
+5. Am I in the right repo?
+   - VLP (virtuallaunch.pro): Worker, contracts, shared infrastructure
+   - Platform repos: Frontend only, no new Workers
+
+## Known Legacy TTMP Worker Routes (To Be Ported)
+
+The following routes exist in the legacy TTMP Worker and need
+VLP equivalents built or verified:
+
+ALREADY PORTED TO VLP (14 routes):
+- GET  /v1/auth/session (existing)
+- POST /v1/auth/magic-link/request (existing)
+- GET  /v1/auth/magic-link/verify (existing)
+- POST /v1/auth/logout (existing)
+- GET  /v1/pricing (existing)
+- POST /v1/checkout/sessions (existing)
+- GET  /v1/checkout/status (existing)
+- POST /v1/webhooks/stripe (existing)
+- GET  /v1/tokens/balance/{account_id} (existing)
+- POST /v1/transcripts/upload (built 2026-03-29)
+- POST /v1/tools/transcript-parser (existing)
+- GET  /v1/support/tickets/by-account/{account_id} (existing)
+- GET  /v1/support/tickets/{ticket_id} (existing)
+- PATCH /v1/support/tickets/{ticket_id} (existing)
+- POST /v1/support/tickets (existing)
+
+NEEDS VLP EQUIVALENT (10 routes):
+- POST /v1/tokens/consume → token consumption logic needed
+- POST /v1/tokens/credit → token crediting logic needed
+- GET  /v1/transcripts/reports → user report history needed
+- GET  /v1/transcripts/purchases → user purchase history needed
+- POST /v1/transcripts/report-link → short link creation needed
+- GET  /v1/transcripts/report-link → short link resolution needed
+- GET  /v1/transcripts/report-data → report payload retrieval needed
+- GET  /v1/transcripts/report → report redirect needed
+- POST /v1/transcripts/report-email → email report link needed
+- POST /v1/transcripts/preview → preview with token consumption needed
+
+DURABLE OBJECT - TokenLedger:
+- The legacy TTMP Worker uses a Durable Object (TokenLedger)
+  for token balance tracking
+- VLP uses /r2/tokens/{account_id}.json as canonical storage
+- Migration plan: VLP token system replaces DO ledger
+- Do NOT recreate the Durable Object in VLP
+
+---
+
 ## Commands
 
 ### Frontend (`/web`)
@@ -48,7 +166,7 @@ This is a **Cloudflare-first monorepo** for a multi-product SaaS ecosystem. Eigh
 ### Stack
 
 - **Frontend:** Next.js 15 (App Router) + Tailwind + `@cloudflare/next-on-pages`
-- **Backend:** Single Cloudflare Worker (`workers/src/index.js`) — 64 routes, deny-by-default
+- **Backend:** Single Cloudflare Worker (`workers/src/index.js`) — 96 routes, deny-by-default (last verified 2026-03-29)
 - **Database:** Cloudflare D1 (`DB` binding) — projection only, never source of truth
 - **Storage:** Cloudflare R2 (`R2_VIRTUAL_LAUNCH` binding) — always authoritative
 - **Auth:** `vlp_session` HttpOnly cookie, Google OAuth, Magic Link, SSO (OIDC + SAML), TOTP 2FA
@@ -61,7 +179,7 @@ This is a **Cloudflare-first monorepo** for a multi-product SaaS ecosystem. Eigh
 /web/lib/api/client.ts       — API client (fetches from api.virtuallaunch.pro)
 /web/lib/auth/session.ts     — getSession() + getSessionToken()
 /web/middleware.ts           — Auth guard on 9 dashboard routes (vlp_session cookie)
-/workers/src/index.js        — Full Worker: all 64 routes
+/workers/src/index.js        — Full Worker: all 96 routes
 /workers/migrations/         — 15 D1 migration files (note: duplicate 0002_ prefix, no 0014_)
 /contracts/                  — 65 versioned JSON schemas — authoritative, never modify without instruction
 /wrangler.toml               — Worker config, bindings, non-secret env vars
@@ -118,6 +236,93 @@ Required fields within each section (per `canonical-contract.json`):
 - Contracts are repo-local — never copy a VLP contract into TMP/TTMP/TTTMP repos.
 - Frontend pages must submit exactly what the contract expects — no invented fields.
 - DVLP, GVLP, TCVLP, TMP, TTMP, TTTMP, WLVLP must not define contracts for: billing, memberships, bookings, profiles, support_tickets, tokens — those belong to VLP.
+
+## Contract Management (Federated Model)
+
+### Registry Architecture
+
+All contracts are centralized in the VLP repo with a federated structure:
+
+```
+virtuallaunch.pro/contracts/
+├── contract-registry.json         # Master index (8 platform refs)
+└── registries/
+    ├── vlp-registry.json          # VLP contracts
+    ├── tmp-registry.json          # TMP contracts
+    ├── ttmp-registry.json         # TTMP contracts
+    ├── tttmp-registry.json        # TTTMP contracts (form2848, form8821, transcript-parser)
+    ├── dvlp-registry.json         # DVLP contracts
+    ├── gvlp-registry.json         # GVLP contracts
+    ├── tcvlp-registry.json        # TCVLP contracts
+    └── wlvlp-registry.json        # WLVLP contracts
+```
+
+### Adding a New Contract
+
+**Process:**
+1. Determine which platform owns this contract (vlp, tmp, ttmp, tttmp, dvlp, gvlp, tcvlp, wlvlp)
+2. Create contract file: `contracts/{platform}/{platform}.{action}.v1.json`
+3. Validate contract has all 7 required sections (use canonical-contract.json as template)
+4. Add entry to platform registry: `contracts/registries/{platform}-registry.json`
+5. Worker auto-loads on next deployment (no master registry edit needed)
+6. Add route handler to `workers/src/index.js`
+7. Test with `wrangler dev`
+
+**Contract Naming Convention:**
+- Platform prefix: `{platform}.{domain}.{action}.v{version}.json`
+- Examples:
+  - `tttmp.tool.form2848.v1.json`
+  - `vlp.auth.google-oauth.v1.json`
+  - `tmp.inquiry.create.v1.json`
+
+**Registry Entry Template:**
+```json
+{
+  "id": "{platform}.{action}.v1",
+  "path": "/contracts/{platform}/{platform}.{action}.v1.json",
+  "endpoint": "/v1/{domain}/{action}",
+  "method": "POST|GET|PATCH|DELETE",
+  "status": "active",
+  "category": "tool|auth|billing|booking|notification",
+  "addedDate": "YYYY-MM-DD"
+}
+```
+
+### Contract Validation Checklist
+
+Before adding a contract to the registry:
+- [ ] All 7 sections present (auth, contract, delivery, effects, payload, response, schema)
+- [ ] `contract.path` matches actual file path
+- [ ] Platform correctly identified in filename
+- [ ] Endpoint follows `/v1/{domain}/{action}` pattern
+- [ ] Required payload fields documented
+- [ ] Response formats defined (success, error, deduped)
+- [ ] Receipt key pattern defined
+- [ ] Write order specified
+
+### Multi-Repo Coordination
+
+**Backend (Worker + Contracts):**
+- All changes happen in `virtuallaunch.pro` repo
+- Contracts live in `/contracts/`
+- Routes live in `/workers/src/index.js`
+- Deploy with `wrangler deploy`
+
+**Frontend (Platform Pages):**
+- Switch to the appropriate repo per platform:
+  - TTMP pages → `transcript.taxmonitor.pro`
+  - TMP pages → `taxmonitor.pro`
+  - TTTMP pages → `taxtools.taxmonitor.pro`
+  - DVLP pages → `developers.virtuallaunch.pro`
+  - GVLP pages → `games.virtuallaunch.pro`
+  - TCVLP pages → `taxclaim.virtuallaunch.pro`
+  - WLVLP pages → `websitelotto.virtuallaunch.pro`
+- Frontend calls Worker API at `https://api.virtuallaunch.pro`
+
+**Contract Ownership:**
+- VLP owns: accounts, billing, bookings, memberships, profiles, support_tickets, tokens
+- Platform-specific contracts: each platform owns their own domain-specific contracts
+- No cross-platform contract copying — all contracts centralized in VLP repo
 
 ### CORS + Session
 

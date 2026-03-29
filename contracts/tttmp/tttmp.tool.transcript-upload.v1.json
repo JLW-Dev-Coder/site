@@ -1,0 +1,92 @@
+{
+  "auth": {
+    "required": true,
+    "type": "session",
+    "trustClientIdentityFields": false
+  },
+  "contract": {
+    "authority": "TTTMP",
+    "governs": "PDF transcript upload and text extraction — returns structured JSON for transcript-parser",
+    "path": "/contracts/tttmp/tttmp.tool.transcript-upload.v1.json",
+    "source": "tttmp",
+    "title": "TTTMP Tool: Transcript PDF Upload & Extraction",
+    "usedOnPages": ["/app/transcripts/submit"],
+    "validation": "Validates PDF file type, size limit (5 MB), extracts text, detects transcript type, parses transaction lines",
+    "version": "1.0"
+  },
+  "delivery": {
+    "endpoint": "/v1/transcripts/upload",
+    "method": "POST",
+    "receiptKeyPattern": "/receipts/tttmp/{account_id}/{job_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": "TTTMP_TOOL_TRANSCRIPT_UPLOAD_EXECUTED"
+  },
+  "effects": {
+    "dedupeKey": "{account_id}:{file_hash}",
+    "eventIdFrom": "server",
+    "writeOrder": [
+      "receipt",
+      "uploaded_pdf_storage",
+      "extraction_result_storage"
+    ],
+    "writes": [
+      {
+        "target": "R2",
+        "key": "/receipts/tttmp/{account_id}/{job_id}.json",
+        "content": "Upload event metadata + timestamp"
+      },
+      {
+        "target": "R2",
+        "key": "/tttmp/uploads/{account_id}/{job_id}.pdf",
+        "content": "Original uploaded PDF (TTL-scoped, 24h retention)"
+      },
+      {
+        "target": "R2",
+        "key": "/tttmp/extractions/{account_id}/{job_id}.json",
+        "content": "Extracted transcript data ready for transcript-parser"
+      }
+    ]
+  },
+  "payload": {
+    "type": "object",
+    "required": ["file"],
+    "properties": {
+      "file": {
+        "type": "string",
+        "format": "binary",
+        "description": "PDF file uploaded via multipart/form-data (field name: file)",
+        "maxSize": 5242880
+      }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "success": {
+      "ok": true,
+      "job_id": "JOB_20260329_xxxxx",
+      "extracted_data": {
+        "transcript_type": "account",
+        "transactions": [
+          {"code": "150", "date": "2025-04-15", "amount": 5000.00}
+        ]
+      },
+      "preview": {
+        "total_transactions": 2,
+        "date_range": "2025-01-01 to 2025-12-31",
+        "codes_found": ["150", "846"]
+      }
+    },
+    "error": {
+      "code": "INVALID_FILE_TYPE | FILE_TOO_LARGE | NO_TRANSACTIONS_FOUND | UNRECOGNIZED_TRANSCRIPT | RATE_LIMIT_EXCEEDED",
+      "message": "Human-readable error"
+    },
+    "deduped": {
+      "message": "Duplicate PDF detected — returning cached extraction",
+      "original_job_id": "JOB_..."
+    }
+  },
+  "schema": {
+    "name": "tttmp.tool.transcript-upload.v1",
+    "version": "1.0"
+  }
+}

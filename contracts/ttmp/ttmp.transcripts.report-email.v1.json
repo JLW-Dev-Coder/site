@@ -1,0 +1,88 @@
+{
+  "auth": {
+    "required": true,
+    "type": "session",
+    "trustClientIdentityFields": false
+  },
+  "contract": {
+    "authority": "TTMP",
+    "governs": "Email report link to client — sends report access link via Gmail integration",
+    "path": "/contracts/ttmp/ttmp.transcripts.report-email.v1.json",
+    "source": "ttmp",
+    "title": "TTMP Transcripts: Email Report Link to Client",
+    "usedOnPages": ["/app/transcripts/share", "/app/transcripts/email"],
+    "validation": "Validates report ownership, event_id linkage, valid email address",
+    "version": "1.0"
+  },
+  "delivery": {
+    "endpoint": "/v1/transcripts/report-email",
+    "method": "POST",
+    "receiptKeyPattern": "/ttmp/report-emails/{report_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": "TTMP_TRANSCRIPT_REPORT_EMAIL_SENT"
+  },
+  "effects": {
+    "dedupeKey": "{report_id}:{email}",
+    "eventIdFrom": "client",
+    "writeOrder": [
+      "ownership_verification",
+      "gmail_send",
+      "receipt_storage"
+    ],
+    "writes": [
+      {
+        "target": "Gmail API",
+        "key": "Email send via Google OAuth",
+        "content": "Report link email to client address"
+      },
+      {
+        "target": "R2",
+        "key": "/ttmp/report-emails/{report_id}.json",
+        "content": "Email send receipt and metadata"
+      }
+    ]
+  },
+  "payload": {
+    "type": "object",
+    "required": ["report_id", "email", "event_id"],
+    "properties": {
+      "report_id": {
+        "type": "string",
+        "pattern": "^RPT_\\d{8}_[a-z0-9]{8}$",
+        "description": "Report ID to email"
+      },
+      "email": {
+        "type": "string",
+        "format": "email",
+        "description": "Client email address to send report link to"
+      },
+      "event_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "Must match event_id from report generation for verification"
+      }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "success": {
+      "ok": true,
+      "report_id": "RPT_20260329_abcd1234",
+      "short_url": "https://api.virtuallaunch.pro/v1/transcripts/report?r=RPT_20260329_abcd1234"
+    },
+    "error": {
+      "code": "VALIDATION_FAILED | UNAUTHORIZED | NOT_FOUND | EMAIL_SEND_FAILED",
+      "message": "Human-readable error"
+    },
+    "deduped": {
+      "ok": true,
+      "message": "Email already sent to this address for this report",
+      "report_id": "RPT_...",
+      "short_url": "https://..."
+    }
+  },
+  "schema": {
+    "name": "ttmp.transcripts.report-email.v1",
+    "version": "1.0"
+  }
+}

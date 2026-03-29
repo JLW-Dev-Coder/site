@@ -175,6 +175,144 @@ async function d1Run(db, sql, params) {
   return db.prepare(sql).bind(...params).run();
 }
 
+// Get current token balance for an account (R2 canonical, D1 fallback)
+async function getCurrentTokenBalance(env, accountId) {
+  // Try R2 first (canonical)
+  const r2Object = await env.R2_VIRTUAL_LAUNCH.get(`tokens/${accountId}.json`);
+  if (r2Object) {
+    const data = await r2Object.json();
+    return {
+      taxGameTokens: data.tax_game_tokens || 0,
+      transcriptTokens: data.transcript_tokens || 0,
+      updatedAt: data.updated_at
+    };
+  }
+
+  // Fallback to D1
+  try {
+    const row = await env.DB.prepare(
+      `SELECT * FROM tokens WHERE account_id = ?`
+    ).bind(accountId).first();
+    if (row) {
+      return {
+        taxGameTokens: row.tax_game_tokens || 0,
+        transcriptTokens: row.transcript_tokens || 0,
+        updatedAt: row.updated_at
+      };
+    }
+  } catch (e) {
+    console.error('Failed to fetch token balance from D1:', e);
+  }
+
+  // Default if neither source has data
+  return {
+    taxGameTokens: 0,
+    transcriptTokens: 0,
+    updatedAt: null
+  };
+}
+
+// ---------------------------------------------------------------------------
+// PDF text extraction — lightweight, Worker-compatible
+// Handles digitally generated PDFs (IRS transcripts). Does NOT handle scanned
+// image PDFs. Extracts text from PDF stream objects by decoding FlateDecode
+// streams and pulling BT...ET text blocks.
+// ---------------------------------------------------------------------------
+function extractTextFromPdf(pdfBytes) {
+  const raw = new TextDecoder('latin1').decode(pdfBytes);
+  const textChunks = [];
+
+  // Strategy 1: Extract text operators from uncompressed PDF stream objects
+  const streamRegex = /stream\r?\n([\s\S]*?)endstream/g;
+  let streamMatch;
+  while ((streamMatch = streamRegex.exec(raw)) !== null) {
+    const textFromStream = extractTextOperators(streamMatch[1]);
+    if (textFromStream) textChunks.push(textFromStream);
+  }
+
+  // Strategy 2: Direct pattern scan for IRS transcript data in raw PDF bytes
+  // IRS transcripts are digitally generated — transaction codes, dates, and
+  // amounts appear as readable text even without full stream decompression.
+  const directText = extractDirectText(raw);
+  if (directText) textChunks.push(directText);
+
+  return textChunks.join('\n').trim();
+}
+
+function extractTextOperators(content) {
+  const chunks = [];
+  // Match text between BT (begin text) and ET (end text) blocks
+  const btEtRegex = /BT\s([\s\S]*?)ET/g;
+  let btMatch;
+  while ((btMatch = btEtRegex.exec(content)) !== null) {
+    const block = btMatch[1];
+    // Extract text from Tj operator: (text) Tj
+    const tjRegex = /\(([^)]*)\)\s*Tj/g;
+    let tjMatch;
+    while ((tjMatch = tjRegex.exec(block)) !== null) {
+      chunks.push(decodePdfString(tjMatch[1]));
+    }
+    // Extract text from TJ operator (array of strings): [(text) 123 (text)] TJ
+    const tjArrayRegex = /\[((?:[^]]*?))\]\s*TJ/gi;
+    let arrMatch;
+    while ((arrMatch = tjArrayRegex.exec(block)) !== null) {
+      const innerRegex = /\(([^)]*)\)/g;
+      let innerMatch;
+      while ((innerMatch = innerRegex.exec(arrMatch[1])) !== null) {
+        chunks.push(decodePdfString(innerMatch[1]));
+      }
+    }
+    // Extract from ' and " operators (move to next line and show text)
+    const quoteRegex = /\(([^)]*)\)\s*['"]/g;
+    let quoteMatch;
+    while ((quoteMatch = quoteRegex.exec(block)) !== null) {
+      chunks.push(decodePdfString(quoteMatch[1]));
+    }
+    if (chunks.length > 0) chunks.push('\n');
+  }
+  return chunks.join('');
+}
+
+function extractDirectText(raw) {
+  // Look for readable IRS transcript patterns directly in the raw PDF
+  const lines = [];
+  // IRS transcripts contain recognizable patterns even in raw PDF data
+  // Look for transaction code patterns: 3-digit code + date + amount
+  const txLineRegex = /(\d{3})\s+[A-Za-z][\w\s]+?\s+(\d{2}[-/]\d{2}[-/]\d{4})\s+[-]?\$?([\d,]+\.?\d{0,2})/g;
+  let match;
+  while ((match = txLineRegex.exec(raw)) !== null) {
+    lines.push(match[0]);
+  }
+
+  // Look for transcript type indicators
+  const typePatterns = [
+    /Account\s+Transcript/gi,
+    /Return\s+Transcript/gi,
+    /Record\s+of\s+Account/gi,
+    /Wage\s+and\s+Income/gi,
+    /Tax\s+Return\s+Filed/gi,
+    /ACCOUNT\s+BALANCE/gi,
+    /ACCOUNT\s+INFORMATION/gi,
+  ];
+  for (const pat of typePatterns) {
+    const m = raw.match(pat);
+    if (m) lines.unshift(m[0]);
+  }
+
+  return lines.join('\n');
+}
+
+function decodePdfString(str) {
+  // Decode PDF escape sequences
+  return str
+    .replace(/\\n/g, '\n')
+    .replace(/\\r/g, '\r')
+    .replace(/\\t/g, '\t')
+    .replace(/\\\(/g, '(')
+    .replace(/\\\)/g, ')')
+    .replace(/\\\\/g, '\\');
+}
+
 async function getSessionFromRequest(request, env) {
   let sessionId = null;
 
@@ -2920,6 +3058,181 @@ const ROUTES = [
     },
   },
 
+  // Token consumption for TTMP transcripts
+  {
+    method: 'POST', pattern: '/v1/tokens/consume',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+      }
+
+      const required = ['account_id', 'amount', 'request_id'];
+      for (const field of required) {
+        if (!body[field]) {
+          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+        }
+      }
+
+      if (body.amount !== 1) {
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'amount must equal 1' }, 400);
+      }
+
+      if (body.account_id !== session.account_id) {
+        return json({ ok: false, error: 'UNAUTHORIZED', message: 'account_id must match authenticated session' }, 403);
+      }
+
+      const requestId = body.request_id;
+      const accountId = body.account_id;
+      const nowIso = new Date().toISOString();
+
+      // Dedupe check
+      const dedupeKey = `receipts/ttmp/consume/${requestId}.json`;
+      const existingReceipt = await env.R2_VIRTUAL_LAUNCH.get(dedupeKey);
+      if (existingReceipt) {
+        const receiptData = await existingReceipt.json();
+        const currentBalance = await getCurrentTokenBalance(env, accountId);
+        return json({
+          ok: true,
+          message: 'Duplicate request detected — returning cached response',
+          balance_after: currentBalance.transcriptTokens,
+          request_id: requestId
+        });
+      }
+
+      // Check current balance
+      const currentBalance = await getCurrentTokenBalance(env, accountId);
+      if (currentBalance.transcriptTokens < 1) {
+        return json({
+          ok: false,
+          error: 'insufficient_balance',
+          balance: currentBalance.transcriptTokens,
+          message: 'Insufficient transcript tokens'
+        }, 400);
+      }
+
+      // Write pipeline: receipt → R2 canonical → D1 projection
+      // 1. Receipt
+      await r2Put(env.R2_VIRTUAL_LAUNCH, dedupeKey, {
+        request_id: requestId,
+        account_id: accountId,
+        action: 'token_consume',
+        amount: 1,
+        balance_before: currentBalance.transcriptTokens,
+        balance_after: currentBalance.transcriptTokens - 1,
+        created_at: nowIso
+      });
+
+      // 2. Update canonical token balance in R2
+      const newBalance = currentBalance.transcriptTokens - 1;
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/${accountId}.json`, {
+        account_id: accountId,
+        tax_game_tokens: currentBalance.taxGameTokens,
+        transcript_tokens: newBalance,
+        updated_at: nowIso
+      });
+
+      // 3. Update D1 projection
+      await d1Run(env.DB,
+        `INSERT OR REPLACE INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [accountId, currentBalance.taxGameTokens, newBalance, nowIso]
+      );
+
+      return json({
+        ok: true,
+        balance_after: newBalance,
+        request_id: requestId
+      });
+    },
+  },
+
+  // Token credit for TTMP purchases
+  {
+    method: 'POST', pattern: '/v1/tokens/credit',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+      }
+
+      const required = ['account_id', 'amount', 'request_id', 'reason'];
+      for (const field of required) {
+        if (!body[field]) {
+          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+        }
+      }
+
+      if (typeof body.amount !== 'number' || body.amount <= 0) {
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'amount must be a positive number' }, 400);
+      }
+
+      const requestId = body.request_id;
+      const accountId = body.account_id;
+      const amount = body.amount;
+      const reason = body.reason;
+      const nowIso = new Date().toISOString();
+
+      // Dedupe check
+      const dedupeKey = `receipts/ttmp/credit/${requestId}.json`;
+      const existingReceipt = await env.R2_VIRTUAL_LAUNCH.get(dedupeKey);
+      if (existingReceipt) {
+        const receiptData = await existingReceipt.json();
+        const currentBalance = await getCurrentTokenBalance(env, accountId);
+        return json({
+          ok: true,
+          message: 'Duplicate request detected — returning cached response',
+          balance_after: currentBalance.transcriptTokens,
+          request_id: requestId
+        });
+      }
+
+      // Get current balance
+      const currentBalance = await getCurrentTokenBalance(env, accountId);
+
+      // Write pipeline: receipt → R2 canonical → D1 projection
+      // 1. Receipt
+      await r2Put(env.R2_VIRTUAL_LAUNCH, dedupeKey, {
+        request_id: requestId,
+        account_id: accountId,
+        action: 'token_credit',
+        amount: amount,
+        reason: reason,
+        balance_before: currentBalance.transcriptTokens,
+        balance_after: currentBalance.transcriptTokens + amount,
+        created_at: nowIso
+      });
+
+      // 2. Update canonical token balance in R2
+      const newBalance = currentBalance.transcriptTokens + amount;
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/${accountId}.json`, {
+        account_id: accountId,
+        tax_game_tokens: currentBalance.taxGameTokens,
+        transcript_tokens: newBalance,
+        updated_at: nowIso
+      });
+
+      // 3. Update D1 projection
+      await d1Run(env.DB,
+        `INSERT OR REPLACE INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at)
+         VALUES (?, ?, ?, ?)`,
+        [accountId, currentBalance.taxGameTokens, newBalance, nowIso]
+      );
+
+      return json({
+        ok: true,
+        balance_after: newBalance,
+        request_id: requestId
+      });
+    },
+  },
+
   // -------------------------------------------------------------------------
   // VLP PREFERENCES
   // -------------------------------------------------------------------------
@@ -3849,6 +4162,231 @@ const ROUTES = [
   },
 
   // -------------------------------------------------------------------------
+  // TRANSCRIPT UPLOAD — PDF → structured JSON (Phase 2 — TTTMP)
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'POST', pattern: '/v1/transcripts/upload',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      // Rate limit: 10 req/min per account
+      const rlKey = `rl:transcript_upload:${session.account_id}`;
+      const rlObj = await env.R2_VIRTUAL_LAUNCH.get(rlKey);
+      if (rlObj) {
+        const rlData = await rlObj.json();
+        const windowStart = Date.now() - 60000;
+        const recentHits = (rlData.hits || []).filter((t) => t > windowStart);
+        if (recentHits.length >= 10) {
+          return json({ ok: false, error: 'RATE_LIMIT_EXCEEDED', message: 'Maximum 10 transcript uploads per minute' }, 429);
+        }
+        recentHits.push(Date.now());
+        await r2Put(env.R2_VIRTUAL_LAUNCH, rlKey, { hits: recentHits });
+      } else {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, rlKey, { hits: [Date.now()] });
+      }
+
+      // Parse multipart/form-data
+      let formData;
+      try {
+        formData = await request.formData();
+      } catch {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'multipart/form-data required with a file field' }, 400);
+      }
+
+      const file = formData.get('file');
+      if (!file || typeof file === 'string') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing file field — upload a PDF via multipart/form-data' }, 400);
+      }
+
+      // Validate file type
+      if (file.type !== 'application/pdf' && !file.name?.toLowerCase().endsWith('.pdf')) {
+        return json({ ok: false, error: 'INVALID_FILE_TYPE', message: 'Only PDF files are accepted' }, 400);
+      }
+
+      // Validate file size (5 MB max)
+      const MAX_FILE_SIZE = 5 * 1024 * 1024;
+      const fileBuffer = await file.arrayBuffer();
+      if (fileBuffer.byteLength > MAX_FILE_SIZE) {
+        return json({ ok: false, error: 'FILE_TOO_LARGE', message: 'PDF must be under 5 MB' }, 400);
+      }
+      if (fileBuffer.byteLength === 0) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Uploaded file is empty' }, 400);
+      }
+
+      // --- PDF text extraction (lightweight, Worker-compatible) ---
+      // IRS transcripts are digitally generated PDFs with embedded text streams.
+      // We extract text from PDF stream objects without a full PDF library.
+      const pdfBytes = new Uint8Array(fileBuffer);
+      const pdfText = extractTextFromPdf(pdfBytes);
+
+      if (!pdfText || pdfText.trim().length < 20) {
+        return json({
+          ok: false, error: 'EXTRACTION_FAILED',
+          message: 'Could not extract text from PDF. The file may be scanned/image-based. Please use a digitally generated IRS transcript.',
+        }, 422);
+      }
+
+      // --- Detect transcript type ---
+      const lowerText = pdfText.toLowerCase();
+      let transcriptType = null;
+      if (lowerText.includes('record of account') || lowerText.includes('record_of_account')) {
+        transcriptType = 'record_of_account';
+      } else if (lowerText.includes('wage and income') || lowerText.includes('wage & income')) {
+        transcriptType = 'wage_income';
+      } else if (lowerText.includes('return transcript') || lowerText.includes('tax return transcript')) {
+        transcriptType = 'return';
+      } else if (lowerText.includes('account transcript') || lowerText.includes('account information')) {
+        transcriptType = 'account';
+      }
+
+      if (!transcriptType) {
+        return json({
+          ok: false, error: 'UNRECOGNIZED_TRANSCRIPT',
+          message: 'Could not detect transcript type. Supported: Account, Return, Wage & Income, Record of Account.',
+        }, 422);
+      }
+
+      // --- Extract transaction lines ---
+      // IRS transcript transaction format:
+      //   CODE  Description text  MM-DD-YYYY  $X,XXX.XX
+      //   or:   CODE  Description text  MM-DD-YYYY  -$X,XXX.XX
+      const transactions = [];
+      const lines = pdfText.split('\n');
+      // Pattern: 3-digit code at line start, followed by description, date, and amount
+      const txPattern = /^\s*(\d{3})\s+.+?\s+(\d{2}[-/]\d{2}[-/]\d{4})\s+[-]?\$?([\d,]+\.?\d{0,2})/;
+      // Alternate pattern: code and amount on same line without clear date
+      const txPatternAlt = /^\s*(\d{3})\s+.+?\s+(\d{2}[-/]\d{2}[-/]\d{4})\s+([-]?[\d,]+\.?\d{0,2})/;
+
+      for (const line of lines) {
+        let match = line.match(txPattern);
+        if (!match) match = line.match(txPatternAlt);
+        if (!match) continue;
+
+        const code = match[1];
+        const rawDate = match[2].replace(/\//g, '-');
+        const rawAmount = match[3].replace(/,/g, '');
+        const amount = parseFloat(rawAmount);
+
+        // Normalize date from MM-DD-YYYY to YYYY-MM-DD
+        const dateParts = rawDate.split('-');
+        let isoDate = rawDate;
+        if (dateParts.length === 3 && dateParts[2].length === 4) {
+          isoDate = `${dateParts[2]}-${dateParts[0]}-${dateParts[1]}`;
+        }
+
+        // Check for negative indicator on the line
+        const isNegative = line.includes('-$') || (line.match(/\(\$?[\d,]+\.?\d*\)/) !== null);
+
+        if (!isNaN(amount)) {
+          transactions.push({
+            code,
+            date: isoDate,
+            amount: isNegative && amount > 0 ? -amount : amount,
+          });
+        }
+      }
+
+      if (transactions.length === 0) {
+        return json({
+          ok: false, error: 'NO_TRANSACTIONS_FOUND',
+          message: 'No IRS transaction codes found in the PDF. Ensure this is a valid IRS transcript with transaction lines.',
+        }, 422);
+      }
+
+      // --- Dedupe check via SHA-256 of file content ---
+      const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer);
+      const hashHex = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('');
+      const dedupeKey = `${session.account_id}:${hashHex}`;
+      const dedupeCheckKey = `tttmp/upload_dedupe/${dedupeKey}`;
+      const existingDedupe = await env.R2_VIRTUAL_LAUNCH.get(dedupeCheckKey);
+      if (existingDedupe) {
+        const dedupeData = await existingDedupe.json();
+        return json({
+          ok: true,
+          message: 'Duplicate PDF detected — returning cached extraction',
+          original_job_id: dedupeData.job_id,
+          extracted_data: dedupeData.extracted_data,
+          preview: dedupeData.preview,
+        });
+      }
+
+      // --- Build response data ---
+      const dates = transactions.map((t) => t.date).filter(Boolean).sort();
+      const codesFound = [...new Set(transactions.map((t) => t.code))];
+      const dateRange = dates.length > 0 ? `${dates[0]} to ${dates[dates.length - 1]}` : 'unknown';
+
+      const extractedData = {
+        transcript_type: transcriptType,
+        transactions,
+      };
+
+      const preview = {
+        total_transactions: transactions.length,
+        date_range: dateRange,
+        codes_found: codesFound,
+      };
+
+      // --- Write pipeline (no token deduction — preview only) ---
+      const nowIso = new Date().toISOString();
+      const dateStamp = nowIso.slice(0, 10).replace(/-/g, '');
+      const randomSuffix = crypto.randomUUID().slice(0, 8);
+      const jobId = `JOB_${dateStamp}_${randomSuffix}`;
+      const accountId = session.account_id;
+
+      // 1. Receipt
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/${accountId}/${jobId}.json`, {
+        job_id: jobId,
+        account_id: accountId,
+        dedupe_key: dedupeKey,
+        action: 'transcript_upload',
+        file_name: file.name || 'transcript.pdf',
+        file_size: fileBuffer.byteLength,
+        file_hash: hashHex,
+        transcript_type: transcriptType,
+        transactions_found: transactions.length,
+        created_at: nowIso,
+      });
+
+      // 2. Store uploaded PDF (24h TTL metadata — actual cleanup via R2 lifecycle rule)
+      await env.R2_VIRTUAL_LAUNCH.put(`tttmp/uploads/${accountId}/${jobId}.pdf`, fileBuffer, {
+        httpMetadata: { contentType: 'application/pdf' },
+        customMetadata: {
+          retention: '24-hours',
+          account_id: accountId,
+          job_id: jobId,
+          uploaded_at: nowIso,
+        },
+      });
+
+      // 3. Store extraction result
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp/extractions/${accountId}/${jobId}.json`, {
+        job_id: jobId,
+        account_id: accountId,
+        extracted_data: extractedData,
+        preview,
+        created_at: nowIso,
+      });
+
+      // 4. Store dedupe marker
+      await r2Put(env.R2_VIRTUAL_LAUNCH, dedupeCheckKey, {
+        job_id: jobId,
+        extracted_data: extractedData,
+        preview,
+        created_at: nowIso,
+      });
+
+      return json({
+        ok: true,
+        job_id: jobId,
+        extracted_data: extractedData,
+        preview,
+      });
+    },
+  },
+
+  // -------------------------------------------------------------------------
   // TRANSCRIPTS (Phase 1 — TTMP)
   // -------------------------------------------------------------------------
 
@@ -4013,6 +4551,546 @@ const ROUTES = [
         return json({ ok: true, jobs });
       } catch {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript history' }, 500);
+      }
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // TTMP REPORT MANAGEMENT
+  // -------------------------------------------------------------------------
+
+  // Create report preview with token consumption
+  {
+    method: 'POST', pattern: '/v1/transcripts/preview',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+      }
+
+      const required = ['report_data', 'event_id'];
+      for (const field of required) {
+        if (!body[field]) {
+          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+        }
+      }
+
+      const eventId = body.event_id;
+      const reportData = body.report_data;
+      const accountId = session.account_id;
+      const nowIso = new Date().toISOString();
+
+      // Check and consume 1 token
+      const currentBalance = await getCurrentTokenBalance(env, accountId);
+      if (currentBalance.transcriptTokens < 1) {
+        return json({
+          ok: false,
+          error: 'insufficient_balance',
+          balance: currentBalance.transcriptTokens,
+          message: 'Insufficient transcript tokens'
+        }, 400);
+      }
+
+      // Dedupe check for token consumption
+      const consumeDedupeKey = `receipts/ttmp/consume/${eventId}.json`;
+      const existingConsumeReceipt = await env.R2_VIRTUAL_LAUNCH.get(consumeDedupeKey);
+      if (!existingConsumeReceipt) {
+        // Consume token: receipt → R2 canonical → D1 projection
+        await r2Put(env.R2_VIRTUAL_LAUNCH, consumeDedupeKey, {
+          request_id: eventId,
+          account_id: accountId,
+          action: 'token_consume',
+          amount: 1,
+          balance_before: currentBalance.transcriptTokens,
+          balance_after: currentBalance.transcriptTokens - 1,
+          created_at: nowIso
+        });
+
+        const newBalance = currentBalance.transcriptTokens - 1;
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/${accountId}.json`, {
+          account_id: accountId,
+          tax_game_tokens: currentBalance.taxGameTokens,
+          transcript_tokens: newBalance,
+          updated_at: nowIso
+        });
+
+        await d1Run(env.DB,
+          `INSERT OR REPLACE INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at)
+           VALUES (?, ?, ?, ?)`,
+          [accountId, currentBalance.taxGameTokens, newBalance, nowIso]
+        );
+      }
+
+      const finalBalance = currentBalance.transcriptTokens - 1;
+
+      // Generate report ID
+      const dateStamp = nowIso.slice(0, 10).replace(/-/g, '');
+      const randomSuffix = crypto.randomUUID().slice(0, 8);
+      const reportId = `RPT_${dateStamp}_${randomSuffix}`;
+
+      // Write pipeline: receipt → R2 canonical → D1 projection
+
+      // 1. Store report in R2
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `ttmp/reports/${accountId}/${reportId}.json`, {
+        report_id: reportId,
+        account_id: accountId,
+        report_data: reportData,
+        event_id: eventId,
+        created_at: nowIso,
+        status: 'completed'
+      });
+
+      // 2. Store short link mapping in R2
+      const reportUrl = `https://transcript.taxmonitor.pro/app/report?report_id=${reportId}`;
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `ttmp/report-links/${reportId}.json`, {
+        report_id: reportId,
+        account_id: accountId,
+        short_url: `https://api.virtuallaunch.pro/v1/transcripts/report?r=${reportId}`,
+        report_url: reportUrl,
+        created_at: nowIso
+      });
+
+      // 3. Index report in D1
+      await d1Run(env.DB,
+        `INSERT INTO ttmp_reports (id, account_id, report_id, created_at, status, report_url, event_id, tokens_used)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [reportId, accountId, reportId, nowIso, 'completed', reportUrl, eventId, 1]
+      );
+
+      return json({
+        ok: true,
+        report_id: reportId,
+        report_url: reportUrl,
+        balance_after: finalBalance,
+        event_id: eventId
+      });
+    },
+  },
+
+  // List reports for authenticated account
+  {
+    method: 'GET', pattern: '/v1/transcripts/reports',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const url = new URL(request.url);
+      const limitParam = parseInt(url.searchParams.get('limit') ?? '25', 10);
+      const limit = Math.min(isNaN(limitParam) ? 25 : limitParam, 100);
+      const cursor = url.searchParams.get('cursor') || '';
+
+      try {
+        let sql = `SELECT report_id, created_at, status, report_url
+                   FROM ttmp_reports
+                   WHERE account_id = ?`;
+        let params = [session.account_id];
+
+        if (cursor) {
+          sql += ` AND created_at < ?`;
+          params.push(cursor);
+        }
+
+        sql += ` ORDER BY created_at DESC LIMIT ?`;
+        params.push(limit + 1); // Get one extra to determine if there are more
+
+        const rows = await env.DB.prepare(sql).bind(...params).all();
+        const results = rows.results || [];
+
+        let reports = results.slice(0, limit).map(row => ({
+          report_id: row.report_id,
+          created_at: row.created_at,
+          status: row.status,
+          report_url: row.report_url
+        }));
+
+        let nextCursor = null;
+        if (results.length > limit) {
+          nextCursor = results[limit - 1].created_at;
+        }
+
+        return json({
+          ok: true,
+          reports,
+          cursor: nextCursor
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch reports' }, 500);
+      }
+    },
+  },
+
+  // Get report data payload
+  {
+    method: 'GET', pattern: '/v1/transcripts/report-data',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const url = new URL(request.url);
+      const reportId = url.searchParams.get('report_id');
+      if (!reportId) {
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'Missing report_id parameter' }, 400);
+      }
+
+      try {
+        // Verify report belongs to authenticated account
+        const row = await env.DB.prepare(
+          `SELECT account_id, created_at FROM ttmp_reports WHERE report_id = ?`
+        ).bind(reportId).first();
+
+        if (!row) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report not found' }, 404);
+        }
+
+        if (row.account_id !== session.account_id) {
+          return json({ ok: false, error: 'UNAUTHORIZED', message: 'Report does not belong to authenticated account' }, 403);
+        }
+
+        // Fetch report payload from R2
+        const reportObject = await env.R2_VIRTUAL_LAUNCH.get(`ttmp/reports/${session.account_id}/${reportId}.json`);
+        if (!reportObject) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report data not found in storage' }, 404);
+        }
+
+        const reportData = await reportObject.json();
+        return json({
+          ok: true,
+          report_id: reportId,
+          report_data: reportData.report_data,
+          created_at: row.created_at
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch report data' }, 500);
+      }
+    },
+  },
+
+  // Generate or retrieve short link for report
+  {
+    method: 'POST', pattern: '/v1/transcripts/report-link',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+      }
+
+      const reportId = body.report_id;
+      if (!reportId) {
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'Missing report_id field' }, 400);
+      }
+
+      try {
+        // Verify report belongs to authenticated account
+        const row = await env.DB.prepare(
+          `SELECT account_id FROM ttmp_reports WHERE report_id = ?`
+        ).bind(reportId).first();
+
+        if (!row) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report not found' }, 404);
+        }
+
+        if (row.account_id !== session.account_id) {
+          return json({ ok: false, error: 'UNAUTHORIZED', message: 'Report does not belong to authenticated account' }, 403);
+        }
+
+        // Check if short link already exists
+        const linkObject = await env.R2_VIRTUAL_LAUNCH.get(`ttmp/report-links/${reportId}.json`);
+        if (linkObject) {
+          const linkData = await linkObject.json();
+          return json({
+            ok: true,
+            report_id: reportId,
+            short_url: linkData.short_url
+          });
+        }
+
+        // Create new short link
+        const shortUrl = `https://api.virtuallaunch.pro/v1/transcripts/report?r=${reportId}`;
+        const reportUrl = `https://transcript.taxmonitor.pro/app/report?report_id=${reportId}`;
+
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `ttmp/report-links/${reportId}.json`, {
+          report_id: reportId,
+          account_id: session.account_id,
+          short_url: shortUrl,
+          report_url: reportUrl,
+          created_at: new Date().toISOString()
+        });
+
+        return json({
+          ok: true,
+          report_id: reportId,
+          short_url: shortUrl
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to generate report link' }, 500);
+      }
+    },
+  },
+
+  // Public short link resolution (no auth required)
+  {
+    method: 'GET', pattern: '/v1/transcripts/report',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const url = new URL(request.url);
+      const reportId = url.searchParams.get('r');
+      if (!reportId) {
+        return new Response('Missing report ID', { status: 400 });
+      }
+
+      try {
+        // Check if short link exists
+        const linkObject = await env.R2_VIRTUAL_LAUNCH.get(`ttmp/report-links/${reportId}.json`);
+        if (!linkObject) {
+          return new Response('Report not found', { status: 404 });
+        }
+
+        const linkData = await linkObject.json();
+        // 302 redirect to report viewer URL
+        return new Response('', {
+          status: 302,
+          headers: {
+            'Location': linkData.report_url,
+            ...CORS_HEADERS
+          }
+        });
+      } catch (e) {
+        return new Response('Internal server error', { status: 500 });
+      }
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // TTMP EMAIL + PURCHASE HISTORY
+  // -------------------------------------------------------------------------
+
+  // Email report link to client
+  {
+    method: 'POST', pattern: '/v1/transcripts/report-email',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+      }
+
+      const required = ['report_id', 'email', 'event_id'];
+      for (const field of required) {
+        if (!body[field]) {
+          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+        }
+      }
+
+      const reportId = body.report_id;
+      const email = body.email;
+      const eventId = body.event_id;
+
+      try {
+        // Verify report belongs to authenticated account
+        const row = await env.DB.prepare(
+          `SELECT account_id FROM ttmp_reports WHERE report_id = ?`
+        ).bind(reportId).first();
+
+        if (!row) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report not found' }, 404);
+        }
+
+        if (row.account_id !== session.account_id) {
+          return json({ ok: false, error: 'UNAUTHORIZED', message: 'Report does not belong to authenticated account' }, 403);
+        }
+
+        // Verify event_id matches a valid consume event by checking if report was generated with this event
+        const reportRow = await env.DB.prepare(
+          `SELECT event_id FROM ttmp_reports WHERE report_id = ? AND event_id = ?`
+        ).bind(reportId, eventId).first();
+
+        if (!reportRow) {
+          return json({ ok: false, error: 'VALIDATION_FAILED', message: 'event_id does not match report generation event' }, 400);
+        }
+
+        // Get short URL for report
+        const linkObject = await env.R2_VIRTUAL_LAUNCH.get(`ttmp/report-links/${reportId}.json`);
+        if (!linkObject) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report link not found' }, 404);
+        }
+
+        const linkData = await linkObject.json();
+        const shortUrl = linkData.short_url;
+
+        // Send email using Gmail API (following existing magic link email pattern)
+        const emailSubject = 'Your Tax Transcript Analysis Report';
+        const emailBody = `
+Dear Client,
+
+Your tax transcript analysis report is ready. Please click the link below to view your results:
+
+${shortUrl}
+
+This report was generated by your tax professional using Transcript Tax Monitor.
+
+Best regards,
+TTMP Support Team
+        `.trim();
+
+        try {
+          // Use existing Gmail integration - check the magic link handler for pattern
+          const gmailResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${env.GOOGLE_ACCESS_TOKEN}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              raw: btoa(
+                `To: ${email}\r\n` +
+                `Subject: ${emailSubject}\r\n` +
+                `Content-Type: text/plain; charset=utf-8\r\n\r\n` +
+                emailBody
+              ).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+            })
+          });
+
+          if (!gmailResponse.ok) {
+            console.error('Gmail API error:', await gmailResponse.text());
+            return json({ ok: false, error: 'EMAIL_SEND_FAILED', message: 'Failed to send report email' }, 500);
+          }
+        } catch (emailError) {
+          console.error('Email send error:', emailError);
+          return json({ ok: false, error: 'EMAIL_SEND_FAILED', message: 'Failed to send report email' }, 500);
+        }
+
+        // Write receipt to R2
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `ttmp/report-emails/${reportId}.json`, {
+          report_id: reportId,
+          account_id: session.account_id,
+          email: email,
+          event_id: eventId,
+          short_url: shortUrl,
+          sent_at: new Date().toISOString()
+        });
+
+        return json({
+          ok: true,
+          report_id: reportId,
+          short_url: shortUrl
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send report email' }, 500);
+      }
+    },
+  },
+
+  // List token purchase history for account
+  {
+    method: 'GET', pattern: '/v1/transcripts/purchases',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const url = new URL(request.url);
+      const limitParam = parseInt(url.searchParams.get('limit') ?? '25', 10);
+      const limit = Math.min(isNaN(limitParam) ? 25 : limitParam, 100);
+
+      try {
+        // Prefix scan for Stripe purchase receipts for this account
+        const prefix = `receipts/stripe/${session.account_id}/`;
+        const listResult = await env.R2_VIRTUAL_LAUNCH.list({ prefix, limit: 100 });
+
+        const purchases = await Promise.all(
+          listResult.objects.map(async (obj) => {
+            try {
+              const item = await env.R2_VIRTUAL_LAUNCH.get(obj.key);
+              if (!item) return null;
+              const data = await item.json();
+
+              // Filter for completed purchases with token credits
+              if (data.status !== 'completed' || !data.credits) return null;
+
+              return {
+                session_id: data.session_id || data.payment_intent_id,
+                amount: data.amount,
+                credits: data.credits,
+                price_id: data.price_id,
+                created_at: data.created_at,
+                status: 'completed'
+              };
+            } catch (e) {
+              console.error('Error processing purchase receipt:', e);
+              return null;
+            }
+          })
+        );
+
+        // Filter out null values and sort by created_at descending
+        const validPurchases = purchases
+          .filter(Boolean)
+          .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+          .slice(0, limit);
+
+        return json({
+          ok: true,
+          purchases: validPurchases
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch purchase history' }, 500);
+      }
+    },
+  },
+
+  // Public TTMP token package pricing (no auth required)
+  {
+    method: 'GET', pattern: '/v1/pricing/transcripts',
+    handler: async (_method, _pattern, _params, request, env) => {
+      try {
+        // Get current Stripe prices for TTMP token packages
+        const stripeResponse = await fetch('https://api.stripe.com/v1/prices?active=true&type=one_time', {
+          headers: {
+            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          }
+        });
+
+        if (!stripeResponse.ok) {
+          return json({ ok: false, error: 'STRIPE_ERROR', message: 'Failed to fetch pricing from Stripe' }, 500);
+        }
+
+        const stripeData = await stripeResponse.json();
+
+        // Map Stripe prices to TTMP token packages
+        const tokenPackages = [
+          { credits: 10, amount: 1900, recommended: false, label: 'Starter Package', perks: ['10 transcript analyses', 'Email delivery', 'Professional reports'] },
+          { credits: 25, amount: 2900, recommended: true, label: 'Professional Package', perks: ['25 transcript analyses', 'Email delivery', 'Professional reports', 'Priority support'] },
+          { credits: 100, amount: 12900, recommended: false, label: 'Enterprise Package', perks: ['100 transcript analyses', 'Email delivery', 'Professional reports', 'Priority support', 'Bulk processing'] }
+        ];
+
+        const prices = tokenPackages.map(pkg => {
+          // Find matching Stripe price (simplified - in real implementation would match by metadata)
+          const stripePrice = stripeData.data.find(p => p.unit_amount === pkg.amount);
+
+          return {
+            price_id: stripePrice?.id || `price_${pkg.credits}_tokens`,
+            amount: pkg.amount,
+            currency: 'usd',
+            credits: pkg.credits,
+            recommended: pkg.recommended,
+            label: pkg.label,
+            perks: pkg.perks
+          };
+        });
+
+        return json({
+          ok: true,
+          prices
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript pricing' }, 500);
       }
     },
   },

@@ -1,0 +1,61 @@
+{
+  "auth": {
+    "required": false,
+    "type": "none",
+    "trustClientIdentityFields": false
+  },
+  "contract": {
+    "authority": "TTMP",
+    "governs": "Public short link resolution for reports — redirects to report viewer without authentication",
+    "path": "/contracts/ttmp/ttmp.transcripts.report.v1.json",
+    "source": "ttmp",
+    "title": "TTMP Transcripts: Public Report Short Link Resolution",
+    "usedOnPages": ["External links", "Email links", "Shared reports"],
+    "validation": "Validates report ID parameter format, resolves link if exists",
+    "version": "1.0"
+  },
+  "delivery": {
+    "endpoint": "/v1/transcripts/report",
+    "method": "GET",
+    "receiptKeyPattern": "N/A",
+    "receiptSource": "N/A",
+    "signature": "TTMP_TRANSCRIPT_REPORT_REDIRECTED"
+  },
+  "effects": {
+    "dedupeKey": "N/A",
+    "eventIdFrom": "N/A",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "type": "object",
+    "required": ["r"],
+    "properties": {
+      "r": {
+        "type": "string",
+        "pattern": "^RPT_\\d{8}_[a-z0-9]{8}$",
+        "description": "Report ID for short link resolution"
+      }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "success": {
+      "type": "redirect",
+      "status": 302,
+      "location": "https://transcript.taxmonitor.pro/app/report?report_id=RPT_20260329_abcd1234"
+    },
+    "error": {
+      "code": "NOT_FOUND | INTERNAL_ERROR",
+      "status": 404,
+      "message": "Report not found"
+    },
+    "deduped": {
+      "message": "N/A - stateless redirect operation"
+    }
+  },
+  "schema": {
+    "name": "ttmp.transcripts.report.v1",
+    "version": "1.0"
+  }
+}

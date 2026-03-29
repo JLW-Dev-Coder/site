@@ -1,0 +1,96 @@
+{
+  "auth": {
+    "required": true,
+    "type": "session",
+    "trustClientIdentityFields": false
+  },
+  "contract": {
+    "authority": "TTMP",
+    "governs": "Create transcript report preview with token consumption — generates report and consumes 1 token",
+    "path": "/contracts/ttmp/ttmp.transcripts.preview.v1.json",
+    "source": "ttmp",
+    "title": "TTMP Transcripts: Create Report Preview with Token Consumption",
+    "usedOnPages": ["/app/transcripts/preview"],
+    "validation": "Validates report_data object and event_id UUID, consumes 1 transcript token",
+    "version": "1.0"
+  },
+  "delivery": {
+    "endpoint": "/v1/transcripts/preview",
+    "method": "POST",
+    "receiptKeyPattern": "/ttmp/reports/{account_id}/{report_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": "TTMP_TRANSCRIPT_PREVIEW_CREATED"
+  },
+  "effects": {
+    "dedupeKey": "{event_id}",
+    "eventIdFrom": "client",
+    "writeOrder": [
+      "token_consumption",
+      "report_storage",
+      "short_link_creation",
+      "d1_index_update"
+    ],
+    "writes": [
+      {
+        "target": "R2",
+        "key": "/receipts/ttmp/consume/{event_id}.json",
+        "content": "Token consumption receipt"
+      },
+      {
+        "target": "R2",
+        "key": "/ttmp/reports/{account_id}/{report_id}.json",
+        "content": "Complete report data and metadata"
+      },
+      {
+        "target": "R2",
+        "key": "/ttmp/report-links/{report_id}.json",
+        "content": "Short link mapping for report access"
+      },
+      {
+        "target": "D1",
+        "key": "ttmp_reports table",
+        "content": "Report metadata index"
+      }
+    ]
+  },
+  "payload": {
+    "type": "object",
+    "required": ["report_data", "event_id"],
+    "properties": {
+      "report_data": {
+        "type": "object",
+        "description": "Complete transcript analysis report object with findings and recommendations"
+      },
+      "event_id": {
+        "type": "string",
+        "format": "uuid",
+        "description": "UUID for deduplication and linking to token consumption"
+      }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "success": {
+      "ok": true,
+      "report_id": "RPT_20260329_abcd1234",
+      "report_url": "https://transcript.taxmonitor.pro/app/report?report_id=RPT_20260329_abcd1234",
+      "balance_after": 24,
+      "event_id": "uuid-string"
+    },
+    "error": {
+      "code": "VALIDATION_FAILED | UNAUTHORIZED | insufficient_balance",
+      "message": "Human-readable error"
+    },
+    "deduped": {
+      "ok": true,
+      "message": "Duplicate event detected — returning cached report",
+      "report_id": "RPT_...",
+      "report_url": "https://...",
+      "balance_after": 24
+    }
+  },
+  "schema": {
+    "name": "ttmp.transcripts.preview.v1",
+    "version": "1.0"
+  }
+}
