@@ -540,8 +540,10 @@ VALIDATION CHECKLIST:
 ```
 
 **Phase 1 Complete When:**
-- [x] All 3 milestones validated
-- [ ] All contracts in registry
+- [x] Milestone 1.1 validated (Form 2848 Tool) ✅
+- [x] Milestone 1.2 validated (Form 8821 Tool) ✅
+- [ ] Milestone 1.3 validated (Transcript Parser)
+- [x] All contracts in registry ✅
 - [ ] All routes tested with valid session
 - [ ] Token deduction verified via R2 inspection
 - [ ] Receipts written to R2 for all tool executions
