@@ -90,7 +90,6 @@
 | -------------------------- | ---- | -------------- | ---------- | ------------- |
 | Account / Membership Mgmt  | ✓    | ✓              | ✓          | ✓             |
 | Calendar / Scheduling      | ✓    | ✓              | ✓          | ✓             |
-| Directory Profile          | ✓    | ✓              | ✓          | ✓             |
 | Discounts / Entitlements   | ✓    | ✓              | ✓          | ✓             |
 | Messaging (Pro ↔ Taxpayer) | ✓    | ✓              | ✓          | ✓             |
 | Profile Management         | ✓    | ✓              | ✓          | ✓             |
