@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r -i canva /c/Users/eimaj/virtuallaunch.pro --include=*.md --include=*.json --include=*.tsx --include=*.ts)"
+    ]
+  }
+}
