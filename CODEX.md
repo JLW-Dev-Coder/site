@@ -768,6 +768,147 @@ VALIDATION CHECKLIST:
 
 ---
 
+## Minimal Audit Submission Format
+
+**Purpose:** Reduce token usage when submitting PR work for audit review.
+
+### What to Submit
+
+After a PR is implemented, submit ONLY this information for audit:
+
+```
+PR: #{number} — Milestone {X.Y}
+
+CONTRACT FILE(S):
+{filename}: {paste full JSON here}
+
+REGISTRY ENTRY:
+{paste just the new entry from contract-registry.json}
+
+WORKER ROUTE SNIPPET:
+{paste just the new route handler code — not entire file}
+
+FRONTEND FILES (if applicable):
+{filename}: {paste component code}
+
+CHANGES SUMMARY:
+- {bullet list of what was modified}
+- {migrations run, tables added, etc.}
+
+SELF-CHECK RESULTS:
+[Copy validation checklist from milestone prompt, mark each item ✓ or ✗]
+```
+
+### What NOT to Submit
+
+❌ Do NOT paste:
+- Entire workers/src/index.js file
+- Entire contract-registry.json file
+- Unchanged files
+- Documentation updates
+- Package.json changes (unless adding new dependency)
+
+### Example Audit Submission
+
+```
+PR: #42 — Milestone 1.1 (Form 2848 Tool)
+
+CONTRACT FILE:
+contracts/tttmp/tttmp.tool.form2848.v1.json:
+{
+  "auth": {
+    "required": true,
+    "type": "session",
+    "trustClientIdentityFields": false
+  },
+  ...
+}
+
+REGISTRY ENTRY:
+{
+  "id": "tttmp.tool.form2848.v1",
+  "path": "/contracts/tttmp/tttmp.tool.form2848.v1.json",
+  "version": "1.0",
+  "status": "active",
+  "endpoint": "/v1/tools/form2848",
+  ...
+}
+
+WORKER ROUTE SNIPPET:
+// POST /v1/tools/form2848
+router.post('/v1/tools/form2848', async (req, env) => {
+  // Session validation
+  const session = await validateSession(req, env);
+  if (!session) return errorResponse('UNAUTHORIZED', 401);
+  
+  // Contract validation
+  const payload = await req.json();
+  const valid = validateContract(payload, 'tttmp.tool.form2848.v1');
+  if (!valid) return errorResponse('INVALID_PAYLOAD', 400);
+  
+  // Token check
+  const balance = await getTokenBalance(session.account_id, env);
+  if (balance.tax_tool_tokens < 1) {
+    return errorResponse('INSUFFICIENT_TOKENS', 402);
+  }
+  
+  // Write pipeline
+  const eventId = generateEventId();
+  await writeReceipt(session.account_id, eventId, payload, env);
+  await deductToken(session.account_id, 'tax_tool', 1, env);
+  const pdf = await generateForm2848(payload.form_data);
+  await storePDF(session.account_id, eventId, pdf, env);
+  await updateD1Index(session.account_id, eventId, env);
+  
+  return jsonResponse({
+    pdf_url: `https://r2.virtuallaunch.pro/tttmp/tool_results/${session.account_id}/${eventId}.pdf`,
+    tokens_remaining: balance.tax_tool_tokens - 1,
+    event_id: eventId
+  });
+});
+
+CHANGES SUMMARY:
+- Created contract: contracts/tttmp/tttmp.tool.form2848.v1.json
+- Added registry entry for tttmp.tool.form2848.v1
+- Added Worker route: POST /v1/tools/form2848
+- No migrations needed (using existing tokens table)
+
+SELF-CHECK RESULTS:
+✓ Contract has all 7 sections
+✓ contract.path matches file path
+✓ Registry entry added with all required fields
+✓ Worker route validates session before processing
+✓ Token balance checked BEFORE deduction
+✓ Token deduction writes to R2 first, then D1
+✓ Receipt written before PDF generation
+✓ PDF stored with 30-day TTL
+✓ Rate limit applied (10/min per account)
+✓ Error responses follow contract.response.error schema
+✓ Dedupe logic checks dedupeKey from contract.effects
+```
+
+### Audit Response Format
+
+Reviewer will respond with:
+
+```
+AUDIT: #{PR} — {PASS | FAIL}
+
+{If PASS:}
+✅ Approved for merge
+
+{If FAIL:}
+❌ Issues found:
+1. {specific issue}
+2. {specific issue}
+
+Required fixes:
+- {fix 1}
+- {fix 2}
+```
+
+---
+
 ## Audit Checklists
 
 ### Contract Audit Checklist
