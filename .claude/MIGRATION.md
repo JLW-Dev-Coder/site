@@ -17,13 +17,17 @@ Worker into VLP. Updated as work completes.
 ## Platform Status
 
 ### TTMP (transcript.taxmonitor.pro)
-Status: 🔄 Frontend Migration In Progress
-Legacy Worker: workers/src/index.js in transcript.taxmonitor.pro repo
-Backend: ✅ Complete — all 24 routes live in VLP Worker
-Frontend: ❌ Still pointing at legacy Worker
-Next action: Update frontend API base URL to
-  https://api.virtuallaunch.pro
-  Then delete legacy Worker
+Status: ✅ MIGRATION COMPLETE (2026-03-29)
+Legacy Worker: transcript-tax-monitor-pro
+Backend: ✅ All 24 routes live in VLP Worker
+Frontend: ✅ All API calls pointing to api.virtuallaunch.pro
+Repo: ✅ workers/ directory deleted
+Cloudflare: ✅ Worker deleted from dashboard
+Notes:
+- TokenLedger Durable Object replaced by VLP R2+D1 token system
+- KV_TRANSCRIPT and R2_TRANSCRIPT bindings retired
+- tm_transcript_session cookie replaced by VLP session system
+- D1 migration 0017_ttmp_reports.sql applied to production
 
 ### TTTMP (taxtools.taxmonitor.pro)
 Status: Not Yet Audited
