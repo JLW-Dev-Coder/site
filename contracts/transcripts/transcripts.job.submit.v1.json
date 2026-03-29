@@ -1,0 +1,81 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Transcript parse job submission — debits 1 transcript token, stores raw transcript in R2, returns jobId for polling",
+    "path": "/contracts/transcripts/transcripts.job.submit.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Transcripts — Job Submit",
+    "usedOnPages": ["/transcripts"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/transcripts/jobs",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/transcripts/{eventId}.json",
+    "receiptSource": "transcripts_job",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "canonicalUpsert": {
+      "target": "ttmp_transcript_jobs/{eventId}.json"
+    },
+    "dedupeKey": "payload.eventId",
+    "eventIdFrom": "payload.eventId",
+    "receiptAppend": {
+      "to": "receipts/transcripts/{eventId}.json"
+    },
+    "writeOrder": ["receiptAppend", "canonicalUpsert"],
+    "writes": ["ttmp_transcript_jobs", "ttmp_transcript_results", "tokens"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "eventId": { "minLength": 1, "type": "string" },
+      "transcriptText": { "minLength": 1, "maxLength": 100000, "type": "string" },
+      "transcriptType": {
+        "enum": ["account", "record_of_account", "return", "wage_and_income"],
+        "type": "string"
+      },
+      "taxYear": { "minimum": 1990, "maximum": 2100, "type": "integer" }
+    },
+    "required": ["eventId", "transcriptText", "transcriptType"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "eventId": "{effects.eventIdFrom}",
+      "ok": true
+    },
+    "error": {
+      "error": "validation_failed",
+      "ok": false
+    },
+    "success": {
+      "eventId": "{effects.eventIdFrom}",
+      "jobId": "{effects.eventIdFrom}",
+      "ok": true,
+      "status": "completed",
+      "tokensDebited": 1,
+      "tokenType": "transcript"
+    }
+  },
+  "schema": {
+    "name": "transcripts_job_submit",
+    "version": 1
+  }
+}

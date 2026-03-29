@@ -1,0 +1,106 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "IRS Form 8821 (Tax Information Authorization) autofill submission — debits 1 tax_game token, returns filled form data",
+    "path": "/contracts/tools/tools.form-8821.submit.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Tools — Form 8821 Submit",
+    "usedOnPages": ["/tools/form-8821"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tools/form-8821",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/tools/form-8821/{eventId}.json",
+    "receiptSource": "tools_form_8821",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "canonicalUpsert": {
+      "target": "tttmp_tool_sessions/{eventId}.json"
+    },
+    "dedupeKey": "payload.eventId",
+    "eventIdFrom": "payload.eventId",
+    "receiptAppend": {
+      "to": "receipts/tools/form-8821/{eventId}.json"
+    },
+    "writeOrder": ["receiptAppend", "canonicalUpsert"],
+    "writes": ["tttmp_tool_sessions", "tokens"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "eventId": { "minLength": 1, "type": "string" },
+      "taxpayerName": { "minLength": 1, "maxLength": 200, "type": "string" },
+      "taxpayerTin": { "minLength": 9, "maxLength": 11, "type": "string" },
+      "taxpayerAddress": { "minLength": 1, "maxLength": 500, "type": "string" },
+      "taxpayerPhone": { "maxLength": 20, "type": "string" },
+      "appointeeName": { "minLength": 1, "maxLength": 200, "type": "string" },
+      "appointeeCafNumber": { "maxLength": 20, "type": "string" },
+      "appointeeAddress": { "minLength": 1, "maxLength": 500, "type": "string" },
+      "appointeePhone": { "maxLength": 20, "type": "string" },
+      "taxMatters": {
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "taxType": { "minLength": 1, "type": "string" },
+            "formNumber": { "minLength": 1, "type": "string" },
+            "yearOrPeriod": { "minLength": 1, "type": "string" }
+          },
+          "required": ["taxType", "formNumber", "yearOrPeriod"],
+          "type": "object"
+        },
+        "minItems": 1,
+        "type": "array"
+      },
+      "specificUseNotRecorded": { "type": "boolean" }
+    },
+    "required": [
+      "eventId",
+      "taxpayerName",
+      "taxpayerTin",
+      "taxpayerAddress",
+      "appointeeName",
+      "appointeeAddress",
+      "taxMatters"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "eventId": "{effects.eventIdFrom}",
+      "ok": true
+    },
+    "error": {
+      "error": "validation_failed",
+      "ok": false
+    },
+    "success": {
+      "eventId": "{effects.eventIdFrom}",
+      "ok": true,
+      "status": "completed",
+      "tokensDebited": 1,
+      "tokenType": "tax_game",
+      "formData": {}
+    }
+  },
+  "schema": {
+    "name": "tools_form_8821_submit",
+    "version": 1
+  }
+}

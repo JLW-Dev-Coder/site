@@ -3389,6 +3389,309 @@ const ROUTES = [
       }
     },
   },
+  // -------------------------------------------------------------------------
+  // TOOLS (Phase 1 — TTTMP)
+  // Rate limiting must be applied here before any processing.
+  // Token debit happens before result is returned — never after.
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'POST', pattern: '/v1/tools/form-2848',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+      }
+
+      const required = ['eventId', 'taxpayerName', 'taxpayerTin', 'taxpayerAddress', 'representativeName', 'representativeAddress', 'taxMatters'];
+      for (const field of required) {
+        if (!body[field]) return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+      }
+      if (!Array.isArray(body.taxMatters) || body.taxMatters.length === 0) {
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'taxMatters must be a non-empty array' }, 400);
+      }
+
+      // Check token balance
+      const tokenRow = await env.DB.prepare(
+        'SELECT tax_game_tokens FROM tokens WHERE account_id = ?'
+      ).bind(session.account_id).first();
+      if (!tokenRow || tokenRow.tax_game_tokens < 1) {
+        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 tax_game token required' }, 403);
+      }
+
+      const now = new Date().toISOString();
+      const eventId = body.eventId;
+
+      // 1. Write R2 receipt
+      const receipt = {
+        eventId, accountId: session.account_id, tool: 'form_2848',
+        tokenType: 'tax_game', tokensDebited: 1, createdAt: now,
+        payload: { taxpayerName: body.taxpayerName, taxpayerTin: body.taxpayerTin, taxMatters: body.taxMatters },
+      };
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tools/form-2848/${eventId}.json`, receipt);
+
+      // Build filled form data
+      const formData = {
+        form: '2848',
+        revision: '2023-01',
+        taxpayer: {
+          name: body.taxpayerName,
+          tin: body.taxpayerTin,
+          address: body.taxpayerAddress,
+          phone: body.taxpayerPhone ?? '',
+        },
+        representative: {
+          name: body.representativeName,
+          cafNumber: body.representativeCafNumber ?? '',
+          ptin: body.representativePtin ?? '',
+          address: body.representativeAddress,
+          phone: body.representativePhone ?? '',
+        },
+        taxMatters: body.taxMatters,
+        generatedAt: now,
+      };
+
+      // 2. Write R2 canonical tool session
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp_tool_sessions/${eventId}.json`, {
+        sessionId: eventId, accountId: session.account_id, tool: 'form_2848',
+        tokenType: 'tax_game', tokensDebited: 1, status: 'completed',
+        result: formData, createdAt: now,
+      });
+
+      // 3. Update D1 — debit token, insert tool session row
+      await Promise.all([
+        d1Run(env.DB,
+          'UPDATE tokens SET tax_game_tokens = tax_game_tokens - 1, updated_at = ? WHERE account_id = ?',
+          [now, session.account_id]
+        ),
+        d1Run(env.DB,
+          'INSERT INTO tool_sessions (session_id, account_id, tool, token_type, tokens_debited, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [eventId, session.account_id, 'form_2848', 'tax_game', 1, 'completed', now]
+        ),
+      ]);
+
+      return json({ ok: true, eventId, status: 'completed', tokensDebited: 1, tokenType: 'tax_game', formData });
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/tools/form-8821',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+      }
+
+      const required = ['eventId', 'taxpayerName', 'taxpayerTin', 'taxpayerAddress', 'appointeeName', 'appointeeAddress', 'taxMatters'];
+      for (const field of required) {
+        if (!body[field]) return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+      }
+      if (!Array.isArray(body.taxMatters) || body.taxMatters.length === 0) {
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'taxMatters must be a non-empty array' }, 400);
+      }
+
+      // Check token balance
+      const tokenRow = await env.DB.prepare(
+        'SELECT tax_game_tokens FROM tokens WHERE account_id = ?'
+      ).bind(session.account_id).first();
+      if (!tokenRow || tokenRow.tax_game_tokens < 1) {
+        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 tax_game token required' }, 403);
+      }
+
+      const now = new Date().toISOString();
+      const eventId = body.eventId;
+
+      // 1. Write R2 receipt
+      const receipt = {
+        eventId, accountId: session.account_id, tool: 'form_8821',
+        tokenType: 'tax_game', tokensDebited: 1, createdAt: now,
+        payload: { taxpayerName: body.taxpayerName, taxpayerTin: body.taxpayerTin, taxMatters: body.taxMatters },
+      };
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tools/form-8821/${eventId}.json`, receipt);
+
+      // Build filled form data
+      const formData = {
+        form: '8821',
+        revision: '2021-01',
+        taxpayer: {
+          name: body.taxpayerName,
+          tin: body.taxpayerTin,
+          address: body.taxpayerAddress,
+          phone: body.taxpayerPhone ?? '',
+        },
+        appointee: {
+          name: body.appointeeName,
+          cafNumber: body.appointeeCafNumber ?? '',
+          address: body.appointeeAddress,
+          phone: body.appointeePhone ?? '',
+        },
+        taxMatters: body.taxMatters,
+        specificUseNotRecorded: body.specificUseNotRecorded ?? false,
+        generatedAt: now,
+      };
+
+      // 2. Write R2 canonical tool session
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp_tool_sessions/${eventId}.json`, {
+        sessionId: eventId, accountId: session.account_id, tool: 'form_8821',
+        tokenType: 'tax_game', tokensDebited: 1, status: 'completed',
+        result: formData, createdAt: now,
+      });
+
+      // 3. Update D1 — debit token, insert tool session row
+      await Promise.all([
+        d1Run(env.DB,
+          'UPDATE tokens SET tax_game_tokens = tax_game_tokens - 1, updated_at = ? WHERE account_id = ?',
+          [now, session.account_id]
+        ),
+        d1Run(env.DB,
+          'INSERT INTO tool_sessions (session_id, account_id, tool, token_type, tokens_debited, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [eventId, session.account_id, 'form_8821', 'tax_game', 1, 'completed', now]
+        ),
+      ]);
+
+      return json({ ok: true, eventId, status: 'completed', tokensDebited: 1, tokenType: 'tax_game', formData });
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // TRANSCRIPTS (Phase 1 — TTMP)
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'POST', pattern: '/v1/transcripts/jobs',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+      }
+
+      const required = ['eventId', 'transcriptText', 'transcriptType'];
+      for (const field of required) {
+        if (!body[field]) return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+      }
+      const validTypes = ['account', 'record_of_account', 'return', 'wage_and_income'];
+      if (!validTypes.includes(body.transcriptType)) {
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: `transcriptType must be one of: ${validTypes.join(', ')}` }, 400);
+      }
+
+      // Check transcript token balance
+      const tokenRow = await env.DB.prepare(
+        'SELECT transcript_tokens FROM tokens WHERE account_id = ?'
+      ).bind(session.account_id).first();
+      if (!tokenRow || tokenRow.transcript_tokens < 1) {
+        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 transcript token required' }, 403);
+      }
+
+      const now = new Date().toISOString();
+      const jobId = body.eventId;
+      const text = body.transcriptText;
+
+      // Parse transcript — extract structured fields from IRS transcript text
+      const tinMatches = [...text.matchAll(/\b\d{3}-\d{2}-\d{4}\b|\b\d{2}-\d{7}\b/g)].map(m => m[0]);
+      const dateMatches = [...text.matchAll(/\b\d{2}\/\d{2}\/\d{4}\b/g)].map(m => m[0]);
+      const amountMatches = [...text.matchAll(/\$[\d,]+\.?\d{0,2}/g)].map(m => m[0]);
+      const cycleMatches = [...text.matchAll(/\bCYCLE\s*:?\s*(\d{8})\b/gi)].map(m => m[1]);
+      const balanceMatch = text.match(/ACCOUNT\s+BALANCE\s*:?\s*\$?([\d,.-]+)/i);
+      const withheldMatch = text.match(/WITHHELD\s*:?\s*\$?([\d,.-]+)/i);
+
+      const result = {
+        jobId,
+        transcriptType: body.transcriptType,
+        taxYear: body.taxYear ?? null,
+        parsedAt: now,
+        extractedFields: {
+          tins: [...new Set(tinMatches)],
+          dates: [...new Set(dateMatches)],
+          amounts: [...new Set(amountMatches)],
+          cycles: [...new Set(cycleMatches)],
+          accountBalance: balanceMatch ? balanceMatch[1] : null,
+          withheld: withheldMatch ? withheldMatch[1] : null,
+        },
+        lineCount: text.split('\n').length,
+        charCount: text.length,
+      };
+
+      const resultKey = `ttmp_transcript_results/${jobId}.json`;
+
+      // 1. Write R2 receipt
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/transcripts/${jobId}.json`, {
+        eventId: jobId, accountId: session.account_id, transcriptType: body.transcriptType,
+        taxYear: body.taxYear ?? null, tokenType: 'transcript', tokensDebited: 1, createdAt: now,
+      });
+
+      // 2. Write R2 canonical job + result (raw transcript stored at TTL-scoped key, not indefinitely)
+      await Promise.all([
+        r2Put(env.R2_VIRTUAL_LAUNCH, `ttmp_transcript_jobs/${jobId}.json`, {
+          jobId, accountId: session.account_id, transcriptType: body.transcriptType,
+          taxYear: body.taxYear ?? null, tokensDebited: 1,
+          status: 'completed', resultKey, createdAt: now, completedAt: now,
+        }),
+        r2Put(env.R2_VIRTUAL_LAUNCH, resultKey, result),
+      ]);
+
+      // 3. Update D1 — debit token, insert transcript job row
+      await Promise.all([
+        d1Run(env.DB,
+          'UPDATE tokens SET transcript_tokens = transcript_tokens - 1, updated_at = ? WHERE account_id = ?',
+          [now, session.account_id]
+        ),
+        d1Run(env.DB,
+          'INSERT INTO transcript_jobs (job_id, account_id, transcript_type, tax_year, tokens_debited, status, result_key, created_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [jobId, session.account_id, body.transcriptType, body.taxYear ?? null, 1, 'completed', resultKey, now, now]
+        ),
+      ]);
+
+      return json({ ok: true, jobId, status: 'completed', tokensDebited: 1, tokenType: 'transcript', result });
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/transcripts/jobs/:job_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const row = await env.DB.prepare(
+          'SELECT * FROM transcript_jobs WHERE job_id = ? AND account_id = ?'
+        ).bind(params.job_id, session.account_id).first();
+
+        if (!row) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Transcript job not found' }, 404);
+        }
+
+        let result = null;
+        if (row.result_key) {
+          const obj = await env.R2_VIRTUAL_LAUNCH.get(row.result_key);
+          if (obj) result = await obj.json();
+        }
+
+        return json({
+          ok: true,
+          jobId: row.job_id,
+          transcriptType: row.transcript_type,
+          taxYear: row.tax_year,
+          status: row.status,
+          tokensDebited: row.tokens_debited,
+          createdAt: row.created_at,
+          completedAt: row.completed_at,
+          result,
+        });
+      } catch {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript job' }, 500);
+      }
+    },
+  },
+
 ];
 // ---------------------------------------------------------------------------
 // Router

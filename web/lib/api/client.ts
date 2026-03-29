@@ -15,6 +15,11 @@ import type {
   SupportTicket,
   TokenBalance,
   TokenUsageEntry,
+  Form2848Payload,
+  Form8821Payload,
+  ToolResult,
+  TranscriptJobPayload,
+  TranscriptJob,
   ApiResult,
 } from './types'
 import { getSessionToken } from '../auth/session'
@@ -286,4 +291,62 @@ export async function getTokenUsage(accountId: string): Promise<TokenUsageEntry[
   })
   if (!result.ok) throw new Error(result.error.message)
   return result.data.usage
+}
+
+// ---------------------------------------------------------------------------
+// Tools
+// ---------------------------------------------------------------------------
+
+export async function submitForm2848(payload: Form2848Payload): Promise<ToolResult> {
+  const token = await getSessionToken()
+  if (!token) throw new Error('No session token')
+
+  const result = await apiFetch<ToolResult>('/v1/tools/form-2848', {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(payload),
+  })
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data
+}
+
+export async function submitForm8821(payload: Form8821Payload): Promise<ToolResult> {
+  const token = await getSessionToken()
+  if (!token) throw new Error('No session token')
+
+  const result = await apiFetch<ToolResult>('/v1/tools/form-8821', {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(payload),
+  })
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data
+}
+
+// ---------------------------------------------------------------------------
+// Transcripts
+// ---------------------------------------------------------------------------
+
+export async function submitTranscriptJob(payload: TranscriptJobPayload): Promise<TranscriptJob> {
+  const token = await getSessionToken()
+  if (!token) throw new Error('No session token')
+
+  const result = await apiFetch<{ ok: boolean } & TranscriptJob>('/v1/transcripts/jobs', {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify(payload),
+  })
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data
+}
+
+export async function getTranscriptJob(jobId: string): Promise<TranscriptJob> {
+  const token = await getSessionToken()
+  if (!token) throw new Error('No session token')
+
+  const result = await apiFetch<TranscriptJob>(`/v1/transcripts/jobs/${jobId}`, {
+    headers: getAuthHeaders(token),
+  })
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data
 }

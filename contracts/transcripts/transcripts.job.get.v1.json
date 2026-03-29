@@ -1,0 +1,67 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Transcript job status and result retrieval by jobId",
+    "path": "/contracts/transcripts/transcripts.job.get.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Transcripts — Job Get",
+    "usedOnPages": ["/transcripts"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/transcripts/jobs/:jobId",
+    "method": "GET",
+    "receiptKeyPattern": "N/A",
+    "receiptSource": "N/A",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "N/A",
+    "eventIdFrom": "N/A",
+    "readFrom": ["ttmp_transcript_jobs/{jobId}.json", "ttmp_transcript_results/{jobId}.json"],
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "jobId": { "minLength": 1, "type": "string" }
+    },
+    "required": ["jobId"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "ok": true
+    },
+    "error": {
+      "error": "not_found",
+      "ok": false
+    },
+    "success": {
+      "jobId": "{params.jobId}",
+      "ok": true,
+      "status": "completed",
+      "result": {}
+    }
+  },
+  "schema": {
+    "name": "transcripts_job_get",
+    "version": 1
+  }
+}
