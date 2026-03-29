@@ -1,0 +1,111 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session",
+    "cookie": "vlp_session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "DB"],
+    "governs": "TTTMP Form 2848 autofill execution with token debit and PDF output",
+    "path": "/contracts/tttmp/tttmp.tool.form2848.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — TTTMP — Tool Form 2848",
+    "usedOnPages": ["/tools/form-2848"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tools/form-2848",
+    "method": "POST",
+    "receiptKeyPattern": "/r2/receipts/tttmp/{account_id}/{event_id}.json",
+    "canonicalTokenBalancePath": "/r2/tokens/{account_id}.json",
+    "pdfKeyPattern": "/r2/tttmp/forms/2848/{account_id}/{pdf_id}.pdf"
+  },
+  "effects": {
+    "eventIdFrom": "payload.eventId",
+    "tokenDebit": {
+      "amount": 1,
+      "tokenType": "tax_game"
+    },
+    "rateLimit": {
+      "window": "1m",
+      "max": 10,
+      "scope": "account_id"
+    },
+    "writeOrder": [
+      "contractValidation",
+      "receiptWrite",
+      "tokenDebit",
+      "pdfGeneration",
+      "response"
+    ],
+    "writes": ["receipts", "tokens", "tttmp_tool_sessions", "tool_sessions"]
+  },
+  "payload": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "eventId",
+      "taxpayerName",
+      "taxpayerTin",
+      "taxpayerAddress",
+      "representativeName",
+      "representativeAddress",
+      "taxMatters"
+    ],
+    "properties": {
+      "eventId": { "type": "string", "minLength": 1 },
+      "taxpayerName": { "type": "string", "minLength": 1, "maxLength": 200 },
+      "taxpayerTin": { "type": "string", "minLength": 9, "maxLength": 11 },
+      "taxpayerAddress": { "type": "string", "minLength": 1, "maxLength": 500 },
+      "taxpayerPhone": { "type": "string", "maxLength": 20 },
+      "representativeName": { "type": "string", "minLength": 1, "maxLength": 200 },
+      "representativeCafNumber": { "type": "string", "maxLength": 20 },
+      "representativePtin": { "type": "string", "maxLength": 20 },
+      "representativeAddress": { "type": "string", "minLength": 1, "maxLength": 500 },
+      "representativePhone": { "type": "string", "maxLength": 20 },
+      "taxMatters": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["taxType", "formNumber", "yearOrPeriod"],
+          "properties": {
+            "taxType": { "type": "string", "minLength": 1 },
+            "formNumber": { "type": "string", "minLength": 1 },
+            "yearOrPeriod": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  },
+  "response": {
+    "success": {
+      "ok": true,
+      "eventId": "{effects.eventIdFrom}",
+      "status": "completed",
+      "tokenType": "tax_game",
+      "tokensDebited": 1,
+      "pdfUrl": "string"
+    },
+    "error": {
+      "ok": false,
+      "error": "VALIDATION_FAILED|INSUFFICIENT_TOKENS|RATE_LIMITED|UNAUTHORIZED|INTERNAL_ERROR"
+    }
+  },
+  "privacy": {
+    "piiMaxRetentionDays": 30,
+    "pdfTTL": "30d",
+    "notes": "PII-bearing PDF artifacts must be deleted or expired within 30 days."
+  },
+  "schema": {
+    "name": "tttmp_tool_form2848",
+    "version": 1
+  }
+}

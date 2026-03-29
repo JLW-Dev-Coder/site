@@ -164,10 +164,16 @@ async function parseBody(request) {
   }
 }
 
-async function r2Put(bucket, key, data) {
+async function r2Put(bucket, key, data, options = {}) {
   await bucket.put(key, JSON.stringify(data), {
-    httpMetadata: { contentType: 'application/json' },
+    httpMetadata: { contentType: 'application/json', ...(options.httpMetadata ?? {}) },
+    ...(options.customMetadata ? { customMetadata: options.customMetadata } : {}),
   });
+  return true;
+}
+
+async function r2PutBlob(bucket, key, blob, options = {}) {
+  await bucket.put(key, blob, options);
   return true;
 }
 
@@ -208,6 +214,47 @@ async function requireSession(request, env) {
     return { error: json({ ok: false, error: 'UNAUTHORIZED' }, 401) };
   }
   return { session };
+}
+
+function validateForm2848Contract(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return 'Payload must be a JSON object';
+  }
+
+  const allowed = new Set([
+    'eventId',
+    'taxpayerName',
+    'taxpayerTin',
+    'taxpayerAddress',
+    'taxpayerPhone',
+    'representativeName',
+    'representativeCafNumber',
+    'representativePtin',
+    'representativeAddress',
+    'representativePhone',
+    'taxMatters',
+  ]);
+  for (const key of Object.keys(payload)) {
+    if (!allowed.has(key)) return `Unknown field: ${key}`;
+  }
+
+  const required = ['eventId', 'taxpayerName', 'taxpayerTin', 'taxpayerAddress', 'representativeName', 'representativeAddress', 'taxMatters'];
+  for (const field of required) {
+    if (!payload[field]) return `Missing required field: ${field}`;
+  }
+
+  if (!Array.isArray(payload.taxMatters) || payload.taxMatters.length < 1) {
+    return 'taxMatters must be a non-empty array';
+  }
+
+  for (const [idx, item] of payload.taxMatters.entries()) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return `taxMatters[${idx}] must be an object`;
+    if (!item.taxType || !item.formNumber || !item.yearOrPeriod) {
+      return `taxMatters[${idx}] requires taxType, formNumber, yearOrPeriod`;
+    }
+  }
+
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -3401,39 +3448,72 @@ const ROUTES = [
       const { session, error } = await requireSession(request, env);
       if (error) return error;
 
+      // Rate limit: 10 requests per minute per account.
+      const minuteBucket = new Date().toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
+      const rateLimitKey = `rate_limits/tttmp/form-2848/${session.account_id}/${minuteBucket}.json`;
+      const rateObj = await env.R2_VIRTUAL_LAUNCH.get(rateLimitKey);
+      const rateData = rateObj ? await rateObj.json().catch(() => ({})) : {};
+      const currentCount = Number(rateData.count ?? 0);
+      if (currentCount >= 10) {
+        return json({ ok: false, error: 'RATE_LIMITED', message: 'Limit is 10 requests per minute' }, 429);
+      }
+
       const body = await parseBody(request);
       if (!body || typeof body !== 'object') {
         return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
       }
 
-      const required = ['eventId', 'taxpayerName', 'taxpayerTin', 'taxpayerAddress', 'representativeName', 'representativeAddress', 'taxMatters'];
-      for (const field of required) {
-        if (!body[field]) return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
-      }
-      if (!Array.isArray(body.taxMatters) || body.taxMatters.length === 0) {
-        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'taxMatters must be a non-empty array' }, 400);
+      // Contract validation (contracts/tttmp/tttmp.tool.form2848.v1.json).
+      const validationError = validateForm2848Contract(body);
+      if (validationError) {
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: validationError }, 400);
       }
 
-      // Check token balance
-      const tokenRow = await env.DB.prepare(
-        'SELECT tax_game_tokens FROM tokens WHERE account_id = ?'
-      ).bind(session.account_id).first();
-      if (!tokenRow || tokenRow.tax_game_tokens < 1) {
+      // Token check before write pipeline processing.
+      const tokenKey = `tokens/${session.account_id}.json`;
+      const tokenObj = await env.R2_VIRTUAL_LAUNCH.get(tokenKey);
+      const tokenBalance = tokenObj
+        ? await tokenObj.json().catch(() => ({ accountId: session.account_id, taxGameTokens: 0, transcriptTokens: 0 }))
+        : { accountId: session.account_id, taxGameTokens: 0, transcriptTokens: 0 };
+      if ((tokenBalance.taxGameTokens ?? 0) < 1) {
         return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 tax_game token required' }, 403);
       }
 
       const now = new Date().toISOString();
       const eventId = body.eventId;
+      const pdfId = crypto.randomUUID();
+      const pdfKey = `tttmp/forms/2848/${session.account_id}/${pdfId}.pdf`;
+      const pdfUrlBase = env.R2_PUBLIC_BASE_URL ?? 'https://api.virtuallaunch.pro/r2';
+      const pdfUrl = `${pdfUrlBase.replace(/\/$/, '')}/${pdfKey}`;
 
-      // 1. Write R2 receipt
+      // 1) R2 receipt (write pipeline start).
       const receipt = {
-        eventId, accountId: session.account_id, tool: 'form_2848',
+        eventId, accountId: session.account_id, tool: 'form_2848_v1',
         tokenType: 'tax_game', tokensDebited: 1, createdAt: now,
+        receiptContract: '/contracts/tttmp/tttmp.tool.form2848.v1.json',
         payload: { taxpayerName: body.taxpayerName, taxpayerTin: body.taxpayerTin, taxMatters: body.taxMatters },
+        pdfKey,
+        pdfUrl,
       };
-      await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tools/form-2848/${eventId}.json`, receipt);
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/${session.account_id}/${eventId}.json`, receipt);
+      await r2Put(env.R2_VIRTUAL_LAUNCH, rateLimitKey, { accountId: session.account_id, count: currentCount + 1, minuteBucket, updatedAt: now });
 
-      // Build filled form data
+      // 2) Deduct canonical token balance in R2, then project to D1.
+      const updatedTokenBalance = {
+        ...tokenBalance,
+        accountId: session.account_id,
+        taxGameTokens: (tokenBalance.taxGameTokens ?? 0) - 1,
+        transcriptTokens: tokenBalance.transcriptTokens ?? 0,
+        updatedAt: now,
+      };
+      await r2Put(env.R2_VIRTUAL_LAUNCH, tokenKey, updatedTokenBalance);
+      await d1Run(
+        env.DB,
+        'INSERT OR REPLACE INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at) VALUES (?, ?, ?, ?)',
+        [session.account_id, updatedTokenBalance.taxGameTokens, updatedTokenBalance.transcriptTokens, now]
+      );
+
+      // 3) Generate filled PDF artifact.
       const formData = {
         form: '2848',
         revision: '2023-01',
@@ -3452,28 +3532,40 @@ const ROUTES = [
         },
         taxMatters: body.taxMatters,
         generatedAt: now,
+        accountId: session.account_id,
       };
-
-      // 2. Write R2 canonical tool session
-      await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp_tool_sessions/${eventId}.json`, {
-        sessionId: eventId, accountId: session.account_id, tool: 'form_2848',
-        tokenType: 'tax_game', tokensDebited: 1, status: 'completed',
-        result: formData, createdAt: now,
+      const pdfText = [
+        '%PDF-1.4',
+        '% VLP generated Form 2848 placeholder PDF',
+        `%% eventId: ${eventId}`,
+        `%% accountId: ${session.account_id}`,
+        `%% taxpayer: ${body.taxpayerName}`,
+        `%% representative: ${body.representativeName}`,
+        '%%EOF',
+      ].join('\n');
+      await r2PutBlob(env.R2_VIRTUAL_LAUNCH, pdfKey, pdfText, {
+        httpMetadata: { contentType: 'application/pdf' },
+        customMetadata: {
+          ttlDays: '30',
+          expiresAt: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)).toISOString(),
+          piiRetention: '30_days_max',
+        },
       });
 
-      // 3. Update D1 — debit token, insert tool session row
-      await Promise.all([
-        d1Run(env.DB,
-          'UPDATE tokens SET tax_game_tokens = tax_game_tokens - 1, updated_at = ? WHERE account_id = ?',
-          [now, session.account_id]
-        ),
-        d1Run(env.DB,
-          'INSERT INTO tool_sessions (session_id, account_id, tool, token_type, tokens_debited, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [eventId, session.account_id, 'form_2848', 'tax_game', 1, 'completed', now]
-        ),
-      ]);
+      // Canonical result record.
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp_tool_sessions/${eventId}.json`, {
+        sessionId: eventId, accountId: session.account_id, tool: 'form_2848_v1',
+        tokenType: 'tax_game', tokensDebited: 1, status: 'completed',
+        result: { ...formData, pdfUrl }, createdAt: now,
+      });
 
-      return json({ ok: true, eventId, status: 'completed', tokensDebited: 1, tokenType: 'tax_game', formData });
+      // D1 projection for tool session.
+      await d1Run(env.DB,
+        'INSERT INTO tool_sessions (session_id, account_id, tool, token_type, tokens_debited, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [eventId, session.account_id, 'form_2848_v1', 'tax_game', 1, 'completed', now]
+      );
+
+      return json({ ok: true, eventId, status: 'completed', tokensDebited: 1, tokenType: 'tax_game', pdfUrl });
     },
   },
 
@@ -3746,7 +3838,5 @@ export default {
     return result.handler(method, result.pattern, result.params, request, env, ctx);
   },
 };
-
-
 
 
