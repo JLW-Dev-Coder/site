@@ -16,7 +16,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["accounts_vlp"]
+      "writes": [
+        "accounts_vlp"
+      ]
     },
     {
       "authRequired": true,
@@ -64,7 +66,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["accounts_vlp"]
+      "writes": [
+        "accounts_vlp"
+      ]
     },
     {
       "authRequired": true,
@@ -80,7 +84,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["accounts_vlp"]
+      "writes": [
+        "accounts_vlp"
+      ]
     },
     {
       "authRequired": true,
@@ -96,7 +102,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["accounts_vlp"]
+      "writes": [
+        "accounts_vlp"
+      ]
     },
     {
       "authRequired": true,
@@ -112,7 +120,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["accounts_vlp"]
+      "writes": [
+        "accounts_vlp"
+      ]
     },
     {
       "authRequired": true,
@@ -144,7 +154,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["accounts_vlp"]
+      "writes": [
+        "accounts_vlp"
+      ]
     },
     {
       "authRequired": false,
@@ -160,7 +172,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["accounts_vlp"]
+      "writes": [
+        "accounts_vlp"
+      ]
     },
     {
       "authRequired": false,
@@ -224,7 +238,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["accounts_vlp"]
+      "writes": [
+        "accounts_vlp"
+      ]
     },
     {
       "authRequired": false,
@@ -256,7 +272,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["accounts_vlp"]
+      "writes": [
+        "accounts_vlp"
+      ]
     },
     {
       "authRequired": false,
@@ -288,7 +306,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["accounts_vlp"]
+      "writes": [
+        "accounts_vlp"
+      ]
     },
     {
       "authRequired": false,
@@ -318,7 +338,9 @@
       "receiptSource": "N/A",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
       "writes": []
     },
@@ -334,9 +356,13 @@
       "receiptSource": "billing_customer_create",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
-      "writes": ["billing_customers"]
+      "writes": [
+        "billing_customers"
+      ]
     },
     {
       "authRequired": true,
@@ -350,9 +376,13 @@
       "receiptSource": "billing_payment_intent_create",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
-      "writes": ["billing_payment_intents"]
+      "writes": [
+        "billing_payment_intents"
+      ]
     },
     {
       "authRequired": true,
@@ -366,9 +396,13 @@
       "receiptSource": "billing_payment_method_attach",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
-      "writes": ["billing_payment_methods"]
+      "writes": [
+        "billing_payment_methods"
+      ]
     },
     {
       "authRequired": true,
@@ -382,7 +416,9 @@
       "receiptSource": "N/A",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
       "writes": []
     },
@@ -398,9 +434,13 @@
       "receiptSource": "billing_portal_session_create",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
-      "writes": ["billing_customers"]
+      "writes": [
+        "billing_customers"
+      ]
     },
     {
       "authRequired": true,
@@ -414,7 +454,9 @@
       "receiptSource": "N/A",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/app/receipts.html"],
+      "usedOnPages": [
+        "/app/receipts.html"
+      ],
       "version": 1,
       "writes": []
     },
@@ -430,9 +472,13 @@
       "receiptSource": "billing_setup_intent_create",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
-      "writes": ["billing_setup_intents"]
+      "writes": [
+        "billing_setup_intents"
+      ]
     },
     {
       "authRequired": true,
@@ -446,9 +492,14 @@
       "receiptSource": "billing_subscription_cancel",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
-      "writes": ["billing_subscriptions", "memberships"]
+      "writes": [
+        "billing_subscriptions",
+        "memberships"
+      ]
     },
     {
       "authRequired": true,
@@ -462,9 +513,15 @@
       "receiptSource": "billing_subscription_create",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
-      "writes": ["billing_subscriptions", "memberships", "tokens"]
+      "writes": [
+        "billing_subscriptions",
+        "memberships",
+        "tokens"
+      ]
     },
     {
       "authRequired": true,
@@ -478,9 +535,15 @@
       "receiptSource": "billing_subscription_update",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
-      "writes": ["billing_subscriptions", "memberships", "tokens"]
+      "writes": [
+        "billing_subscriptions",
+        "memberships",
+        "tokens"
+      ]
     },
     {
       "authRequired": true,
@@ -494,9 +557,14 @@
       "receiptSource": "billing_tokens_purchase",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/pricing.html"],
+      "usedOnPages": [
+        "/site/pricing.html"
+      ],
       "version": 1,
-      "writes": ["tokens", "billing_payment_intents"]
+      "writes": [
+        "tokens",
+        "billing_payment_intents"
+      ]
     },
     {
       "authRequired": true,
@@ -512,7 +580,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["bookings"]
+      "writes": [
+        "bookings"
+      ]
     },
     {
       "authRequired": true,
@@ -576,7 +646,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["bookings"]
+      "writes": [
+        "bookings"
+      ]
     },
     {
       "authRequired": true,
@@ -608,7 +680,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["memberships"]
+      "writes": [
+        "memberships"
+      ]
     },
     {
       "authRequired": false,
@@ -622,9 +696,13 @@
       "receiptSource": "vlp_contact_submit",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/site/contact.html"],
+      "usedOnPages": [
+        "/site/contact.html"
+      ],
       "version": 1,
-      "writes": ["contact_submissions"]
+      "writes": [
+        "contact_submissions"
+      ]
     },
     {
       "authRequired": true,
@@ -640,7 +718,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["memberships"]
+      "writes": [
+        "memberships"
+      ]
     },
     {
       "authRequired": true,
@@ -688,7 +768,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["memberships"]
+      "writes": [
+        "memberships"
+      ]
     },
     {
       "authRequired": true,
@@ -704,7 +786,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["notifications_in_app"]
+      "writes": [
+        "notifications_in_app"
+      ]
     },
     {
       "authRequired": true,
@@ -752,7 +836,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["vlp_preferences"]
+      "writes": [
+        "vlp_preferences"
+      ]
     },
     {
       "authRequired": true,
@@ -768,7 +854,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["vlp_preferences"]
+      "writes": [
+        "vlp_preferences"
+      ]
     },
     {
       "authRequired": false,
@@ -800,7 +888,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["profiles"]
+      "writes": [
+        "profiles"
+      ]
     },
     {
       "authRequired": true,
@@ -830,7 +920,9 @@
       "receiptSource": "N/A",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/features/public-profile.html"],
+      "usedOnPages": [
+        "/features/public-profile.html"
+      ],
       "version": 1,
       "writes": []
     },
@@ -848,7 +940,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["profiles"]
+      "writes": [
+        "profiles"
+      ]
     },
     {
       "authRequired": true,
@@ -864,7 +958,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["support_tickets"]
+      "writes": [
+        "support_tickets"
+      ]
     },
     {
       "authRequired": true,
@@ -912,7 +1008,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["support_tickets"]
+      "writes": [
+        "support_tickets"
+      ]
     },
     {
       "authRequired": true,
@@ -926,7 +1024,9 @@
       "receiptSource": "N/A",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/app/token-usage.html"],
+      "usedOnPages": [
+        "/app/token-usage.html"
+      ],
       "version": 1,
       "writes": []
     },
@@ -942,7 +1042,9 @@
       "receiptSource": "N/A",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/app/token-usage.html"],
+      "usedOnPages": [
+        "/app/token-usage.html"
+      ],
       "version": 1,
       "writes": []
     },
@@ -976,7 +1078,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["vlp_preferences"]
+      "writes": [
+        "vlp_preferences"
+      ]
     },
     {
       "authRequired": false,
@@ -992,7 +1096,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["bookings"]
+      "writes": [
+        "bookings"
+      ]
     },
     {
       "authRequired": false,
@@ -1008,7 +1114,9 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["memberships"]
+      "writes": [
+        "memberships"
+      ]
     },
     {
       "authRequired": false,
@@ -1024,26 +1132,34 @@
       "status": "active",
       "usedOnPages": [],
       "version": 1,
-      "writes": ["vlp_preferences"]
+      "writes": [
+        "vlp_preferences"
+      ]
     },
     {
-      "authRequired": true,
-      "category": "form",
-      "dedupeKey": "{account_id}:{form_data_hash}",
-      "endpoint": "https://api.virtuallaunch.pro/v1/tools/form2848",
       "id": "tttmp.tool.form2848.v1",
-      "method": "POST",
       "path": "/contracts/tttmp/tttmp.tool.form2848.v1.json",
-      "receiptKeyPattern": "/receipts/tttmp/{account_id}/{event_id}.json",
-      "receiptSource": "tttmp.tool.form2848.v1",
-      "signatureRequired": false,
+      "version": "1.0",
       "status": "active",
-      "usedOnPages": ["/tools/form-2848"],
-      "version": 1,
+      "endpoint": "/v1/tools/form2848",
+      "method": "POST",
+      "authRequired": true,
+      "signatureRequired": false,
+      "category": "tool",
+      "usedOnPages": [
+        "/app/tools/form2848"
+      ],
+      "receiptSource": "R2_VIRTUAL_LAUNCH",
+      "receiptKeyPattern": "/receipts/tttmp/{account_id}/{event_id}.json",
+      "dedupeKey": "{account_id}:{form_data_hash}",
       "writes": [
         {
           "target": "R2",
           "key": "/receipts/tttmp/{account_id}/{event_id}.json"
+        },
+        {
+          "target": "R2",
+          "key": "/tttmp_tool_sessions/{event_id}.json"
         },
         {
           "target": "R2",
@@ -1059,7 +1175,7 @@
         },
         {
           "target": "D1",
-          "table": "tttmp_tool_usage"
+          "table": "tool_sessions"
         }
       ]
     },
@@ -1075,9 +1191,14 @@
       "receiptSource": "tools_form_8821",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/tools/form-8821"],
+      "usedOnPages": [
+        "/tools/form-8821"
+      ],
       "version": 1,
-      "writes": ["tttmp_tool_sessions", "tokens"]
+      "writes": [
+        "tttmp_tool_sessions",
+        "tokens"
+      ]
     },
     {
       "authRequired": true,
@@ -1091,9 +1212,15 @@
       "receiptSource": "transcripts_job",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/transcripts"],
+      "usedOnPages": [
+        "/transcripts"
+      ],
       "version": 1,
-      "writes": ["ttmp_transcript_jobs", "ttmp_transcript_results", "tokens"]
+      "writes": [
+        "ttmp_transcript_jobs",
+        "ttmp_transcript_results",
+        "tokens"
+      ]
     },
     {
       "authRequired": true,
@@ -1107,9 +1234,54 @@
       "receiptSource": "N/A",
       "signatureRequired": false,
       "status": "active",
-      "usedOnPages": ["/transcripts"],
+      "usedOnPages": [
+        "/transcripts"
+      ],
       "version": 1,
       "writes": []
+    },
+    {
+      "id": "tttmp.tool.form8821.v1",
+      "path": "/contracts/tttmp/tttmp.tool.form8821.v1.json",
+      "version": "1.0",
+      "status": "active",
+      "endpoint": "/v1/tools/form8821",
+      "method": "POST",
+      "authRequired": true,
+      "signatureRequired": false,
+      "category": "tool",
+      "usedOnPages": [
+        "/app/tools/form8821"
+      ],
+      "receiptSource": "R2_VIRTUAL_LAUNCH",
+      "receiptKeyPattern": "/receipts/tttmp/{account_id}/{event_id}.json",
+      "dedupeKey": "{account_id}:{form_data_hash}",
+      "writes": [
+        {
+          "target": "R2",
+          "key": "/receipts/tttmp/{account_id}/{event_id}.json"
+        },
+        {
+          "target": "R2",
+          "key": "/tttmp_tool_sessions/{event_id}.json"
+        },
+        {
+          "target": "R2",
+          "key": "/tokens/{account_id}.json"
+        },
+        {
+          "target": "R2",
+          "key": "/tttmp/tool_results/{account_id}/{event_id}.pdf"
+        },
+        {
+          "target": "D1",
+          "table": "tokens"
+        },
+        {
+          "target": "D1",
+          "table": "tool_sessions"
+        }
+      ]
     }
   ]
 }

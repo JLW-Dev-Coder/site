@@ -6,22 +6,22 @@
   },
   "contract": {
     "authority": "TTTMP",
-    "governs": "Tax tool execution — Form 2848",
-    "path": "/contracts/tttmp/tttmp.tool.form2848.v1.json",
+    "governs": "Tax tool execution — Form 8821",
+    "path": "/contracts/tttmp/tttmp.tool.form8821.v1.json",
     "source": "tttmp",
-    "title": "TTTMP Tool: Form 2848 Execution",
+    "title": "TTTMP Tool: Form 8821 Execution",
     "usedOnPages": [
-      "/app/tools/form2848"
+      "/app/tools/form8821"
     ],
-    "validation": "Validates Form 2848 field data, checks token balance, deducts token, generates PDF",
+    "validation": "Validates Form 8821 field data, checks token balance, deducts token, generates PDF",
     "version": "1.0"
   },
   "delivery": {
-    "endpoint": "/v1/tools/form2848",
+    "endpoint": "/v1/tools/form8821",
     "method": "POST",
     "receiptKeyPattern": "/receipts/tttmp/{account_id}/{event_id}.json",
     "receiptSource": "R2_VIRTUAL_LAUNCH",
-    "signature": "TTTMP_TOOL_FORM2848_EXECUTED"
+    "signature": "TTTMP_TOOL_FORM8821_EXECUTED"
   },
   "effects": {
     "dedupeKey": "{account_id}:{form_data_hash}",
@@ -52,7 +52,7 @@
       {
         "target": "R2",
         "key": "/tttmp/tool_results/{account_id}/{event_id}.pdf",
-        "content": "Generated Form 2848 PDF",
+        "content": "Generated Form 8821 PDF",
         "ttl": 2592000
       },
       {
@@ -83,7 +83,7 @@
         "required": [
           "taxpayer_name",
           "taxpayer_ssn",
-          "representative_name"
+          "appointee_name"
         ],
         "properties": {
           "taxpayer_name": {
@@ -94,14 +94,14 @@
             "type": "string",
             "pattern": "^\\d{3}-\\d{2}-\\d{4}$"
           },
-          "representative_name": {
+          "appointee_name": {
             "type": "string",
             "minLength": 1
           },
-          "representative_caf": {
+          "appointee_address": {
             "type": "string"
           },
-          "tax_matters": {
+          "tax_information": {
             "type": "array",
             "items": {
               "type": "string"
@@ -115,7 +115,7 @@
   "response": {
     "success": {
       "pdf_url": "https://r2.virtuallaunch.pro/tttmp/tool_results/{account_id}/{event_id}.pdf",
-      "tokens_remaining": 14,
+      "tokens_remaining": 13,
       "event_id": "EVT_..."
     },
     "error": {
@@ -128,7 +128,7 @@
     }
   },
   "schema": {
-    "name": "tttmp.tool.form2848.v1",
+    "name": "tttmp.tool.form8821.v1",
     "version": "1.0"
   }
 }
