@@ -267,7 +267,7 @@ CONTRACT SCHEMA:
       },
       {
         "target": "D1",
-        "table": "tttmp_tool_usage",
+        "table": "tool_sessions",
         "content": "Tool execution metadata for queryability"
       }
     ]
