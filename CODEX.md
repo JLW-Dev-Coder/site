@@ -88,6 +88,7 @@ ticket_id         = TKT_{UUID}
 - Token deduction on tool use
 - `/api/tools/*` Worker endpoints
 
+
 **Success Criteria:**
 - [ ] Tool submission accepts JSON payload
 - [ ] Token balance checked before execution
@@ -539,7 +540,7 @@ VALIDATION CHECKLIST:
 ```
 
 **Phase 1 Complete When:**
-- [ ] All 3 milestones validated
+- [x] All 3 milestones validated
 - [ ] All contracts in registry
 - [ ] All routes tested with valid session
 - [ ] Token deduction verified via R2 inspection
@@ -1078,7 +1079,8 @@ Track all PRs here for historical reference.
 
 | PR # | Phase | Milestone | Status | Merged Date | Notes |
 |------|-------|-----------|--------|-------------|-------|
-| — | — | — | — | — | — |
+| #42 | 1 | Form 2848 Tool (Initial) | Failed Audit | — | 7 spec violations: ID, path, schema, writes, endpoint, dedupe, D1 table |
+| #43 | 1 | Form 2848 Tool (Fix) | Merged | 2026-03-28 | All violations corrected, CODEX-aligned |
 
 **Example Entry:**
 | PR # | Phase | Milestone | Status | Merged Date | Notes |
