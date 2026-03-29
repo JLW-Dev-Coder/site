@@ -162,12 +162,11 @@
 | Account / Membership Mgmt            | ✓                 | ✓             |
 | Bid on Websites                      | —                 | ✓             |
 | Buy Now (Instant Claim)              | ✓                 | ✓             |
-| Calendar / Scheduling                | —                 | ✓             |
+| Calendar / Scheduling                | ✓                 | ✓             |
 | Cloudflare Security                  | —                 | ✓             |
-| Directory Profile                    | —                 | ✓             |
 | Easy Transfer Anytime                | —                 | ✓             |
 | High-Converting Website              | —                 | ✓             |
-| Mobile Optimized                     | ✓                 | ✓             |
+| Mobile Optimized                     | —                 | ✓             |
 | Payment Integration                  | —                 | ✓             |
 | Premium Domain Hosting               | —                 | ✓             |
 | Profile Management                   | ✓                 | ✓             |
