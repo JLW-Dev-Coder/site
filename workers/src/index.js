@@ -3634,6 +3634,221 @@ const ROUTES = [
   },
 
   // -------------------------------------------------------------------------
+  // TTTMP — Transcript Parser Tool (Phase 1)
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'POST', pattern: '/v1/tools/transcript-parser',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      // Rate limit: 5 req/min per account
+      const rlKey = `rl:transcript_parser:${session.account_id}`;
+      const rlObj = await env.R2_VIRTUAL_LAUNCH.get(rlKey);
+      if (rlObj) {
+        const rlData = await rlObj.json();
+        const windowStart = Date.now() - 60000;
+        const recentHits = (rlData.hits || []).filter((t) => t > windowStart);
+        if (recentHits.length >= 5) {
+          return json({ ok: false, error: 'RATE_LIMIT_EXCEEDED', message: 'Maximum 5 transcript parses per minute' }, 429);
+        }
+        recentHits.push(Date.now());
+        await r2Put(env.R2_VIRTUAL_LAUNCH, rlKey, { hits: recentHits });
+      } else {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, rlKey, { hits: [Date.now()] });
+      }
+
+      const payload = await parseBody(request);
+      if (!payload || typeof payload !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+      }
+
+      if (!payload.account_id || !payload.transcript_data) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing account_id or transcript_data' }, 400);
+      }
+
+      if (payload.account_id !== session.account_id) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'account_id must match authenticated session' }, 400);
+      }
+
+      if (!/^ACCT_[a-f0-9-]{36}$/.test(payload.account_id)) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Invalid account_id format' }, 400);
+      }
+
+      // Whitelist top-level fields
+      const allowedPayloadFields = ['account_id', 'transcript_data'];
+      const payloadExtraFields = Object.keys(payload).filter((k) => !allowedPayloadFields.includes(k));
+      if (payloadExtraFields.length > 0) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Unexpected top-level fields: ${payloadExtraFields.join(', ')}` }, 400);
+      }
+
+      const { transcript_data } = payload;
+      if (!transcript_data || typeof transcript_data !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'transcript_data must be an object' }, 400);
+      }
+      if (!transcript_data.transcript_type || !transcript_data.transactions) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing required transcript fields: transcript_type, transactions' }, 400);
+      }
+
+      const validTypes = ['account', 'return', 'wage_income', 'record_of_account'];
+      if (!validTypes.includes(transcript_data.transcript_type)) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Invalid transcript_type. Must be one of: ${validTypes.join(', ')}` }, 400);
+      }
+
+      if (!Array.isArray(transcript_data.transactions) || transcript_data.transactions.length === 0) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'transactions must be a non-empty array' }, 400);
+      }
+
+      // Validate each transaction
+      for (let i = 0; i < transcript_data.transactions.length; i++) {
+        const t = transcript_data.transactions[i];
+        if (!t || typeof t !== 'object') {
+          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}] must be an object` }, 400);
+        }
+        if (t.code === undefined || t.date === undefined || t.amount === undefined) {
+          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}] missing required fields: code, date, amount` }, 400);
+        }
+        if (!/^\d{3}$/.test(t.code)) {
+          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}].code must be a 3-digit string` }, 400);
+        }
+        if (typeof t.amount !== 'number') {
+          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}].amount must be a number` }, 400);
+        }
+      }
+
+      // Dedupe check via SHA-256 hash of transcript_data
+      const accountId = payload.account_id;
+      const transcriptJson = JSON.stringify(transcript_data);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(transcriptJson));
+      const hashHex = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('');
+      const dedupeKey = `${accountId}:${hashHex}`;
+
+      const existingEvent = await env.DB.prepare(
+        'SELECT session_id FROM tool_sessions WHERE account_id = ? AND tool = ? AND status = ? ORDER BY created_at DESC LIMIT 1'
+      ).bind(accountId, 'transcript_parser', 'completed').first();
+
+      // Check R2 for existing result with this dedupe key
+      const dedupeCheckKey = `tttmp/dedupe/${dedupeKey}`;
+      const existingDedupe = await env.R2_VIRTUAL_LAUNCH.get(dedupeCheckKey);
+      if (existingDedupe) {
+        const dedupeData = await existingDedupe.json();
+        return json({
+          ok: true,
+          message: 'Duplicate transcript detected — returning cached result',
+          original_event_id: dedupeData.event_id,
+          result_url: `https://r2.virtuallaunch.pro/tttmp/tool_results/${accountId}/${dedupeData.event_id}.json`,
+        });
+      }
+
+      // Token check (transcript_tokens, not tax_tool_tokens)
+      const tokenRow = await env.DB.prepare(
+        'SELECT transcript_tokens FROM tokens WHERE account_id = ?'
+      ).bind(accountId).first();
+      if (!tokenRow || tokenRow.transcript_tokens < 1) {
+        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 transcript token required' }, 402);
+      }
+
+      // --- Write pipeline ---
+      const eventId = crypto.randomUUID();
+      const nowIso = new Date().toISOString();
+
+      // 1. Receipt
+      const receipt = {
+        event_id: eventId,
+        account_id: accountId,
+        dedupe_key: dedupeKey,
+        tool_name: 'transcript_parser',
+        created_at: nowIso,
+        payload,
+      };
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/${accountId}/${eventId}.json`, receipt);
+
+      // 2. Token deduction (transcript_tokens)
+      await d1Run(
+        env.DB,
+        'UPDATE tokens SET transcript_tokens = transcript_tokens - 1, updated_at = ? WHERE account_id = ?',
+        [nowIso, accountId]
+      );
+
+      const updatedTranscriptTokens = tokenRow.transcript_tokens - 1;
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/${accountId}.json`, {
+        account_id: accountId,
+        transcript_tokens: updatedTranscriptTokens,
+        updated_at: nowIso,
+      });
+
+      // 3. Parse transcript
+      const codesFound = [...new Set(transcript_data.transactions.map((t) => t.code))];
+      let balanceOwed = 0;
+      let refundAmount = 0;
+      transcript_data.transactions.forEach((t) => {
+        // Assessment/adjustment codes add to balance
+        if (['150', '290', '300'].includes(t.code)) {
+          balanceOwed += t.amount;
+        }
+        // Refund issued code
+        if (t.code === '846') {
+          refundAmount += Math.abs(t.amount);
+        }
+      });
+      const parsedSummary = {
+        total_transactions: transcript_data.transactions.length,
+        codes_found: codesFound,
+        balance_owed: Math.max(0, balanceOwed),
+        refund_amount: refundAmount,
+      };
+
+      // 4. PII redaction + result storage
+      const resultData = {
+        event_id: eventId,
+        transcript_type: transcript_data.transcript_type,
+        parsed_summary: parsedSummary,
+        transactions: transcript_data.transactions,
+        created_at: nowIso,
+      };
+      // Redact SSN/EIN patterns from stored result
+      const ssnPattern = /\d{3}-\d{2}-\d{4}/g;
+      const einPattern = /\d{2}-\d{7}/g;
+      let resultJson = JSON.stringify(resultData);
+      resultJson = resultJson.replace(ssnPattern, 'XXX-XX-XXXX');
+      resultJson = resultJson.replace(einPattern, 'XX-XXXXXXX');
+      const redactedResult = JSON.parse(resultJson);
+
+      const resultKey = `tttmp/tool_results/${accountId}/${eventId}.json`;
+      await env.R2_VIRTUAL_LAUNCH.put(resultKey, JSON.stringify(redactedResult), {
+        httpMetadata: { contentType: 'application/json' },
+        customMetadata: {
+          retention: '30-days',
+          account_id: accountId,
+          event_id: eventId,
+        },
+      });
+
+      // 5. D1 index (tool_sessions table)
+      await d1Run(
+        env.DB,
+        'INSERT INTO tool_sessions (session_id, account_id, tool, token_type, tokens_debited, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [eventId, accountId, 'transcript_parser', 'transcript', 1, 'completed', nowIso]
+      );
+
+      // Store dedupe marker
+      await r2Put(env.R2_VIRTUAL_LAUNCH, dedupeCheckKey, { event_id: eventId, created_at: nowIso });
+
+      return json({
+        ok: true,
+        event_id: eventId,
+        status: 'completed',
+        result_url: `https://r2.virtuallaunch.pro/tttmp/tool_results/${accountId}/${eventId}.json`,
+        parsed_summary: parsedSummary,
+        tokens_remaining: updatedTranscriptTokens,
+        tokens_debited: 1,
+        token_type: 'transcript',
+      });
+    },
+  },
+
+  // -------------------------------------------------------------------------
   // TRANSCRIPTS (Phase 1 — TTMP)
   // -------------------------------------------------------------------------
 

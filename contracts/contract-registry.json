@@ -1180,6 +1180,45 @@
       ]
     },
     {
+      "id": "tttmp.tool.transcript-parser.v1",
+      "path": "/contracts/tttmp/tttmp.tool.transcript-parser.v1.json",
+      "version": "1.0",
+      "status": "active",
+      "endpoint": "/v1/tools/transcript-parser",
+      "method": "POST",
+      "authRequired": true,
+      "signatureRequired": false,
+      "category": "tool",
+      "usedOnPages": [
+        "/app/tools/transcript-parser"
+      ],
+      "receiptSource": "R2_VIRTUAL_LAUNCH",
+      "receiptKeyPattern": "/receipts/tttmp/{account_id}/{event_id}.json",
+      "dedupeKey": "{account_id}:{transcript_hash}",
+      "writes": [
+        {
+          "target": "R2",
+          "key": "/receipts/tttmp/{account_id}/{event_id}.json"
+        },
+        {
+          "target": "R2",
+          "key": "/tokens/{account_id}.json"
+        },
+        {
+          "target": "R2",
+          "key": "/tttmp/tool_results/{account_id}/{event_id}.json"
+        },
+        {
+          "target": "D1",
+          "table": "tokens"
+        },
+        {
+          "target": "D1",
+          "table": "tool_sessions"
+        }
+      ]
+    },
+    {
       "authRequired": true,
       "category": "form",
       "dedupeKey": "payload.eventId",

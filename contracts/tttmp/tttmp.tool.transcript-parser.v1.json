@@ -1,0 +1,121 @@
+{
+  "auth": {
+    "required": true,
+    "type": "session",
+    "trustClientIdentityFields": false
+  },
+  "contract": {
+    "authority": "TTTMP",
+    "governs": "Transcript parsing tool execution",
+    "path": "/contracts/tttmp/tttmp.tool.transcript-parser.v1.json",
+    "source": "tttmp",
+    "title": "TTTMP Tool: Transcript Parser Execution",
+    "usedOnPages": ["/app/tools/transcript-parser"],
+    "validation": "Validates transcript JSON, checks token balance, parses codes, returns structured output",
+    "version": "1.0"
+  },
+  "delivery": {
+    "endpoint": "/v1/tools/transcript-parser",
+    "method": "POST",
+    "receiptKeyPattern": "/receipts/tttmp/{account_id}/{event_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": "TTTMP_TOOL_TRANSCRIPT_PARSER_EXECUTED"
+  },
+  "effects": {
+    "dedupeKey": "{account_id}:{transcript_hash}",
+    "eventIdFrom": "server",
+    "writeOrder": [
+      "receipt",
+      "token_deduction",
+      "parse_execution",
+      "result_storage",
+      "d1_index"
+    ],
+    "writes": [
+      {
+        "target": "R2",
+        "key": "/receipts/tttmp/{account_id}/{event_id}.json",
+        "content": "Full event payload + timestamp"
+      },
+      {
+        "target": "R2",
+        "key": "/tokens/{account_id}.json",
+        "content": "Updated token balance (decrement transcript_tokens by 1)"
+      },
+      {
+        "target": "R2",
+        "key": "/tttmp/tool_results/{account_id}/{event_id}.json",
+        "content": "Parsed transcript output (PII redacted)",
+        "ttl": 2592000
+      },
+      {
+        "target": "D1",
+        "table": "tokens",
+        "content": "Projection of R2 token balance"
+      },
+      {
+        "target": "D1",
+        "table": "tool_sessions",
+        "content": "Tool execution metadata"
+      }
+    ]
+  },
+  "payload": {
+    "type": "object",
+    "required": ["account_id", "transcript_data"],
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "pattern": "^ACCT_[a-f0-9-]{36}$"
+      },
+      "transcript_data": {
+        "type": "object",
+        "required": ["transcript_type", "transactions"],
+        "properties": {
+          "transcript_type": {
+            "type": "string",
+            "enum": ["account", "return", "wage_income", "record_of_account"]
+          },
+          "transactions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["code", "date", "amount"],
+              "properties": {
+                "code": { "type": "string", "pattern": "^\\d{3}$" },
+                "date": { "type": "string", "format": "date" },
+                "amount": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "success": {
+      "result_url": "https://r2.virtuallaunch.pro/tttmp/tool_results/{account_id}/{event_id}.json",
+      "parsed_summary": {
+        "total_transactions": 15,
+        "codes_found": ["150", "570", "846"],
+        "balance_owed": 1234.56,
+        "refund_amount": 0
+      },
+      "tokens_remaining": 9,
+      "event_id": "EVT_..."
+    },
+    "error": {
+      "code": "INSUFFICIENT_TOKENS | INVALID_TRANSCRIPT | RATE_LIMIT_EXCEEDED",
+      "message": "Human-readable error"
+    },
+    "deduped": {
+      "message": "Duplicate transcript detected — returning cached result",
+      "original_event_id": "EVT_..."
+    }
+  },
+  "schema": {
+    "name": "tttmp.tool.transcript-parser.v1",
+    "version": "1.0"
+  }
+}
