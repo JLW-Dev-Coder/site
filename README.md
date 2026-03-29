@@ -173,7 +173,6 @@
 | Reward Perks (Tax Tools Integration) | ✓                 | ✓             |
 | Support Tickets                      | —                 | ✓             |
 | Vote on Designs                      | ✓                 | ✓             |
-|
 
 ---
 
