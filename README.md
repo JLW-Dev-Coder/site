@@ -86,6 +86,8 @@
 
 ### Tax Monitor Pro (TMP)
 
+#### Plan I — Core Access
+
 | Feature / Capability       | Free | Essential ($9) | Plus ($19) | Premier ($39) |
 | -------------------------- | ---- | -------------- | ---------- | ------------- |
 | Account / Membership Mgmt  | ✓    | ✓              | ✓          | ✓             |
@@ -99,6 +101,27 @@
 | Token Balances             | ✓    | ✓              | ✓          | ✓             |
 | Tool Usage History         | ✓    | ✓              | ✓          | ✓             |
 | Transcript Tokens          | 0    | 2              | 5          | 10            |
+
+---
+
+#### Plan II — Monitoring + Core Access
+
+| Feature / Plan II           | Bronze ($275) | Silver ($325) | Gold ($425) | One Time Snapshot ($425) | MFJ Add-On ($79) |
+| --------------------------- | ------------- | ------------- | ----------- | ------------------------ | ---------------- |
+| Account / Membership Mgmt   | ✓             | ✓             | ✓           | ✓                        | ✓                |
+| Calendar / Scheduling       | ✓             | ✓             | ✓           | ✓                        | ✓                |
+| Discounts / Entitlements    | ✓             | ✓             | ✓           | ✓                        | ✓                |
+| Messaging (Pro ↔ Taxpayer)  | ✓             | ✓             | ✓           | ✓                        | ✓                |
+| Monitoring (IRS Transcript) | 6-weeks       | 8-weeks       | 12-weeks    | One-time                 | Add-On*          |
+| Profile Management          | ✓             | ✓             | ✓           | ✓                        | ✓                |
+| Support Tickets             | ✓             | ✓             | ✓           | ✓                        | ✓                |
+| Tax Tool Game Tokens        | 5             | 10            | 20          | 0                        | —                |
+| Taxpayer Intake             | ✓             | ✓             | ✓           | ✓                        | ✓                |
+| Token Balances              | ✓             | ✓             | ✓           | ✓                        | ✓                |
+| Tool Usage History          | ✓             | ✓             | ✓           | ✓                        | ✓                |
+| Transcript Tokens           | 5             | 10            | 20          | 1                        | —                |
+
+*Add-on to any plan
 
 ---
 
