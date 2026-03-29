@@ -157,19 +157,24 @@
 
 ### Website Lotto Virtual Launch Pro (WLVLP)
 
-| Feature / Capability      | Plan ($99/mo) |
-| ------------------------- | ------------- |
-| Account / Membership Mgmt | ✓             |
-| Calendar / Scheduling     | ✓             |
-| Cloudflare Security       | ✓             |
-| Directory Profile         | ✓             |
-| Easy Transfer Anytime     | ✓             |
-| High-Converting Website   | ✓             |
-| Mobile Optimized          | ✓             |
-| Payment Integration       | ✓             |
-| Premium Domain Hosting    | ✓             |
-| Profile Management        | ✓             |
-| Support Tickets           | ✓             |
+| Feature / Capability                 | Free Plan ($0/mo) | Plan ($99/mo) |
+| ------------------------------------ | ----------------- | ------------- |
+| Account / Membership Mgmt            | ✓                 | ✓             |
+| Bid on Websites                      | —                 | ✓             |
+| Buy Now (Instant Claim)              | ✓                 | ✓             |
+| Calendar / Scheduling                | —                 | ✓             |
+| Cloudflare Security                  | —                 | ✓             |
+| Directory Profile                    | —                 | ✓             |
+| Easy Transfer Anytime                | —                 | ✓             |
+| High-Converting Website              | —                 | ✓             |
+| Mobile Optimized                     | ✓                 | ✓             |
+| Payment Integration                  | —                 | ✓             |
+| Premium Domain Hosting               | —                 | ✓             |
+| Profile Management                   | ✓                 | ✓             |
+| Reward Perks (Tax Tools Integration) | ✓                 | ✓             |
+| Support Tickets                      | —                 | ✓             |
+| Vote on Designs                      | ✓                 | ✓             |
+|
 
 ---
 
