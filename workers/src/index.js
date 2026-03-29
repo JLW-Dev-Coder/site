@@ -3396,84 +3396,158 @@ const ROUTES = [
   // -------------------------------------------------------------------------
 
   {
-    method: 'POST', pattern: '/v1/tools/form-2848',
+    method: 'POST', pattern: '/v1/tools/form2848',
     handler: async (_method, _pattern, _params, request, env) => {
       const { session, error } = await requireSession(request, env);
       if (error) return error;
 
-      const body = await parseBody(request);
-      if (!body || typeof body !== 'object') {
+      const payload = await parseBody(request);
+      if (!payload || typeof payload !== 'object') {
         return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
       }
 
-      const required = ['eventId', 'taxpayerName', 'taxpayerTin', 'taxpayerAddress', 'representativeName', 'representativeAddress', 'taxMatters'];
-      for (const field of required) {
-        if (!body[field]) return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
-      }
-      if (!Array.isArray(body.taxMatters) || body.taxMatters.length === 0) {
-        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'taxMatters must be a non-empty array' }, 400);
+      if (!payload.account_id || !payload.form_data) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing account_id or form_data' }, 400);
       }
 
-      // Check token balance
+      if (payload.account_id !== session.account_id) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'account_id must match authenticated session' }, 400);
+      }
+
+      if (!/^ACCT_[a-f0-9-]{36}$/.test(payload.account_id)) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Invalid account_id format' }, 400);
+      }
+
+      const { form_data: formData } = payload;
+      if (!formData || typeof formData !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'form_data must be an object' }, 400);
+      }
+      if (!formData.taxpayer_name || !formData.taxpayer_ssn || !formData.representative_name) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing required form fields' }, 400);
+      }
+      if (!/^\d{3}-\d{2}-\d{4}$/.test(formData.taxpayer_ssn)) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Invalid SSN format (must be XXX-XX-XXXX)' }, 400);
+      }
+
+      const allowedPayloadFields = ['account_id', 'form_data'];
+      const payloadExtraFields = Object.keys(payload).filter((k) => !allowedPayloadFields.includes(k));
+      if (payloadExtraFields.length > 0) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Unexpected top-level fields: ${payloadExtraFields.join(', ')}` }, 400);
+      }
+
+      const allowedFormFields = ['taxpayer_name', 'taxpayer_ssn', 'representative_name', 'representative_caf', 'tax_matters'];
+      const extraFields = Object.keys(formData).filter((k) => !allowedFormFields.includes(k));
+      if (extraFields.length > 0) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Unexpected fields: ${extraFields.join(', ')}` }, 400);
+      }
+
+      if (formData.tax_matters !== undefined && !Array.isArray(formData.tax_matters)) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'tax_matters must be an array when provided' }, 400);
+      }
+
+      const accountId = payload.account_id;
+      const formDataJson = JSON.stringify(formData);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(formDataJson));
+      const hashHex = Array.from(new Uint8Array(hashBuffer)).map((b) => b.toString(16).padStart(2, '0')).join('');
+      const dedupeKey = `${accountId}:${hashHex}`;
+
+      const existingEvent = await env.DB.prepare(
+        'SELECT event_id FROM tttmp_tool_usage WHERE dedupe_key = ?'
+      ).bind(dedupeKey).first();
+
+      if (existingEvent?.event_id) {
+        return json({
+          ok: true,
+          message: 'Duplicate request detected — returning cached result',
+          original_event_id: existingEvent.event_id,
+          pdf_url: `https://r2.virtuallaunch.pro/tttmp/tool_results/${accountId}/${existingEvent.event_id}.pdf`,
+        });
+      }
+
       const tokenRow = await env.DB.prepare(
         'SELECT tax_game_tokens FROM tokens WHERE account_id = ?'
-      ).bind(session.account_id).first();
+      ).bind(accountId).first();
       if (!tokenRow || tokenRow.tax_game_tokens < 1) {
         return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 tax_game token required' }, 403);
       }
 
-      const now = new Date().toISOString();
-      const eventId = body.eventId;
+      const eventId = crypto.randomUUID();
+      const nowIso = new Date().toISOString();
+      const nowMs = Date.now();
 
-      // 1. Write R2 receipt
       const receipt = {
-        eventId, accountId: session.account_id, tool: 'form_2848',
-        tokenType: 'tax_game', tokensDebited: 1, createdAt: now,
-        payload: { taxpayerName: body.taxpayerName, taxpayerTin: body.taxpayerTin, taxMatters: body.taxMatters },
+        event_id: eventId,
+        account_id: accountId,
+        dedupe_key: dedupeKey,
+        tool_name: 'form2848',
+        created_at: nowIso,
+        payload,
       };
-      await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tools/form-2848/${eventId}.json`, receipt);
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/${accountId}/${eventId}.json`, receipt);
 
-      // Build filled form data
-      const formData = {
-        form: '2848',
-        revision: '2023-01',
-        taxpayer: {
-          name: body.taxpayerName,
-          tin: body.taxpayerTin,
-          address: body.taxpayerAddress,
-          phone: body.taxpayerPhone ?? '',
-        },
-        representative: {
-          name: body.representativeName,
-          cafNumber: body.representativeCafNumber ?? '',
-          ptin: body.representativePtin ?? '',
-          address: body.representativeAddress,
-          phone: body.representativePhone ?? '',
-        },
-        taxMatters: body.taxMatters,
-        generatedAt: now,
-      };
+      await d1Run(
+        env.DB,
+        'UPDATE tokens SET tax_game_tokens = tax_game_tokens - 1, updated_at = ? WHERE account_id = ?',
+        [nowIso, accountId]
+      );
 
-      // 2. Write R2 canonical tool session
-      await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp_tool_sessions/${eventId}.json`, {
-        sessionId: eventId, accountId: session.account_id, tool: 'form_2848',
-        tokenType: 'tax_game', tokensDebited: 1, status: 'completed',
-        result: formData, createdAt: now,
+      const updatedTaxGameTokens = tokenRow.tax_game_tokens - 1;
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/${accountId}.json`, {
+        account_id: accountId,
+        tax_game_tokens: updatedTaxGameTokens,
+        updated_at: nowIso,
       });
 
-      // 3. Update D1 — debit token, insert tool session row
-      await Promise.all([
-        d1Run(env.DB,
-          'UPDATE tokens SET tax_game_tokens = tax_game_tokens - 1, updated_at = ? WHERE account_id = ?',
-          [now, session.account_id]
-        ),
-        d1Run(env.DB,
-          'INSERT INTO tool_sessions (session_id, account_id, tool, token_type, tokens_debited, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [eventId, session.account_id, 'form_2848', 'tax_game', 1, 'completed', now]
-        ),
-      ]);
+      const pdfLines = [
+        '%PDF-1.4',
+        '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+        '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
+        '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R >> endobj',
+        `4 0 obj << /Length 96 >> stream\nBT /F1 12 Tf 72 720 Td (Form 2848 Event ${eventId}) Tj ET\nendstream endobj`,
+        'xref',
+        '0 5',
+        '0000000000 65535 f ',
+        'trailer << /Root 1 0 R /Size 5 >>',
+        'startxref',
+        '0',
+        '%%EOF',
+      ];
+      const pdfBuffer = new TextEncoder().encode(pdfLines.join('\n'));
+      const pdfKey = `tttmp/tool_results/${accountId}/${eventId}.pdf`;
+      await env.R2_VIRTUAL_LAUNCH.put(pdfKey, pdfBuffer, {
+        httpMetadata: { contentType: 'application/pdf' },
+        customMetadata: {
+          retention: '30-days',
+          account_id: accountId,
+          event_id: eventId,
+        },
+      });
+      const pdfUrl = `https://r2.virtuallaunch.pro/tttmp/tool_results/${accountId}/${eventId}.pdf`;
 
-      return json({ ok: true, eventId, status: 'completed', tokensDebited: 1, tokenType: 'tax_game', formData });
+      await env.DB.prepare(`
+        INSERT INTO tttmp_tool_usage (
+          id, account_id, event_id, tool_name, dedupe_key,
+          executed_at, tokens_deducted, result_url
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).bind(
+        `USAGE_${eventId}`,
+        accountId,
+        eventId,
+        'form2848',
+        dedupeKey,
+        nowMs,
+        1,
+        pdfUrl
+      ).run();
+
+      return json({
+        ok: true,
+        event_id: eventId,
+        status: 'completed',
+        tokens_debited: 1,
+        token_type: 'tax_game',
+        pdf_url: pdfUrl,
+      });
     },
   },
 
