@@ -1,0 +1,88 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "signature"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Cal.com webhook event ingestion and booking record reconciliation",
+    "path": "/contracts/webhooks/webhooks.cal.receive.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Webhooks Cal Receive",
+    "usedOnPages": [],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/webhooks/cal",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/webhooks/cal/{eventId}.json",
+    "receiptSource": "webhooks_cal",
+    "signature": {
+      "header": "X-Cal-Signature-256",
+      "required": true,
+      "secretEnvVar": "CAL_WEBHOOK_SECRET"
+    }
+  },
+  "effects": {
+    "canonicalUpsert": {
+      "target": "bookings/{bookingId}.json"
+    },
+    "dedupeKey": "payload.triggerEvent",
+    "eventIdFrom": "payload.triggerEvent",
+    "receiptAppend": {
+      "to": "receipts/webhooks/cal/{eventId}.json"
+    },
+    "writeOrder": ["receiptAppend", "canonicalUpsert"],
+    "writes": ["bookings"]
+  },
+  "payload": {
+    "additionalProperties": true,
+    "properties": {
+      "triggerEvent": {
+        "enum": [
+          "BOOKING_CANCELLED",
+          "BOOKING_CREATED",
+          "BOOKING_NO_SHOW_UPDATED",
+          "BOOKING_PAID",
+          "BOOKING_PAYMENT_INITIATED",
+          "BOOKING_REJECTED",
+          "BOOKING_REQUEST_RESCHEDULE",
+          "BOOKING_REQUESTED",
+          "BOOKING_RESCHEDULED",
+          "MEETING_ENDED",
+          "MEETING_STARTED",
+          "OUT_OF_OFFICE_CREATED"
+        ],
+        "type": "string"
+      }
+    },
+    "required": ["triggerEvent"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "eventId": "{effects.eventIdFrom}",
+      "ok": true
+    },
+    "error": {
+      "error": "signature_invalid",
+      "ok": false
+    },
+    "success": {
+      "eventId": "{effects.eventIdFrom}",
+      "ok": true,
+      "status": "received"
+    }
+  },
+  "schema": {
+    "name": "webhooks_cal_receive",
+    "version": 1
+  }
+}

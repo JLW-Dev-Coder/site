@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP Stripe payment method attach",
-    "path": "/contracts/billing.payment-method.attach.v1.json",
+    "path": "/contracts/membership/billing.payment-method.attach.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro — Billing Payment Method — Attach",
     "usedOnPages": [

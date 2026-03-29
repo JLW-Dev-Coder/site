@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP Stripe billing portal session creation",
-    "path": "/contracts/billing.portal-session.create.v1.json",
+    "path": "/contracts/membership/billing.portal-session.create.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro — Billing Portal Session — Create",
     "usedOnPages": [

@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP SMS notification send",
-    "path": "/contracts/notifications.sms.send.v1.json",
+    "path": "/contracts/notifications/notifications.sms.send.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Notifications Sms Send",
     "usedOnPages": [],

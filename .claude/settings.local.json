@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(grep -r -i canva /c/Users/eimaj/virtuallaunch.pro --include=*.md --include=*.json --include=*.tsx --include=*.ts)"
+      "Bash(grep -r -i canva /c/Users/eimaj/virtuallaunch.pro --include=*.md --include=*.json --include=*.tsx --include=*.ts)",
+      "Bash(node -e \"const r = require\\(''./contracts/contract-registry.json''\\); console.log\\(''Total entries:'', r.contracts.length\\); const ids = r.contracts.map\\(c=>c.id\\).sort\\(\\); ids.forEach\\(id => console.log\\('' '', id\\)\\);\")",
+      "Bash(node -e \":*)"
     ]
   }
 }

@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP Stripe payment intent creation",
-    "path": "/contracts/billing.payment-intent.create.v1.json",
+    "path": "/contracts/membership/billing.payment-intent.create.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro — Billing Payment Intent — Create",
     "usedOnPages": [

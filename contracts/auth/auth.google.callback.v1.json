@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP Google OAuth callback handling",
-    "path": "/contracts/auth.google.callback.v1.json",
+    "path": "/contracts/auth/auth.google.callback.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Auth Google Callback",
     "usedOnPages": [],

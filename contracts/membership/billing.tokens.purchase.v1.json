@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP token purchase orchestration",
-    "path": "/contracts/billing.tokens.purchase.v1.json",
+    "path": "/contracts/membership/billing.tokens.purchase.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro — Billing Tokens — Purchase",
     "usedOnPages": [

@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP professional profile creation",
-    "path": "/contracts/profile.create.v1.json",
+    "path": "/contracts/profile/profile.create.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Profile Create",
     "usedOnPages": [],

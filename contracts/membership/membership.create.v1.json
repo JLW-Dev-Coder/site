@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP membership creation",
-    "path": "/contracts/membership.create.v1.json",
+    "path": "/contracts/membership/membership.create.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Membership Create",
     "usedOnPages": [],

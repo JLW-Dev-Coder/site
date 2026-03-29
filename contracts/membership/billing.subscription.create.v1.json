@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP billing subscription creation",
-    "path": "/contracts/billing.subscription.create.v1.json",
+    "path": "/contracts/membership/billing.subscription.create.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro — Billing Subscription — Create",
     "usedOnPages": [

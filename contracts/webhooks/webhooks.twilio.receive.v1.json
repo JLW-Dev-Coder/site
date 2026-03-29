@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP Twilio webhook receipt",
-    "path": "/contracts/webhooks.twilio.receive.v1.json",
+    "path": "/contracts/webhooks/webhooks.twilio.receive.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Webhooks Twilio Receive",
     "usedOnPages": [],

@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP support ticket lookup by ticket id",
-    "path": "/contracts/support-ticket.get.v1.json",
+    "path": "/contracts/support-ticket/support-ticket.get.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Support Ticket Get",
     "usedOnPages": [],

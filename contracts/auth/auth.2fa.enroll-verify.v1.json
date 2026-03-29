@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP two-factor authentication enrollment verification",
-    "path": "/contracts/auth.2fa.enroll-verify.v1.json",
+    "path": "/contracts/auth/auth.2fa.enroll-verify.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Auth 2Fa Enroll Verify",
     "usedOnPages": [],

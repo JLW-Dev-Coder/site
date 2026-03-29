@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP public pricing configuration",
-    "path": "/contracts/pricing.get.v1.json",
+    "path": "/contracts/pricing/pricing.get.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Pricing Get",
     "usedOnPages": [],

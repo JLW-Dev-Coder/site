@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP booking lookup by booking id",
-    "path": "/contracts/booking.get.v1.json",
+    "path": "/contracts/booking/booking.get.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Booking Get",
     "usedOnPages": [],

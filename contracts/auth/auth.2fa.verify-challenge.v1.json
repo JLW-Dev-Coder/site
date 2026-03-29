@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP two-factor authentication challenge verification",
-    "path": "/contracts/auth.2fa.verify-challenge.v1.json",
+    "path": "/contracts/auth/auth.2fa.verify-challenge.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Auth 2Fa Verify Challenge",
     "usedOnPages": [],

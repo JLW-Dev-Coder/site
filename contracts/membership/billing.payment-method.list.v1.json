@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP payment method listing",
-    "path": "/contracts/billing.payment-method.list.v1.json",
+    "path": "/contracts/membership/billing.payment-method.list.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro — Billing Payment Method — List",
     "usedOnPages": [

@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP Google OAuth initiation",
-    "path": "/contracts/auth.google.start.v1.json",
+    "path": "/contracts/auth/auth.google.start.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Auth Google Start",
     "usedOnPages": [],

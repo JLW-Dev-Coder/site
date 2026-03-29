@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP Stripe checkout session creation",
-    "path": "/contracts/checkout.create-session.v1.json",
+    "path": "/contracts/membership/checkout.session.create.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Checkout Create Session",
     "usedOnPages": [],

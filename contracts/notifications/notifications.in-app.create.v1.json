@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP in-app notification creation",
-    "path": "/contracts/notifications.in-app.create.v1.json",
+    "path": "/contracts/notifications/notifications.in-app.create.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Notifications In App Create",
     "usedOnPages": [],

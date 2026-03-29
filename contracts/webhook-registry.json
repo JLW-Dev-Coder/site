@@ -1,8 +1,4 @@
-﻿{
-  "generatedFrom": [
-    "README-VLP.txt",
-    "TOML.txt"
-  ],
+{
   "registry": [
     {
       "contractPath": "/contracts/webhooks/stripe.webhook.v1.json",
@@ -37,6 +33,28 @@
       "provider": "twilio",
       "signatureHeader": "X-Twilio-Signature",
       "signatureSecretEnvVar": "TWILIO_WEBHOOK_SECRET",
+      "version": 1
+    },
+    {
+      "contractPath": "/contracts/webhooks/webhooks.cal.receive.v1.json",
+      "endpoint": "/v1/webhooks/cal",
+      "events": [
+        "BOOKING_CANCELLED",
+        "BOOKING_CREATED",
+        "BOOKING_NO_SHOW_UPDATED",
+        "BOOKING_PAID",
+        "BOOKING_PAYMENT_INITIATED",
+        "BOOKING_REJECTED",
+        "BOOKING_REQUEST_RESCHEDULE",
+        "BOOKING_REQUESTED",
+        "BOOKING_RESCHEDULED",
+        "MEETING_ENDED",
+        "MEETING_STARTED",
+        "OUT_OF_OFFICE_CREATED"
+      ],
+      "provider": "cal",
+      "signatureHeader": "X-Cal-Signature-256",
+      "signatureSecretEnvVar": "CAL_WEBHOOK_SECRET",
       "version": 1
     }
   ],

@@ -127,12 +127,26 @@ Required fields within each section (per `canonical-contract.json`):
 ### Canonical ID Format
 
 ```
-account_id      = ACCT_{UUID}
-booking_id      = BOOK_YYYYMMDD_{RANDOM}
-event_id        = EVT_{UUID}
-membership_id   = MEM_{UUID}
-professional_id = PRO_{UUID}
-ticket_id       = TKT_{UUID}
+account_id        = ACCT_{UUID}
+account_dvlp_id   = DVLP_ACCT_{account_id}
+account_gvlp_id   = GVLP_ACCT_{account_id}
+account_tcvlp_id  = TCVLP_ACCT_{account_id}
+account_tmp_id    = TMP_ACCT_{account_id}
+account_ttmp_id   = TTMP_ACCT_{account_id}
+account_tttmp_id  = TTTMP_ACCT_{account_id}
+account_vlp_id    = VLP_ACCT_{account_id}
+account_wlvlp_id  = WLVLP_ACCT_{account_id}
+booking_id        = BOOK_YYYYMMDD_{RANDOM}
+event_id          = EVT_{UUID}
+inquiry_id        = INQ_{UUID}
+invoice_id        = INV_{UUID}
+job_id            = JOB_{UUID}
+membership_id     = MEM_{UUID}
+message_id        = MSG_{UUID}
+professional_id   = PRO_{UUID}
+result_id         = RES_{UUID}
+session_id        = SES_{UUID}
+ticket_id         = TKT_{UUID}
 ```
 
 IDs are globally unique and immutable once assigned.

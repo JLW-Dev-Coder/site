@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP Stripe customer creation",
-    "path": "/contracts/billing.customer.create.v1.json",
+    "path": "/contracts/membership/billing.customer.create.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro — Billing Customer — Create",
     "usedOnPages": [

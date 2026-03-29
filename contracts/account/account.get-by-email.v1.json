@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP account lookup by email",
-    "path": "/contracts/account.get-by-email.v1.json",
+    "path": "/contracts/account/account.get-by-email.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Account Get By Email",
     "usedOnPages": [],

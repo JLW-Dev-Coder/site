@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP session logout",
-    "path": "/contracts/auth.logout.v1.json",
+    "path": "/contracts/auth/auth.logout.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Auth Logout",
     "usedOnPages": [],

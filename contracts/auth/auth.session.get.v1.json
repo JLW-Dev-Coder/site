@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP session lookup",
-    "path": "/contracts/auth.session.get.v1.json",
+    "path": "/contracts/auth/auth.session.get.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Auth Session Get",
     "usedOnPages": [],

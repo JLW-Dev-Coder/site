@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP membership lookup by membership id",
-    "path": "/contracts/membership.get.v1.json",
+    "path": "/contracts/membership/membership.get.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Membership Get",
     "usedOnPages": [],

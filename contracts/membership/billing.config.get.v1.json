@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP billing configuration retrieval",
-    "path": "/contracts/billing.config.get.v1.json",
+    "path": "/contracts/membership/billing.config.get.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro — Billing Config — Get",
     "usedOnPages": [

@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP preferences lookup",
-    "path": "/contracts/vlp-preferences.get.v1.json",
+    "path": "/contracts/vlp-preferences/vlp-preferences.get.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Vlp Preferences Get",
     "usedOnPages": [],

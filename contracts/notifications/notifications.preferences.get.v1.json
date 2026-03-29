@@ -9,7 +9,7 @@
       "R2_VIRTUAL_LAUNCH"
     ],
     "governs": "VLP notification preference lookup",
-    "path": "/contracts/notifications.preferences.get.v1.json",
+    "path": "/contracts/notifications/notifications.preferences.get.v1.json",
     "source": "Virtual Launch Pro",
     "title": "Virtual Launch Pro \u2014 Notifications Preferences Get",
     "usedOnPages": [],
