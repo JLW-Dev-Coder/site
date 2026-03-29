@@ -1219,7 +1219,8 @@
       "writes": [
         "ttmp_transcript_jobs",
         "ttmp_transcript_results",
-        "tokens"
+        "tokens",
+        "tool_sessions"
       ]
     },
     {

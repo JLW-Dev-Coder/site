@@ -3712,7 +3712,7 @@ const ROUTES = [
         r2Put(env.R2_VIRTUAL_LAUNCH, resultKey, result),
       ]);
 
-      // 3. Update D1 — debit token, insert transcript job row
+      // 3. Update D1 — debit token, insert transcript job row, and index in unified tool_sessions table
       await Promise.all([
         d1Run(env.DB,
           'UPDATE tokens SET transcript_tokens = transcript_tokens - 1, updated_at = ? WHERE account_id = ?',
@@ -3722,9 +3722,13 @@ const ROUTES = [
           'INSERT INTO transcript_jobs (job_id, account_id, transcript_type, tax_year, tokens_debited, status, result_key, created_at, completed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
           [jobId, session.account_id, body.transcriptType, body.taxYear ?? null, 1, 'completed', resultKey, now, now]
         ),
+        d1Run(env.DB,
+          'INSERT INTO tool_sessions (session_id, account_id, tool, token_type, tokens_debited, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+          [jobId, session.account_id, 'transcript_parser', 'transcript_tokens', 1, 'completed', now]
+        ),
       ]);
 
-      return json({ ok: true, jobId, status: 'completed', tokensDebited: 1, tokenType: 'transcript', result });
+      return json({ ok: true, jobId, status: 'completed', tokensDebited: 1, tokenType: 'transcript_tokens', result });
     },
   },
 

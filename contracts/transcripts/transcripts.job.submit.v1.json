@@ -5,12 +5,16 @@
     "type": "session"
   },
   "contract": {
-    "authority": ["R2_VIRTUAL_LAUNCH"],
-    "governs": "Transcript parse job submission — debits 1 transcript token, stores raw transcript in R2, returns jobId for polling",
+    "authority": [
+      "R2_VIRTUAL_LAUNCH"
+    ],
+    "governs": "Transcript parse job submission \u2014 debits 1 transcript token, stores raw transcript in R2, returns jobId for polling",
     "path": "/contracts/transcripts/transcripts.job.submit.v1.json",
     "source": "Virtual Launch Pro",
-    "title": "Virtual Launch Pro — Transcripts — Job Submit",
-    "usedOnPages": ["/transcripts"],
+    "title": "Virtual Launch Pro \u2014 Transcripts \u2014 Job Submit",
+    "usedOnPages": [
+      "/transcripts"
+    ],
     "validation": {
       "enumStrict": true,
       "rejectUnknownValues": true,
@@ -38,21 +42,49 @@
     "receiptAppend": {
       "to": "receipts/transcripts/{eventId}.json"
     },
-    "writeOrder": ["receiptAppend", "canonicalUpsert"],
-    "writes": ["ttmp_transcript_jobs", "ttmp_transcript_results", "tokens"]
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "ttmp_transcript_jobs",
+      "ttmp_transcript_results",
+      "tokens",
+      "tool_sessions"
+    ]
   },
   "payload": {
     "additionalProperties": false,
     "properties": {
-      "eventId": { "minLength": 1, "type": "string" },
-      "transcriptText": { "minLength": 1, "maxLength": 100000, "type": "string" },
-      "transcriptType": {
-        "enum": ["account", "record_of_account", "return", "wage_and_income"],
+      "eventId": {
+        "minLength": 1,
         "type": "string"
       },
-      "taxYear": { "minimum": 1990, "maximum": 2100, "type": "integer" }
+      "transcriptText": {
+        "minLength": 1,
+        "maxLength": 100000,
+        "type": "string"
+      },
+      "transcriptType": {
+        "enum": [
+          "account",
+          "record_of_account",
+          "return",
+          "wage_and_income"
+        ],
+        "type": "string"
+      },
+      "taxYear": {
+        "minimum": 1990,
+        "maximum": 2100,
+        "type": "integer"
+      }
     },
-    "required": ["eventId", "transcriptText", "transcriptType"],
+    "required": [
+      "eventId",
+      "transcriptText",
+      "transcriptType"
+    ],
     "type": "object"
   },
   "response": {
@@ -71,7 +103,7 @@
       "ok": true,
       "status": "completed",
       "tokensDebited": 1,
-      "tokenType": "transcript"
+      "tokenType": "transcript_tokens"
     }
   },
   "schema": {
