@@ -175,6 +175,65 @@ async function d1Run(db, sql, params) {
   return db.prepare(sql).bind(...params).run();
 }
 
+async function sha256Hex(input) {
+  const bytes = typeof input === 'string' ? new TextEncoder().encode(input) : input;
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function redactPII(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => redactPII(entry));
+  }
+
+  if (value && typeof value === 'object') {
+    const redacted = {};
+    for (const [key, entry] of Object.entries(value)) {
+      if (/ssn|tin|name/i.test(key)) {
+        redacted[key] = '[REDACTED]';
+      } else {
+        redacted[key] = redactPII(entry);
+      }
+    }
+    return redacted;
+  }
+
+  if (typeof value === 'string') {
+    // SSN / EIN redaction in any freeform fields.
+    return value
+      .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED_SSN]')
+      .replace(/\b\d{2}-\d{7}\b/g, '[REDACTED_TIN]');
+  }
+
+  return value;
+}
+
+function buildTranscriptSummary(transcriptData) {
+  const transactions = Array.isArray(transcriptData.transactions) ? transcriptData.transactions : [];
+  const codesFound = [...new Set(transactions.map((tx) => tx.code))].sort();
+  const refundAmount = transactions
+    .filter((tx) => tx.code === '846')
+    .reduce((sum, tx) => sum + Number(tx.amount ?? 0), 0);
+  const balanceOwed = transactions
+    .filter((tx) => tx.code !== '846')
+    .reduce((sum, tx) => sum + Number(tx.amount ?? 0), 0);
+
+  const keyDates = {};
+  for (const tx of transactions) {
+    if (tx.code === '150' && !keyDates.return_filed_date) keyDates.return_filed_date = tx.date;
+    if (tx.code === '570' && !keyDates.additional_action_pending_date) keyDates.additional_action_pending_date = tx.date;
+    if (tx.code === '846' && !keyDates.refund_issued_date) keyDates.refund_issued_date = tx.date;
+  }
+
+  return {
+    total_transactions: transactions.length,
+    codes_found: codesFound,
+    balance_owed: Number(balanceOwed.toFixed(2)),
+    refund_amount: Number(refundAmount.toFixed(2)),
+    key_dates: keyDates,
+  };
+}
+
 async function getSessionFromRequest(request, env) {
   let sessionId = null;
 
@@ -3633,6 +3692,182 @@ const ROUTES = [
     },
   },
 
+  {
+    method: 'POST', pattern: '/v1/tools/transcript-parser',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const payload = await parseBody(request);
+      if (!payload || typeof payload !== 'object') {
+        return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: 'JSON body required' }, 400);
+      }
+
+      if (!payload.account_id || !payload.transcript_data) {
+        return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: 'account_id and transcript_data are required' }, 400);
+      }
+
+      if (payload.account_id !== session.account_id) {
+        return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: 'account_id must match authenticated session' }, 400);
+      }
+
+      if (!/^ACCT_[a-f0-9-]{36}$/.test(payload.account_id)) {
+        return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: 'Invalid account_id format' }, 400);
+      }
+
+      const allowedPayloadFields = ['account_id', 'transcript_data'];
+      const payloadExtraFields = Object.keys(payload).filter((k) => !allowedPayloadFields.includes(k));
+      if (payloadExtraFields.length > 0) {
+        return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: `Unexpected top-level fields: ${payloadExtraFields.join(', ')}` }, 400);
+      }
+
+      const transcriptData = payload.transcript_data;
+      if (!transcriptData || typeof transcriptData !== 'object') {
+        return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: 'transcript_data must be an object' }, 400);
+      }
+
+      const validTypes = ['account', 'return', 'wage_income', 'record'];
+      if (!validTypes.includes(transcriptData.transcript_type)) {
+        return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: `transcript_type must be one of: ${validTypes.join(', ')}` }, 400);
+      }
+      if (!Array.isArray(transcriptData.transactions)) {
+        return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: 'transactions must be an array' }, 400);
+      }
+
+      const validDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+      for (let i = 0; i < transcriptData.transactions.length; i++) {
+        const tx = transcriptData.transactions[i];
+        if (!tx || typeof tx !== 'object') {
+          return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: `transactions[${i}] must be an object` }, 400);
+        }
+        if (!/^\d{3}$/.test(tx.code ?? '')) {
+          return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: `transactions[${i}].code must be a 3-digit string` }, 400);
+        }
+        if (!validDatePattern.test(tx.date ?? '') || Number.isNaN(Date.parse(tx.date))) {
+          return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: `transactions[${i}].date must be YYYY-MM-DD` }, 400);
+        }
+        if (typeof tx.amount !== 'number' || Number.isNaN(tx.amount)) {
+          return json({ ok: false, error: 'INVALID_TRANSCRIPT', message: `transactions[${i}].amount must be a number` }, 400);
+        }
+      }
+
+      const accountId = payload.account_id;
+      const nowIso = new Date().toISOString();
+      const nowMs = Date.now();
+
+      const rateLimitWindowMs = 60_000;
+      const usageCountRow = await env.DB.prepare(
+        'SELECT COUNT(1) AS count FROM tttmp_transcript_usage WHERE account_id = ? AND executed_at >= ?'
+      ).bind(accountId, nowMs - rateLimitWindowMs).first();
+      if ((usageCountRow?.count ?? 0) >= 5) {
+        return json({ ok: false, error: 'RATE_LIMIT_EXCEEDED', message: 'Maximum 5 transcript parses per minute per account' }, 429);
+      }
+
+      const transcriptHash = await sha256Hex(JSON.stringify(transcriptData));
+      const dedupeKey = `${accountId}:${transcriptHash}`;
+      const dedupedUsage = await env.DB.prepare(
+        'SELECT event_id FROM tttmp_transcript_usage WHERE dedupe_key = ?'
+      ).bind(dedupeKey).first();
+
+      if (dedupedUsage?.event_id) {
+        return json({
+          ok: true,
+          deduped: true,
+          message: 'Duplicate transcript detected — returning cached result',
+          original_event_id: dedupedUsage.event_id,
+          result_url: `https://r2.virtuallaunch.pro/r2/tttmp/transcript_results/${accountId}/${dedupedUsage.event_id}.json`,
+        });
+      }
+
+      const tokenRow = await env.DB.prepare(
+        'SELECT transcript_tokens FROM tokens WHERE account_id = ?'
+      ).bind(accountId).first();
+      if (!tokenRow || tokenRow.transcript_tokens < 1) {
+        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 transcript token required' }, 403);
+      }
+
+      const eventId = `EVT_${crypto.randomUUID()}`;
+
+      // 1) Receipt
+      const receipt = {
+        event_id: eventId,
+        account_id: accountId,
+        created_at: nowIso,
+        signature: 'TTTMP_TOOL_TRANSCRIPT_PARSER_EXECUTED',
+        dedupe_key: dedupeKey,
+        transcript_hash: transcriptHash,
+        token_type: 'transcript_tokens',
+        tokens_debited: 1,
+      };
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `r2/receipts/tttmp/${accountId}/${eventId}.json`, receipt);
+
+      // 2) Token deduction
+      await d1Run(
+        env.DB,
+        'UPDATE tokens SET transcript_tokens = transcript_tokens - 1, updated_at = ? WHERE account_id = ?',
+        [nowIso, accountId]
+      );
+      const tokensRemaining = tokenRow.transcript_tokens - 1;
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/${accountId}.json`, {
+        account_id: accountId,
+        transcript_tokens: tokensRemaining,
+        updated_at: nowIso,
+      });
+
+      // 3) Parse execution
+      const parsedSummary = buildTranscriptSummary(transcriptData);
+
+      // 4) Result storage (30-day TTL) with PII redaction
+      const resultPayload = {
+        event_id: eventId,
+        account_id: accountId,
+        parsed_at: nowIso,
+        transcript_type: transcriptData.transcript_type,
+        parsed_summary: parsedSummary,
+        redacted_transcript_data: redactPII(transcriptData),
+      };
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `r2/tttmp/transcript_results/${accountId}/${eventId}.json`,
+        JSON.stringify(resultPayload),
+        {
+          expirationTtl: 2_592_000,
+          httpMetadata: { contentType: 'application/json' },
+          customMetadata: {
+            pii_redacted: 'true',
+            retention: '30-days',
+          },
+        }
+      );
+
+      // 5) D1 index
+      await d1Run(
+        env.DB,
+        `INSERT INTO tttmp_transcript_usage (
+          id, account_id, event_id, dedupe_key, transcript_hash, executed_at, tokens_deducted, result_key, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          `TUSAGE_${eventId}`,
+          accountId,
+          eventId,
+          dedupeKey,
+          transcriptHash,
+          nowMs,
+          1,
+          `r2/tttmp/transcript_results/${accountId}/${eventId}.json`,
+          nowIso,
+        ]
+      );
+
+      return json({
+        ok: true,
+        event_id: eventId,
+        result_url: `https://r2.virtuallaunch.pro/r2/tttmp/transcript_results/${accountId}/${eventId}.json`,
+        parsed_summary: parsedSummary,
+        tokens_remaining: tokensRemaining,
+      });
+    },
+  },
+
   // -------------------------------------------------------------------------
   // TRANSCRIPTS (Phase 1 — TTMP)
   // -------------------------------------------------------------------------
@@ -3820,7 +4055,4 @@ export default {
     return result.handler(method, result.pattern, result.params, request, env, ctx);
   },
 };
-
-
-
 
