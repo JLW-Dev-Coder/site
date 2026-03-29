@@ -1,0 +1,356 @@
+{
+  "contractVersion": 1,
+  "description": "Contract is the flow-level source of truth for one route or read model. It governs payload, auth, validation, write order, storage shape, response shape, and optional projections.",
+  "requiredTopLevelSections": [
+    "auth",
+    "contract",
+    "delivery",
+    "effects",
+    "payload",
+    "response",
+    "schema"
+  ],
+  "optionalTopLevelSections": [
+    "clickupProjection",
+    "emailProjection",
+    "notificationProjection",
+    "notes"
+  ],
+  "sectionDefinitions": {
+    "auth": {
+      "fieldDefinitions": {
+        "required": {
+          "description": "Whether auth is required.",
+          "type": "boolean"
+        },
+        "trustClientIdentityFields": {
+          "description": "Whether client-submitted identity fields may be treated as authoritative. Canonical default is false.",
+          "type": "boolean"
+        },
+        "type": {
+          "description": "Auth mode for the route.",
+          "enum": [
+            "none",
+            "session",
+            "signature"
+          ],
+          "type": "string"
+        }
+      },
+      "requiredFields": [
+        "required",
+        "trustClientIdentityFields",
+        "type"
+      ]
+    },
+    "contract": {
+      "fieldDefinitions": {
+        "authority": {
+          "description": "Canonical storage or system authorities governing this flow.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "governs": {
+          "description": "Plain-English description of the flow being governed.",
+          "type": "string"
+        },
+        "path": {
+          "description": "Repo path to this contract file.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Owning product or system.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Human-readable canonical title.",
+          "type": "string"
+        },
+        "usedOnPages": {
+          "description": "Pages or app views that use this contract.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "validation": {
+          "description": "Validation toggles and enforcement rules.",
+          "type": "object"
+        },
+        "version": {
+          "description": "Canonical contract version.",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "requiredFields": [
+        "authority",
+        "governs",
+        "path",
+        "source",
+        "title",
+        "usedOnPages",
+        "validation",
+        "version"
+      ]
+    },
+    "delivery": {
+      "fieldDefinitions": {
+        "endpoint": {
+          "description": "Relative route or endpoint path.",
+          "type": "string"
+        },
+        "method": {
+          "description": "HTTP method.",
+          "enum": [
+            "DELETE",
+            "GET",
+            "PATCH",
+            "POST",
+            "PUT"
+          ],
+          "type": "string"
+        },
+        "receiptKeyPattern": {
+          "description": "Receipt storage pattern.",
+          "type": "string"
+        },
+        "receiptSource": {
+          "description": "Receipt source namespace.",
+          "type": "string"
+        },
+        "signature": {
+          "description": "Signature verification rules.",
+          "type": "object"
+        }
+      },
+      "requiredFields": [
+        "endpoint",
+        "method",
+        "receiptKeyPattern",
+        "receiptSource",
+        "signature"
+      ]
+    },
+    "effects": {
+      "fieldDefinitions": {
+        "canonicalUpsert": {
+          "description": "Canonical upsert or write target definition.",
+          "type": "object"
+        },
+        "dedupeKey": {
+          "description": "Canonical dedupe key path.",
+          "type": "string"
+        },
+        "eventIdFrom": {
+          "description": "Path used to derive canonical event ID.",
+          "type": "string"
+        },
+        "receiptAppend": {
+          "description": "Receipt append target.",
+          "type": "object"
+        },
+        "writeOrder": {
+          "description": "Ordered list of write steps. Canonical default order is receipt first, canonical second, projection third.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "writes": {
+          "description": "Canonical collections written by this contract.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "requiredFields": [
+        "dedupeKey",
+        "eventIdFrom",
+        "writeOrder",
+        "writes"
+      ]
+    },
+    "payload": {
+      "fieldDefinitions": {
+        "additionalProperties": {
+          "description": "Whether unknown payload fields are allowed.",
+          "type": "boolean"
+        },
+        "properties": {
+          "description": "Field definitions for payload schema.",
+          "type": "object"
+        },
+        "required": {
+          "description": "Required payload fields.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "type": {
+          "description": "Payload type.",
+          "enum": [
+            "object"
+          ],
+          "type": "string"
+        }
+      },
+      "requiredFields": [
+        "additionalProperties",
+        "properties",
+        "required",
+        "type"
+      ]
+    },
+    "response": {
+      "fieldDefinitions": {
+        "deduped": {
+          "description": "Canonical dedupe response shape.",
+          "type": "object"
+        },
+        "error": {
+          "description": "Canonical error response shape.",
+          "type": "object"
+        },
+        "success": {
+          "description": "Canonical success response shape.",
+          "type": "object"
+        }
+      },
+      "requiredFields": [
+        "deduped",
+        "error",
+        "success"
+      ]
+    },
+    "schema": {
+      "fieldDefinitions": {
+        "name": {
+          "description": "Stable schema name.",
+          "type": "string"
+        },
+        "version": {
+          "description": "Schema version.",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "requiredFields": [
+        "name",
+        "version"
+      ]
+    }
+  },
+  "template": {
+    "auth": {
+      "required": true,
+      "trustClientIdentityFields": false,
+      "type": "session"
+    },
+    "contract": {
+      "authority": [
+        "R2_VIRTUAL_LAUNCH"
+      ],
+      "governs": "Example form submission",
+      "path": "app/contracts/forms/example-submit.contract.json",
+      "source": "Virtual Launch Pro",
+      "title": "Virtual Launch Pro — Form Contract — Example Submit",
+      "usedOnPages": [
+        "/app/example",
+        "/example.html"
+      ],
+      "validation": {
+        "enumStrict": true,
+        "normalizeCheckboxToBoolean": true,
+        "rejectUnknownValues": true,
+        "requireJsonContentType": true
+      },
+      "version": 1
+    },
+    "delivery": {
+      "endpoint": "/forms/example-submit",
+      "method": "POST",
+      "receiptKeyPattern": "receipts/{source}/{eventId}.json",
+      "receiptSource": "form",
+      "signature": {
+        "header": null,
+        "required": false,
+        "secretEnvVar": null
+      }
+    },
+    "effects": {
+      "dedupeKey": "payload.eventId",
+      "eventIdFrom": "payload.eventId",
+      "receiptAppend": {
+        "to": "receipts/{source}/{eventId}.json"
+      },
+      "canonicalPatch": {
+        "createdAt": "{system.nowIso}",
+        "eventId": "{payload.eventId}",
+        "recordId": "{payload.eventId}",
+        "status": "submitted",
+        "updatedAt": "{system.nowIso}"
+      },
+      "canonicalUpsert": {
+        "patchFrom": "effects.canonicalPatch",
+        "target": "example-records/{recordId}.json"
+      },
+      "writeOrder": [
+        "receiptAppend",
+        "canonicalUpsert"
+      ],
+      "writes": [
+        "example-records"
+      ]
+    },
+    "payload": {
+      "additionalProperties": false,
+      "properties": {
+        "eventId": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 5000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "subject": {
+          "maxLength": 200,
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "eventId",
+        "message",
+        "subject"
+      ],
+      "type": "object"
+    },
+    "response": {
+      "deduped": {
+        "deduped": true,
+        "eventId": "{effects.eventIdFrom}",
+        "ok": true
+      },
+      "error": {
+        "error": "validation_failed",
+        "ok": false
+      },
+      "success": {
+        "eventId": "{effects.eventIdFrom}",
+        "ok": true,
+        "status": "submitted"
+      }
+    },
+    "schema": {
+      "name": "vlp_form_example_submit",
+      "version": 1
+    }
+  }
+}

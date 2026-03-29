@@ -30,16 +30,20 @@ wrangler tail                                               # Stream live Worker
 
 ## Architecture
 
-This is a **Cloudflare-first monorepo** for a multi-product SaaS ecosystem. Four products share a single Worker and D1 database:
+This is a **Cloudflare-first monorepo** for a multi-product SaaS ecosystem. Eight products share a single Worker and D1 database, all owned and distributed through VLP:
 
-| Platform | Role |
-|---|---|
-| **VLP** (Virtual Launch Pro) | Professional infrastructure, auth, billing, membership — **canonical owner** of all shared records |
-| **TMP** (Tax Monitor Pro) | Taxpayer discovery + directory; reads shared records via VLP API |
-| **TTMP** (Transcript Tax Monitor) | Transcript parsing + diagnostics; token-gated |
-| **TTTMP** (Tax Tools Arcade) | Tax education games; token-gated |
+| Platform | Abbrev | Role |
+|---|---|---|
+| **Virtual Launch Pro** | VLP | Core hub — canonical owner of all shared records, auth, billing, booking |
+| **Tax Monitor Pro** | TMP | Taxpayer discovery + directory; reads shared records via VLP API |
+| **Transcript Tax Monitor** | TTMP | Transcript parsing + diagnostics; token-gated |
+| **Tax Tools Arcade** | TTTMP | Tax education games; token-gated |
+| **Developers VLP** | DVLP | Freelancer/client matching; Free + $2.99 intro tier |
+| **Games VLP** | GVLP | Gamified subscription platform; token-based tiers |
+| **Tax Claim VLP** | TCVLP | Auto Form 843 generator; flat $10/mo |
+| **Website Lotto VLP** | WLVLP | Canva-site marketplace; voting/bidding/buy-now layer |
 
-**Dependency order: TTTMP tools → TTMP transcripts → TMP memberships → VLP distribution**
+**Build dependency order: TTTMP/TCVLP tools → TTMP transcripts → TMP/DVLP/GVLP memberships → VLP + WLVLP distribution**
 
 ### Stack
 
@@ -90,11 +94,30 @@ R2 is always authoritative. D1 is always a queryable projection.
 
 ### Contracts
 
-Every route is backed by a versioned JSON contract in `/contracts/`. All 7 keys must be present: `auth`, `contract`, `delivery`, `effects`, `payload`, `response`, `schema`.
+Every route is backed by a versioned JSON contract in `/contracts/`. The canonical schema is `/contracts/canonical-contract.json` — follow it exactly.
+
+**File naming:** `contracts/{domain}/{domain}.{action}.v{n}.json`
+**Required top-level sections (all 7 must be present):** `auth`, `contract`, `delivery`, `effects`, `payload`, `response`, `schema`
+
+Required fields within each section (per `canonical-contract.json`):
+
+| Section | Required fields |
+|---|---|
+| `auth` | `required`, `trustClientIdentityFields`, `type` |
+| `contract` | `authority`, `governs`, `path`, `source`, `title`, `usedOnPages`, `validation`, `version` |
+| `delivery` | `endpoint`, `method`, `receiptKeyPattern`, `receiptSource`, `signature` |
+| `effects` | `dedupeKey`, `eventIdFrom`, `writeOrder`, `writes` |
+| `payload` | `additionalProperties`, `properties`, `required`, `type` |
+| `response` | `deduped`, `error`, `success` |
+| `schema` | `name`, `version` |
+
+`contract.path` must match the actual repo file path (e.g. `/contracts/account/account.create.v1.json`).
+
+**Registry:** Every contract must have a corresponding entry in `contracts/contract-registry.json`. The canonical schema for registry entries is `/contracts/canonical-registry.json`. Required entry fields: `authRequired`, `category`, `dedupeKey`, `endpoint`, `id`, `method`, `path`, `receiptKeyPattern`, `receiptSource`, `signatureRequired`, `status`, `usedOnPages`, `version`, `writes`.
 
 - Contracts are repo-local — never copy a VLP contract into TMP/TTMP/TTTMP repos.
 - Frontend pages must submit exactly what the contract expects — no invented fields.
-- TMP, TTMP, and TTTMP must not define contracts for: billing, memberships, bookings, profiles, support_tickets, tokens — those belong to VLP.
+- DVLP, GVLP, TCVLP, TMP, TTMP, TTTMP, WLVLP must not define contracts for: billing, memberships, bookings, profiles, support_tickets, tokens — those belong to VLP.
 
 ### CORS + Session
 
@@ -149,10 +172,15 @@ The four products must be built in dependency order. Without tools, memberships 
 - Token purchase flow via Stripe
 - Membership tier enforcement on tool access
 
-### Phase 4 — TMP + Distribution (Marketplace)
-- Tax pro directory (TMP)
+### Phase 4 — TMP + DVLP + GVLP (Membership Tiers)
+- Tax pro directory (TMP) — taxpayer intake + matching
+- Developer matching marketplace (DVLP) — Free + $2.99 intro tier
+- Gamified subscriptions (GVLP) — token-based tiers ($9/$19/$39/mo)
+
+### Phase 5 — WLVLP + Distribution (Marketplace)
 - Canva site exports served as static content under `/sites/[slug]/` — wrapped with Next.js voting/bidding/buy-now UI layer
 - **Do not convert Canva exports to React** — treat them as immutable content, Next.js is the system layer
+- Website Lotto public surface: zero PII, CDN-first, voting/bidding calls private Worker only at mutation point
 
 ---
 

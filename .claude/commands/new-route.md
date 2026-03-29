@@ -1,72 +1,158 @@
 Scaffold a new Worker route for this repository.
 
-The user will provide: HTTP method, path (e.g. `POST /v1/tools/2848`), which platform owns it (VLP / TMP / TTMP / TTTMP), and whether it requires auth.
+The user will provide: HTTP method, path (e.g. `POST /v1/tools/2848`), which platform owns it (VLP / TMP / TTMP / TTTMP / DVLP / GVLP / TCVLP / WLVLP), and whether it requires auth.
 
-Follow every step in order:
+Follow every step in order. Do not skip or reorder.
 
-## Step 1 — Create the contract
+---
 
-Create `/contracts/{domain}/{route-slug}.v1.json` with all 7 required keys:
+## Step 1 — Create the contract file
+
+File path pattern: `contracts/{domain}/{domain}.{action}.v1.json`
+
+Follow `/contracts/canonical-contract.json` exactly. All 7 sections required:
 
 ```json
 {
-  "auth": {},
-  "contract": {},
-  "delivery": {},
-  "effects": {},
-  "payload": {},
-  "response": {},
-  "schema": {}
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "...",
+    "path": "/contracts/{domain}/{domain}.{action}.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — {Title}",
+    "usedOnPages": [],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/...",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/{domain}/{action}/{id}.json",
+    "receiptSource": "{domain}_{action}",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "canonicalUpsert": {
+      "target": "{collection}/{id}.json"
+    },
+    "dedupeKey": "payload.{idField}",
+    "eventIdFrom": "payload.{idField}",
+    "receiptAppend": {
+      "to": "receipts/{domain}/{action}/{id}.json"
+    },
+    "writeOrder": ["receiptAppend", "canonicalUpsert"],
+    "writes": ["{collection}"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": { "deduped": true, "eventId": "{effects.eventIdFrom}", "ok": true },
+    "error": { "error": "validation_failed", "ok": false },
+    "success": { "ok": true, "status": "..." }
+  },
+  "schema": {
+    "name": "{domain}_{action}",
+    "version": 1
+  }
 }
 ```
 
-- `auth.required` must be `true` for any route touching PII, tokens, or account data
-- `effects` must list every R2 write, D1 write, and side effect (webhook, email, etc.)
-- `schema` must define every request field with type and whether required
-- `response` must define the success shape and every error code
+Notes:
+- `contract.path` must be the exact repo path of the file being created
+- `delivery.signature.required` is `true` only for webhook routes; set `secretEnvVar` to the env var name
+- `effects.writeOrder` must always list `receiptAppend` before `canonicalUpsert`
+- For read-only routes (GET), `effects.writes` is `[]` and `writeOrder` is `[]`
 
-## Step 2 — Implement the Worker handler
+## Step 2 — Add entry to contract-registry.json
+
+Open `contracts/contract-registry.json` and add one entry to the `registry` array. Required fields per `canonical-registry.json`:
+
+```json
+{
+  "authRequired": true,
+  "category": "form",
+  "dedupeKey": "payload.{idField}",
+  "endpoint": "https://api.virtuallaunch.pro/v1/...",
+  "id": "{domain}_{action}",
+  "method": "POST",
+  "path": "/contracts/{domain}/{domain}.{action}.v1.json",
+  "receiptKeyPattern": "receipts/{domain}/{action}/{id}.json",
+  "receiptSource": "{domain}_{action}",
+  "signatureRequired": false,
+  "status": "active",
+  "usedOnPages": [],
+  "version": 1,
+  "writes": ["{collection}"]
+}
+```
+
+`category` values: `"form"` (mutating), `"read-model"` (GET), `"webhook"` (inbound webhook).
+`endpoint` must be the absolute URL: `https://api.virtuallaunch.pro/v1/...`
+`id` must be lowercase snake_case.
+`status` must be `"active"` for production routes, `"draft"` while in development.
+
+## Step 3 — Implement the Worker handler
 
 Add the route to `workers/src/index.js` following the exact write pipeline:
 
 ```
-1. Parse and validate request against contract schema (reject 400 if invalid)
-2. Validate session / auth (reject 401 if missing, 403 if unauthorized)
-3. Check membership tier entitlement if token-gated
-4. Write receipt to R2:  receipts/{domain}/{event_id}.json
-5. Write/update canonical object in R2
-6. Update D1 projection
-7. Return response
+1. Parse and validate request body against contract schema → 400 if invalid
+2. Validate session (vlp_session cookie) → 401 if missing
+3. Verify account ownership of the resource → 403 if mismatch (no IDOR)
+4. Check membership tier entitlement if token-gated → 403 if insufficient
+5. Write receipt to R2: receipts/{domain}/{action}/{id}.json
+6. Write/update canonical object in R2
+7. Update D1 projection
+8. Return response
 ```
 
-Never write to D1 before R2. Never skip the receipt write on mutations.
+Never write to D1 before both R2 writes succeed. Never skip the receipt write on mutations.
 
-## Step 3 — Apply rate limiting
+## Step 4 — Apply rate limiting
 
-If the route is in any of these categories, add a rate limit check at the top of the handler before any other logic:
+If the route is in any of these categories, add a rate limit check at the very top of the handler (before auth):
 
-- Auth endpoints (magic link, 2FA, OAuth start)
-- Tool execution endpoints
-- Transcript submission endpoints
+- Auth endpoints: magic-link, 2FA verify, OAuth start
+- Tool execution: `/v1/tools/*`
+- Transcript submission: `/v1/transcripts/*`
 - Support ticket creation
 - Upload endpoints
 
-Use Cloudflare's built-in rate limiting binding or a KV-backed counter with a TTL key. Reject 429 with `Retry-After` header.
+Reject with 429 and `Retry-After` header.
 
-## Step 4 — Add the frontend call
+## Step 5 — Wire the frontend call
 
-If a frontend page needs to call this route, add it to `/web/lib/api/client.ts` using the existing fetch pattern. The request body must match the contract schema exactly — no extra fields.
+If a frontend page calls this route, add the fetch to `/web/lib/api/client.ts` using the existing pattern. The request body must match `contract.payload` exactly — no extra fields.
 
-## Step 5 — Security checklist before finishing
+## Step 6 — Security checklist
 
-Confirm each item:
+Confirm each item before marking done:
 
-- [ ] Contract has all 7 keys
+- [ ] Contract has all 7 sections with all required fields
+- [ ] `contract.path` matches the actual file path
+- [ ] Registry entry added to `contract-registry.json` with all required fields
 - [ ] Auth validated before any data access
-- [ ] Ownership check: does this account own the resource?
-- [ ] No PII written to KV
+- [ ] Ownership check: session account_id matches resource account_id
 - [ ] Rate limiting applied if in a sensitive category
 - [ ] Receipt written to R2 before canonical write
-- [ ] D1 updated after R2, not before
+- [ ] D1 updated only after R2 writes succeed
+- [ ] No PII written to KV
+- [ ] Response does not expose stack traces or internal IDs
 - [ ] CORS header locked to `https://virtuallaunch.pro`
-- [ ] Response does not leak internal IDs or stack traces

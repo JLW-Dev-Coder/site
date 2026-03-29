@@ -1,0 +1,128 @@
+{
+  "registryVersion": 1,
+  "description": "Registry is the system-level index of all active contracts. It maps routes, pages, contract files, receipt behavior, dedupe behavior, and canonical write targets.",
+  "requiredFields": [
+    "authRequired",
+    "category",
+    "dedupeKey",
+    "endpoint",
+    "id",
+    "method",
+    "path",
+    "receiptKeyPattern",
+    "receiptSource",
+    "signatureRequired",
+    "status",
+    "usedOnPages",
+    "version",
+    "writes"
+  ],
+  "fieldDefinitions": {
+    "authRequired": {
+      "description": "Whether authenticated access is required for this route.",
+      "type": "boolean"
+    },
+    "category": {
+      "description": "High-level contract type.",
+      "enum": [
+        "form",
+        "read-model",
+        "webhook"
+      ],
+      "type": "string"
+    },
+    "dedupeKey": {
+      "description": "Path expression used to detect duplicate submissions or deliveries.",
+      "type": "string"
+    },
+    "endpoint": {
+      "description": "Absolute endpoint URL for the route governed by the contract.",
+      "type": "string"
+    },
+    "id": {
+      "description": "Stable canonical identifier for the contract registry entry. Use lowercase snake_case.",
+      "type": "string"
+    },
+    "method": {
+      "description": "HTTP method.",
+      "enum": [
+        "DELETE",
+        "GET",
+        "PATCH",
+        "POST",
+        "PUT"
+      ],
+      "type": "string"
+    },
+    "path": {
+      "description": "Repo path to the canonical contract file.",
+      "type": "string"
+    },
+    "receiptKeyPattern": {
+      "description": "Canonical receipt storage key pattern.",
+      "type": "string"
+    },
+    "receiptSource": {
+      "description": "Source identifier used in receipt key generation.",
+      "type": "string"
+    },
+    "signatureRequired": {
+      "description": "Whether delivery signature verification is required.",
+      "type": "boolean"
+    },
+    "status": {
+      "description": "Lifecycle state of the contract.",
+      "enum": [
+        "active",
+        "deprecated",
+        "draft"
+      ],
+      "type": "string"
+    },
+    "usedOnPages": {
+      "description": "Pages, shells, or views that depend on this contract.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "version": {
+      "description": "Canonical version number of the contract.",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "writes": {
+      "description": "Canonical collections written by this contract, such as accounts, orders, profiles, receipts, support.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "template": {
+    "contracts": [
+      {
+        "authRequired": true,
+        "category": "form",
+        "dedupeKey": "payload.eventId",
+        "endpoint": "https://api.example.com/forms/example-submit",
+        "id": "form_example_submit",
+        "method": "POST",
+        "path": "app/contracts/forms/example-submit.contract.json",
+        "receiptKeyPattern": "receipts/{source}/{eventId}.json",
+        "receiptSource": "form",
+        "signatureRequired": false,
+        "status": "draft",
+        "usedOnPages": [
+          "/app/example",
+          "/example.html"
+        ],
+        "version": 1,
+        "writes": [
+          "example-records"
+        ]
+      }
+    ],
+    "registryVersion": 1
+  }
+}
