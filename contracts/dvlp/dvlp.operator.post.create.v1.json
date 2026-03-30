@@ -1,0 +1,101 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator post creation",
+    "path": "/contracts/dvlp/dvlp.operator.post.create.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Post Create",
+    "usedOnPages": [
+      "/operator/post"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "adminRoleRequired": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/post",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/operator/posts/{refNumber}/{eventId}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.ref_number",
+    "eventIdFrom": "generated.eventId",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "dvlp/operator/posts"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "ref_number": {
+        "type": "string",
+        "minLength": 1
+      },
+      "title": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 200
+      },
+      "content": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 5000
+      },
+      "post_type": {
+        "type": "string",
+        "enum": ["announcement", "feature", "update", "maintenance"]
+      },
+      "visible_to": {
+        "type": "string",
+        "enum": ["all", "developers", "operators"]
+      }
+    },
+    "required": [
+      "ref_number",
+      "title",
+      "content",
+      "post_type"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "POST_CREATION_FAILED",
+      "message": "Post creation failed"
+    },
+    "success": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "status": "created"
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_post_create",
+    "version": 1
+  }
+}

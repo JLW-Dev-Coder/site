@@ -1,0 +1,105 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Developer profile update",
+    "path": "/contracts/dvlp/dvlp.onboarding.update.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Onboarding — Update",
+    "usedOnPages": [
+      "/profile",
+      "/onboarding/update"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/onboarding",
+    "method": "PATCH",
+    "receiptKeyPattern": "dvlp/receipts/onboarding-update/{developerId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.ref_number",
+    "eventIdFrom": "payload.ref_number",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpdate",
+      "d1Update"
+    ],
+    "writes": [
+      "dvlp_developers",
+      "dvlp/onboarding"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "ref_number": {
+        "type": "string",
+        "pattern": "^VLP-[A-Z0-9]{6}$"
+      },
+      "full_name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "skills": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "experience_years": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 50
+      },
+      "hourly_rate": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "availability": {
+        "type": "string",
+        "enum": ["full-time", "part-time", "contract", "freelance"]
+      },
+      "publish_profile": {
+        "type": "integer",
+        "enum": [0, 1]
+      }
+    },
+    "required": [
+      "ref_number"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "FORBIDDEN",
+      "message": "Cannot update another user's profile"
+    },
+    "success": {
+      "ok": true
+    }
+  },
+  "schema": {
+    "name": "dvlp_onboarding_update",
+    "version": 1
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Public developer reviews listing",
+    "path": "/contracts/dvlp/dvlp.reviews.list.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Reviews — List",
+    "usedOnPages": [
+      "/reviews"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "rejectUnknownValues": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/reviews",
+    "method": "GET",
+    "receiptKeyPattern": "dvlp/receipts/reviews-list/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "timestamp",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR",
+      "message": "Unable to retrieve reviews"
+    },
+    "success": {
+      "ok": true,
+      "reviews": []
+    }
+  },
+  "schema": {
+    "name": "dvlp_reviews_list",
+    "version": 1
+  }
+}

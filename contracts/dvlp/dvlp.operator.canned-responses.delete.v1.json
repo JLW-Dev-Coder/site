@@ -1,0 +1,73 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator canned response deletion",
+    "path": "/contracts/dvlp/dvlp.operator.canned-responses.delete.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Canned Responses Delete",
+    "usedOnPages": [
+      "/operator/responses"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "adminRoleRequired": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/canned-responses/:template_id",
+    "method": "DELETE",
+    "receiptKeyPattern": "dvlp/receipts/operator/canned-responses-delete/{templateId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.template_id",
+    "eventIdFrom": "params.template_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpdate",
+      "d1Update"
+    ],
+    "writes": [
+      "dvlp_canned_responses"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "template_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "RESPONSE_DELETE_FAILED",
+      "message": "Canned response deletion failed"
+    },
+    "success": {
+      "ok": true,
+      "template_id": "{effects.eventIdFrom}",
+      "deleted": true
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_canned_responses_delete",
+    "version": 1
+  }
+}

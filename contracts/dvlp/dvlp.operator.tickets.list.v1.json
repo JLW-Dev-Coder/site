@@ -1,0 +1,62 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator support tickets listing",
+    "path": "/contracts/dvlp/dvlp.operator.tickets.list.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Tickets List",
+    "usedOnPages": [
+      "/operator/tickets"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "adminRoleRequired": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/tickets",
+    "method": "GET",
+    "receiptKeyPattern": "dvlp/receipts/operator/tickets-list/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "timestamp",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "FORBIDDEN",
+      "message": "Admin access required"
+    },
+    "success": {
+      "ok": true,
+      "tickets": []
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_tickets_list",
+    "version": 1
+  }
+}

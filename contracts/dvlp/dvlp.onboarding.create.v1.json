@@ -1,0 +1,106 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Developer onboarding signup",
+    "path": "/contracts/dvlp/dvlp.onboarding.create.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Onboarding — Create",
+    "usedOnPages": [
+      "/onboarding",
+      "/signup"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/onboarding",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/onboarding/{developerId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.email",
+    "eventIdFrom": "generated.developerId",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Insert"
+    ],
+    "writes": [
+      "dvlp_developers",
+      "dvlp/onboarding"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "full_name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "email": {
+        "type": "string",
+        "format": "email",
+        "maxLength": 100
+      },
+      "skills": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "experience_years": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 50
+      },
+      "hourly_rate": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "availability": {
+        "type": "string",
+        "enum": ["full-time", "part-time", "contract", "freelance"]
+      }
+    },
+    "required": [
+      "full_name",
+      "email"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "developer_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "VALIDATION_ERROR",
+      "message": "Invalid input"
+    },
+    "success": {
+      "ok": true,
+      "developer_id": "{effects.eventIdFrom}",
+      "ref_number": "{generated.refNumber}"
+    }
+  },
+  "schema": {
+    "name": "dvlp_onboarding_create",
+    "version": 1
+  }
+}

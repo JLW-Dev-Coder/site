@@ -1,0 +1,65 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Developer onboarding form data retrieval",
+    "path": "/contracts/dvlp/dvlp.onboarding.get.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Onboarding — Get",
+    "usedOnPages": [
+      "/onboarding"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "rejectUnknownValues": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/onboarding",
+    "method": "GET",
+    "receiptKeyPattern": "dvlp/receipts/onboarding-get/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "timestamp",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR",
+      "message": "Unable to retrieve onboarding form"
+    },
+    "success": {
+      "ok": true,
+      "form": {
+        "fields": {},
+        "metadata": {}
+      }
+    }
+  },
+  "schema": {
+    "name": "dvlp_onboarding_get",
+    "version": 1
+  }
+}

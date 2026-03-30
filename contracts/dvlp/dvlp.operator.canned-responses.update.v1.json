@@ -1,0 +1,96 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator canned response update",
+    "path": "/contracts/dvlp/dvlp.operator.canned-responses.update.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Canned Responses Update",
+    "usedOnPages": [
+      "/operator/responses/edit"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "adminRoleRequired": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/canned-responses/:template_id",
+    "method": "PATCH",
+    "receiptKeyPattern": "dvlp/receipts/operator/canned-responses-update/{templateId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.template_id",
+    "eventIdFrom": "params.template_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Update"
+    ],
+    "writes": [
+      "dvlp_canned_responses"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 200
+      },
+      "content": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 2000
+      },
+      "category": {
+        "type": "string",
+        "enum": ["general", "onboarding", "support", "billing", "technical"]
+      },
+      "tags": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "active": {
+        "type": "boolean"
+      }
+    },
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "template_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "RESPONSE_UPDATE_FAILED",
+      "message": "Canned response update failed"
+    },
+    "success": {
+      "ok": true,
+      "template_id": "{effects.eventIdFrom}",
+      "updated": true
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_canned_responses_update",
+    "version": 1
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "signature"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Stripe webhook event processing",
+    "path": "/contracts/dvlp/dvlp.stripe.webhook.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Stripe — Webhook",
+    "usedOnPages": [],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": true,
+      "rejectUnknownValues": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/stripe/webhook",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/stripe/{eventId}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": "stripe-signature",
+      "required": true,
+      "secretEnvVar": "STRIPE_WEBHOOK_SECRET_DVLP"
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.id",
+    "eventIdFrom": "payload.id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Update"
+    ],
+    "writes": [
+      "dvlp_developers"
+    ]
+  },
+  "payload": {
+    "additionalProperties": true,
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "type": {
+        "type": "string",
+        "minLength": 1
+      },
+      "data": {
+        "type": "object"
+      }
+    },
+    "required": [
+      "id",
+      "type",
+      "data"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "WEBHOOK_ERROR",
+      "message": "Webhook processing failed"
+    },
+    "success": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "processed": true
+    }
+  },
+  "schema": {
+    "name": "dvlp_stripe_webhook",
+    "version": 1
+  }
+}

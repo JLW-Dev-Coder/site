@@ -1,0 +1,66 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator analytics dashboard data",
+    "path": "/contracts/dvlp/dvlp.operator.analytics.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Analytics",
+    "usedOnPages": [
+      "/operator/dashboard",
+      "/admin/analytics"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": true,
+      "adminRoleRequired": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/analytics",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/operator/analytics/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "timestamp",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "FORBIDDEN",
+      "message": "Admin access required"
+    },
+    "success": {
+      "ok": true,
+      "analytics": {
+        "developers": {},
+        "jobs": {}
+      }
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_analytics",
+    "version": 1
+  }
+}

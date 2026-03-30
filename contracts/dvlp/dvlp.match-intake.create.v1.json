@@ -1,0 +1,110 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Company developer match intake submission",
+    "path": "/contracts/dvlp/dvlp.match-intake.create.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Match Intake — Create",
+    "usedOnPages": [
+      "/company-intake"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/developer-match-intake",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/match-intake/{eventId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.company_email",
+    "eventIdFrom": "generated.eventId",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "dvlp/match-intake"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "company_name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "company_email": {
+        "type": "string",
+        "format": "email",
+        "maxLength": 100
+      },
+      "contact_name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "project_description": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 2000
+      },
+      "skills_needed": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "budget_range": {
+        "type": "string",
+        "enum": ["$1k-$5k", "$5k-$15k", "$15k-$50k", "$50k+"]
+      },
+      "timeline": {
+        "type": "string",
+        "enum": ["1-2 weeks", "1 month", "2-3 months", "3+ months"]
+      }
+    },
+    "required": [
+      "company_name",
+      "company_email",
+      "contact_name",
+      "project_description"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "VALIDATION_ERROR",
+      "message": "Invalid intake data"
+    },
+    "success": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "status": "submitted"
+    }
+  },
+  "schema": {
+    "name": "dvlp_match_intake_create",
+    "version": 1
+  }
+}

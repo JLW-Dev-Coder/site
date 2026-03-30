@@ -1,0 +1,110 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Developer review submission",
+    "path": "/contracts/dvlp/dvlp.reviews.create.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Reviews — Create",
+    "usedOnPages": [
+      "/reviews/submit"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/reviews",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/reviews/{reviewId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.reviewer_email",
+    "eventIdFrom": "generated.reviewId",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Insert"
+    ],
+    "writes": [
+      "dvlp_reviews",
+      "dvlp/reviews"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "developer_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 50
+      },
+      "reviewer_email": {
+        "type": "string",
+        "format": "email",
+        "maxLength": 100
+      },
+      "reviewer_name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "rating": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 5
+      },
+      "review_text": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 2000
+      },
+      "project_type": {
+        "type": "string",
+        "maxLength": 200
+      }
+    },
+    "required": [
+      "developer_id",
+      "reviewer_email",
+      "reviewer_name",
+      "rating",
+      "review_text"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "review_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "VALIDATION_ERROR",
+      "message": "Invalid review data"
+    },
+    "success": {
+      "ok": true,
+      "review_id": "{effects.eventIdFrom}",
+      "status": "submitted"
+    }
+  },
+  "schema": {
+    "name": "dvlp_reviews_create",
+    "version": 1
+  }
+}

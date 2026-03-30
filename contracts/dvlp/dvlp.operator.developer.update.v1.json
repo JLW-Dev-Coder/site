@@ -1,0 +1,93 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator developer profile update",
+    "path": "/contracts/dvlp/dvlp.operator.developer.update.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Developer Update",
+    "usedOnPages": [
+      "/operator/developer"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "adminRoleRequired": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/developer",
+    "method": "PATCH",
+    "receiptKeyPattern": "dvlp/receipts/operator/developer-update/{developerId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.ref_number",
+    "eventIdFrom": "payload.ref_number",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Update"
+    ],
+    "writes": [
+      "dvlp_developers",
+      "dvlp/onboarding"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "ref_number": {
+        "type": "string",
+        "minLength": 1
+      },
+      "status": {
+        "type": "string",
+        "enum": ["pending", "active", "suspended", "inactive"]
+      },
+      "publish_profile": {
+        "type": "boolean"
+      },
+      "notes": {
+        "type": "string",
+        "maxLength": 1000
+      }
+    },
+    "required": [
+      "ref_number"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "ref_number": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "UPDATE_FAILED",
+      "message": "Developer update failed"
+    },
+    "success": {
+      "ok": true,
+      "ref_number": "{effects.eventIdFrom}",
+      "updated": true
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_developer_update",
+    "version": 1
+  }
+}

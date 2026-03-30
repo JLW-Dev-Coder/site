@@ -1,0 +1,97 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator canned response creation",
+    "path": "/contracts/dvlp/dvlp.operator.canned-responses.create.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Canned Responses Create",
+    "usedOnPages": [
+      "/operator/responses/create"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "adminRoleRequired": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/canned-responses",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/operator/canned-responses/{templateId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.title",
+    "eventIdFrom": "generated.templateId",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Insert"
+    ],
+    "writes": [
+      "dvlp_canned_responses"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 200
+      },
+      "content": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 2000
+      },
+      "category": {
+        "type": "string",
+        "enum": ["general", "onboarding", "support", "billing", "technical"]
+      },
+      "tags": {
+        "type": "string",
+        "maxLength": 500
+      }
+    },
+    "required": [
+      "title",
+      "content",
+      "category"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "template_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "RESPONSE_CREATION_FAILED",
+      "message": "Canned response creation failed"
+    },
+    "success": {
+      "ok": true,
+      "template_id": "{effects.eventIdFrom}",
+      "status": "created"
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_canned_responses_create",
+    "version": 1
+  }
+}

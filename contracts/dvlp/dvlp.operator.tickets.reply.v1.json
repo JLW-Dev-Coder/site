@@ -1,0 +1,90 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator support ticket reply",
+    "path": "/contracts/dvlp/dvlp.operator.tickets.reply.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Tickets Reply",
+    "usedOnPages": [
+      "/operator/tickets"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "adminRoleRequired": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/tickets/:ticket_id/reply",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/operator/tickets-reply/{ticketId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.ticket_id",
+    "eventIdFrom": "params.ticket_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Update"
+    ],
+    "writes": [
+      "support_tickets"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "reply_message": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 2000
+      },
+      "status": {
+        "type": "string",
+        "enum": ["open", "in_progress", "resolved", "closed"]
+      },
+      "internal_notes": {
+        "type": "string",
+        "maxLength": 1000
+      }
+    },
+    "required": [
+      "reply_message"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "ticket_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "REPLY_FAILED",
+      "message": "Ticket reply failed"
+    },
+    "success": {
+      "ok": true,
+      "ticket_id": "{effects.eventIdFrom}",
+      "status": "replied"
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_tickets_reply",
+    "version": 1
+  }
+}

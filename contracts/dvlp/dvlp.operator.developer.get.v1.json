@@ -1,0 +1,62 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator developer profile retrieval",
+    "path": "/contracts/dvlp/dvlp.operator.developer.get.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Developer Get",
+    "usedOnPages": [
+      "/operator/developer"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "adminRoleRequired": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/developer",
+    "method": "GET",
+    "receiptKeyPattern": "dvlp/receipts/operator/developer-get/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "timestamp",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "FORBIDDEN",
+      "message": "Admin access required"
+    },
+    "success": {
+      "ok": true,
+      "developer": {}
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_developer_get",
+    "version": 1
+  }
+}

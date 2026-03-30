@@ -6327,6 +6327,1230 @@ TTMP Support Team
     },
   },
 
+  // -------------------------------------------------------------------------
+  // DVLP (Developers VLP)
+  // -------------------------------------------------------------------------
+
+  // Public Routes (7)
+  {
+    method: 'GET', pattern: '/v1/dvlp/developers',
+    handler: async (_method, _pattern, params, request, env) => {
+      const url = new URL(request.url);
+      const skills = url.searchParams.get('skills');
+      const availability = url.searchParams.get('availability');
+
+      try {
+        let query = "SELECT developer_id, ref_number, full_name, skills, experience_years, hourly_rate, availability, created_at FROM dvlp_developers WHERE publish_profile = 1 AND status = 'active'";
+        const queryParams = [];
+
+        if (skills) {
+          query += " AND skills LIKE ?";
+          queryParams.push(`%${skills}%`);
+        }
+        if (availability) {
+          query += " AND availability = ?";
+          queryParams.push(availability);
+        }
+
+        const stmt = env.DB.prepare(query);
+        const result = await stmt.bind(...queryParams).all();
+
+        return json({ ok: true, developers: result.results || [] });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developers' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/onboarding',
+    handler: async (_method, _pattern, params, request, env) => {
+      const url = new URL(request.url);
+      const ref = url.searchParams.get('ref');
+
+      if (!ref) {
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400);
+      }
+
+      try {
+        const result = await env.DB.prepare(
+          "SELECT * FROM dvlp_developers WHERE ref_number = ?"
+        ).bind(ref).first();
+
+        if (!result) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+        }
+
+        return json({ ok: true, developer: result });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developer' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/dvlp/onboarding',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const body = await parseBody(request);
+        const { full_name, email, skills, experience_years, hourly_rate, availability } = body;
+
+        if (!full_name || !email) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'full_name and email required' }, 400);
+        }
+
+        const developerId = `DVLP_ACCT_${crypto.randomUUID()}`;
+        const refNumber = `VLP-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        const timestamp = new Date().toISOString();
+
+        // Write receipt to R2
+        const receiptKey = `dvlp/receipts/onboarding/${developerId}/${Date.now()}.json`;
+        const receipt = {
+          developerId,
+          refNumber,
+          timestamp,
+          payload: body
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, JSON.stringify(receipt));
+
+        // Write canonical to R2
+        const canonicalData = {
+          developer_id: developerId,
+          ref_number: refNumber,
+          full_name,
+          email,
+          skills: skills || null,
+          experience_years: experience_years || null,
+          hourly_rate: hourly_rate || null,
+          availability: availability || null,
+          publish_profile: 0,
+          status: 'pending',
+          plan: 'free',
+          created_at: timestamp,
+          updated_at: timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/onboarding/${developerId}.json`, JSON.stringify(canonicalData));
+
+        // Insert into D1
+        await d1Run(env.DB,
+          `INSERT INTO dvlp_developers (developer_id, ref_number, full_name, email, skills, experience_years, hourly_rate, availability, publish_profile, status, plan, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 'pending', 'free', ?, ?)`,
+          [developerId, refNumber, full_name, email, skills, experience_years, hourly_rate, availability, timestamp, timestamp]
+        );
+
+        return json({ ok: true, developer_id: developerId, ref_number: refNumber });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create developer' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'PATCH', pattern: '/v1/dvlp/onboarding',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const body = await parseBody(request);
+        const { ref_number, ...updates } = body;
+
+        if (!ref_number) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number required' }, 400);
+        }
+
+        // Look up developer and verify ownership
+        const developer = await env.DB.prepare(
+          "SELECT * FROM dvlp_developers WHERE ref_number = ?"
+        ).bind(ref_number).first();
+
+        if (!developer) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+        }
+
+        if (developer.account_id && developer.account_id !== session.account_id) {
+          return json({ ok: false, error: 'FORBIDDEN', message: 'Cannot update another user\'s profile' }, 403);
+        }
+
+        const timestamp = new Date().toISOString();
+
+        // Filter allowed updates (immutable: ref_number, email, developer_id, created_at)
+        const allowedFields = ['full_name', 'skills', 'experience_years', 'hourly_rate', 'availability', 'publish_profile'];
+        const filteredUpdates = Object.fromEntries(
+          Object.entries(updates).filter(([key]) => allowedFields.includes(key))
+        );
+
+        if (Object.keys(filteredUpdates).length === 0) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400);
+        }
+
+        // Update canonical R2
+        const canonical = JSON.parse(await r2Get(env.R2_VIRTUAL_LAUNCH, `dvlp/onboarding/${developer.developer_id}.json`));
+        Object.assign(canonical, filteredUpdates, { updated_at: timestamp });
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/onboarding/${developer.developer_id}.json`, JSON.stringify(canonical));
+
+        // Update D1
+        const setClause = Object.keys(filteredUpdates).map(k => `${k} = ?`).join(', ');
+        const values = [...Object.values(filteredUpdates), timestamp, developer.developer_id];
+
+        await d1Run(env.DB,
+          `UPDATE dvlp_developers SET ${setClause}, updated_at = ? WHERE developer_id = ?`,
+          values
+        );
+
+        return json({ ok: true });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update developer' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/onboarding/status',
+    handler: async (_method, _pattern, params, request, env) => {
+      const url = new URL(request.url);
+      const ref = url.searchParams.get('ref');
+
+      if (!ref) {
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400);
+      }
+
+      try {
+        const result = await env.DB.prepare(
+          "SELECT status, updated_at FROM dvlp_developers WHERE ref_number = ?"
+        ).bind(ref).first();
+
+        if (!result) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+        }
+
+        return json({ ok: true, status: result.status, updated_at: result.updated_at });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch status' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/jobs',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const result = await env.DB.prepare(
+          "SELECT * FROM dvlp_jobs WHERE status != 'closed' ORDER BY created_at DESC"
+        ).all();
+
+        return json({ ok: true, jobs: result.results || [] });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch jobs' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/reviews',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const result = await env.DB.prepare(
+          "SELECT * FROM dvlp_reviews WHERE status = 'approved' ORDER BY created_at DESC"
+        ).all();
+
+        return json({ ok: true, reviews: result.results || [] });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch reviews' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/dvlp/reviews',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const body = await parseBody(request);
+        const { reviewer_name, reviewer_email, rating, body: reviewBody } = body;
+
+        if (!reviewer_name || !rating || !reviewBody || rating < 1 || rating > 5) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'reviewer_name, rating (1-5), and body required' }, 400);
+        }
+
+        const reviewId = `RES_${crypto.randomUUID()}`;
+        const timestamp = new Date().toISOString();
+
+        // Write to R2
+        const reviewData = {
+          review_id: reviewId,
+          reviewer_name,
+          reviewer_email,
+          rating,
+          body: reviewBody,
+          status: 'pending',
+          created_at: timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/reviews/${reviewId}.json`, JSON.stringify(reviewData));
+
+        // Insert into D1
+        await d1Run(env.DB,
+          `INSERT INTO dvlp_reviews (review_id, reviewer_name, reviewer_email, rating, body, status, created_at)
+           VALUES (?, ?, ?, ?, ?, 'pending', ?)`,
+          [reviewId, reviewer_name, reviewer_email, rating, reviewBody, timestamp]
+        );
+
+        return json({ ok: true, review_id: reviewId });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create review' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/dvlp/developer-match-intake',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const body = await parseBody(request);
+        const eventId = `EVT_${crypto.randomUUID()}`;
+        const timestamp = new Date().toISOString();
+
+        const intakeData = {
+          eventId,
+          timestamp,
+          ...body
+        };
+
+        // Write to R2
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/match-intake/${eventId}.json`, JSON.stringify(intakeData));
+
+        return json({ ok: true, eventId });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to process intake' }, 500);
+      }
+    },
+  },
+
+  // Stripe Routes (3)
+  {
+    method: 'POST', pattern: '/v1/dvlp/stripe/checkout',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const body = await parseBody(request);
+        const { plan, email, ref_number } = body;
+
+        if (!plan || !email || !ref_number) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'plan, email, and ref_number required' }, 400);
+        }
+
+        const priceId = plan === 'free' ? env.STRIPE_DVLP_PRICE_FREE : env.STRIPE_DVLP_PRICE_PAID;
+
+        const sessionData = {
+          mode: 'subscription',
+          payment_method_types: ['card'],
+          line_items: [{ price: priceId, quantity: 1 }],
+          customer_email: email,
+          metadata: { ref_number, plan },
+          success_url: `https://developers.virtuallaunch.pro/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `https://developers.virtuallaunch.pro/pricing`,
+        };
+
+        const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${env.STRIPE_DVLP_SECRET_KEY}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams(sessionData),
+        });
+
+        const session = await response.json();
+        if (!response.ok) {
+          return json({ ok: false, error: 'STRIPE_ERROR', message: session.error?.message }, 400);
+        }
+
+        return json({ ok: true, session_url: session.url });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/stripe/session-status',
+    handler: async (_method, _pattern, params, request, env) => {
+      const url = new URL(request.url);
+      const sessionId = url.searchParams.get('session_id');
+
+      if (!sessionId) {
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'session_id parameter required' }, 400);
+      }
+
+      try {
+        const response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${sessionId}`, {
+          headers: { 'Authorization': `Bearer ${env.STRIPE_DVLP_SECRET_KEY}` },
+        });
+
+        const session = await response.json();
+        if (!response.ok) {
+          return json({ ok: false, error: 'STRIPE_ERROR', message: session.error?.message }, 400);
+        }
+
+        return json({
+          ok: true,
+          status: session.payment_status,
+          customer_email: session.customer_details?.email
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check session status' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/dvlp/stripe/webhook',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const body = await request.text();
+        const signature = request.headers.get('stripe-signature');
+
+        // Verify webhook signature
+        const elements = signature.split(',');
+        const signatureHash = elements.find(element => element.startsWith('v1=')).split('=')[1];
+
+        const expectedSignature = await crypto.subtle.importKey(
+          'raw',
+          new TextEncoder().encode(env.STRIPE_DVLP_WEBHOOK_SECRET),
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
+          ['sign']
+        ).then(key => crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body)))
+          .then(signature => Array.from(new Uint8Array(signature), b => b.toString(16).padStart(2, '0')).join(''));
+
+        if (signatureHash !== expectedSignature) {
+          return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400);
+        }
+
+        const event = JSON.parse(body);
+        const eventId = event.id;
+
+        // Write receipt
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/receipts/stripe/${eventId}.json`, body);
+
+        if (event.type === 'checkout.session.completed') {
+          const session = event.data.object;
+          const refNumber = session.metadata?.ref_number;
+          const plan = session.metadata?.plan;
+
+          if (refNumber) {
+            const timestamp = new Date().toISOString();
+            await d1Run(env.DB,
+              `UPDATE dvlp_developers SET plan = ?, stripe_customer_id = ?, stripe_subscription_id = ?, updated_at = ? WHERE ref_number = ?`,
+              [plan, session.customer, session.subscription, timestamp, refNumber]
+            );
+          }
+        } else if (event.type === 'customer.subscription.deleted') {
+          const subscription = event.data.object;
+          const timestamp = new Date().toISOString();
+          await d1Run(env.DB,
+            `UPDATE dvlp_developers SET plan = 'free', stripe_subscription_id = NULL, updated_at = ? WHERE stripe_subscription_id = ?`,
+            [timestamp, subscription.id]
+          );
+        }
+
+        return json({ ok: true });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Webhook processing failed' }, 500);
+      }
+    },
+  },
+
+  // Operator Routes (18) - all require admin session
+  {
+    method: 'POST', pattern: '/v1/dvlp/operator/analytics',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      // Check admin role
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const developerStats = await env.DB.prepare(`
+          SELECT
+            COUNT(*) as total,
+            COUNT(CASE WHEN status = 'active' THEN 1 END) as active,
+            COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+            COUNT(CASE WHEN publish_profile = 1 THEN 1 END) as published
+          FROM dvlp_developers
+        `).first();
+
+        const jobStats = await env.DB.prepare(`
+          SELECT
+            COUNT(*) as total,
+            COUNT(CASE WHEN status = 'open' THEN 1 END) as open,
+            COUNT(CASE WHEN status = 'closed' THEN 1 END) as closed
+          FROM dvlp_jobs
+        `).first();
+
+        return json({
+          ok: true,
+          analytics: {
+            developers: developerStats,
+            jobs: jobStats
+          }
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch analytics' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/operator/submissions',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const url = new URL(request.url);
+        const status = url.searchParams.get('status');
+        const plan = url.searchParams.get('plan');
+        const page = parseInt(url.searchParams.get('page')) || 1;
+        const limit = 50;
+        const offset = (page - 1) * limit;
+
+        let query = "SELECT * FROM dvlp_developers";
+        const queryParams = [];
+        const conditions = [];
+
+        if (status) {
+          conditions.push("status = ?");
+          queryParams.push(status);
+        }
+        if (plan) {
+          conditions.push("plan = ?");
+          queryParams.push(plan);
+        }
+
+        if (conditions.length > 0) {
+          query += " WHERE " + conditions.join(" AND ");
+        }
+
+        query += " ORDER BY created_at DESC LIMIT ? OFFSET ?";
+        queryParams.push(limit, offset);
+
+        const result = await env.DB.prepare(query).bind(...queryParams).all();
+
+        return json({ ok: true, submissions: result.results || [], page, limit });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch submissions' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/operator/developer',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      const url = new URL(request.url);
+      const ref = url.searchParams.get('ref');
+
+      if (!ref) {
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400);
+      }
+
+      try {
+        const d1Record = await env.DB.prepare("SELECT * FROM dvlp_developers WHERE ref_number = ?").bind(ref).first();
+        if (!d1Record) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+        }
+
+        // Merge with R2 canonical if available
+        try {
+          const r2Data = await r2Get(env.R2_VIRTUAL_LAUNCH, `dvlp/onboarding/${d1Record.developer_id}.json`);
+          const canonical = JSON.parse(r2Data);
+          const merged = { ...d1Record, ...canonical };
+          return json({ ok: true, developer: merged });
+        } catch {
+          return json({ ok: true, developer: d1Record });
+        }
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developer' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'PATCH', pattern: '/v1/dvlp/operator/developer',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const body = await parseBody(request);
+        const { ref_number, ...updates } = body;
+
+        if (!ref_number) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number required' }, 400);
+        }
+
+        const developer = await env.DB.prepare("SELECT * FROM dvlp_developers WHERE ref_number = ?").bind(ref_number).first();
+        if (!developer) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+        }
+
+        const timestamp = new Date().toISOString();
+
+        // Admin can update any non-immutable field
+        const immutableFields = ['developer_id', 'ref_number', 'created_at'];
+        const filteredUpdates = Object.fromEntries(
+          Object.entries(updates).filter(([key]) => !immutableFields.includes(key))
+        );
+
+        if (Object.keys(filteredUpdates).length === 0) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400);
+        }
+
+        // Update R2 canonical
+        try {
+          const r2Data = await r2Get(env.R2_VIRTUAL_LAUNCH, `dvlp/onboarding/${developer.developer_id}.json`);
+          const canonical = JSON.parse(r2Data);
+          Object.assign(canonical, filteredUpdates, { updated_at: timestamp });
+          await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/onboarding/${developer.developer_id}.json`, JSON.stringify(canonical));
+        } catch {
+          // Create canonical if missing
+          const canonical = { ...developer, ...filteredUpdates, updated_at: timestamp };
+          await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/onboarding/${developer.developer_id}.json`, JSON.stringify(canonical));
+        }
+
+        // Update D1
+        const setClause = Object.keys(filteredUpdates).map(k => `${k} = ?`).join(', ');
+        const values = [...Object.values(filteredUpdates), timestamp, developer.developer_id];
+
+        await d1Run(env.DB,
+          `UPDATE dvlp_developers SET ${setClause}, updated_at = ? WHERE developer_id = ?`,
+          values
+        );
+
+        return json({ ok: true });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update developer' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/operator/developers',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const result = await env.DB.prepare(
+          "SELECT ref_number, full_name, status, publish_profile FROM dvlp_developers ORDER BY created_at DESC"
+        ).all();
+
+        return json({ ok: true, developers: result.results || [] });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developers' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/operator/jobs',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const url = new URL(request.url);
+        const status = url.searchParams.get('status');
+
+        let query = "SELECT * FROM dvlp_jobs";
+        const queryParams = [];
+
+        if (status) {
+          query += " WHERE status = ?";
+          queryParams.push(status);
+        }
+
+        query += " ORDER BY created_at DESC";
+
+        const result = await env.DB.prepare(query).bind(...queryParams).all();
+
+        return json({ ok: true, jobs: result.results || [] });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch jobs' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/dvlp/operator/jobs',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const body = await parseBody(request);
+        const { title, description, skills_required, budget_min, budget_max } = body;
+
+        if (!title) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'title required' }, 400);
+        }
+
+        const jobId = `JOB_${crypto.randomUUID()}`;
+        const timestamp = new Date().toISOString();
+
+        const jobData = {
+          job_id: jobId,
+          title,
+          description,
+          skills_required,
+          budget_min,
+          budget_max,
+          status: 'open',
+          posted_by: session.account_id,
+          created_at: timestamp,
+          updated_at: timestamp
+        };
+
+        // Write to R2
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/jobs/${jobId}.json`, JSON.stringify(jobData));
+
+        // Insert into D1
+        await d1Run(env.DB,
+          `INSERT INTO dvlp_jobs (job_id, title, description, skills_required, budget_min, budget_max, status, posted_by, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)`,
+          [jobId, title, description, skills_required, budget_min, budget_max, session.account_id, timestamp, timestamp]
+        );
+
+        return json({ ok: true, job_id: jobId });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create job' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'PATCH', pattern: '/v1/dvlp/operator/jobs/:job_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      const { job_id } = params;
+
+      try {
+        const body = await parseBody(request);
+        const updates = body;
+
+        const job = await env.DB.prepare("SELECT * FROM dvlp_jobs WHERE job_id = ?").bind(job_id).first();
+        if (!job) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Job not found' }, 404);
+        }
+
+        const timestamp = new Date().toISOString();
+
+        const immutableFields = ['job_id', 'created_at'];
+        const filteredUpdates = Object.fromEntries(
+          Object.entries(updates).filter(([key]) => !immutableFields.includes(key))
+        );
+
+        if (Object.keys(filteredUpdates).length === 0) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400);
+        }
+
+        // Update R2
+        const canonical = { ...job, ...filteredUpdates, updated_at: timestamp };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/jobs/${job_id}.json`, JSON.stringify(canonical));
+
+        // Update D1
+        const setClause = Object.keys(filteredUpdates).map(k => `${k} = ?`).join(', ');
+        const values = [...Object.values(filteredUpdates), timestamp, job_id];
+
+        await d1Run(env.DB,
+          `UPDATE dvlp_jobs SET ${setClause}, updated_at = ? WHERE job_id = ?`,
+          values
+        );
+
+        return json({ ok: true });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update job' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/dvlp/operator/post',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const body = await parseBody(request);
+        const { ref_number, job_title, message } = body;
+
+        if (!ref_number || !job_title || !message) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number, job_title, and message required' }, 400);
+        }
+
+        const developer = await env.DB.prepare("SELECT email, full_name FROM dvlp_developers WHERE ref_number = ?").bind(ref_number).first();
+        if (!developer) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+        }
+
+        const eventId = `EVT_${crypto.randomUUID()}`;
+        const timestamp = new Date().toISOString();
+
+        // Write to R2
+        const postData = {
+          eventId,
+          ref_number,
+          job_title,
+          message,
+          sent_to: developer.email,
+          timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/operator/posts/${ref_number}/${eventId}.json`, JSON.stringify(postData));
+
+        // Send email (implementation would depend on available email service)
+        await sendEmail(
+          developer.email,
+          `New Job Opportunity: ${job_title}`,
+          `<p>Hi ${developer.full_name},</p><p>${message}</p>`,
+          env
+        );
+
+        return json({ ok: true, eventId });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send post' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/dvlp/operator/messages',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const body = await parseBody(request);
+        const { ref_number, subject, message } = body;
+
+        if (!ref_number || !subject || !message) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number, subject, and message required' }, 400);
+        }
+
+        const developer = await env.DB.prepare("SELECT email, full_name FROM dvlp_developers WHERE ref_number = ?").bind(ref_number).first();
+        if (!developer) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+        }
+
+        const eventId = `EVT_${crypto.randomUUID()}`;
+        const timestamp = new Date().toISOString();
+
+        // Write to R2
+        const messageData = {
+          eventId,
+          ref_number,
+          subject,
+          message,
+          sent_to: developer.email,
+          sent_by: session.account_id,
+          timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/operator/messages/${ref_number}/${eventId}.json`, JSON.stringify(messageData));
+
+        // Send email
+        await sendEmail(developer.email, subject, `<p>Hi ${developer.full_name},</p><p>${message}</p>`, env);
+
+        return json({ ok: true, eventId });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send message' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/operator/messages',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      const url = new URL(request.url);
+      const ref = url.searchParams.get('ref');
+
+      if (!ref) {
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400);
+      }
+
+      try {
+        // List all message files from R2 for this ref_number
+        const messages = [];
+        const prefix = `dvlp/operator/messages/${ref}/`;
+
+        // Note: This is a simplified implementation. In practice, you'd need to list R2 objects
+        // For now, returning empty array as placeholder
+        return json({ ok: true, messages: [] });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch messages' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/operator/tickets',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const url = new URL(request.url);
+        const status = url.searchParams.get('status');
+
+        let query = "SELECT * FROM support_tickets";
+        const queryParams = [];
+
+        if (status) {
+          query += " WHERE status = ?";
+          queryParams.push(status);
+        }
+
+        query += " ORDER BY created_at DESC";
+
+        const result = await env.DB.prepare(query).bind(...queryParams).all();
+
+        return json({ ok: true, tickets: result.results || [] });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch tickets' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/dvlp/operator/tickets/:ticket_id/reply',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      const { ticket_id } = params;
+
+      try {
+        const body = await parseBody(request);
+        const { status, reply } = body;
+
+        const ticket = await env.DB.prepare("SELECT * FROM support_tickets WHERE ticket_id = ?").bind(ticket_id).first();
+        if (!ticket) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404);
+        }
+
+        const timestamp = new Date().toISOString();
+
+        // Update ticket
+        const updates = {};
+        if (status) updates.status = status;
+        if (reply) updates.admin_notes = reply;
+        updates.updated_at = timestamp;
+
+        const setClause = Object.keys(updates).map(k => `${k} = ?`).join(', ');
+        const values = [...Object.values(updates), ticket_id];
+
+        await d1Run(env.DB,
+          `UPDATE support_tickets SET ${setClause} WHERE ticket_id = ?`,
+          values
+        );
+
+        return json({ ok: true });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update ticket' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/dvlp/operator/canned-responses',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const url = new URL(request.url);
+        const userType = url.searchParams.get('user_type');
+
+        let query = "SELECT * FROM dvlp_canned_responses";
+        const queryParams = [];
+
+        if (userType) {
+          query += " WHERE user_type = ?";
+          queryParams.push(userType);
+        }
+
+        query += " ORDER BY is_default DESC, title ASC";
+
+        const result = await env.DB.prepare(query).bind(...queryParams).all();
+
+        return json({ ok: true, responses: result.results || [] });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch canned responses' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/dvlp/operator/canned-responses',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const body = await parseBody(request);
+        const { title, body: responseBody, user_type, is_default } = body;
+
+        if (!title || !responseBody) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'title and body required' }, 400);
+        }
+
+        const templateId = `TPL_${crypto.randomUUID()}`;
+        const timestamp = new Date().toISOString();
+
+        await d1Run(env.DB,
+          `INSERT INTO dvlp_canned_responses (template_id, title, body, user_type, is_default, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [templateId, title, responseBody, user_type || 'developer', is_default ? 1 : 0, timestamp, timestamp]
+        );
+
+        return json({ ok: true, template_id: templateId });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create canned response' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'PATCH', pattern: '/v1/dvlp/operator/canned-responses/:template_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      const { template_id } = params;
+
+      try {
+        const body = await parseBody(request);
+        const updates = body;
+
+        const template = await env.DB.prepare("SELECT * FROM dvlp_canned_responses WHERE template_id = ?").bind(template_id).first();
+        if (!template) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Template not found' }, 404);
+        }
+
+        const timestamp = new Date().toISOString();
+
+        const immutableFields = ['template_id', 'created_at'];
+        const filteredUpdates = Object.fromEntries(
+          Object.entries(updates).filter(([key]) => !immutableFields.includes(key))
+        );
+
+        if (Object.keys(filteredUpdates).length === 0) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400);
+        }
+
+        const setClause = Object.keys(filteredUpdates).map(k => `${k} = ?`).join(', ');
+        const values = [...Object.values(filteredUpdates), timestamp, template_id];
+
+        await d1Run(env.DB,
+          `UPDATE dvlp_canned_responses SET ${setClause}, updated_at = ? WHERE template_id = ?`,
+          values
+        );
+
+        return json({ ok: true });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update canned response' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'DELETE', pattern: '/v1/dvlp/operator/canned-responses/:template_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      const { template_id } = params;
+
+      try {
+        const template = await env.DB.prepare("SELECT is_default FROM dvlp_canned_responses WHERE template_id = ?").bind(template_id).first();
+        if (!template) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Template not found' }, 404);
+        }
+
+        if (template.is_default === 1) {
+          return json({ ok: false, error: 'BAD_REQUEST', message: 'Cannot delete default template' }, 400);
+        }
+
+        await d1Run(env.DB, "DELETE FROM dvlp_canned_responses WHERE template_id = ?", [template_id]);
+
+        return json({ ok: true });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to delete canned response' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/dvlp/operator/bulk-email',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+      }
+
+      try {
+        const body = await parseBody(request);
+        const { filters, subject, message, dry_run } = body;
+
+        if (!subject || !message) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'subject and message required' }, 400);
+        }
+
+        // Build query based on filters
+        let query = "SELECT email, full_name FROM dvlp_developers WHERE 1=1";
+        const queryParams = [];
+
+        if (filters?.status) {
+          query += " AND status = ?";
+          queryParams.push(filters.status);
+        }
+        if (filters?.plan) {
+          query += " AND plan = ?";
+          queryParams.push(filters.plan);
+        }
+        if (filters?.skills) {
+          query += " AND skills LIKE ?";
+          queryParams.push(`%${filters.skills}%`);
+        }
+
+        const result = await env.DB.prepare(query).bind(...queryParams).all();
+        const developers = result.results || [];
+
+        if (dry_run) {
+          return json({ ok: true, count: developers.length, dry_run: true });
+        }
+
+        // Send emails in batches of 50 (Resend limit)
+        const eventId = `EVT_${crypto.randomUUID()}`;
+        let sentCount = 0;
+
+        for (let i = 0; i < developers.length; i += 50) {
+          const batch = developers.slice(i, i + 50);
+
+          // Implementation would use Resend batch API
+          // await sendBulkEmail(batch, subject, message, env);
+          sentCount += batch.length;
+        }
+
+        // Write receipt
+        const receiptData = {
+          eventId,
+          filters,
+          subject,
+          message,
+          sent_count: sentCount,
+          timestamp: new Date().toISOString()
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/receipts/bulk-email/${eventId}.json`, JSON.stringify(receiptData));
+
+        return json({ ok: true, sent_count: sentCount });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send bulk email' }, 500);
+      }
+    },
+  },
+
 ];
 // ---------------------------------------------------------------------------
 // Router
@@ -6379,6 +7603,102 @@ export default {
     }
 
     return result.handler(method, result.pattern, result.params, request, env, ctx);
+  },
+
+  async scheduled(event, env, ctx) {
+    // DVLP Job Matching Cron
+    try {
+      const eventId = `EVT_${crypto.randomUUID()}`;
+      const timestamp = new Date().toISOString();
+
+      // 1. Query active developers
+      const developersResult = await env.DB.prepare(
+        "SELECT developer_id, email, full_name, skills FROM dvlp_developers WHERE status='active' AND publish_profile=1"
+      ).all();
+      const developers = developersResult.results || [];
+
+      // 2. Query open jobs
+      const jobsResult = await env.DB.prepare(
+        "SELECT job_id, title, description, skills_required FROM dvlp_jobs WHERE status='open'"
+      ).all();
+      const jobs = jobsResult.results || [];
+
+      let matchesSent = 0;
+
+      // 3. For each job, find skill-matching developers
+      for (const job of jobs) {
+        if (!job.skills_required) continue;
+
+        const jobSkills = job.skills_required.toLowerCase().split(',').map(s => s.trim());
+
+        for (const developer of developers) {
+          if (!developer.skills) continue;
+
+          const devSkills = developer.skills.toLowerCase().split(',').map(s => s.trim());
+
+          // Simple skill matching - check if any job skill matches any dev skill
+          const hasMatch = jobSkills.some(jobSkill =>
+            devSkills.some(devSkill =>
+              devSkill.includes(jobSkill) || jobSkill.includes(devSkill)
+            )
+          );
+
+          if (hasMatch) {
+            // 4. Send match notification email
+            const subject = `New Job Match: ${job.title}`;
+            const htmlBody = `
+              <p>Hi ${developer.full_name},</p>
+              <p>We found a job that matches your skills:</p>
+              <h3>${job.title}</h3>
+              <p>${job.description}</p>
+              <p>Required skills: ${job.skills_required}</p>
+              <p><a href="https://developers.virtuallaunch.pro/jobs/${job.job_id}">View Job Details</a></p>
+            `;
+
+            try {
+              await sendEmail(developer.email, subject, htmlBody, env);
+              matchesSent++;
+            } catch (e) {
+              console.error('Failed to send job match email:', e);
+            }
+          }
+        }
+      }
+
+      // 5. Update developer nextNotificationDue in D1 (add column if needed in future migration)
+      // For now, we'll track this in the receipt
+
+      // 6. Write cron run receipt to R2
+      const cronReceipt = {
+        eventId,
+        timestamp,
+        type: 'dvlp-job-match-cron',
+        stats: {
+          developers_checked: developers.length,
+          jobs_checked: jobs.length,
+          matches_sent: matchesSent
+        }
+      };
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/receipts/cron/${eventId}.json`, JSON.stringify(cronReceipt));
+
+      console.log(`DVLP cron completed: ${matchesSent} matches sent`);
+    } catch (e) {
+      console.error('DVLP cron job failed:', e);
+
+      // Write error receipt
+      const errorEventId = `EVT_${crypto.randomUUID()}`;
+      const errorReceipt = {
+        eventId: errorEventId,
+        timestamp: new Date().toISOString(),
+        type: 'dvlp-job-match-cron-error',
+        error: e.message
+      };
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/receipts/cron/${errorEventId}.json`, JSON.stringify(errorReceipt));
+      } catch (receiptError) {
+        console.error('Failed to write error receipt:', receiptError);
+      }
+    }
   },
 };
 

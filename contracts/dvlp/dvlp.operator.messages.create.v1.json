@@ -1,0 +1,106 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator message creation",
+    "path": "/contracts/dvlp/dvlp.operator.messages.create.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Messages Create",
+    "usedOnPages": [
+      "/operator/messages"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "adminRoleRequired": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/messages",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/operator/messages/{refNumber}/{eventId}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.ref_number",
+    "eventIdFrom": "generated.eventId",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "dvlp/operator/messages"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "ref_number": {
+        "type": "string",
+        "minLength": 1
+      },
+      "recipient_type": {
+        "type": "string",
+        "enum": ["developer", "all_developers", "specific_email"]
+      },
+      "recipient_id": {
+        "type": "string",
+        "maxLength": 100
+      },
+      "subject": {
+        "type": "string",
+        "minLength": 3,
+        "maxLength": 200
+      },
+      "message": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 5000
+      },
+      "message_type": {
+        "type": "string",
+        "enum": ["notification", "announcement", "personal", "system"]
+      }
+    },
+    "required": [
+      "ref_number",
+      "recipient_type",
+      "subject",
+      "message",
+      "message_type"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "MESSAGE_CREATION_FAILED",
+      "message": "Message creation failed"
+    },
+    "success": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "status": "sent"
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_messages_create",
+    "version": 1
+  }
+}

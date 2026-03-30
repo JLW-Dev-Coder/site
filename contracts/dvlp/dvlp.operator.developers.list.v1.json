@@ -1,0 +1,62 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator all developers listing",
+    "path": "/contracts/dvlp/dvlp.operator.developers.list.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Developers List",
+    "usedOnPages": [
+      "/operator/developers"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "adminRoleRequired": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/developers",
+    "method": "GET",
+    "receiptKeyPattern": "dvlp/receipts/operator/developers-list/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "timestamp",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "FORBIDDEN",
+      "message": "Admin access required"
+    },
+    "success": {
+      "ok": true,
+      "developers": []
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_developers_list",
+    "version": 1
+  }
+}

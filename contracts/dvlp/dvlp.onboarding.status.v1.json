@@ -1,0 +1,63 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Developer onboarding status check",
+    "path": "/contracts/dvlp/dvlp.onboarding.status.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Onboarding — Status",
+    "usedOnPages": [
+      "/onboarding/status"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "rejectUnknownValues": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/onboarding/status",
+    "method": "GET",
+    "receiptKeyPattern": "dvlp/receipts/onboarding-status/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "timestamp",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR",
+      "message": "Unable to check onboarding status"
+    },
+    "success": {
+      "ok": true,
+      "status": "pending",
+      "message": "Onboarding application is under review"
+    }
+  },
+  "schema": {
+    "name": "dvlp_onboarding_status",
+    "version": 1
+  }
+}

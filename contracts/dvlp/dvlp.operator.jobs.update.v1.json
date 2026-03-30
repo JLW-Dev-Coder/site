@@ -1,0 +1,102 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator job update",
+    "path": "/contracts/dvlp/dvlp.operator.jobs.update.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Jobs Update",
+    "usedOnPages": [
+      "/operator/jobs/edit"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "adminRoleRequired": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/jobs/:job_id",
+    "method": "PATCH",
+    "receiptKeyPattern": "dvlp/receipts/operator/jobs-update/{jobId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.job_id",
+    "eventIdFrom": "params.job_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Update"
+    ],
+    "writes": [
+      "dvlp_jobs",
+      "dvlp/jobs"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 200
+      },
+      "description": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 2000
+      },
+      "skills_required": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "status": {
+        "type": "string",
+        "enum": ["open", "filled", "closed", "cancelled"]
+      },
+      "budget_min": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "budget_max": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "job_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "JOB_UPDATE_FAILED",
+      "message": "Job update failed"
+    },
+    "success": {
+      "ok": true,
+      "job_id": "{effects.eventIdFrom}",
+      "updated": true
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_jobs_update",
+    "version": 1
+  }
+}

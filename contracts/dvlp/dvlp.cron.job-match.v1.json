@@ -1,0 +1,67 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "DVLP automated job matching cron execution",
+    "path": "/contracts/dvlp/dvlp.cron.job-match.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Cron — Job Match",
+    "usedOnPages": [],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "cronTriggered": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/cron/dvlp/job-match",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/cron/{eventId}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "generated.eventId",
+    "writeOrder": [
+      "receiptAppend"
+    ],
+    "writes": [
+      "dvlp/cron"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "CRON_EXECUTION_FAILED",
+      "message": "Job matching cron execution failed"
+    },
+    "success": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "matches_sent": 0,
+      "developers_checked": 0,
+      "jobs_checked": 0
+    }
+  },
+  "schema": {
+    "name": "dvlp_cron_job_match",
+    "version": 1
+  }
+}

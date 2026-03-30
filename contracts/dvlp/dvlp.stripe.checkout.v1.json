@@ -1,0 +1,89 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["STRIPE_DVLP"],
+    "governs": "DVLP Stripe checkout session creation",
+    "path": "/contracts/dvlp/dvlp.stripe.checkout.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Stripe — Checkout",
+    "usedOnPages": [
+      "/pricing",
+      "/upgrade"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/stripe/checkout",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/stripe/checkout/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.ref_number",
+    "eventIdFrom": "generated.sessionId",
+    "writeOrder": [
+      "receiptAppend"
+    ],
+    "writes": [
+      "stripe_sessions"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "plan": {
+        "type": "string",
+        "enum": ["free", "paid"]
+      },
+      "email": {
+        "type": "string",
+        "format": "email",
+        "maxLength": 100
+      },
+      "ref_number": {
+        "type": "string",
+        "pattern": "^VLP-[A-Z0-9]{6}$"
+      }
+    },
+    "required": [
+      "plan",
+      "email",
+      "ref_number"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "session_url": "{stripe.session_url}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "STRIPE_ERROR",
+      "message": "Failed to create checkout session"
+    },
+    "success": {
+      "ok": true,
+      "session_url": "{stripe.session_url}"
+    }
+  },
+  "schema": {
+    "name": "dvlp_stripe_checkout",
+    "version": 1
+  }
+}

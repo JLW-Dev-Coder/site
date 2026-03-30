@@ -1,0 +1,109 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator bulk email sending",
+    "path": "/contracts/dvlp/dvlp.operator.bulk-email.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Bulk Email",
+    "usedOnPages": [
+      "/operator/bulk-email"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "adminRoleRequired": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/bulk-email",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/bulk-email/{eventId}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.subject",
+    "eventIdFrom": "generated.eventId",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "dvlp/receipts/bulk-email"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "subject": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 200
+      },
+      "html_body": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 10000
+      },
+      "text_body": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 10000
+      },
+      "recipient_filter": {
+        "type": "string",
+        "enum": ["all_developers", "active_developers", "pending_developers", "custom_list"]
+      },
+      "custom_recipients": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "send_immediately": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "subject",
+      "html_body",
+      "text_body",
+      "recipient_filter"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "BULK_EMAIL_FAILED",
+      "message": "Bulk email sending failed"
+    },
+    "success": {
+      "ok": true,
+      "event_id": "{effects.eventIdFrom}",
+      "status": "queued",
+      "recipients_count": 0
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_bulk_email",
+    "version": 1
+  }
+}

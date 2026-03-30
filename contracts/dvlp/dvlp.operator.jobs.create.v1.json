@@ -1,0 +1,109 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator job creation",
+    "path": "/contracts/dvlp/dvlp.operator.jobs.create.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Jobs Create",
+    "usedOnPages": [
+      "/operator/jobs/create"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "requireJsonContentType": true,
+      "adminRoleRequired": true,
+      "rejectUnknownValues": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/jobs",
+    "method": "POST",
+    "receiptKeyPattern": "dvlp/receipts/operator/jobs/{jobId}/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.title",
+    "eventIdFrom": "generated.jobId",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Insert"
+    ],
+    "writes": [
+      "dvlp_jobs",
+      "dvlp/jobs"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "title": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 200
+      },
+      "description": {
+        "type": "string",
+        "minLength": 20,
+        "maxLength": 2000
+      },
+      "skills_required": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "budget_min": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "budget_max": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "duration_weeks": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 52
+      },
+      "remote_ok": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "title",
+      "description"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "job_id": "{effects.eventIdFrom}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "JOB_CREATION_FAILED",
+      "message": "Job creation failed"
+    },
+    "success": {
+      "ok": true,
+      "job_id": "{effects.eventIdFrom}",
+      "status": "created"
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_jobs_create",
+    "version": 1
+  }
+}

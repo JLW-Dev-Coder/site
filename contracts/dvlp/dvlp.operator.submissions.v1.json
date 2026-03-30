@@ -1,0 +1,62 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator view of all developer submissions",
+    "path": "/contracts/dvlp/dvlp.operator.submissions.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Submissions",
+    "usedOnPages": [
+      "/operator/submissions"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "adminRoleRequired": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/submissions",
+    "method": "GET",
+    "receiptKeyPattern": "dvlp/receipts/operator/submissions/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "timestamp",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "FORBIDDEN",
+      "message": "Admin access required"
+    },
+    "success": {
+      "ok": true,
+      "submissions": []
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_submissions",
+    "version": 1
+  }
+}

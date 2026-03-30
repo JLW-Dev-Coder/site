@@ -1,0 +1,62 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Operator canned responses listing",
+    "path": "/contracts/dvlp/dvlp.operator.canned-responses.list.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Operator — Canned Responses List",
+    "usedOnPages": [
+      "/operator/responses"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "adminRoleRequired": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/operator/canned-responses",
+    "method": "GET",
+    "receiptKeyPattern": "dvlp/receipts/operator/canned-responses-list/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "timestamp",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "FORBIDDEN",
+      "message": "Admin access required"
+    },
+    "success": {
+      "ok": true,
+      "responses": []
+    }
+  },
+  "schema": {
+    "name": "dvlp_operator_canned_responses_list",
+    "version": 1
+  }
+}

@@ -29,11 +29,22 @@ invocation_logs = true
 binding = "R2_VIRTUAL_LAUNCH"
 bucket_name = "virtuallaunch-pro"
 
+[[r2_buckets]]
+binding = "ONBOARDING_R2"
+bucket_name = "virtuallaunch-pro"
+
 [[d1_databases]]
 binding = "DB"
 database_name = "virtuallaunch-pro"
 database_id = "079dfd69-dbf4-4070-bc91-51f837021795"
 migrations_dir = "workers/migrations"
+
+# ---------------------------------------
+# Cron Triggers
+# ---------------------------------------
+
+[triggers]
+crons = ["0 9 * * 1"]  # Every Monday 9am UTC - DVLP job matching
 
 # ---------------------------------------
 # Vars (non-secret)
@@ -172,6 +183,18 @@ STRIPE_CONNECT_CLIENT_ID = "ca_UEvTMDrQCV82RNrJ4JIaEye4bimUM0RX"
 # =================================================
 
 # R2_CANONICAL_WRITE_TOKEN
+
+# =================================================
+# DVLP (Developers VLP)
+# =================================================
+
+# CRON_SECRET
+# GOOGLE_CLIENT_EMAIL
+# RESEND_API_KEY
+# STRIPE_DVLP_PRICE_FREE
+# STRIPE_DVLP_PRICE_PAID
+# STRIPE_DVLP_SECRET_KEY
+# STRIPE_DVLP_WEBHOOK_SECRET
 
 # =================================================
 # Optional / Future Integrations

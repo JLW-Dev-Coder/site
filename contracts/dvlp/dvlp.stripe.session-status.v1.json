@@ -1,0 +1,65 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Stripe checkout session status check",
+    "path": "/contracts/dvlp/dvlp.stripe.session-status.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Stripe — Session Status",
+    "usedOnPages": [
+      "/checkout/success"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "requireJsonContentType": false,
+      "rejectUnknownValues": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/stripe/session-status",
+    "method": "GET",
+    "receiptKeyPattern": "dvlp/receipts/stripe/session-status/{timestamp}.json",
+    "receiptSource": "dvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": "timestamp",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {},
+    "error": {
+      "ok": false,
+      "error": "SESSION_NOT_FOUND",
+      "message": "Checkout session not found"
+    },
+    "success": {
+      "ok": true,
+      "session": {
+        "status": "complete",
+        "payment_status": "paid"
+      }
+    }
+  },
+  "schema": {
+    "name": "dvlp_stripe_session_status",
+    "version": 1
+  }
+}
