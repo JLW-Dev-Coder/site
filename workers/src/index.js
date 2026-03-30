@@ -2468,6 +2468,83 @@ const ROUTES = [
                 );
               }
             }
+
+            // TOKEN PURCHASE CREDIT on checkout.session.completed
+            const { type } = obj.metadata ?? {};
+            if (type === 'token_purchase' && account_id) {
+              try {
+                // Extract price_id from line_items
+                let price_id = null;
+                if (obj.line_items?.data?.[0]?.price?.id) {
+                  price_id = obj.line_items.data[0].price.id;
+                } else {
+                  // Fallback: lookup price from session
+                  const sessionDetails = await fetch(`https://api.stripe.com/v1/checkout/sessions/${obj.id}?expand[]=line_items`, {
+                    headers: { 'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}` }
+                  });
+                  if (sessionDetails.ok) {
+                    const session = await sessionDetails.json();
+                    price_id = session.line_items?.data?.[0]?.price?.id;
+                  }
+                }
+
+                if (price_id) {
+                  // Token purchase mapping
+                  const TOKEN_PURCHASE_MAP = {
+                    // TTTMP game tokens
+                    [env.STRIPE_PRICE_TTTMP_30_TOKENS]:  { type: 'tax_game',   quantity: 30  },
+                    [env.STRIPE_PRICE_TTTMP_80_TOKENS]:  { type: 'tax_game',   quantity: 80  },
+                    [env.STRIPE_PRICE_TTTMP_200_TOKENS]: { type: 'tax_game',   quantity: 200 },
+                    // TTMP transcript tokens
+                    [env.STRIPE_PRICE_TTMP_10_TOKENS]:  { type: 'transcript', quantity: 10  },
+                    [env.STRIPE_PRICE_TTMP_25_TOKENS]:  { type: 'transcript', quantity: 25  },
+                    [env.STRIPE_PRICE_TTMP_100_TOKENS]: { type: 'transcript', quantity: 100 },
+                  };
+
+                  const purchaseInfo = TOKEN_PURCHASE_MAP[price_id];
+                  if (purchaseInfo) {
+                    const eventId = `EVT_${crypto.randomUUID()}`;
+
+                    // Write receipt
+                    await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/receipts/purchases/${account_id}/${Date.now()}.json`, {
+                      event_id: eventId,
+                      account_id: account_id,
+                      price_id: price_id,
+                      token_type: purchaseInfo.type,
+                      quantity: purchaseInfo.quantity,
+                      stripe_session_id: obj.id,
+                      amount_paid: obj.amount_total,
+                      created_at: now
+                    });
+
+                    // Credit the correct token type + quantity
+                    if (purchaseInfo.type === 'tax_game') {
+                      await d1Run(env.DB,
+                        `INSERT INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at)
+                         VALUES (?, ?, 0, ?)
+                         ON CONFLICT(account_id) DO UPDATE SET
+                           tax_game_tokens = tax_game_tokens + ?,
+                           updated_at = ?`,
+                        [account_id, purchaseInfo.quantity, now, purchaseInfo.quantity, now]
+                      );
+                    } else if (purchaseInfo.type === 'transcript') {
+                      await d1Run(env.DB,
+                        `INSERT INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at)
+                         VALUES (?, 0, ?, ?)
+                         ON CONFLICT(account_id) DO UPDATE SET
+                           transcript_tokens = transcript_tokens + ?,
+                           updated_at = ?`,
+                        [account_id, purchaseInfo.quantity, now, purchaseInfo.quantity, now]
+                      );
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error('Token purchase processing error:', e);
+                // Don't fail the webhook - just log the error
+              }
+            }
+
             break;
           }
 
@@ -2600,6 +2677,65 @@ const ROUTES = [
                 // Don't fail the webhook - just log the error
               }
             }
+
+            // TOKEN GRANTS on invoice.paid (subscription renewals)
+            // Process token grants after affiliate commission
+            if (accountId) {
+              try {
+                // Get account's membership plan_key
+                const membershipRow = await env.DB.prepare(
+                  "SELECT plan_key FROM memberships WHERE account_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1"
+                ).bind(accountId).first();
+
+                if (membershipRow?.plan_key) {
+                  // Token grant mapping
+                  const TOKEN_GRANTS = {
+                    'vlp_starter':   { tax_game: 30,  transcript: 30  },
+                    'vlp_scale':     { tax_game: 120, transcript: 100 },
+                    'vlp_advanced':  { tax_game: 300, transcript: 250 },
+                    'tmp_essential': { tax_game: 5,   transcript: 2   },
+                    'tmp_plus':      { tax_game: 15,  transcript: 5   },
+                    'tmp_premier':   { tax_game: 40,  transcript: 10  },
+                    'tmp_bronze':    { tax_game: 5,   transcript: 5   },
+                    'tmp_silver':    { tax_game: 10,  transcript: 10  },
+                    'tmp_gold':      { tax_game: 20,  transcript: 20  },
+                    'tmp_snapshot':  { tax_game: 0,   transcript: 1   },
+                  };
+
+                  const grant = TOKEN_GRANTS[membershipRow.plan_key];
+                  if (grant) {
+                    const eventId = `EVT_${crypto.randomUUID()}`;
+
+                    // Write receipt
+                    await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/receipts/grants/${accountId}/${Date.now()}.json`, {
+                      event_id: eventId,
+                      account_id: accountId,
+                      plan_key: membershipRow.plan_key,
+                      tax_game_tokens_granted: grant.tax_game,
+                      transcript_tokens_granted: grant.transcript,
+                      stripe_invoice_id: invoiceId,
+                      created_at: now
+                    });
+
+                    // Update or insert tokens record
+                    await d1Run(env.DB,
+                      `INSERT INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at)
+                       VALUES (?, ?, ?, ?)
+                       ON CONFLICT(account_id) DO UPDATE SET
+                         tax_game_tokens = tax_game_tokens + ?,
+                         transcript_tokens = transcript_tokens + ?,
+                         updated_at = ?`,
+                      [accountId, grant.tax_game, grant.transcript, now,
+                       grant.tax_game, grant.transcript, now]
+                    );
+                  }
+                }
+              } catch (e) {
+                console.error('Token grant processing error:', e);
+                // Don't fail the webhook - just log the error
+              }
+            }
+
             break;
           }
 
@@ -3421,6 +3557,106 @@ const ROUTES = [
   },
 
   {
+    method: 'POST', pattern: '/v1/tokens/purchase',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const payload = await parseBody(request);
+      if (!payload || typeof payload !== 'object') {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+      }
+
+      const { price_id, token_type } = payload;
+      if (!price_id || !token_type) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing price_id or token_type' }, 400);
+      }
+
+      if (!['tax_game', 'transcript'].includes(token_type)) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'token_type must be tax_game or transcript' }, 400);
+      }
+
+      // Token purchase mapping
+      const TOKEN_PURCHASE_MAP = {
+        // TTTMP game tokens
+        [env.STRIPE_PRICE_TTTMP_30_TOKENS]:  { type: 'tax_game',   quantity: 30  },
+        [env.STRIPE_PRICE_TTTMP_80_TOKENS]:  { type: 'tax_game',   quantity: 80  },
+        [env.STRIPE_PRICE_TTTMP_200_TOKENS]: { type: 'tax_game',   quantity: 200 },
+        // TTMP transcript tokens
+        [env.STRIPE_PRICE_TTMP_10_TOKENS]:  { type: 'transcript', quantity: 10  },
+        [env.STRIPE_PRICE_TTMP_25_TOKENS]:  { type: 'transcript', quantity: 25  },
+        [env.STRIPE_PRICE_TTMP_100_TOKENS]: { type: 'transcript', quantity: 100 },
+      };
+
+      const purchaseInfo = TOKEN_PURCHASE_MAP[price_id];
+      if (!purchaseInfo) {
+        return json({ ok: false, error: 'INVALID_PRICE_ID', message: 'Unknown price_id' }, 400);
+      }
+
+      if (purchaseInfo.type !== token_type) {
+        return json({ ok: false, error: 'TOKEN_TYPE_MISMATCH', message: 'price_id does not match token_type' }, 400);
+      }
+
+      try {
+        // Create Stripe Checkout session for one-time payment
+        const checkoutSession = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            'mode': 'payment',
+            'success_url': 'https://virtuallaunch.pro/dashboard/tokens?success=true',
+            'cancel_url': 'https://virtuallaunch.pro/dashboard/tokens?cancelled=true',
+            'client_reference_id': session.account_id,
+            'line_items[0][price]': price_id,
+            'line_items[0][quantity]': '1',
+            'metadata[platform]': 'vlp',
+            'metadata[type]': 'token_purchase',
+            'metadata[account_id]': session.account_id,
+            'metadata[token_type]': token_type,
+          }),
+        });
+
+        if (!checkoutSession.ok) {
+          const errorText = await checkoutSession.text();
+          console.error('Stripe checkout session creation failed:', errorText);
+          return json({ ok: false, error: 'STRIPE_ERROR', message: 'Failed to create checkout session' }, 500);
+        }
+
+        const sessionData = await checkoutSession.json();
+        return json({ ok: true, session_url: sessionData.url });
+      } catch (e) {
+        console.error('Token purchase error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create purchase session' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/tokens/pricing',
+    handler: async (_method, _pattern, _params, _request, env) => {
+      // No auth required - public pricing information
+      return json({
+        ok: true,
+        packages: {
+          transcript: [
+            { price_id: env.STRIPE_PRICE_TTMP_10_TOKENS, quantity: 10, price_usd: 19, label: '10 Transcript Tokens' },
+            { price_id: env.STRIPE_PRICE_TTMP_25_TOKENS, quantity: 25, price_usd: 29, label: '25 Transcript Tokens' },
+            { price_id: env.STRIPE_PRICE_TTMP_100_TOKENS, quantity: 100, price_usd: 129, label: '100 Transcript Tokens' }
+          ],
+          tax_game: [
+            { price_id: env.STRIPE_PRICE_TTTMP_30_TOKENS || 'price_1TGTiqQEa4WBi79guSRnECvw', quantity: 30, price_usd: 9, label: '30 Game Tokens' },
+            { price_id: env.STRIPE_PRICE_TTTMP_80_TOKENS || 'price_1TGTiqQEa4WBi79gScrpsUab', quantity: 80, price_usd: 19, label: '80 Game Tokens' },
+            { price_id: env.STRIPE_PRICE_TTTMP_200_TOKENS || 'price_1TGTiqQEa4WBi79gpTsbsLIi', quantity: 200, price_usd: 39, label: '200 Game Tokens' }
+          ]
+        }
+      });
+    },
+  },
+
+  {
     method: 'GET', pattern: '/v1/tokens/usage/:account_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
@@ -4125,6 +4361,20 @@ const ROUTES = [
         return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Invalid account_id format' }, 400);
       }
 
+      // Check membership — form tools free with any paid subscription
+      const membership = await env.DB.prepare(
+        "SELECT status, plan_key FROM memberships WHERE account_id = ? AND status = 'active'"
+      ).bind(session.account_id).first();
+
+      if (!membership || membership.plan_key === 'free' || membership.plan_key === 'vlp_free') {
+        return json({
+          ok: false,
+          error: 'SUBSCRIPTION_REQUIRED',
+          message: 'An active paid subscription is required to use form tools.',
+          upgrade_url: '/pricing'
+        }, 402);
+      }
+
       const { form_data: formData } = payload;
       if (!formData || typeof formData !== 'object') {
         return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'form_data must be an object' }, 400);
@@ -4171,12 +4421,7 @@ const ROUTES = [
         });
       }
 
-      const tokenRow = await env.DB.prepare(
-        'SELECT tax_game_tokens FROM tokens WHERE account_id = ?'
-      ).bind(accountId).first();
-      if (!tokenRow || tokenRow.tax_game_tokens < 1) {
-        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 tax_game token required' }, 403);
-      }
+      // Form tools are free with paid subscription - no token consumption
 
       const eventId = crypto.randomUUID();
       const nowIso = new Date().toISOString();
@@ -4192,18 +4437,7 @@ const ROUTES = [
       };
       await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/${accountId}/${eventId}.json`, receipt);
 
-      await d1Run(
-        env.DB,
-        'UPDATE tokens SET tax_game_tokens = tax_game_tokens - 1, updated_at = ? WHERE account_id = ?',
-        [nowIso, accountId]
-      );
-
-      const updatedTaxGameTokens = tokenRow.tax_game_tokens - 1;
-      await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/${accountId}.json`, {
-        account_id: accountId,
-        tax_game_tokens: updatedTaxGameTokens,
-        updated_at: nowIso,
-      });
+      // Form tools don't consume tokens for paid subscribers
 
       const pdfLines = [
         '%PDF-1.4',
@@ -4277,6 +4511,20 @@ const ROUTES = [
         return json({ ok: false, error: 'VALIDATION_FAILED', message: 'taxMatters must be a non-empty array' }, 400);
       }
 
+      // Check membership — form tools free with any paid subscription
+      const membership = await env.DB.prepare(
+        "SELECT status, plan_key FROM memberships WHERE account_id = ? AND status = 'active'"
+      ).bind(session.account_id).first();
+
+      if (!membership || membership.plan_key === 'free' || membership.plan_key === 'vlp_free') {
+        return json({
+          ok: false,
+          error: 'SUBSCRIPTION_REQUIRED',
+          message: 'An active paid subscription is required to use form tools.',
+          upgrade_url: '/pricing'
+        }, 402);
+      }
+
       // Check token balance
       const tokenRow = await env.DB.prepare(
         'SELECT tax_game_tokens FROM tokens WHERE account_id = ?'
@@ -4291,7 +4539,7 @@ const ROUTES = [
       // 1. Write R2 receipt
       const receipt = {
         eventId, accountId: session.account_id, tool: 'form_8821',
-        tokenType: 'tax_game', tokensDebited: 1, createdAt: now,
+        tokenType: 'none', tokensDebited: 0, createdAt: now,
         payload: { taxpayerName: body.taxpayerName, taxpayerTin: body.taxpayerTin, taxMatters: body.taxMatters },
       };
       await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tools/form-8821/${eventId}.json`, receipt);
@@ -4320,23 +4568,17 @@ const ROUTES = [
       // 2. Write R2 canonical tool session
       await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp_tool_sessions/${eventId}.json`, {
         sessionId: eventId, accountId: session.account_id, tool: 'form_8821',
-        tokenType: 'tax_game', tokensDebited: 1, status: 'completed',
+        tokenType: 'none', tokensDebited: 0, status: 'completed',
         result: formData, createdAt: now,
       });
 
-      // 3. Update D1 — debit token, insert tool session row
-      await Promise.all([
-        d1Run(env.DB,
-          'UPDATE tokens SET tax_game_tokens = tax_game_tokens - 1, updated_at = ? WHERE account_id = ?',
-          [now, session.account_id]
-        ),
-        d1Run(env.DB,
-          'INSERT INTO tool_sessions (session_id, account_id, tool, token_type, tokens_debited, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-          [eventId, session.account_id, 'form_8821', 'tax_game', 1, 'completed', now]
-        ),
-      ]);
+      // 3. Insert tool session row (no token consumption for paid subscribers)
+      await d1Run(env.DB,
+        'INSERT INTO tool_sessions (session_id, account_id, tool, token_type, tokens_debited, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [eventId, session.account_id, 'form_8821', 'none', 0, 'completed', now]
+      );
 
-      return json({ ok: true, eventId, status: 'completed', tokensDebited: 1, tokenType: 'tax_game', formData });
+      return json({ ok: true, eventId, status: 'completed', tokensDebited: 0, tokenType: 'none', formData });
     },
   },
 
@@ -4452,8 +4694,14 @@ const ROUTES = [
       const tokenRow = await env.DB.prepare(
         'SELECT transcript_tokens FROM tokens WHERE account_id = ?'
       ).bind(accountId).first();
-      if (!tokenRow || tokenRow.transcript_tokens < 1) {
-        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 transcript token required' }, 402);
+      const tokensRemaining = tokenRow?.transcript_tokens || 0;
+      if (tokensRemaining < 1) {
+        return json({
+          ok: false,
+          error: 'INSUFFICIENT_TOKENS',
+          tokens_remaining: tokensRemaining,
+          upgrade_url: '/pricing'
+        }, 402);
       }
 
       // --- Write pipeline ---

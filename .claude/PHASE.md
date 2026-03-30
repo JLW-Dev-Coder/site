@@ -44,7 +44,58 @@ TTTMP (taxtools.taxmonitor.pro) — ✅ Complete 2026-03-29
 - PayPal and ClickUp removed
 - D1 and legacy Worker deleted
 
-## Phase 3: Affiliate Program (NEXT)
+## Phase 4: Token Purchase Flow & Membership Gating (IN PROGRESS)
+
+### Objective
+Wire token purchase flow to membership gating. Subscription renewals auto-grant tokens based on plan tier. One-time token purchases available. Form tools free with any paid subscription.
+
+### Business Rules
+**Token Types:**
+- transcript_tokens — TTMP transcript analysis (1 per analysis)
+- tax_game_tokens — TTTMP game plays (1 per play)
+
+**Token Purchase Packages:**
+- TTTMP: 30 tokens/$9, 80 tokens/$19, 200 tokens/$39
+- TTMP: 10 tokens/$19, 25 tokens/$29, 100 tokens/$129
+
+**Monthly Token Grants by Subscription (on invoice.payment_succeeded):**
+- VLP Free: 0/0
+- VLP Starter ($79): 30 tax_game + 30 transcript
+- VLP Scale ($199): 120 tax_game + 100 transcript
+- VLP Advanced ($399): 300 tax_game + 250 transcript
+- TMP Essential ($9): 5 tax_game + 2 transcript
+- TMP Plus ($19): 15 tax_game + 5 transcript
+- TMP Premier ($39): 40 tax_game + 10 transcript
+- TMP Bronze ($275): 5 tax_game + 5 transcript
+- TMP Silver ($325): 10 tax_game + 10 transcript
+- TMP Gold ($425): 20 tax_game + 20 transcript
+- TMP Snapshot ($425): 0 tax_game + 1 transcript
+
+**Feature Gating:**
+- Transcript analysis (POST /v1/tools/transcript-parser): requires transcript_tokens >= 1
+- TTTMP game plays: requires tax_game_tokens >= 1
+- TTTMP form tools (2848/8821): free with any paid subscription, no token cost
+- When balance = 0: return { ok: false, error: 'INSUFFICIENT_TOKENS', tokens_remaining: 0, upgrade_url: '/pricing' } with HTTP 402
+
+### Phase 4 Checklist
+- ✅ 4.0: Token grants wired to Stripe webhook invoice.payment_succeeded
+- ✅ 4.1: Token purchase credit wired to checkout.session.completed
+- ✅ 4.2: Form tool membership gate added (POST /v1/tools/form2848, form-8821)
+- ✅ 4.3: Token consumption removed from form tools (free with paid subscription)
+- ✅ 4.4: Transcript parser token gate verified/updated to standard error format
+- ✅ 4.5: POST /v1/tokens/purchase route added
+- ✅ 4.6: GET /v1/tokens/balance/:account_id verified (already existed)
+- ✅ 4.7: GET /v1/tokens/pricing route added
+- ✅ 4.8: PHASE.md updated
+
+### Implementation Notes
+- TTMP token price IDs flagged as missing from wrangler.toml (placeholders used)
+- Token grants process after affiliate commission in webhook
+- Form tools no longer consume tokens for paid subscribers
+
+---
+
+## Completed: Phase 3 — Affiliate Program (2026-03-30)
 
 ### Objective
 Ecosystem-wide affiliate program. Every VLP account gets a
