@@ -686,6 +686,154 @@ function redirectWithCookie(url, sessionId, env) {
 }
 
 // ---------------------------------------------------------------------------
+// TTTMP Session helpers
+// ---------------------------------------------------------------------------
+
+async function getTttmpSessionFromRequest(request, env) {
+  let sessionId = null;
+
+  const authHeader = request.headers.get('Authorization');
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    sessionId = authHeader.slice(7).trim();
+  }
+
+  if (!sessionId) {
+    const cookieHeader = request.headers.get('Cookie') ?? '';
+    const match = cookieHeader.match(/(?:^|;\s*)tttmp_session=([^;]+)/);
+    if (match) sessionId = match[1];
+  }
+
+  if (!sessionId) return null;
+
+  try {
+    const now = new Date().toISOString();
+    const session = await env.DB.prepare(
+      'SELECT * FROM sessions WHERE session_id = ? AND expires_at > ? AND platform = ?'
+    ).bind(sessionId, now, 'tttmp').first();
+    return session ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function requireTttmpSession(request, env) {
+  const session = await getTttmpSessionFromRequest(request, env);
+  if (!session) {
+    return { error: json({ ok: false, error: 'UNAUTHORIZED' }, 401) };
+  }
+  return { session };
+}
+
+async function createTttmpSession(accountId, email, env) {
+  const sessionId = `SES_${crypto.randomUUID()}`;
+  const now = new Date().toISOString();
+  const ttl = parseInt(env.SESSION_TTL_SECONDS ?? '86400', 10);
+  const expiresAt = new Date(Date.now() + ttl * 1000).toISOString();
+
+  // Store in D1
+  await d1Run(env.DB,
+    `INSERT INTO sessions (session_id, account_id, email, platform, membership, created_at, expires_at)
+     VALUES (?, ?, ?, 'tttmp', 'free', ?, ?)`,
+    [sessionId, accountId, email, now, expiresAt]
+  );
+
+  // Store in R2 as well
+  const sessionData = {
+    session_id: sessionId,
+    account_id: accountId,
+    email,
+    platform: 'tttmp',
+    created_at: now,
+    expires_at: expiresAt
+  };
+  await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp/auth/sessions/${sessionId}.json`, sessionData);
+
+  return { sessionId, expiresAt };
+}
+
+function makeTttmpSessionCookie(sessionId, env) {
+  const ttl = parseInt(env.SESSION_TTL_SECONDS ?? '86400', 10);
+  const expires = new Date(Date.now() + ttl * 1000).toUTCString();
+  const domain = env.COOKIE_DOMAIN ?? '.taxmonitor.pro';
+  return [
+    `tttmp_session=${sessionId}`,
+    `Domain=${domain}`,
+    `Path=/`,
+    `Expires=${expires}`,
+    `HttpOnly`,
+    `Secure`,
+    `SameSite=Lax`,
+  ].join('; ');
+}
+
+// Token consumption and crediting helpers
+async function consumeTokens(accountId, amount, tokenType, env) {
+  const tokenKey = `tokens/${accountId}.json`;
+
+  try {
+    // Get current balance
+    const balanceData = await r2Get(env.R2_VIRTUAL_LAUNCH, tokenKey);
+    const balance = balanceData ? JSON.parse(balanceData) : { tax_game_tokens: 0, transcript_tokens: 0 };
+
+    const tokenField = tokenType === 'tax_game' ? 'tax_game_tokens' : 'transcript_tokens';
+
+    if (balance[tokenField] < amount) {
+      throw new Error('Insufficient tokens');
+    }
+
+    // Deduct tokens
+    balance[tokenField] -= amount;
+    balance.updated_at = new Date().toISOString();
+
+    // Update R2
+    await r2Put(env.R2_VIRTUAL_LAUNCH, tokenKey, balance);
+
+    // Update D1
+    const d1Field = tokenType === 'tax_game' ? 'tax_game_tokens' : 'transcript_tokens';
+    await d1Run(env.DB,
+      `INSERT INTO tokens (account_id, ${d1Field}, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(account_id) DO UPDATE SET ${d1Field} = ?, updated_at = ?`,
+      [accountId, balance[tokenField], balance.updated_at, balance[tokenField], balance.updated_at]
+    );
+
+    return { success: true, newBalance: balance[tokenField] };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+async function creditTokens(accountId, amount, tokenType, env) {
+  const tokenKey = `tokens/${accountId}.json`;
+
+  try {
+    // Get current balance
+    const balanceData = await r2Get(env.R2_VIRTUAL_LAUNCH, tokenKey);
+    const balance = balanceData ? JSON.parse(balanceData) : { tax_game_tokens: 0, transcript_tokens: 0 };
+
+    const tokenField = tokenType === 'tax_game' ? 'tax_game_tokens' : 'transcript_tokens';
+
+    // Add tokens
+    balance[tokenField] += amount;
+    balance.updated_at = new Date().toISOString();
+
+    // Update R2
+    await r2Put(env.R2_VIRTUAL_LAUNCH, tokenKey, balance);
+
+    // Update D1
+    const d1Field = tokenType === 'tax_game' ? 'tax_game_tokens' : 'transcript_tokens';
+    await d1Run(env.DB,
+      `INSERT INTO tokens (account_id, ${d1Field}, updated_at) VALUES (?, ?, ?)
+       ON CONFLICT(account_id) DO UPDATE SET ${d1Field} = ?, updated_at = ?`,
+      [accountId, balance[tokenField], balance.updated_at, balance[tokenField], balance.updated_at]
+    );
+
+    return { success: true, newBalance: balance[tokenField] };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Cal.com OAuth helpers
 // ---------------------------------------------------------------------------
 
@@ -5092,6 +5240,493 @@ TTMP Support Team
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript pricing' }, 500);
       }
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // TTTMP (Tax Tools Arcade) Routes
+  // -------------------------------------------------------------------------
+
+  // TTTMP Auth Routes
+  {
+    method: 'POST', pattern: '/v1/tttmp/auth/magic-link/request',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const body = await parseBody(request);
+      if (!body?.email) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'email required' }, 400);
+      }
+      const { email, redirect } = body;
+      try {
+        const expMinutes = parseInt(env.MAGIC_LINK_EXPIRATION_MINUTES ?? '15', 10);
+        const exp = Math.floor(Date.now() / 1000) + expMinutes * 60;
+        const token = await signJwt({ email, redirect_uri: redirect || 'https://taxtools.taxmonitor.pro/', exp }, env.JWT_SECRET);
+
+        // Store token in R2 with TTL
+        const tokenData = { email, redirect_uri: redirect || 'https://taxtools.taxmonitor.pro/', created_at: new Date().toISOString() };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp/auth/tokens/${token}.json`, tokenData);
+
+        const link = `https://taxtools.taxmonitor.pro/v1/tttmp/auth/magic-link/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+        await sendEmail(email, 'TTTMP Sign-in Link', `<p>Click to sign in to Tax Tools Arcade: <a href="${link}">${link}</a></p>`, env);
+
+        const eventId = `EVT_${crypto.randomUUID()}`;
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/auth/${eventId}.json`, {
+          email, requested_at: new Date().toISOString(), event: 'TTTMP_MAGIC_LINK_REQUESTED',
+        });
+        return json({ ok: true, status: 'requested', email });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link request failed' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/tttmp/auth/magic-link/verify',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const url = new URL(request.url);
+      const token = url.searchParams.get('token');
+      const email = url.searchParams.get('email');
+      if (!token || !email) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'token and email required' }, 400);
+      }
+      try {
+        const payload = await verifyJwt(token, env.JWT_SECRET);
+        if (!payload) return json({ ok: false, error: 'INVALID_TOKEN' }, 401);
+        if (payload.email !== email) return json({ ok: false, error: 'INVALID_TOKEN' }, 401);
+
+        // Delete the token from R2 (one-time use)
+        try {
+          await env.R2_VIRTUAL_LAUNCH.delete(`tttmp/auth/tokens/${token}.json`);
+        } catch {/* token may not exist */}
+
+        const { accountId } = await upsertAccount(email, '', '', env);
+        const { sessionId } = await createTttmpSession(accountId, email, env);
+
+        return new Response(null, {
+          status: 302,
+          headers: {
+            'Location': payload.redirect_uri || 'https://taxtools.taxmonitor.pro/',
+            ...CORS_HEADERS,
+            'Set-Cookie': makeTttmpSessionCookie(sessionId, env),
+          },
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link verification failed' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/tttmp/auth/session',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireTttmpSession(request, env);
+      if (error) return error;
+
+      // Get token balance
+      const balance = await getTokenBalance(session.account_id, env);
+
+      return json({
+        ok: true,
+        user: {
+          account_id: session.account_id,
+          email: session.email,
+          balance: balance.taxGameTokens,
+        },
+      });
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/tttmp/auth/logout',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireTttmpSession(request, env);
+      if (error) return error;
+      try {
+        await d1Run(env.DB, 'DELETE FROM sessions WHERE session_id = ?', [session.session_id]);
+        // Also delete from R2
+        try {
+          await env.R2_VIRTUAL_LAUNCH.delete(`tttmp/auth/sessions/${session.session_id}.json`);
+        } catch {/* may not exist */}
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to delete session' }, 500);
+      }
+      return new Response(JSON.stringify({ ok: true, status: 'logged_out' }), {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          ...CORS_HEADERS,
+          'Set-Cookie': [
+            'tttmp_session=',
+            'Domain=' + (env.COOKIE_DOMAIN ?? '.taxmonitor.pro'),
+            'Path=/',
+            'Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+            'HttpOnly',
+            'Secure',
+            'SameSite=Lax',
+          ].join('; '),
+        },
+      });
+    },
+  },
+
+  // TTTMP Checkout Routes
+  {
+    method: 'POST', pattern: '/v1/tttmp/checkout/sessions',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireTttmpSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body?.price_id) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'price_id required' }, 400);
+      }
+
+      const { price_id, success_url, cancel_url } = body;
+
+      try {
+        // Create Stripe checkout session
+        const checkoutParams = {
+          mode: 'payment',
+          payment_method_types: ['card'],
+          line_items: [{ price: price_id, quantity: 1 }],
+          success_url: success_url || 'https://taxtools.taxmonitor.pro/checkout/success?session_id={CHECKOUT_SESSION_ID}',
+          cancel_url: cancel_url || 'https://taxtools.taxmonitor.pro/checkout/cancel',
+          metadata: {
+            account_id: session.account_id,
+            platform: 'tttmp'
+          }
+        };
+
+        const checkoutSession = await stripePost('/checkout/sessions', checkoutParams, env);
+
+        // Store order in R2
+        const orderData = {
+          session_id: checkoutSession.id,
+          account_id: session.account_id,
+          price_id,
+          created_at: new Date().toISOString(),
+          status: 'pending'
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp/orders/${checkoutSession.id}.json`, orderData);
+
+        const eventId = `EVT_${crypto.randomUUID()}`;
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/checkout/${eventId}.json`, {
+          account_id: session.account_id, price_id, session_id: checkoutSession.id,
+          event: 'TTTMP_CHECKOUT_SESSION_CREATED', created_at: new Date().toISOString()
+        });
+
+        return json({
+          ok: true,
+          session_id: checkoutSession.id,
+          checkout_url: checkoutSession.url
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/tttmp/checkout/status',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireTttmpSession(request, env);
+      if (error) return error;
+
+      const url = new URL(request.url);
+      const sessionId = url.searchParams.get('session_id');
+      if (!sessionId) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'session_id required' }, 400);
+      }
+
+      try {
+        // Get Stripe session status
+        const stripeSession = await stripeGet(`/checkout/sessions/${sessionId}`, env);
+        if (stripeSession.metadata?.account_id !== session.account_id) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Session not found' }, 404);
+        }
+
+        let creditsAdded = 0;
+        let newBalance = 0;
+
+        if (stripeSession.payment_status === 'paid') {
+          // Credit tokens based on price_id (this would need actual price mappings)
+          // For now, using placeholder logic
+          creditsAdded = 10; // Default, would map price_id to actual credits
+
+          // Credit the tokens
+          const tokenResult = await creditTokens(session.account_id, creditsAdded, 'tax_game', env);
+          newBalance = tokenResult.newBalance;
+        }
+
+        return json({
+          ok: true,
+          status: stripeSession.payment_status,
+          credits_added: creditsAdded,
+          balance: newBalance
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check checkout status' }, 500);
+      }
+    },
+  },
+
+  // TTTMP Game Access Routes
+  {
+    method: 'POST', pattern: '/v1/tttmp/games/access',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireTttmpSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body?.game_slug) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'game_slug required' }, 400);
+      }
+
+      const { game_slug } = body;
+
+      try {
+        // Check token balance
+        const balance = await getTokenBalance(session.account_id, env);
+        if (balance.taxGameTokens < 1) {
+          return json({ ok: false, error: 'PAYMENT_REQUIRED', message: 'Insufficient tokens' }, 402);
+        }
+
+        // Deduct token
+        await consumeTokens(session.account_id, 1, 'tax_game', env);
+
+        // Create play grant
+        const grantId = `GRANT_${crypto.randomUUID()}`;
+        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
+
+        const grantData = {
+          grant_id: grantId,
+          account_id: session.account_id,
+          game_slug,
+          granted_at: new Date().toISOString(),
+          expires_at: expiresAt,
+          status: 'active'
+        };
+
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp/play_grants/${session.account_id}/${grantId}.json`, grantData);
+
+        const eventId = `EVT_${crypto.randomUUID()}`;
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/games/${eventId}.json`, {
+          account_id: session.account_id, game_slug, grant_id: grantId,
+          event: 'TTTMP_GAME_ACCESS_GRANTED', created_at: new Date().toISOString()
+        });
+
+        const newBalance = await getTokenBalance(session.account_id, env);
+
+        return json({
+          ok: true,
+          grant_id: grantId,
+          expires_at: expiresAt,
+          balance_after: newBalance.taxGameTokens
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to grant game access' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/tttmp/games/access',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireTttmpSession(request, env);
+      if (error) return error;
+
+      const url = new URL(request.url);
+      const gameSlug = url.searchParams.get('game_slug');
+      const grantId = url.searchParams.get('grant_id');
+
+      if (!gameSlug || !grantId) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'game_slug and grant_id required' }, 400);
+      }
+
+      try {
+        // Check if grant exists and is valid
+        const grantObj = await r2Get(env.R2_VIRTUAL_LAUNCH, `tttmp/play_grants/${session.account_id}/${grantId}.json`);
+
+        if (!grantObj) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Grant not found' }, 404);
+        }
+
+        const grant = JSON.parse(grantObj);
+        const now = new Date().toISOString();
+        const isValid = grant.game_slug === gameSlug && grant.expires_at > now && grant.status === 'active';
+
+        return json({
+          ok: true,
+          valid: isValid,
+          game_slug: grant.game_slug,
+          expires_at: grant.expires_at
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to verify game access' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/tttmp/games/end',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireTttmpSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body?.grant_id) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'grant_id required' }, 400);
+      }
+
+      const { grant_id, score, completed } = body;
+
+      try {
+        // Update play grant
+        const grantObj = await r2Get(env.R2_VIRTUAL_LAUNCH, `tttmp/play_grants/${session.account_id}/${grant_id}.json`);
+
+        if (!grantObj) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Grant not found' }, 404);
+        }
+
+        const grant = JSON.parse(grantObj);
+        grant.status = 'completed';
+        grant.completed_at = new Date().toISOString();
+        grant.score = score || 0;
+        grant.completed = completed !== false;
+
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp/play_grants/${session.account_id}/${grant_id}.json`, grant);
+
+        const eventId = `EVT_${crypto.randomUUID()}`;
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/games/${eventId}.json`, {
+          account_id: session.account_id, grant_id, score: score || 0,
+          event: 'TTTMP_GAME_ENDED', created_at: new Date().toISOString()
+        });
+
+        return json({ ok: true, grant_id });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to end game session' }, 500);
+      }
+    },
+  },
+
+  // TTTMP Support Routes
+  {
+    method: 'POST', pattern: '/v1/tttmp/support/tickets',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireTttmpSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body?.subject || !body?.message) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'subject and message required' }, 400);
+      }
+
+      const { subject, message, priority, category } = body;
+
+      try {
+        const ticketId = `TKT_${crypto.randomUUID()}`;
+        const now = new Date().toISOString();
+
+        // Create ticket with platform tag
+        const ticketData = {
+          ticket_id: ticketId,
+          account_id: session.account_id,
+          subject,
+          message,
+          priority: priority || 'medium',
+          category: category || 'technical',
+          platform: 'tttmp',
+          status: 'open',
+          created_at: now
+        };
+
+        // Store in R2
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `support_tickets/${ticketId}.json`, ticketData);
+
+        // Store receipt
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/support/${ticketId}.json`, {
+          account_id: session.account_id, subject, platform: 'tttmp',
+          event: 'TTTMP_SUPPORT_TICKET_CREATED', created_at: now
+        });
+
+        // Store in D1
+        await d1Run(env.DB,
+          `INSERT INTO support_tickets (ticket_id, account_id, subject, message, priority, status, created_at) VALUES (?, ?, ?, ?, ?, 'open', ?)`,
+          [ticketId, session.account_id, subject, message, priority || 'medium', now]
+        );
+
+        return json({ ok: true, ticket_id: ticketId, status: 'open' });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create support ticket' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/tttmp/support/tickets/:ticket_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireTttmpSession(request, env);
+      if (error) return error;
+
+      const { ticket_id } = params;
+
+      try {
+        // Get ticket from R2
+        const ticketObj = await r2Get(env.R2_VIRTUAL_LAUNCH, `support_tickets/${ticket_id}.json`);
+
+        if (!ticketObj) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404);
+        }
+
+        const ticket = JSON.parse(ticketObj);
+
+        // Verify ownership
+        if (ticket.account_id !== session.account_id) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404);
+        }
+
+        return json({
+          ok: true,
+          ticket_id: ticket.ticket_id,
+          status: ticket.status,
+          subject: ticket.subject,
+          latest_update: ticket.message,
+          updated_at: ticket.updated_at || ticket.created_at
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to retrieve support ticket' }, 500);
+      }
+    },
+  },
+
+  // TTTMP Token Balance Route
+  {
+    method: 'GET', pattern: '/v1/tttmp/tokens/balance',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireTttmpSession(request, env);
+      if (error) return error;
+
+      try {
+        const balance = await getTokenBalance(session.account_id, env);
+        return json({
+          ok: true,
+          balance: balance.taxGameTokens,
+          account_id: session.account_id
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to get token balance' }, 500);
+      }
+    },
+  },
+
+  // TTTMP Health Check Route
+  {
+    method: 'GET', pattern: '/v1/tttmp/health',
+    handler: async (_method, _pattern, _params, _request, _env) => {
+      return json({
+        ok: true,
+        service: 'tttmp',
+        timestamp: new Date().toISOString()
+      });
     },
   },
 

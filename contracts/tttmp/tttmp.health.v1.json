@@ -1,0 +1,64 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP service health check and status endpoint",
+    "path": "/contracts/tttmp/tttmp.health.v1.json",
+    "source": "Tax Tools Arcade",
+    "title": "TTTMP — Health Contract — Service Check",
+    "usedOnPages": ["/health", "monitoring systems"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tttmp/health",
+    "method": "GET",
+    "receiptKeyPattern": "N/A",
+    "receiptSource": "N/A",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "N/A",
+    "eventIdFrom": "N/A",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR"
+    },
+    "success": {
+      "ok": true,
+      "service": "tttmp",
+      "timestamp": "{system.nowIso}"
+    }
+  },
+  "schema": {
+    "name": "tttmp_health",
+    "version": 1
+  }
+}

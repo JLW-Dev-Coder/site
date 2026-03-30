@@ -27,7 +27,7 @@ Track legacy Worker status here. Update this section as work completes.
 | Platform | Legacy Worker Exists | Routes Ported to VLP | Frontend Updated | Worker Deleted |
 |---|---|---|---|---|
 | TTMP | ✅ Yes | ✅ Complete (24/24) | ✅ Complete | ✅ Deleted |
-| TTTMP | Unknown | Unknown | Unknown | Unknown |
+| TTTMP | ✅ Yes | ✅ Complete (13/13) | 🔄 In Progress | ❌ No |
 | TMP | Unknown | Unknown | Unknown | Unknown |
 | DVLP | Unknown | Unknown | Unknown | Unknown |
 | GVLP | Unknown | Unknown | Unknown | Unknown |
@@ -166,7 +166,7 @@ This is a **Cloudflare-first monorepo** for a multi-product SaaS ecosystem. Eigh
 ### Stack
 
 - **Frontend:** Next.js 15 (App Router) + Tailwind + `@cloudflare/next-on-pages`
-- **Backend:** Single Cloudflare Worker (`workers/src/index.js`) — 96 routes, deny-by-default (last verified 2026-03-29)
+- **Backend:** Single Cloudflare Worker (`workers/src/index.js`) — 109 routes, deny-by-default (last verified 2026-03-29)
 - **Database:** Cloudflare D1 (`DB` binding) — projection only, never source of truth
 - **Storage:** Cloudflare R2 (`R2_VIRTUAL_LAUNCH` binding) — always authoritative
 - **Auth:** `vlp_session` HttpOnly cookie, Google OAuth, Magic Link, SSO (OIDC + SAML), TOTP 2FA

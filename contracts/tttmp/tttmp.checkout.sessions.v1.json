@@ -1,0 +1,87 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP Stripe checkout session creation for token packages",
+    "path": "/contracts/tttmp/tttmp.checkout.sessions.v1.json",
+    "source": "Tax Tools Arcade",
+    "title": "TTTMP — Checkout Contract — Create Session",
+    "usedOnPages": ["/pricing", "/tokens/buy"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tttmp/checkout/sessions",
+    "method": "POST",
+    "receiptKeyPattern": "/receipts/tttmp/checkout/{event_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "{session.account_id}:{payload.price_id}:{system.nowMinutes}",
+    "eventIdFrom": "EVT_{system.uuid}",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "tttmp_orders"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "price_id": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 100
+      },
+      "success_url": {
+        "type": "string",
+        "format": "uri",
+        "default": "https://taxtools.taxmonitor.pro/checkout/success"
+      },
+      "cancel_url": {
+        "type": "string",
+        "format": "uri",
+        "default": "https://taxtools.taxmonitor.pro/checkout/cancel"
+      }
+    },
+    "required": ["price_id"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true,
+      "session_id": "{existing.session_id}",
+      "checkout_url": "{existing.checkout_url}"
+    },
+    "error": {
+      "ok": false,
+      "error": "BAD_REQUEST|UNAUTHORIZED|INTERNAL_ERROR"
+    },
+    "success": {
+      "ok": true,
+      "session_id": "{stripe.session_id}",
+      "checkout_url": "{stripe.url}"
+    }
+  },
+  "schema": {
+    "name": "tttmp_checkout_sessions",
+    "version": 1
+  }
+}

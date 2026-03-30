@@ -1,0 +1,92 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP support ticket creation with platform tagging",
+    "path": "/contracts/tttmp/tttmp.support.ticket-create.v1.json",
+    "source": "Tax Tools Arcade",
+    "title": "TTTMP — Support Contract — Ticket Create",
+    "usedOnPages": ["/support", "/help"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tttmp/support/tickets",
+    "method": "POST",
+    "receiptKeyPattern": "/receipts/tttmp/support/{event_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "{session.account_id}:{payload.subject}:{system.nowMinutes}",
+    "eventIdFrom": "TKT_{system.uuid}",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1ProjectionUpsert"
+    ],
+    "writes": [
+      "support_tickets"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "subject": {
+        "type": "string",
+        "minLength": 5,
+        "maxLength": 200
+      },
+      "message": {
+        "type": "string",
+        "minLength": 10,
+        "maxLength": 5000
+      },
+      "priority": {
+        "type": "string",
+        "enum": ["low", "medium", "high"],
+        "default": "medium"
+      },
+      "category": {
+        "type": "string",
+        "enum": ["technical", "billing", "gameplay", "other"],
+        "default": "technical"
+      }
+    },
+    "required": ["subject", "message"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true,
+      "ticket_id": "{existing.ticket_id}"
+    },
+    "error": {
+      "ok": false,
+      "error": "BAD_REQUEST|UNAUTHORIZED|INTERNAL_ERROR"
+    },
+    "success": {
+      "ok": true,
+      "ticket_id": "{ticket.ticket_id}",
+      "status": "open"
+    }
+  },
+  "schema": {
+    "name": "tttmp_support_ticket_create",
+    "version": 1
+  }
+}

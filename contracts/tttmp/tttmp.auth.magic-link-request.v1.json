@@ -1,0 +1,81 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP magic link request for passwordless login",
+    "path": "/contracts/tttmp/tttmp.auth.magic-link-request.v1.json",
+    "source": "Tax Tools Arcade",
+    "title": "TTTMP — Auth Contract — Magic Link Request",
+    "usedOnPages": ["/login", "/auth"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tttmp/auth/magic-link/request",
+    "method": "POST",
+    "receiptKeyPattern": "/receipts/tttmp/auth/{event_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "{payload.email}:{system.nowMinutes}",
+    "eventIdFrom": "EVT_{system.uuid}",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "tttmp_auth_tokens"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "email": {
+        "format": "email",
+        "minLength": 5,
+        "maxLength": 254,
+        "type": "string"
+      },
+      "redirect": {
+        "type": "string",
+        "default": "https://taxtools.taxmonitor.pro/"
+      }
+    },
+    "required": ["email"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "status": "requested",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "BAD_REQUEST|INTERNAL_ERROR"
+    },
+    "success": {
+      "ok": true,
+      "status": "requested",
+      "email": "{payload.email}"
+    }
+  },
+  "schema": {
+    "name": "tttmp_auth_magic_link_request",
+    "version": 1
+  }
+}

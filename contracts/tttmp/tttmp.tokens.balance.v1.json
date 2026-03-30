@@ -1,0 +1,64 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP token balance retrieval for authenticated user",
+    "path": "/contracts/tttmp/tttmp.tokens.balance.v1.json",
+    "source": "Tax Tools Arcade",
+    "title": "TTTMP — Tokens Contract — Balance",
+    "usedOnPages": ["/dashboard", "/games/*"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tttmp/tokens/balance",
+    "method": "GET",
+    "receiptKeyPattern": "N/A",
+    "receiptSource": "N/A",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "N/A",
+    "eventIdFrom": "N/A",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "UNAUTHORIZED|INTERNAL_ERROR"
+    },
+    "success": {
+      "ok": true,
+      "balance": "{tokens.tax_game_tokens}",
+      "account_id": "{session.account_id}"
+    }
+  },
+  "schema": {
+    "name": "tttmp_tokens_balance",
+    "version": 1
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP current session information retrieval",
+    "path": "/contracts/tttmp/tttmp.auth.session.v1.json",
+    "source": "Tax Tools Arcade",
+    "title": "TTTMP — Auth Contract — Session Info",
+    "usedOnPages": ["/dashboard", "/app/*"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tttmp/auth/session",
+    "method": "GET",
+    "receiptKeyPattern": "N/A",
+    "receiptSource": "N/A",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "N/A",
+    "eventIdFrom": "N/A",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "UNAUTHORIZED"
+    },
+    "success": {
+      "ok": true,
+      "user": {
+        "account_id": "{session.account_id}",
+        "email": "{session.email}",
+        "balance": "{tokens.tax_game_tokens}"
+      }
+    }
+  },
+  "schema": {
+    "name": "tttmp_auth_session",
+    "version": 1
+  }
+}

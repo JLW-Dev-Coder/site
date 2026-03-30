@@ -1,0 +1,72 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP support ticket retrieval with ownership verification",
+    "path": "/contracts/tttmp/tttmp.support.ticket-get.v1.json",
+    "source": "Tax Tools Arcade",
+    "title": "TTTMP — Support Contract — Ticket Get",
+    "usedOnPages": ["/support/tickets/*"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tttmp/support/tickets/{ticket_id}",
+    "method": "GET",
+    "receiptKeyPattern": "N/A",
+    "receiptSource": "N/A",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "N/A",
+    "eventIdFrom": "N/A",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "ticket_id": {
+        "type": "string",
+        "minLength": 5
+      }
+    },
+    "required": ["ticket_id"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "BAD_REQUEST|UNAUTHORIZED|NOT_FOUND|INTERNAL_ERROR"
+    },
+    "success": {
+      "ok": true,
+      "ticket_id": "{ticket.ticket_id}",
+      "status": "{ticket.status}",
+      "subject": "{ticket.subject}",
+      "latest_update": "{ticket.message}",
+      "updated_at": "{ticket.updated_at}"
+    }
+  },
+  "schema": {
+    "name": "tttmp_support_ticket_get",
+    "version": 1
+  }
+}

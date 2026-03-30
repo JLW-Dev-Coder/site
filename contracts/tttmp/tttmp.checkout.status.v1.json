@@ -1,0 +1,77 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP Stripe checkout session status verification and token crediting",
+    "path": "/contracts/tttmp/tttmp.checkout.status.v1.json",
+    "source": "Tax Tools Arcade",
+    "title": "TTTMP — Checkout Contract — Session Status",
+    "usedOnPages": ["/checkout/success", "/tokens/status"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tttmp/checkout/status",
+    "method": "GET",
+    "receiptKeyPattern": "/receipts/tttmp/checkout/{event_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "{query.session_id}:{session.account_id}",
+    "eventIdFrom": "EVT_{system.uuid}",
+    "writeOrder": [
+      "receiptAppend",
+      "tokenCredit",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "tokens"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "session_id": {
+        "type": "string",
+        "minLength": 5
+      }
+    },
+    "required": ["session_id"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "status": "already_processed",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "BAD_REQUEST|UNAUTHORIZED|NOT_FOUND|INTERNAL_ERROR"
+    },
+    "success": {
+      "ok": true,
+      "status": "{stripe.payment_status}",
+      "credits_added": "{tokens.added}",
+      "balance": "{tokens.new_balance}"
+    }
+  },
+  "schema": {
+    "name": "tttmp_checkout_status",
+    "version": 1
+  }
+}

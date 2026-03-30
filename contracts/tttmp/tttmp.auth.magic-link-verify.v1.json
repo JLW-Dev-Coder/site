@@ -1,0 +1,81 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP magic link verification and session creation",
+    "path": "/contracts/tttmp/tttmp.auth.magic-link-verify.v1.json",
+    "source": "Tax Tools Arcade",
+    "title": "TTTMP — Auth Contract — Magic Link Verify",
+    "usedOnPages": ["/v1/tttmp/auth/magic-link/verify"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tttmp/auth/magic-link/verify",
+    "method": "GET",
+    "receiptKeyPattern": "/receipts/tttmp/auth/{event_id}.json",
+    "receiptSource": "R2_VIRTUAL_LAUNCH",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "{query.token}",
+    "eventIdFrom": "EVT_{system.uuid}",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "sessionCreate",
+      "tokenDelete"
+    ],
+    "writes": [
+      "tttmp_auth_sessions",
+      "sessions"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "token": {
+        "type": "string",
+        "minLength": 1
+      },
+      "email": {
+        "format": "email",
+        "type": "string"
+      }
+    },
+    "required": ["token", "email"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": false,
+      "error": "INVALID_TOKEN",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "BAD_REQUEST|INVALID_TOKEN|INTERNAL_ERROR"
+    },
+    "success": {
+      "redirect": "302",
+      "location": "https://taxtools.taxmonitor.pro/"
+    }
+  },
+  "schema": {
+    "name": "tttmp_auth_magic_link_verify",
+    "version": 1
+  }
+}
