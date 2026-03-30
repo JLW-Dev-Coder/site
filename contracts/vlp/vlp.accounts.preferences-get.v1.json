@@ -1,0 +1,74 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "D1_DB",
+      "R2_VIRTUAL_LAUNCH"
+    ],
+    "governs": "Account preferences retrieval",
+    "path": "/contracts/vlp/vlp.accounts.preferences-get.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Account Preferences Get",
+    "usedOnPages": [
+      "/dashboard/settings",
+      "/account/preferences"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/accounts/preferences/:account_id",
+    "method": "GET",
+    "receiptKeyPattern": "receipts/preferences/{account_id}/{timestamp}.json",
+    "receiptSource": "preferences",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.account_id",
+    "eventIdFrom": "params.account_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "preferences": "{preferences}"
+    },
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR",
+      "message": "Failed to get preferences"
+    },
+    "success": {
+      "ok": true,
+      "preferences": {
+        "appearance": "string",
+        "timezone": "string",
+        "default_dashboard": "string",
+        "accent_color": "string",
+        "in_app_enabled": "number",
+        "sms_enabled": "number"
+      }
+    }
+  },
+  "schema": {
+    "name": "vlp_accounts_preferences_get",
+    "version": 1
+  }
+}

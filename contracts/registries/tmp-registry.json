@@ -20,6 +20,40 @@
       "usedOnPages": ["taxmonitor.pro/directory"],
       "version": "1",
       "addedDate": "2026-03-29"
+    },
+    {
+      "id": "tmp.accounts.status.v1",
+      "path": "/contracts/tmp/tmp.accounts.status.v1.json",
+      "endpoint": "/v1/accounts/:account_id/status",
+      "method": "GET",
+      "status": "active",
+      "category": "read-model",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "params.account_id",
+      "receiptKeyPattern": "receipts/compliance/{account_id}/{timestamp}.json",
+      "receiptSource": "compliance",
+      "writes": [],
+      "usedOnPages": ["/dashboard/compliance", "/account/status"],
+      "version": 1,
+      "addedDate": "2026-03-29"
+    },
+    {
+      "id": "tmp.compliance.report-generate.v1",
+      "path": "/contracts/tmp/tmp.compliance.report-generate.v1.json",
+      "endpoint": "/v1/compliance/report-generate",
+      "method": "POST",
+      "status": "active",
+      "category": "form",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "payload.account_id",
+      "receiptKeyPattern": "receipts/compliance/{account_id}/{timestamp}.json",
+      "receiptSource": "compliance",
+      "writes": ["compliance_reports", "ttmp_reports"],
+      "usedOnPages": ["/dashboard/compliance", "/reports/generate"],
+      "version": 1,
+      "addedDate": "2026-03-29"
     }
   ]
 }

@@ -1,0 +1,95 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH",
+      "D1_DB"
+    ],
+    "governs": "Compliance report generation",
+    "path": "/contracts/tmp/tmp.compliance.report-generate.v1.json",
+    "source": "Tax Monitor Pro",
+    "title": "Tax Monitor Pro — Compliance Report Generate",
+    "usedOnPages": [
+      "/dashboard/compliance",
+      "/reports/generate"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true,
+      "requireJsonContentType": true,
+      "validateTaxYear": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/compliance/report-generate",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/compliance/{account_id}/{timestamp}.json",
+    "receiptSource": "compliance",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.account_id",
+    "eventIdFrom": "generated.report_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalCreate",
+      "d1Insert"
+    ],
+    "writes": [
+      "compliance_reports",
+      "ttmp_reports"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "tax_year": {
+        "type": "string",
+        "pattern": "^\\d{4}$"
+      },
+      "report_type": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "account_id",
+      "tax_year"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "report_id": "{report_id}",
+      "status": "pending",
+      "message": "Report generation queued"
+    },
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR",
+      "message": "Failed to generate report"
+    },
+    "success": {
+      "ok": true,
+      "report_id": "string",
+      "status": "pending",
+      "message": "Report generation queued"
+    }
+  },
+  "schema": {
+    "name": "tmp_compliance_report_generate",
+    "version": 1
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH",
+      "D1_DB"
+    ],
+    "governs": "Account photo upload completion",
+    "path": "/contracts/vlp/vlp.accounts.photo-upload-complete.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Account Photo Upload Complete",
+    "usedOnPages": [
+      "/dashboard/settings",
+      "/account/profile"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true,
+      "requireJsonContentType": true,
+      "verifyFileExists": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/accounts/photo-upload-complete",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/uploads/{account_id}/{timestamp}.json",
+    "receiptSource": "uploads",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.account_id",
+    "eventIdFrom": "payload.account_id",
+    "writeOrder": [
+      "canonicalUpdate",
+      "d1Update"
+    ],
+    "writes": [
+      "accounts",
+      "avatars"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "key": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": [
+      "account_id",
+      "key"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "avatar_url": "{avatar_url}"
+    },
+    "error": {
+      "ok": false,
+      "error": "NOT_FOUND",
+      "message": "Uploaded file not found"
+    },
+    "success": {
+      "ok": true,
+      "avatar_url": "string"
+    }
+  },
+  "schema": {
+    "name": "vlp_accounts_photo_upload_complete",
+    "version": 1
+  }
+}

@@ -1,0 +1,77 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "D1_DB",
+      "R2_VIRTUAL_LAUNCH"
+    ],
+    "governs": "Account compliance status retrieval",
+    "path": "/contracts/tmp/tmp.accounts.status.v1.json",
+    "source": "Tax Monitor Pro",
+    "title": "Tax Monitor Pro — Account Status Get",
+    "usedOnPages": [
+      "/dashboard/compliance",
+      "/account/status"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/accounts/:account_id/status",
+    "method": "GET",
+    "receiptKeyPattern": "receipts/compliance/{account_id}/{timestamp}.json",
+    "receiptSource": "compliance",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.account_id",
+    "eventIdFrom": "params.account_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "status": "{status}"
+    },
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR",
+      "message": "Failed to get status"
+    },
+    "success": {
+      "ok": true,
+      "status": {
+        "phase": "string",
+        "intake_complete": "number",
+        "esign_2848_complete": "number",
+        "processing_complete": "number",
+        "tax_record_complete": "number",
+        "current_step": "string",
+        "step_status": "string",
+        "notes": "string",
+        "assigned_professional_id": "string"
+      }
+    }
+  },
+  "schema": {
+    "name": "tmp_accounts_status",
+    "version": 1
+  }
+}

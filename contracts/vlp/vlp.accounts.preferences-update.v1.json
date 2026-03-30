@@ -1,0 +1,106 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH",
+      "D1_DB"
+    ],
+    "governs": "Account preferences update",
+    "path": "/contracts/vlp/vlp.accounts.preferences-update.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Account Preferences Update",
+    "usedOnPages": [
+      "/dashboard/settings",
+      "/account/preferences"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/accounts/preferences/:account_id",
+    "method": "PATCH",
+    "receiptKeyPattern": "receipts/preferences/{account_id}/{timestamp}.json",
+    "receiptSource": "preferences",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.account_id",
+    "eventIdFrom": "params.account_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpdate",
+      "d1Update"
+    ],
+    "writes": [
+      "vlp_preferences",
+      "accounts"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "appearance": {
+        "type": "string",
+        "enum": ["light", "dark", "system"]
+      },
+      "timezone": {
+        "type": "string"
+      },
+      "default_dashboard": {
+        "type": "string"
+      },
+      "accent_color": {
+        "type": "string"
+      },
+      "in_app_enabled": {
+        "type": "number",
+        "enum": [0, 1]
+      },
+      "sms_enabled": {
+        "type": "number",
+        "enum": [0, 1]
+      }
+    },
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "preferences": "{updated_preferences}"
+    },
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR",
+      "message": "Failed to update preferences"
+    },
+    "success": {
+      "ok": true,
+      "preferences": {
+        "account_id": "string",
+        "appearance": "string",
+        "timezone": "string",
+        "default_dashboard": "string",
+        "accent_color": "string",
+        "in_app_enabled": "number",
+        "sms_enabled": "number",
+        "updated_at": "string"
+      }
+    }
+  },
+  "schema": {
+    "name": "vlp_accounts_preferences_update",
+    "version": 1
+  }
+}

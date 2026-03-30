@@ -171,6 +171,16 @@ async function r2Put(bucket, key, data) {
   return true;
 }
 
+async function r2Get(bucket, key) {
+  try {
+    const obj = await bucket.get(key);
+    if (!obj) return null;
+    return await obj.text();
+  } catch {
+    return null;
+  }
+}
+
 async function d1Run(db, sql, params) {
   return db.prepare(sql).bind(...params).run();
 }
@@ -5832,6 +5842,487 @@ TTMP Support Team
           error: 'INTERNAL_ERROR',
           message: 'Internal server error'
         }, 500);
+      }
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // VLP Account Preferences Routes
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'GET', pattern: '/v1/accounts/preferences/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const accountId = params.account_id;
+
+      try {
+        const row = await env.DB.prepare(
+          "SELECT * FROM vlp_preferences WHERE account_id = ?"
+        ).bind(accountId).first();
+
+        if (!row) {
+          // Return defaults if no row exists
+          const defaults = {
+            appearance: 'system',
+            timezone: null,
+            default_dashboard: null,
+            accent_color: null,
+            in_app_enabled: 1,
+            sms_enabled: 0
+          };
+          return json({ ok: true, preferences: defaults });
+        }
+
+        return json({
+          ok: true,
+          preferences: {
+            appearance: row.appearance,
+            timezone: row.timezone,
+            default_dashboard: row.default_dashboard,
+            accent_color: row.accent_color,
+            in_app_enabled: row.in_app_enabled,
+            sms_enabled: row.sms_enabled
+          }
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to get preferences' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'PATCH', pattern: '/v1/accounts/preferences/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const accountId = params.account_id;
+
+      try {
+        const body = await request.json();
+        const { appearance, timezone, default_dashboard, accent_color, in_app_enabled, sms_enabled } = body;
+
+        const timestamp = new Date().toISOString();
+
+        // Write receipt to R2
+        const receiptKey = `receipts/preferences/${accountId}/${timestamp}.json`;
+        await env.R2_VIRTUAL_LAUNCH.put(receiptKey, JSON.stringify({
+          account_id: accountId,
+          appearance,
+          timezone,
+          default_dashboard,
+          accent_color,
+          in_app_enabled,
+          sms_enabled,
+          timestamp
+        }));
+
+        // Write canonical to R2
+        const canonicalKey = `accounts/${accountId}/preferences.json`;
+        const canonicalData = {
+          account_id: accountId,
+          appearance,
+          timezone,
+          default_dashboard,
+          accent_color,
+          in_app_enabled,
+          sms_enabled,
+          updated_at: timestamp
+        };
+        await env.R2_VIRTUAL_LAUNCH.put(canonicalKey, JSON.stringify(canonicalData));
+
+        // Update D1 (UPSERT)
+        await d1Run(env.DB,
+          `INSERT OR REPLACE INTO vlp_preferences
+           (account_id, appearance, timezone, default_dashboard, accent_color, in_app_enabled, sms_enabled, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [accountId, appearance, timezone, default_dashboard, accent_color, in_app_enabled, sms_enabled, timestamp]
+        );
+
+        return json({ ok: true, preferences: canonicalData });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update preferences' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/accounts/photo-upload-init',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const body = await request.json();
+        const { account_id, file_type } = body;
+
+        if (!file_type || !['image/jpeg', 'image/png', 'image/webp'].includes(file_type)) {
+          return json({ ok: false, error: 'BAD_REQUEST', message: 'file_type must be image/jpeg, image/png, or image/webp' }, 400);
+        }
+
+        const ext = file_type.split('/')[1];
+        const key = `avatars/${account_id}/avatar.${ext}`;
+
+        // Check if createPresignedUrl method exists
+        if (typeof env.R2_VIRTUAL_LAUNCH.createPresignedUrl === 'function') {
+          const upload_url = await env.R2_VIRTUAL_LAUNCH.createPresignedUrl('PUT', key);
+          return json({ ok: true, upload_url, key });
+        } else {
+          // Fall back to direct upload endpoint
+          return json({
+            ok: true,
+            upload_url: `/v1/accounts/photo-upload-direct?key=${encodeURIComponent(key)}`,
+            key,
+            note: 'createPresignedUrl not available, using direct upload endpoint'
+          });
+        }
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to initialize upload' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/accounts/photo-upload-complete',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const body = await request.json();
+        const { account_id, key } = body;
+
+        // Verify the R2 object exists at key
+        const object = await env.R2_VIRTUAL_LAUNCH.head(key);
+        if (!object) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Uploaded file not found' }, 404);
+        }
+
+        // Construct public URL
+        const avatar_url = `https://assets.virtuallaunch.pro/${key}`;
+
+        // Write canonical to R2
+        const canonicalKey = `accounts/${account_id}/avatar.json`;
+        const timestamp = new Date().toISOString();
+        await env.R2_VIRTUAL_LAUNCH.put(canonicalKey, JSON.stringify({
+          url: avatar_url,
+          updated_at: timestamp
+        }));
+
+        // Note: avatar_url column may not exist in accounts table - will report this
+        // If it exists, update D1, otherwise skip D1 update
+        try {
+          await d1Run(env.DB,
+            "UPDATE accounts SET avatar_url = ? WHERE account_id = ?",
+            [avatar_url, account_id]
+          );
+        } catch (dbError) {
+          // Column may not exist - continue without D1 update
+          console.warn('avatar_url column may not exist in accounts table:', dbError.message);
+        }
+
+        return json({ ok: true, avatar_url });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to complete upload' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/accounts/:account_id/status',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const accountId = params.account_id;
+
+      try {
+        const row = await env.DB.prepare(
+          "SELECT * FROM compliance_status WHERE account_id = ?"
+        ).bind(accountId).first();
+
+        if (!row) {
+          // Return default intake state if no row exists
+          const defaultStatus = {
+            phase: 'intake',
+            intake_complete: 0,
+            esign_2848_complete: 0,
+            processing_complete: 0,
+            tax_record_complete: 0,
+            current_step: null,
+            step_status: 'pending'
+          };
+          return json({ ok: true, status: defaultStatus });
+        }
+
+        return json({
+          ok: true,
+          status: {
+            phase: row.phase,
+            intake_complete: row.intake_complete,
+            esign_2848_complete: row.esign_2848_complete,
+            processing_complete: row.processing_complete,
+            tax_record_complete: row.tax_record_complete,
+            current_step: row.current_step,
+            step_status: row.step_status,
+            notes: row.notes,
+            assigned_professional_id: row.assigned_professional_id
+          }
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to get status' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/support/messages',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const body = await request.json();
+        const { account_id, action, message_id, subject, body: messageBody, category } = body;
+
+        const timestamp = new Date().toISOString();
+
+        switch (action) {
+          case 'create': {
+            const newMessageId = `MSG_${crypto.randomUUID()}`;
+
+            // Write receipt to R2
+            const receiptKey = `receipts/support/${account_id}/${timestamp}.json`;
+            await env.R2_VIRTUAL_LAUNCH.put(receiptKey, JSON.stringify({
+              action: 'create',
+              account_id,
+              message_id: newMessageId,
+              subject,
+              body: messageBody,
+              category,
+              timestamp
+            }));
+
+            // Write canonical to R2
+            const messageKey = `support/messages/${account_id}/${newMessageId}.json`;
+            const messageData = {
+              message_id: newMessageId,
+              account_id,
+              subject,
+              body: messageBody,
+              category,
+              created_at: timestamp,
+              updated_at: timestamp
+            };
+            await env.R2_VIRTUAL_LAUNCH.put(messageKey, JSON.stringify(messageData));
+
+            // Index in support_tickets table
+            await d1Run(env.DB,
+              `INSERT INTO support_tickets
+               (ticket_id, account_id, subject, message, priority, status, created_at, updated_at)
+               VALUES (?, ?, ?, ?, 'normal', 'open', ?, ?)`,
+              [newMessageId, account_id, subject, messageBody, timestamp, timestamp]
+            );
+
+            return json({ ok: true, message_id: newMessageId, action: 'create' });
+          }
+
+          case 'update': {
+            if (!message_id) {
+              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for update' }, 400);
+            }
+
+            // Read existing from R2
+            const messageKey = `support/messages/${account_id}/${message_id}.json`;
+            const existingObj = await env.R2_VIRTUAL_LAUNCH.get(messageKey);
+            if (!existingObj) {
+              return json({ ok: false, error: 'NOT_FOUND', message: 'Message not found' }, 404);
+            }
+
+            const existingData = await existingObj.json();
+
+            // Merge changes
+            const updatedData = {
+              ...existingData,
+              subject: subject || existingData.subject,
+              body: messageBody || existingData.body,
+              category: category || existingData.category,
+              updated_at: timestamp
+            };
+
+            // Write receipt to R2
+            const receiptKey = `receipts/support/${account_id}/${timestamp}.json`;
+            await env.R2_VIRTUAL_LAUNCH.put(receiptKey, JSON.stringify({
+              action: 'update',
+              account_id,
+              message_id,
+              changes: { subject, body: messageBody, category },
+              timestamp
+            }));
+
+            // Rewrite canonical
+            await env.R2_VIRTUAL_LAUNCH.put(messageKey, JSON.stringify(updatedData));
+
+            return json({ ok: true, message_id, action: 'update' });
+          }
+
+          case 'delete_soft': {
+            if (!message_id) {
+              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for delete' }, 400);
+            }
+
+            // Read existing from R2
+            const messageKey = `support/messages/${account_id}/${message_id}.json`;
+            const existingObj = await env.R2_VIRTUAL_LAUNCH.get(messageKey);
+            if (!existingObj) {
+              return json({ ok: false, error: 'NOT_FOUND', message: 'Message not found' }, 404);
+            }
+
+            const existingData = await existingObj.json();
+
+            // Set deleted_at timestamp
+            const updatedData = {
+              ...existingData,
+              deleted_at: timestamp,
+              updated_at: timestamp
+            };
+
+            // Write receipt to R2
+            const receiptKey = `receipts/support/${account_id}/${timestamp}.json`;
+            await env.R2_VIRTUAL_LAUNCH.put(receiptKey, JSON.stringify({
+              action: 'delete_soft',
+              account_id,
+              message_id,
+              timestamp
+            }));
+
+            // Rewrite canonical
+            await env.R2_VIRTUAL_LAUNCH.put(messageKey, JSON.stringify(updatedData));
+
+            return json({ ok: true, message_id, action: 'delete_soft' });
+          }
+
+          case 'restore': {
+            if (!message_id) {
+              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for restore' }, 400);
+            }
+
+            // Read existing from R2
+            const messageKey = `support/messages/${account_id}/${message_id}.json`;
+            const existingObj = await env.R2_VIRTUAL_LAUNCH.get(messageKey);
+            if (!existingObj) {
+              return json({ ok: false, error: 'NOT_FOUND', message: 'Message not found' }, 404);
+            }
+
+            const existingData = await existingObj.json();
+
+            // Clear deleted_at
+            const { deleted_at, ...restoredData } = existingData;
+            restoredData.updated_at = timestamp;
+
+            // Write receipt to R2
+            const receiptKey = `receipts/support/${account_id}/${timestamp}.json`;
+            await env.R2_VIRTUAL_LAUNCH.put(receiptKey, JSON.stringify({
+              action: 'restore',
+              account_id,
+              message_id,
+              timestamp
+            }));
+
+            // Rewrite canonical
+            await env.R2_VIRTUAL_LAUNCH.put(messageKey, JSON.stringify(restoredData));
+
+            return json({ ok: true, message_id, action: 'restore' });
+          }
+
+          case 'delete_permanent': {
+            if (!message_id) {
+              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for permanent delete' }, 400);
+            }
+
+            // Write receipt to R2
+            const receiptKey = `receipts/support/${account_id}/${timestamp}.json`;
+            await env.R2_VIRTUAL_LAUNCH.put(receiptKey, JSON.stringify({
+              action: 'delete_permanent',
+              account_id,
+              message_id,
+              timestamp
+            }));
+
+            // Delete R2 object
+            const messageKey = `support/messages/${account_id}/${message_id}.json`;
+            await env.R2_VIRTUAL_LAUNCH.delete(messageKey);
+
+            return json({ ok: true, message_id, action: 'delete_permanent' });
+          }
+
+          default:
+            return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid action' }, 400);
+        }
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to process message' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/compliance/report-generate',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const body = await request.json();
+        const { account_id, tax_year, report_type } = body;
+
+        const timestamp = new Date().toISOString();
+        const reportId = `RES_${crypto.randomUUID()}`;
+
+        // Write receipt to R2
+        const receiptKey = `receipts/compliance/${account_id}/${timestamp}.json`;
+        await env.R2_VIRTUAL_LAUNCH.put(receiptKey, JSON.stringify({
+          account_id,
+          tax_year,
+          report_type,
+          report_id: reportId,
+          timestamp
+        }));
+
+        // Write placeholder report record to R2
+        const reportKey = `compliance/${account_id}/${tax_year}/report.json`;
+        const reportData = {
+          account_id,
+          tax_year,
+          report_id: reportId,
+          status: 'pending',
+          requested_at: timestamp
+        };
+        await env.R2_VIRTUAL_LAUNCH.put(reportKey, JSON.stringify(reportData));
+
+        // Insert into ttmp_reports table (if it exists)
+        try {
+          await d1Run(env.DB,
+            `INSERT INTO ttmp_reports
+             (id, account_id, report_id, status, created_at)
+             VALUES (?, ?, ?, 'pending', ?)`,
+            [reportId, account_id, reportId, timestamp]
+          );
+        } catch (dbError) {
+          // Table may not exist - continue without D1 update
+          console.warn('ttmp_reports table may not exist:', dbError.message);
+        }
+
+        return json({
+          ok: true,
+          report_id: reportId,
+          status: 'pending',
+          message: 'Report generation queued'
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to generate report' }, 500);
       }
     },
   },

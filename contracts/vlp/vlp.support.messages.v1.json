@@ -1,0 +1,104 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH",
+      "D1_DB"
+    ],
+    "governs": "Support message operations",
+    "path": "/contracts/vlp/vlp.support.messages.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Support Messages",
+    "usedOnPages": [
+      "/dashboard/support",
+      "/support/messages"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true,
+      "requireJsonContentType": true,
+      "validateMessageAction": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/support/messages",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/support/{account_id}/{timestamp}.json",
+    "receiptSource": "support",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.account_id",
+    "eventIdFrom": "payload.message_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpdate",
+      "d1Update"
+    ],
+    "writes": [
+      "support_messages",
+      "support_tickets"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "action": {
+        "type": "string",
+        "enum": ["create", "update", "delete_soft", "restore", "delete_permanent"]
+      },
+      "message_id": {
+        "type": "string"
+      },
+      "subject": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "body": {
+        "type": "string",
+        "maxLength": 5000
+      },
+      "category": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "account_id",
+      "action"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "message_id": "{message_id}",
+      "action": "{action}"
+    },
+    "error": {
+      "ok": false,
+      "error": "BAD_REQUEST",
+      "message": "Invalid action"
+    },
+    "success": {
+      "ok": true,
+      "message_id": "string",
+      "action": "string"
+    }
+  },
+  "schema": {
+    "name": "vlp_support_messages",
+    "version": 1
+  }
+}

@@ -1,0 +1,82 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH"
+    ],
+    "governs": "Account photo upload initialization",
+    "path": "/contracts/vlp/vlp.accounts.photo-upload-init.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Account Photo Upload Init",
+    "usedOnPages": [
+      "/dashboard/settings",
+      "/account/profile"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true,
+      "requireJsonContentType": true,
+      "validateFileType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/accounts/photo-upload-init",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/uploads/{account_id}/{timestamp}.json",
+    "receiptSource": "uploads",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.account_id",
+    "eventIdFrom": "payload.account_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "file_type": {
+        "type": "string",
+        "enum": ["image/jpeg", "image/png", "image/webp"]
+      }
+    },
+    "required": [
+      "account_id",
+      "file_type"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "upload_url": "{upload_url}",
+      "key": "{key}"
+    },
+    "error": {
+      "ok": false,
+      "error": "BAD_REQUEST",
+      "message": "file_type must be image/jpeg, image/png, or image/webp"
+    },
+    "success": {
+      "ok": true,
+      "upload_url": "string",
+      "key": "string"
+    }
+  },
+  "schema": {
+    "name": "vlp_accounts_photo_upload_init",
+    "version": 1
+  }
+}
