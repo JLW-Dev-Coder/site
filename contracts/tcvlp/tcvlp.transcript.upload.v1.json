@@ -1,0 +1,89 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["PDF_PARSER", "KWONG_FILTER"],
+    "governs": "TCVLP transcript upload and Kwong penalty analysis",
+    "path": "/contracts/tcvlp/tcvlp.transcript.upload.v1.json",
+    "source": "Tax Claim VLP",
+    "title": "TCVLP — Transcript — Upload and Analyze",
+    "usedOnPages": [
+      "{slug}.taxclaim.virtuallaunch.pro",
+      "Transcript analyzer"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tcvlp/transcript/upload",
+    "method": "POST",
+    "receiptKeyPattern": "",
+    "receiptSource": "",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "",
+    "eventIdFrom": "",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "file": {
+        "type": "string",
+        "format": "binary"
+      },
+      "pro_id": {
+        "type": "string",
+        "pattern": "^TCVLP_PRO_[a-f0-9-]{36}$"
+      }
+    },
+    "required": [
+      "file",
+      "pro_id"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "kwong_penalties": {
+        "total_amount": 0,
+        "tax_years": [],
+        "transactions": [],
+        "date_range": "Jan 20, 2020 – Jul 10, 2023"
+      }
+    },
+    "error": {
+      "ok": false,
+      "error": "EXTRACTION_FAILED",
+      "message": "Failed to extract text from PDF"
+    },
+    "success": {
+      "ok": true,
+      "kwong_penalties": {
+        "total_amount": "{total_amount}",
+        "tax_years": ["{tax_years}"],
+        "transactions": ["{transactions}"],
+        "date_range": "Jan 20, 2020 – Jul 10, 2023"
+      }
+    }
+  },
+  "schema": {
+    "name": "tcvlp_transcript_upload",
+    "version": 1
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1"],
+    "governs": "TCVLP Form 843 submission status update",
+    "path": "/contracts/tcvlp/tcvlp.form843.submit.v1.json",
+    "source": "Tax Claim VLP",
+    "title": "TCVLP — Form 843 — Submit Final",
+    "usedOnPages": [
+      "{slug}.taxclaim.virtuallaunch.pro",
+      "Form 843 submission"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tcvlp/forms/843/submit",
+    "method": "POST",
+    "receiptKeyPattern": "",
+    "receiptSource": "",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.submission_id",
+    "eventIdFrom": "payload.submission_id",
+    "writeOrder": [
+      "d1Update",
+      "canonicalUpdate"
+    ],
+    "writes": [
+      "tcvlp_form843_submissions",
+      "tcvlp/form843"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "submission_id": {
+        "type": "string",
+        "pattern": "^SUB_[a-f0-9-]{36}$"
+      },
+      "confirmed": {
+        "type": "boolean",
+        "enum": [true]
+      }
+    },
+    "required": [
+      "submission_id",
+      "confirmed"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "submission_id": "{submission_id}",
+      "status": "submitted"
+    },
+    "error": {
+      "ok": false,
+      "error": "SUBMISSION_NOT_FOUND",
+      "message": "Submission not found"
+    },
+    "success": {
+      "ok": true,
+      "submission_id": "{submission_id}",
+      "status": "submitted"
+    }
+  },
+  "schema": {
+    "name": "tcvlp_form843_submit",
+    "version": 1
+  }
+}

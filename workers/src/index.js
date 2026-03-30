@@ -995,6 +995,63 @@ const GVLP_GAME_UNLOCK = {
   navigator:  ['tax-trivia', 'tax-match-mania', 'tax-spin-wheel', 'tax-word-search', 'irs-fact-or-fiction', 'capital-gains-climb', 'deduction-dash', 'refund-rush', 'audit-escape-room'],
 };
 
+// TCVLP Business Rules (hardcoded)
+const IRS_843_MAILING_ADDRESSES = {
+  'AL': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'AK': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'AZ': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'AR': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'CA': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'CO': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'CT': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'DE': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'FL': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'GA': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'HI': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'ID': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'IL': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'IN': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'IA': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'KS': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'KY': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'LA': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'ME': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'MD': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'MA': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'MI': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'MN': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'MS': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'MO': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'MT': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'NE': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'NV': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'NH': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'NJ': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'NM': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'NY': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'NC': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'ND': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'OH': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'OK': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'OR': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'PA': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'RI': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'SC': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'SD': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'TN': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'TX': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'UT': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'VT': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'VA': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'WA': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'WV': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'WI': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'WY': 'Internal Revenue Service, Ogden, UT 84201-0030',
+  'DC': 'Internal Revenue Service, Kansas City, MO 64999-0030',
+  'PR': 'Internal Revenue Service, Austin, TX 73301-0030',
+  'VI': 'Internal Revenue Service, Austin, TX 73301-0030',
+};
+
 const ROUTES = [
 
   // -------------------------------------------------------------------------
@@ -2293,7 +2350,20 @@ const ROUTES = [
         switch (event.type) {
 
           case 'checkout.session.completed': {
-            const { account_id, membership_id, plan_key, billing_interval } = obj.metadata ?? {};
+            const { account_id, membership_id, plan_key, billing_interval, platform } = obj.metadata ?? {};
+
+            // Handle TCVLP subscriptions
+            if (platform === 'tcvlp' && account_id) {
+              try {
+                await d1Run(env.DB,
+                  'UPDATE tcvlp_pros SET stripe_customer_id = ?, stripe_subscription_id = ?, status = ?, updated_at = ? WHERE account_id = ?',
+                  [obj.customer, obj.subscription, 'active', now, account_id]
+                );
+              } catch (e) {
+                console.error('TCVLP Stripe webhook error:', e);
+              }
+            }
+
             if (membership_id) {
               const existingMem = await env.R2_VIRTUAL_LAUNCH.get(`memberships/${membership_id}.json`);
               const memRecord = existingMem ? await existingMem.json() : {};
@@ -2351,6 +2421,17 @@ const ROUTES = [
 
           case 'customer.subscription.deleted': {
             const { membership_id } = obj.metadata ?? {};
+
+            // Handle TCVLP subscription cancellation
+            try {
+              await d1Run(env.DB,
+                'UPDATE tcvlp_pros SET status = ?, updated_at = ? WHERE stripe_subscription_id = ?',
+                ['inactive', now, obj.id]
+              );
+            } catch (e) {
+              console.error('TCVLP Stripe subscription deletion error:', e);
+            }
+
             if (membership_id) {
               const existingMem = await env.R2_VIRTUAL_LAUNCH.get(`memberships/${membership_id}.json`);
               const memRecord = existingMem ? await existingMem.json() : {};
@@ -8053,6 +8134,413 @@ TTMP Support Team
         });
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch plays' }, 500);
+      }
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // TCVLP (Tax Claim VLP)
+  // -------------------------------------------------------------------------
+
+  // POST /v1/tcvlp/onboarding
+  {
+    method: 'POST', pattern: '/v1/tcvlp/onboarding',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body) {
+        return json({ ok: false, error: 'INVALID_JSON' }, 400);
+      }
+
+      const { firm_name, display_name, logo_url, welcome_message, slug } = body;
+
+      if (!firm_name) {
+        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['firm_name'] }, 400);
+      }
+
+      const timestamp = new Date().toISOString();
+      const pro_id = `TCVLP_PRO_${crypto.randomUUID()}`;
+
+      // Slug logic
+      let finalSlug;
+      if (slug) {
+        // User provided slug - sanitize and check uniqueness
+        finalSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      } else {
+        // Auto-generate from firm_name
+        finalSlug = firm_name.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+      }
+
+      // Check slug uniqueness
+      const existingPro = await env.DB.prepare("SELECT pro_id FROM tcvlp_pros WHERE slug = ?").bind(finalSlug).first();
+      if (existingPro) {
+        if (slug) {
+          // User provided slug is taken
+          return json({ ok: false, error: 'SLUG_TAKEN', message: 'The requested slug is already in use' }, 409);
+        } else {
+          // Auto-generated slug is taken, add random suffix
+          finalSlug = `${finalSlug}-${crypto.randomUUID().substring(0, 4)}`;
+        }
+      }
+
+      try {
+        // Write receipt to R2
+        const receiptKey = `tcvlp/receipts/onboarding/${pro_id}/${timestamp}.json`;
+        const receiptData = {
+          event_id: `EVT_${crypto.randomUUID()}`,
+          account_id: session.account_id,
+          pro_id,
+          firm_name,
+          display_name,
+          logo_url,
+          welcome_message,
+          slug: finalSlug,
+          timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, receiptData);
+
+        // Write canonical to R2
+        const canonicalKey = `tcvlp/pros/${pro_id}.json`;
+        const canonicalData = {
+          pro_id,
+          account_id: session.account_id,
+          slug: finalSlug,
+          firm_name,
+          display_name: display_name || null,
+          logo_url: logo_url || null,
+          welcome_message: welcome_message || null,
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+          status: 'active',
+          created_at: timestamp,
+          updated_at: timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, canonicalKey, canonicalData);
+
+        // Insert into D1
+        await d1Run(env.DB,
+          `INSERT INTO tcvlp_pros (pro_id, account_id, slug, firm_name, display_name, logo_url, welcome_message, stripe_customer_id, stripe_subscription_id, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [pro_id, session.account_id, finalSlug, firm_name, display_name, logo_url, welcome_message, null, null, 'active', timestamp, timestamp]
+        );
+
+        return json({
+          ok: true,
+          pro_id,
+          slug: finalSlug,
+          landing_url: `https://${finalSlug}.taxclaim.virtuallaunch.pro`
+        });
+      } catch (e) {
+        console.error('TCVLP onboarding error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create professional profile' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/tcvlp/pro/:pro_id
+  {
+    method: 'GET', pattern: '/v1/tcvlp/pro/:pro_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { pro_id } = params;
+
+      try {
+        const pro = await env.DB.prepare("SELECT firm_name, display_name, logo_url, welcome_message, slug FROM tcvlp_pros WHERE pro_id = ? AND status = 'active'").bind(pro_id).first();
+
+        if (!pro) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Professional not found' }, 404);
+        }
+
+        return json({
+          ok: true,
+          firm_name: pro.firm_name,
+          display_name: pro.display_name,
+          logo_url: pro.logo_url,
+          welcome_message: pro.welcome_message,
+          slug: pro.slug
+        });
+      } catch (e) {
+        console.error('TCVLP get pro error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch professional profile' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/tcvlp/pro/by-slug/:slug
+  {
+    method: 'GET', pattern: '/v1/tcvlp/pro/by-slug/:slug',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { slug } = params;
+
+      try {
+        const pro = await env.DB.prepare("SELECT firm_name, display_name, logo_url, welcome_message, slug FROM tcvlp_pros WHERE slug = ? AND status = 'active'").bind(slug).first();
+
+        if (!pro) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Professional not found' }, 404);
+        }
+
+        return json({
+          ok: true,
+          firm_name: pro.firm_name,
+          display_name: pro.display_name,
+          logo_url: pro.logo_url,
+          welcome_message: pro.welcome_message,
+          slug: pro.slug
+        });
+      } catch (e) {
+        console.error('TCVLP get pro by slug error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch professional profile' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/tcvlp/mailing-address?state=XX
+  {
+    method: 'GET', pattern: '/v1/tcvlp/mailing-address',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const url = new URL(request.url);
+      const state = url.searchParams.get('state');
+
+      if (!state || !IRS_843_MAILING_ADDRESSES[state.toUpperCase()]) {
+        return json({ ok: false, error: 'STATE_NOT_FOUND', message: 'Invalid state code provided' }, 404);
+      }
+
+      return json({
+        ok: true,
+        state: state.toUpperCase(),
+        address: IRS_843_MAILING_ADDRESSES[state.toUpperCase()]
+      });
+    },
+  },
+
+  // POST /v1/tcvlp/transcript/upload
+  {
+    method: 'POST', pattern: '/v1/tcvlp/transcript/upload',
+    handler: async (_method, _pattern, _params, request, env) => {
+      try {
+        const formData = await request.formData();
+        const pdfFile = formData.get('file');
+        const pro_id = formData.get('pro_id');
+
+        if (!pdfFile || !pro_id) {
+          return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['file', 'pro_id'] }, 400);
+        }
+
+        // Verify pro exists
+        const pro = await env.DB.prepare("SELECT pro_id FROM tcvlp_pros WHERE pro_id = ? AND status = 'active'").bind(pro_id).first();
+        if (!pro) {
+          return json({ ok: false, error: 'INVALID_PRO_ID', message: 'Professional not found' }, 400);
+        }
+
+        // Extract text from PDF
+        const pdfBytes = await pdfFile.arrayBuffer();
+        const extractedText = extractTextFromPdf(new Uint8Array(pdfBytes));
+
+        if (!extractedText) {
+          return json({ ok: false, error: 'EXTRACTION_FAILED', message: 'Failed to extract text from PDF' }, 400);
+        }
+
+        // Parse transcript and filter for Kwong window
+        const transactions = parseTranscriptText(extractedText);
+
+        // Filter for Kwong window: Jan 20, 2020 – Jul 10, 2023
+        const kwongStart = new Date('2020-01-20');
+        const kwongEnd = new Date('2023-07-10');
+        const penaltyCodes = ['160', '270', '276', '304', '306', '308'];
+
+        const kwongTransactions = transactions.filter(tx => {
+          const txDate = new Date(tx.date);
+          return txDate >= kwongStart && txDate <= kwongEnd && penaltyCodes.includes(tx.code.replace('TC ', ''));
+        });
+
+        // Calculate totals
+        let totalAmount = 0;
+        const taxYears = new Set();
+
+        kwongTransactions.forEach(tx => {
+          totalAmount += parseFloat(tx.amount) || 0;
+          // Extract tax year from date or description
+          const year = new Date(tx.date).getFullYear();
+          if (year >= 2020 && year <= 2023) {
+            taxYears.add(year.toString());
+          }
+        });
+
+        return json({
+          ok: true,
+          kwong_penalties: {
+            total_amount: parseFloat(totalAmount.toFixed(2)),
+            tax_years: Array.from(taxYears).sort(),
+            transactions: kwongTransactions.map(tx => ({
+              date: tx.date,
+              code: tx.code,
+              amount: parseFloat(tx.amount) || 0,
+              description: tx.description || 'Penalty assessment'
+            })),
+            date_range: 'Jan 20, 2020 – Jul 10, 2023'
+          }
+        });
+      } catch (e) {
+        console.error('TCVLP transcript upload error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to process transcript' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/tcvlp/forms/843/generate
+  {
+    method: 'POST', pattern: '/v1/tcvlp/forms/843/generate',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const body = await parseBody(request);
+      if (!body) {
+        return json({ ok: false, error: 'INVALID_JSON' }, 400);
+      }
+
+      const { pro_id, taxpayer_name, taxpayer_email, tax_year, penalty_type, penalty_amount, state, transcript_used } = body;
+
+      if (!pro_id || !taxpayer_name || !tax_year || !penalty_type || !state) {
+        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['pro_id', 'taxpayer_name', 'tax_year', 'penalty_type', 'state'] }, 400);
+      }
+
+      // Validate state
+      if (!IRS_843_MAILING_ADDRESSES[state.toUpperCase()]) {
+        return json({ ok: false, error: 'INVALID_STATE', message: 'Invalid state code provided' }, 400);
+      }
+
+      // Validate tax year
+      const yearNum = parseInt(tax_year);
+      if (yearNum < 2020 || yearNum > 2023) {
+        return json({ ok: false, error: 'INVALID_TAX_YEAR', message: 'Tax year must be between 2020-2023' }, 400);
+      }
+
+      // Verify pro exists
+      const pro = await env.DB.prepare("SELECT pro_id FROM tcvlp_pros WHERE pro_id = ? AND status = 'active'").bind(pro_id).first();
+      if (!pro) {
+        return json({ ok: false, error: 'INVALID_PRO_ID', message: 'Professional not found' }, 400);
+      }
+
+      const timestamp = new Date().toISOString();
+      const submission_id = `SUB_${crypto.randomUUID()}`;
+      const mailing_address = IRS_843_MAILING_ADDRESSES[state.toUpperCase()];
+
+      try {
+        // Write receipt to R2
+        const receiptKey = `tcvlp/receipts/form843/${pro_id}/${submission_id}.json`;
+        const receiptData = {
+          event_id: `EVT_${crypto.randomUUID()}`,
+          submission_id,
+          pro_id,
+          taxpayer_name,
+          taxpayer_email,
+          tax_year,
+          penalty_type,
+          penalty_amount,
+          state: state.toUpperCase(),
+          mailing_address,
+          transcript_used: transcript_used ? 1 : 0,
+          timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, receiptData);
+
+        // Write canonical to R2
+        const canonicalKey = `tcvlp/form843/${pro_id}/${submission_id}.json`;
+        const canonicalData = {
+          submission_id,
+          pro_id,
+          taxpayer_name,
+          taxpayer_email: taxpayer_email || null,
+          tax_year,
+          penalty_type,
+          penalty_amount: penalty_amount || null,
+          state: state.toUpperCase(),
+          mailing_address,
+          transcript_used: transcript_used ? 1 : 0,
+          status: 'draft',
+          created_at: timestamp,
+          updated_at: timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, canonicalKey, canonicalData);
+
+        // Insert into D1
+        await d1Run(env.DB,
+          `INSERT INTO tcvlp_form843_submissions (submission_id, pro_id, taxpayer_name, taxpayer_email, tax_year, penalty_type, penalty_amount, state, mailing_address, transcript_used, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [submission_id, pro_id, taxpayer_name, taxpayer_email, tax_year, penalty_type, penalty_amount, state.toUpperCase(), mailing_address, transcript_used ? 1 : 0, 'draft', timestamp, timestamp]
+        );
+
+        return json({
+          ok: true,
+          submission_id,
+          mailing_address,
+          preparation_guide: {
+            taxpayer_name,
+            tax_year,
+            penalty_type,
+            penalty_amount: penalty_amount || 'To be determined',
+            state: state.toUpperCase(),
+            mailing_address,
+            kwong_citation: 'Kwong v. United States, No. 22-1993T (Fed. Cl. 2023)',
+            claim_basis: 'Claim for refund of penalties assessed between January 20, 2020 and July 10, 2023 under the Kwong decision. The U.S. Court of Federal Claims held that the IRS exceeded its authority in assessing certain penalties during this period.',
+            deadline_notice: 'IMPORTANT: Claims must be filed by July 10, 2026.',
+            official_form_url: 'https://www.irs.gov/pub/irs-pdf/f843.pdf',
+            watermark: 'PREPARATION GUIDE — NOT AN OFFICIAL IRS FORM'
+          }
+        });
+      } catch (e) {
+        console.error('TCVLP Form 843 generation error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to generate Form 843 preparation guide' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/tcvlp/forms/843/submit
+  {
+    method: 'POST', pattern: '/v1/tcvlp/forms/843/submit',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const body = await parseBody(request);
+      if (!body) {
+        return json({ ok: false, error: 'INVALID_JSON' }, 400);
+      }
+
+      const { submission_id, confirmed } = body;
+
+      if (!submission_id || !confirmed) {
+        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['submission_id', 'confirmed'] }, 400);
+      }
+
+      const timestamp = new Date().toISOString();
+
+      try {
+        // Update D1 status
+        const result = await env.DB.prepare(
+          "UPDATE tcvlp_form843_submissions SET status = 'submitted', updated_at = ? WHERE submission_id = ?"
+        ).bind(timestamp, submission_id).run();
+
+        if (result.changes === 0) {
+          return json({ ok: false, error: 'SUBMISSION_NOT_FOUND', message: 'Submission not found' }, 404);
+        }
+
+        // Update R2 canonical
+        const canonicalKey = `tcvlp/form843/${submission_id.split('_')[1]}/${submission_id}.json`;
+        const canonicalData = await r2Get(env.R2_VIRTUAL_LAUNCH, canonicalKey);
+
+        if (canonicalData) {
+          const parsedData = JSON.parse(canonicalData);
+          parsedData.status = 'submitted';
+          parsedData.submitted_at = timestamp;
+          parsedData.updated_at = timestamp;
+          await r2Put(env.R2_VIRTUAL_LAUNCH, canonicalKey, parsedData);
+        }
+
+        return json({
+          ok: true,
+          submission_id,
+          status: 'submitted'
+        });
+      } catch (e) {
+        console.error('TCVLP Form 843 submission error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to submit Form 843' }, 500);
       }
     },
   },

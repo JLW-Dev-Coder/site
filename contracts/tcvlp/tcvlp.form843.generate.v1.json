@@ -1,0 +1,121 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1", "IRS_843_MAILING_ADDRESSES"],
+    "governs": "TCVLP Form 843 preparation guide generation",
+    "path": "/contracts/tcvlp/tcvlp.form843.generate.v1.json",
+    "source": "Tax Claim VLP",
+    "title": "TCVLP — Form 843 — Generate Preparation Guide",
+    "usedOnPages": [
+      "{slug}.taxclaim.virtuallaunch.pro",
+      "Form 843 generator"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tcvlp/forms/843/generate",
+    "method": "POST",
+    "receiptKeyPattern": "tcvlp/receipts/form843/{pro_id}/{submission_id}.json",
+    "receiptSource": "tcvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.taxpayer_name",
+    "eventIdFrom": "system.uuid",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Insert"
+    ],
+    "writes": [
+      "tcvlp_form843_submissions",
+      "tcvlp/form843",
+      "tcvlp/receipts"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "pro_id": {
+        "type": "string",
+        "pattern": "^TCVLP_PRO_[a-f0-9-]{36}$"
+      },
+      "taxpayer_name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "taxpayer_email": {
+        "type": "string",
+        "format": "email"
+      },
+      "tax_year": {
+        "type": "string",
+        "pattern": "^(2020|2021|2022|2023)$"
+      },
+      "penalty_type": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "penalty_amount": {
+        "type": "string",
+        "pattern": "^\\d+(\\.\\d{2})?$"
+      },
+      "state": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 2,
+        "pattern": "^[A-Z]{2}$"
+      },
+      "transcript_used": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "pro_id",
+      "taxpayer_name",
+      "tax_year",
+      "penalty_type",
+      "state"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "submission_id": "{submission_id}",
+      "mailing_address": "{mailing_address}",
+      "preparation_guide": "{preparation_guide}"
+    },
+    "error": {
+      "ok": false,
+      "error": "INVALID_STATE",
+      "message": "Invalid state code provided"
+    },
+    "success": {
+      "ok": true,
+      "submission_id": "{submission_id}",
+      "mailing_address": "{mailing_address}",
+      "preparation_guide": "{preparation_guide}"
+    }
+  },
+  "schema": {
+    "name": "tcvlp_form843_generate",
+    "version": 1
+  }
+}

@@ -1,0 +1,78 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["IRS_843_MAILING_ADDRESSES"],
+    "governs": "IRS Form 843 mailing address lookup by state",
+    "path": "/contracts/tcvlp/tcvlp.mailing-address.get.v1.json",
+    "source": "Tax Claim VLP",
+    "title": "TCVLP — Mailing Address — Get by State",
+    "usedOnPages": [
+      "{slug}.taxclaim.virtuallaunch.pro",
+      "Form 843 generator"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tcvlp/mailing-address",
+    "method": "GET",
+    "receiptKeyPattern": "",
+    "receiptSource": "",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "",
+    "eventIdFrom": "",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "state": {
+        "type": "string",
+        "minLength": 2,
+        "maxLength": 2,
+        "pattern": "^[A-Z]{2}$"
+      }
+    },
+    "required": [
+      "state"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "state": "{state}",
+      "address": "{address}"
+    },
+    "error": {
+      "ok": false,
+      "error": "STATE_NOT_FOUND",
+      "message": "Invalid state code provided"
+    },
+    "success": {
+      "ok": true,
+      "state": "{state}",
+      "address": "{address}"
+    }
+  },
+  "schema": {
+    "name": "tcvlp_mailing_address_get",
+    "version": 1
+  }
+}

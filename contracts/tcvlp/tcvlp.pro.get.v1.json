@@ -1,0 +1,75 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["D1"],
+    "governs": "TCVLP professional profile retrieval by pro_id",
+    "path": "/contracts/tcvlp/tcvlp.pro.get.v1.json",
+    "source": "Tax Claim VLP",
+    "title": "TCVLP — Professional — Get by ID",
+    "usedOnPages": [
+      "/tcvlp/pro/[id]",
+      "taxclaim frontend"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tcvlp/pro/:pro_id",
+    "method": "GET",
+    "receiptKeyPattern": "",
+    "receiptSource": "",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "",
+    "eventIdFrom": "",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "firm_name": "{firm_name}",
+      "display_name": "{display_name}",
+      "logo_url": "{logo_url}",
+      "welcome_message": "{welcome_message}",
+      "slug": "{slug}"
+    },
+    "error": {
+      "ok": false,
+      "error": "NOT_FOUND",
+      "message": "Professional not found"
+    },
+    "success": {
+      "ok": true,
+      "firm_name": "{firm_name}",
+      "display_name": "{display_name}",
+      "logo_url": "{logo_url}",
+      "welcome_message": "{welcome_message}",
+      "slug": "{slug}"
+    }
+  },
+  "schema": {
+    "name": "tcvlp_pro_get",
+    "version": 1
+  }
+}

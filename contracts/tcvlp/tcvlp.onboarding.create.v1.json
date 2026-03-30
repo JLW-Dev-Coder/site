@@ -1,0 +1,104 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1"],
+    "governs": "TCVLP professional onboarding and profile creation",
+    "path": "/contracts/tcvlp/tcvlp.onboarding.create.v1.json",
+    "source": "Tax Claim VLP",
+    "title": "TCVLP — Onboarding — Create Professional Profile",
+    "usedOnPages": [
+      "/tcvlp/onboarding",
+      "/tcvlp/setup"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tcvlp/onboarding",
+    "method": "POST",
+    "receiptKeyPattern": "tcvlp/receipts/onboarding/{pro_id}/{timestamp}.json",
+    "receiptSource": "tcvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.firm_name",
+    "eventIdFrom": "system.uuid",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Insert"
+    ],
+    "writes": [
+      "tcvlp_pros",
+      "tcvlp/pros",
+      "tcvlp/receipts"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "firm_name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "display_name": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "logo_url": {
+        "type": "string",
+        "format": "uri"
+      },
+      "welcome_message": {
+        "type": "string",
+        "maxLength": 1000
+      },
+      "slug": {
+        "type": "string",
+        "pattern": "^[a-z0-9-]+$",
+        "minLength": 3,
+        "maxLength": 50
+      }
+    },
+    "required": [
+      "firm_name"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "pro_id": "{pro_id}",
+      "slug": "{slug}",
+      "landing_url": "https://{slug}.taxclaim.virtuallaunch.pro"
+    },
+    "error": {
+      "ok": false,
+      "error": "validation_failed"
+    },
+    "success": {
+      "ok": true,
+      "pro_id": "{pro_id}",
+      "slug": "{slug}",
+      "landing_url": "https://{slug}.taxclaim.virtuallaunch.pro"
+    }
+  },
+  "schema": {
+    "name": "tcvlp_onboarding_create",
+    "version": 1
+  }
+}
