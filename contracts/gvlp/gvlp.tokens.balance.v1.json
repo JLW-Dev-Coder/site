@@ -1,0 +1,68 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["DB"],
+    "governs": "Retrieve current token balance and tier for GVLP operator",
+    "path": "/contracts/gvlp/gvlp.tokens.balance.v1.json",
+    "source": "Games VLP",
+    "title": "Games VLP — Tokens — Balance",
+    "usedOnPages": ["/games", "/games/embed", "/operator/dashboard"],
+    "validation": {
+      "requireClientId": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/gvlp/tokens/balance",
+    "method": "GET",
+    "receiptKeyPattern": "gvlp/receipts/balance-check/{client_id}/{timestamp}.json",
+    "receiptSource": "gvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "query.client_id",
+    "eventIdFrom": "query.client_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "client_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": ["client_id"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "tokens_balance": "{operator.tokens_balance}",
+      "tier": "{operator.tier}"
+    },
+    "error": {
+      "ok": false,
+      "error": "NOT_FOUND",
+      "message": "Operator not found"
+    },
+    "success": {
+      "ok": true,
+      "tokens_balance": "{operator.tokens_balance}",
+      "tier": "{operator.tier}"
+    }
+  },
+  "schema": {
+    "name": "gvlp_tokens_balance",
+    "version": 1
+  }
+}

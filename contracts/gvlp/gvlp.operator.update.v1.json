@@ -1,0 +1,72 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "DB"],
+    "governs": "Update GVLP operator settings, currently supporting client_id rotation",
+    "path": "/contracts/gvlp/gvlp.operator.update.v1.json",
+    "source": "Games VLP",
+    "title": "Games VLP — Operator — Update",
+    "usedOnPages": ["/operator/settings"],
+    "validation": {
+      "requireOwnership": true,
+      "allowAdminAccess": true,
+      "allowedFields": ["client_id"]
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/gvlp/operator/:account_id",
+    "method": "PATCH",
+    "receiptKeyPattern": "gvlp/receipts/operator-update/{operator_id}/{timestamp}.json",
+    "receiptSource": "gvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.account_id",
+    "eventIdFrom": "params.account_id",
+    "writeOrder": ["receipt", "canonical", "projection"],
+    "writes": ["gvlp_operators"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "client_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": ["account_id", "client_id"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "client_id": "{updated.client_id}"
+    },
+    "error": {
+      "ok": false,
+      "error": "NOT_FOUND",
+      "message": "Operator not found"
+    },
+    "success": {
+      "ok": true,
+      "client_id": "{updated.client_id}"
+    }
+  },
+  "schema": {
+    "name": "gvlp_operator_update",
+    "version": 1
+  }
+}

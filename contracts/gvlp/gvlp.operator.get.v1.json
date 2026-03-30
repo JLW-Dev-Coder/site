@@ -1,0 +1,67 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "DB"],
+    "governs": "Retrieve full GVLP operator record including configuration, stats, and play history",
+    "path": "/contracts/gvlp/gvlp.operator.get.v1.json",
+    "source": "Games VLP",
+    "title": "Games VLP — Operator — Get",
+    "usedOnPages": ["/operator/dashboard", "/operator/settings"],
+    "validation": {
+      "requireOwnership": true,
+      "allowAdminAccess": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/gvlp/operator/:account_id",
+    "method": "GET",
+    "receiptKeyPattern": "gvlp/receipts/operator-get/{account_id}/{timestamp}.json",
+    "receiptSource": "gvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.account_id",
+    "eventIdFrom": "params.account_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": ["account_id"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "operator": "{merged.operator_with_stats}"
+    },
+    "error": {
+      "ok": false,
+      "error": "NOT_FOUND",
+      "message": "Operator not found"
+    },
+    "success": {
+      "ok": true,
+      "operator": "{merged.operator_with_stats}"
+    }
+  },
+  "schema": {
+    "name": "gvlp_operator_get",
+    "version": 1
+  }
+}

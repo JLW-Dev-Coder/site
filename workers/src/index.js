@@ -980,6 +980,21 @@ async function handleCalProOAuthCallback(request, env, session) {
 // method: HTTP verb string, or '*' to match any (used for webhooks)
 // ---------------------------------------------------------------------------
 
+// GVLP Business Rules (hardcoded)
+const GVLP_TIERS = {
+  starter:    { price_id: 'price_1TDZbk9ROeyeXOqeZOXNz5ig', tokens: 100,  games: 1, monthly: 0  },
+  apprentice: { price_id: 'price_1TDZbk9ROeyeXOqeig7pVMaM', tokens: 500,  games: 3, monthly: 9  },
+  strategist: { price_id: 'price_1TDZbk9ROeyeXOqeA7GjsVUM', tokens: 1500, games: 6, monthly: 19 },
+  navigator:  { price_id: 'price_1TDZbk9ROeyeXOqe5b06ko0z', tokens: 5000, games: 9, monthly: 39 },
+};
+
+const GVLP_GAME_UNLOCK = {
+  starter:    ['tax-trivia'],
+  apprentice: ['tax-trivia', 'tax-match-mania', 'tax-spin-wheel'],
+  strategist: ['tax-trivia', 'tax-match-mania', 'tax-spin-wheel', 'tax-word-search', 'irs-fact-or-fiction', 'capital-gains-climb'],
+  navigator:  ['tax-trivia', 'tax-match-mania', 'tax-spin-wheel', 'tax-word-search', 'irs-fact-or-fiction', 'capital-gains-climb', 'deduction-dash', 'refund-rush', 'audit-escape-room'],
+};
+
 const ROUTES = [
 
   // -------------------------------------------------------------------------
@@ -7547,6 +7562,497 @@ TTMP Support Team
         return json({ ok: true, sent_count: sentCount });
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send bulk email' }, 500);
+      }
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // GVLP (Games VLP)
+  // -------------------------------------------------------------------------
+
+  // GET /v1/gvlp/config?client_id=xxx
+  {
+    method: 'GET', pattern: '/v1/gvlp/config',
+    handler: async (_method, _pattern, params, request, env) => {
+      const url = new URL(request.url);
+      const client_id = url.searchParams.get('client_id');
+
+      if (!client_id) {
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'client_id required' }, 400);
+      }
+
+      try {
+        const operator = await env.DB.prepare(
+          "SELECT tier, tokens_balance FROM gvlp_operators WHERE client_id = ? AND status = 'active'"
+        ).bind(client_id).first();
+
+        if (!operator) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+        }
+
+        const unlocked_games = GVLP_GAME_UNLOCK[operator.tier] || [];
+
+        return json({
+          ok: true,
+          tier: operator.tier,
+          unlocked_games,
+          tokens_balance: operator.tokens_balance
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch config' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/gvlp/tokens/use
+  {
+    method: 'POST', pattern: '/v1/gvlp/tokens/use',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const body = await parseBody(request);
+        const { client_id, visitor_id, game_slug, tokens_cost = 1 } = body;
+
+        if (!client_id || !visitor_id || !game_slug) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'client_id, visitor_id, and game_slug required' }, 400);
+        }
+
+        // Get operator
+        const operator = await env.DB.prepare(
+          "SELECT * FROM gvlp_operators WHERE client_id = ? AND status = 'active'"
+        ).bind(client_id).first();
+
+        if (!operator) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+        }
+
+        // Validate game is unlocked for this tier
+        const unlockedGames = GVLP_GAME_UNLOCK[operator.tier] || [];
+        if (!unlockedGames.includes(game_slug)) {
+          return json({ ok: false, error: 'GAME_LOCKED', message: 'Game not available for current tier' }, 403);
+        }
+
+        // Check token balance
+        if (operator.tokens_balance < tokens_cost) {
+          return json({ ok: false, error: 'INSUFFICIENT_TOKENS' }, 402);
+        }
+
+        const play_id = `PLAY_${crypto.randomUUID()}`;
+        const timestamp = new Date().toISOString();
+
+        // 1. Validate (done)
+        // 2. Write receipt to R2
+        const receiptKey = `gvlp/receipts/token-use/${client_id}/${play_id}.json`;
+        const receipt = {
+          play_id,
+          client_id,
+          visitor_id,
+          game_slug,
+          tokens_cost,
+          operator_id: operator.operator_id,
+          timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, JSON.stringify(receipt));
+
+        // 3. Update canonical R2 (operator balance)
+        const canonicalKey = `gvlp/operators/${operator.operator_id}.json`;
+        const existing = await r2Get(env.R2_VIRTUAL_LAUNCH, canonicalKey);
+        const canonical = existing ? JSON.parse(existing) : {};
+        canonical.tokens_balance = operator.tokens_balance - tokens_cost;
+        canonical.updated_at = timestamp;
+        await r2Put(env.R2_VIRTUAL_LAUNCH, canonicalKey, JSON.stringify(canonical));
+
+        // 4. Update D1 projection
+        // Deduct tokens from operator
+        await d1Run(env.DB,
+          "UPDATE gvlp_operators SET tokens_balance = tokens_balance - ?, updated_at = ? WHERE operator_id = ?",
+          [tokens_cost, timestamp, operator.operator_id]
+        );
+
+        // Upsert visitor session
+        await d1Run(env.DB,
+          `INSERT INTO gvlp_visitor_sessions (visitor_id, client_id, tokens_used, last_seen, created_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(visitor_id) DO UPDATE SET tokens_used = tokens_used + ?, last_seen = ?`,
+          [visitor_id, client_id, tokens_cost, timestamp, timestamp, tokens_cost, timestamp]
+        );
+
+        // Insert game play record
+        await d1Run(env.DB,
+          "INSERT INTO gvlp_game_plays (play_id, client_id, visitor_id, game_slug, tokens_cost, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+          [play_id, client_id, visitor_id, game_slug, tokens_cost, timestamp]
+        );
+
+        const tokens_remaining = operator.tokens_balance - tokens_cost;
+
+        return json({
+          ok: true,
+          tokens_remaining,
+          play_id
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to use tokens' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/gvlp/tokens/balance?client_id=xxx
+  {
+    method: 'GET', pattern: '/v1/gvlp/tokens/balance',
+    handler: async (_method, _pattern, params, request, env) => {
+      const url = new URL(request.url);
+      const client_id = url.searchParams.get('client_id');
+
+      if (!client_id) {
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'client_id required' }, 400);
+      }
+
+      try {
+        const operator = await env.DB.prepare(
+          "SELECT tokens_balance, tier FROM gvlp_operators WHERE client_id = ? AND status = 'active'"
+        ).bind(client_id).first();
+
+        if (!operator) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+        }
+
+        return json({
+          ok: true,
+          tokens_balance: operator.tokens_balance,
+          tier: operator.tier
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch balance' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/gvlp/stripe/checkout
+  {
+    method: 'POST', pattern: '/v1/gvlp/stripe/checkout',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const body = await parseBody(request);
+        const { account_id, tier } = body;
+
+        if (!account_id || !tier) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'account_id and tier required' }, 400);
+        }
+
+        if (!GVLP_TIERS[tier]) {
+          return json({ ok: false, error: 'INVALID_TIER', message: 'Invalid tier specified' }, 400);
+        }
+
+        const tierConfig = GVLP_TIERS[tier];
+
+        const sessionData = {
+          mode: 'subscription',
+          line_items: [{
+            price: tierConfig.price_id,
+            quantity: 1,
+          }],
+          success_url: 'https://games.virtuallaunch.pro/checkout/success?session_id={CHECKOUT_SESSION_ID}',
+          cancel_url: 'https://games.virtuallaunch.pro/pricing',
+          client_reference_id: account_id,
+          metadata: {
+            platform: 'gvlp',
+            tier: tier
+          }
+        };
+
+        const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams(sessionData),
+        });
+
+        if (!response.ok) {
+          return json({ ok: false, error: 'STRIPE_ERROR', message: 'Failed to create checkout session' }, 500);
+        }
+
+        const session = await response.json();
+
+        return json({
+          ok: true,
+          session_url: session.url
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/gvlp/stripe/webhook
+  {
+    method: 'POST', pattern: '/v1/gvlp/stripe/webhook',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const body = await request.text();
+        const sig = request.headers.get('stripe-signature');
+
+        // Verify webhook signature
+        const key = await crypto.subtle.importKey(
+          'raw',
+          new TextEncoder().encode(env.STRIPE_WEBHOOK_SECRET),
+          { name: 'HMAC', hash: 'SHA-256' },
+          false,
+          ['sign']
+        );
+
+        const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
+        const expectedSig = Array.from(new Uint8Array(signature))
+          .map(b => b.toString(16).padStart(2, '0')).join('');
+
+        if (!sig || !sig.includes(expectedSig)) {
+          return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400);
+        }
+
+        const event = JSON.parse(body);
+        const event_id = event.id;
+        const timestamp = new Date().toISOString();
+
+        // Write receipt to R2
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `gvlp/receipts/stripe/${event_id}.json`, body);
+
+        if (event.type === 'checkout.session.completed') {
+          const session = event.data.object;
+          const account_id = session.client_reference_id;
+          const tier = session.metadata.tier;
+          const customer_id = session.customer;
+          const subscription_id = session.subscription;
+
+          if (account_id && tier && GVLP_TIERS[tier]) {
+            const operator_id = `GVLP_OP_${crypto.randomUUID()}`;
+            const client_id = `GVLP_${crypto.randomUUID().substring(0, 8)}`;
+            const tierConfig = GVLP_TIERS[tier];
+
+            // Create or update operator record
+            await d1Run(env.DB,
+              `INSERT INTO gvlp_operators (operator_id, account_id, client_id, tier, tokens_balance, tokens_granted_at, stripe_customer_id, stripe_subscription_id, status, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)
+               ON CONFLICT(account_id) DO UPDATE SET
+                 tier = ?, tokens_balance = ?, tokens_granted_at = ?, stripe_customer_id = ?, stripe_subscription_id = ?, updated_at = ?`,
+              [operator_id, account_id, client_id, tier, tierConfig.tokens, timestamp, customer_id, subscription_id, timestamp, timestamp,
+               tier, tierConfig.tokens, timestamp, customer_id, subscription_id, timestamp]
+            );
+          }
+        } else if (event.type === 'invoice.payment_succeeded') {
+          const invoice = event.data.object;
+          const subscription_id = invoice.subscription;
+
+          if (subscription_id) {
+            const operator = await env.DB.prepare(
+              "SELECT * FROM gvlp_operators WHERE stripe_subscription_id = ?"
+            ).bind(subscription_id).first();
+
+            if (operator && GVLP_TIERS[operator.tier]) {
+              const tierConfig = GVLP_TIERS[operator.tier];
+              const tokenDifference = tierConfig.tokens - operator.tokens_balance;
+
+              if (tokenDifference > 0) {
+                await d1Run(env.DB,
+                  "UPDATE gvlp_operators SET tokens_balance = tokens_balance + ?, tokens_granted_at = ?, updated_at = ? WHERE operator_id = ?",
+                  [tokenDifference, timestamp, timestamp, operator.operator_id]
+                );
+              }
+            }
+          }
+        } else if (event.type === 'customer.subscription.updated') {
+          const subscription = event.data.object;
+          const subscription_id = subscription.id;
+          // Handle tier changes if needed in future
+        } else if (event.type === 'customer.subscription.deleted') {
+          const subscription = event.data.object;
+          const subscription_id = subscription.id;
+
+          await d1Run(env.DB,
+            "UPDATE gvlp_operators SET status = 'cancelled', tier = 'starter', updated_at = ? WHERE stripe_subscription_id = ?",
+            [timestamp, subscription_id]
+          );
+        }
+
+        return json({ ok: true });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Webhook processing failed' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/gvlp/operator/:account_id
+  {
+    method: 'GET', pattern: '/v1/gvlp/operator/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { account_id } = params;
+
+      // Verify account ownership
+      if (session.account_id !== account_id) {
+        const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+        if (!account || account.role !== 'admin') {
+          return json({ ok: false, error: 'FORBIDDEN', message: 'Account access required' }, 403);
+        }
+      }
+
+      try {
+        const operator = await env.DB.prepare(
+          "SELECT * FROM gvlp_operators WHERE account_id = ?"
+        ).bind(account_id).first();
+
+        if (!operator) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+        }
+
+        // Get last 30 days play count
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const playsResult = await env.DB.prepare(
+          "SELECT COUNT(*) as play_count FROM gvlp_game_plays WHERE client_id = ? AND created_at >= ?"
+        ).bind(operator.client_id, thirtyDaysAgo).first();
+
+        const unlocked_games = GVLP_GAME_UNLOCK[operator.tier] || [];
+
+        return json({
+          ok: true,
+          operator: {
+            ...operator,
+            unlocked_games,
+            play_count_30d: playsResult?.play_count || 0
+          }
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch operator' }, 500);
+      }
+    },
+  },
+
+  // PATCH /v1/gvlp/operator/:account_id
+  {
+    method: 'PATCH', pattern: '/v1/gvlp/operator/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { account_id } = params;
+
+      // Verify account ownership
+      if (session.account_id !== account_id) {
+        const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+        if (!account || account.role !== 'admin') {
+          return json({ ok: false, error: 'FORBIDDEN', message: 'Account access required' }, 403);
+        }
+      }
+
+      try {
+        const body = await parseBody(request);
+        const { client_id } = body;
+
+        if (!client_id) {
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'Only client_id updates allowed' }, 400);
+        }
+
+        const operator = await env.DB.prepare(
+          "SELECT * FROM gvlp_operators WHERE account_id = ?"
+        ).bind(account_id).first();
+
+        if (!operator) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+        }
+
+        const timestamp = new Date().toISOString();
+
+        // Write receipt to R2
+        const receiptKey = `gvlp/receipts/operator-update/${operator.operator_id}/${Date.now()}.json`;
+        const receipt = {
+          operator_id: operator.operator_id,
+          old_client_id: operator.client_id,
+          new_client_id: client_id,
+          updated_by: session.account_id,
+          timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, JSON.stringify(receipt));
+
+        // Update canonical R2
+        const canonicalKey = `gvlp/operators/${operator.operator_id}.json`;
+        const existing = await r2Get(env.R2_VIRTUAL_LAUNCH, canonicalKey);
+        const canonical = existing ? JSON.parse(existing) : {};
+        canonical.client_id = client_id;
+        canonical.updated_at = timestamp;
+        await r2Put(env.R2_VIRTUAL_LAUNCH, canonicalKey, JSON.stringify(canonical));
+
+        // Update D1
+        await d1Run(env.DB,
+          "UPDATE gvlp_operators SET client_id = ?, updated_at = ? WHERE operator_id = ?",
+          [client_id, timestamp, operator.operator_id]
+        );
+
+        return json({
+          ok: true,
+          client_id
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update operator' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/gvlp/operator/:account_id/plays
+  {
+    method: 'GET', pattern: '/v1/gvlp/operator/:account_id/plays',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { account_id } = params;
+
+      // Verify account ownership
+      if (session.account_id !== account_id) {
+        const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
+        if (!account || account.role !== 'admin') {
+          return json({ ok: false, error: 'FORBIDDEN', message: 'Account access required' }, 403);
+        }
+      }
+
+      try {
+        const operator = await env.DB.prepare(
+          "SELECT client_id FROM gvlp_operators WHERE account_id = ?"
+        ).bind(account_id).first();
+
+        if (!operator) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+        }
+
+        const url = new URL(request.url);
+        const game_slug = url.searchParams.get('game_slug');
+        const days = parseInt(url.searchParams.get('days') || '30');
+
+        const cutoffDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+        let query = "SELECT * FROM gvlp_game_plays WHERE client_id = ? AND created_at >= ?";
+        let queryParams = [operator.client_id, cutoffDate];
+
+        if (game_slug) {
+          query += " AND game_slug = ?";
+          queryParams.push(game_slug);
+        }
+
+        query += " ORDER BY created_at DESC";
+
+        const result = await env.DB.prepare(query).bind(...queryParams).all();
+
+        const totalCount = await env.DB.prepare(
+          "SELECT COUNT(*) as count FROM gvlp_game_plays WHERE client_id = ? AND created_at >= ?"
+        ).bind(operator.client_id, cutoffDate).first();
+
+        return json({
+          ok: true,
+          plays: result.results || [],
+          total_count: totalCount?.count || 0
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch plays' }, 500);
       }
     },
   },

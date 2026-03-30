@@ -1,0 +1,71 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "signature"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "DB", "STRIPE_WEBHOOK_SECRET"],
+    "governs": "Process Stripe webhook events for GVLP subscriptions and token grants",
+    "path": "/contracts/gvlp/gvlp.stripe.webhook.v1.json",
+    "source": "Games VLP",
+    "title": "Games VLP — Stripe — Webhook",
+    "usedOnPages": [],
+    "validation": {
+      "verifyStripeSignature": true,
+      "processWebhookEvents": ["checkout.session.completed", "invoice.payment_succeeded", "customer.subscription.updated", "customer.subscription.deleted"]
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/gvlp/stripe/webhook",
+    "method": "POST",
+    "receiptKeyPattern": "gvlp/receipts/stripe/{event_id}.json",
+    "receiptSource": "stripe",
+    "signature": {
+      "header": "stripe-signature",
+      "required": true,
+      "secretEnvVar": "STRIPE_WEBHOOK_SECRET"
+    }
+  },
+  "effects": {
+    "dedupeKey": "webhook.event.id",
+    "eventIdFrom": "webhook.event.id",
+    "writeOrder": ["receipt", "canonical", "projection"],
+    "writes": ["gvlp_operators"]
+  },
+  "payload": {
+    "additionalProperties": true,
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "type": {
+        "type": "string",
+        "enum": ["checkout.session.completed", "invoice.payment_succeeded", "customer.subscription.updated", "customer.subscription.deleted"]
+      },
+      "data": {
+        "type": "object"
+      }
+    },
+    "required": ["id", "type", "data"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true
+    },
+    "error": {
+      "ok": false,
+      "error": "INVALID_SIGNATURE"
+    },
+    "success": {
+      "ok": true
+    }
+  },
+  "schema": {
+    "name": "gvlp_stripe_webhook",
+    "version": 1
+  }
+}

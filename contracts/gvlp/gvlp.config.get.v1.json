@@ -1,0 +1,70 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "DB"],
+    "governs": "Retrieve GVLP operator configuration including tier, unlocked games, and token balance",
+    "path": "/contracts/gvlp/gvlp.config.get.v1.json",
+    "source": "Games VLP",
+    "title": "Games VLP — Config — Get",
+    "usedOnPages": ["/games", "/games/embed"],
+    "validation": {
+      "requireClientId": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/gvlp/config",
+    "method": "GET",
+    "receiptKeyPattern": "gvlp/receipts/config-get/{client_id}/{timestamp}.json",
+    "receiptSource": "gvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "query.client_id",
+    "eventIdFrom": "query.client_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "client_id": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "required": ["client_id"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "tier": "{operator.tier}",
+      "unlocked_games": "{calculated.unlocked_games}",
+      "tokens_balance": "{operator.tokens_balance}"
+    },
+    "error": {
+      "ok": false,
+      "error": "NOT_FOUND",
+      "message": "Operator not found"
+    },
+    "success": {
+      "ok": true,
+      "tier": "{operator.tier}",
+      "unlocked_games": "{calculated.unlocked_games}",
+      "tokens_balance": "{operator.tokens_balance}"
+    }
+  },
+  "schema": {
+    "name": "gvlp_config_get",
+    "version": 1
+  }
+}

@@ -58,11 +58,11 @@
 | Account / Membership Mgmt | ✓              | ✓                  | ✓                   | ✓                       |
 | Calendar / Scheduling     | ✓              | ✓                  | ✓                   | ✓                       |
 | Directory Profile         | ✓              | ✓                  | ✓                   | ✓                       |
-| Games Included            | 1 game         | 3 games            | 5 games             | All games               |
+| Games Included            | 1 game         | 3 games            | 6 games             | All games               |
 | Profile Management        | ✓              | ✓                  | ✓                   | ✓                       |
 | Support Level             | Basic support  | Email support      | Priority support    | Dedicated support       |
 | Support Tickets           | ✓              | ✓                  | ✓                   | ✓                       |
-| Tokens / Month            | 50 tokens      | 500 tokens         | 1,500 tokens        | 750 tokens              |
+| Tokens / Month            | 100 tokens      | 500 tokens         | 1,500 tokens        | 5,000 tokens              |
 
 ---
 

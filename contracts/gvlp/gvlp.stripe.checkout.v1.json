@@ -1,0 +1,71 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["STRIPE_SECRET_KEY"],
+    "governs": "Create Stripe checkout session for GVLP tier subscription",
+    "path": "/contracts/gvlp/gvlp.stripe.checkout.v1.json",
+    "source": "Games VLP",
+    "title": "Games VLP — Stripe — Checkout",
+    "usedOnPages": ["/pricing", "/upgrade"],
+    "validation": {
+      "validateTier": true,
+      "requireAccountId": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/gvlp/stripe/checkout",
+    "method": "POST",
+    "receiptKeyPattern": "gvlp/receipts/checkout/{account_id}/{timestamp}.json",
+    "receiptSource": "gvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.account_id",
+    "eventIdFrom": "payload.account_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "tier": {
+        "type": "string",
+        "enum": ["starter", "apprentice", "strategist", "navigator"]
+      }
+    },
+    "required": ["account_id", "tier"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "session_url": "{stripe.checkout_session.url}"
+    },
+    "error": {
+      "ok": false,
+      "error": "STRIPE_ERROR",
+      "message": "Failed to create checkout session"
+    },
+    "success": {
+      "ok": true,
+      "session_url": "{stripe.checkout_session.url}"
+    }
+  },
+  "schema": {
+    "name": "gvlp_stripe_checkout",
+    "version": 1
+  }
+}

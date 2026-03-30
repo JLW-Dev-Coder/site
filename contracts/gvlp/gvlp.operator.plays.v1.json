@@ -1,0 +1,80 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["DB"],
+    "governs": "Retrieve play history for GVLP operator with optional filtering by game and time period",
+    "path": "/contracts/gvlp/gvlp.operator.plays.v1.json",
+    "source": "Games VLP",
+    "title": "Games VLP — Operator — Plays",
+    "usedOnPages": ["/operator/dashboard", "/operator/analytics"],
+    "validation": {
+      "requireOwnership": true,
+      "allowAdminAccess": true,
+      "supportFiltering": ["game_slug", "days"]
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/gvlp/operator/:account_id/plays",
+    "method": "GET",
+    "receiptKeyPattern": "gvlp/receipts/plays-query/{account_id}/{timestamp}.json",
+    "receiptSource": "gvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.account_id",
+    "eventIdFrom": "params.account_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "game_slug": {
+        "type": "string",
+        "minLength": 1
+      },
+      "days": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 365,
+        "default": 30
+      }
+    },
+    "required": ["account_id"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "plays": "{filtered.play_history}",
+      "total_count": "{filtered.total_count}"
+    },
+    "error": {
+      "ok": false,
+      "error": "NOT_FOUND",
+      "message": "Operator not found"
+    },
+    "success": {
+      "ok": true,
+      "plays": "{filtered.play_history}",
+      "total_count": "{filtered.total_count}"
+    }
+  },
+  "schema": {
+    "name": "gvlp_operator_plays",
+    "version": 1
+  }
+}

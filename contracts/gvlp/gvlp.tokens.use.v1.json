@@ -1,0 +1,81 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "DB"],
+    "governs": "Consume tokens from operator balance for game play, validating game access and sufficient balance",
+    "path": "/contracts/gvlp/gvlp.tokens.use.v1.json",
+    "source": "Games VLP",
+    "title": "Games VLP — Tokens — Use",
+    "usedOnPages": ["/games", "/games/embed"],
+    "validation": {
+      "validateGameAccess": true,
+      "validateTokenBalance": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/gvlp/tokens/use",
+    "method": "POST",
+    "receiptKeyPattern": "gvlp/receipts/token-use/{client_id}/{play_id}.json",
+    "receiptSource": "gvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.play_id",
+    "eventIdFrom": "payload.play_id",
+    "writeOrder": ["receipt", "canonical", "projection"],
+    "writes": ["gvlp_operators", "gvlp_visitor_sessions", "gvlp_game_plays"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "client_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "visitor_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "game_slug": {
+        "type": "string",
+        "minLength": 1
+      },
+      "tokens_cost": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1
+      }
+    },
+    "required": ["client_id", "visitor_id", "game_slug"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "tokens_remaining": "{calculated.tokens_remaining}",
+      "play_id": "{generated.play_id}"
+    },
+    "error": {
+      "ok": false,
+      "error": "INSUFFICIENT_TOKENS"
+    },
+    "success": {
+      "ok": true,
+      "tokens_remaining": "{calculated.tokens_remaining}",
+      "play_id": "{generated.play_id}"
+    }
+  },
+  "schema": {
+    "name": "gvlp_tokens_use",
+    "version": 1
+  }
+}
