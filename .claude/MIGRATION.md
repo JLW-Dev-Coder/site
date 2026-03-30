@@ -30,19 +30,24 @@ Notes:
 - D1 migration 0017_ttmp_reports.sql applied to production
 
 ### TTTMP (taxtools.taxmonitor.pro)
-Status: 🔄 T2 Complete — Next.js scaffold pending (T3)
-Legacy Worker: workers/api/src/index.js in tttmp repo
-Backend: ✅ 13 routes built in VLP Worker (2026-03-29)
-Frontend: ❌ Still pointing at legacy Worker
-Next action: Next.js scaffold in taxtools.taxmonitor.pro
+Status: ✅ MIGRATION COMPLETE (2026-03-29)
+Legacy Worker: taxtools-taxmonitor-pro-api
+Backend: ✅ 13 routes live in VLP Worker
+Frontend: ✅ Next.js 15 — all pages converted to TSX
+Repo: ✅ workers/ directory deleted
+Cloudflare Worker: ✅ Deleted from dashboard
+Cloudflare D1: ✅ Deleted (tax-tools-tax-monitor — test data)
+Next.js accent: #f59e0b Amber Gold
 
 Key decisions made:
 - PayPal removed — Stripe replaces for all payments
 - ClickUp removed — VLP support system used instead
-- D1 database (test data only) — will be deleted in T6
-- tttmp_session cookie isolated from vlp_session
+- Games stay as static HTML in public/games/ (untouched)
+- about-games converted to Next.js dynamic route
+- lib/games.ts is shared data source for games pages
+- tokenCost fixed from 8 → 1 per game play
 
-Stripe products created:
+Stripe products:
 - prod_UExej9awY6pNCe (Tax Tools Arcade Token Pack)
 - price_1TGTiqQEa4WBi79guSRnECvw ($9 / 30 tokens)
 - price_1TGTiqQEa4WBi79gScrpsUab ($19 / 80 tokens)

@@ -27,7 +27,7 @@ Track legacy Worker status here. Update this section as work completes.
 | Platform | Legacy Worker Exists | Routes Ported to VLP | Frontend Updated | Worker Deleted |
 |---|---|---|---|---|
 | TTMP | ✅ Yes | ✅ Complete (24/24) | ✅ Complete | ✅ Deleted |
-| TTTMP | ✅ Yes | ✅ Complete (13/13) | 🔄 In Progress | ❌ No |
+| TTTMP | ✅ Yes | ✅ Complete (13/13) | ✅ Complete | ✅ Deleted |
 | TMP | Unknown | Unknown | Unknown | Unknown |
 | DVLP | Unknown | Unknown | Unknown | Unknown |
 | GVLP | Unknown | Unknown | Unknown | Unknown |

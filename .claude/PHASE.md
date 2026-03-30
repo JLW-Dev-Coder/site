@@ -36,6 +36,14 @@ Step 2 — Analyze (1 TOKEN):
 - ✅ 2.6: Legacy Worker deleted from repo and Cloudflare
 - ✅ 2.7: TTMP migration fully complete (2026-03-29)
 
+### Migration Progress Notes
+TTTMP (taxtools.taxmonitor.pro) — ✅ Complete 2026-03-29
+- 13 backend routes in VLP
+- Next.js frontend with Amber Gold (#f59e0b) theme
+- Static games preserved in public/
+- PayPal and ClickUp removed
+- D1 and legacy Worker deleted
+
 ## Phase 3: Affiliate Program (NEXT)
 
 ### Objective
