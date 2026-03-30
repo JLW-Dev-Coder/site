@@ -1,0 +1,63 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["D1"],
+    "governs": "List all bids for a template with masked account IDs",
+    "path": "/contracts/wlvlp/wlvlp.templates.bids.list.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Template Bids List",
+    "usedOnPages": ["/templates/[slug]"],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/templates/:slug/bids",
+    "method": "GET",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": null,
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "bids": []
+    },
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR"
+    },
+    "success": {
+      "ok": true,
+      "bids": []
+    }
+  },
+  "schema": {
+    "name": "wlvlp_templates_bids_list",
+    "version": 1
+  }
+}

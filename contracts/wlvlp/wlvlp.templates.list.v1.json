@@ -1,0 +1,78 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["D1"],
+    "governs": "List all website templates with optional filtering",
+    "path": "/contracts/wlvlp/wlvlp.templates.list.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Templates List",
+    "usedOnPages": ["/templates", "/browse"],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/templates",
+    "method": "GET",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": null,
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": true,
+    "properties": {
+      "category": {
+        "type": "string",
+        "description": "Filter by template category"
+      },
+      "status": {
+        "type": "string",
+        "enum": ["available", "sold", "auction"],
+        "description": "Filter by template status"
+      },
+      "sort": {
+        "type": "string",
+        "enum": ["votes", "newest"],
+        "description": "Sort order for results"
+      }
+    },
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "templates": []
+    },
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR"
+    },
+    "success": {
+      "ok": true,
+      "templates": []
+    }
+  },
+  "schema": {
+    "name": "wlvlp_templates_list",
+    "version": 1
+  }
+}

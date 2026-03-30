@@ -1,0 +1,74 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1"],
+    "governs": "Place bid on website template auction",
+    "path": "/contracts/wlvlp/wlvlp.templates.bid.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Template Bid",
+    "usedOnPages": ["/templates/[slug]"],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/templates/:slug/bid",
+    "method": "POST",
+    "receiptKeyPattern": "wlvlp/receipts/bids/{slug}/{bid_id}.json",
+    "receiptSource": "wlvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "bid_id",
+    "eventIdFrom": "bid_id",
+    "writeOrder": ["receipt", "canonical", "projection"],
+    "writes": ["wlvlp_bids", "wlvlp_templates"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "amount": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "Bid amount in USD"
+      }
+    },
+    "required": ["amount"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "bid_id": "BID_...",
+      "auction_ends_at": "2026-03-30T00:00:00.000Z",
+      "current_high_bid": 0
+    },
+    "error": {
+      "ok": false,
+      "error": "BID_TOO_LOW",
+      "current_high_bid": 0
+    },
+    "success": {
+      "ok": true,
+      "bid_id": "BID_...",
+      "auction_ends_at": "2026-03-30T00:00:00.000Z",
+      "current_high_bid": 0
+    }
+  },
+  "schema": {
+    "name": "wlvlp_templates_bid",
+    "version": 1
+  }
+}

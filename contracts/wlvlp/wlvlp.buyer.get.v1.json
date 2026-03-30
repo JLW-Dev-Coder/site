@@ -1,0 +1,69 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["D1"],
+    "governs": "Get buyer dashboard data including purchase and config",
+    "path": "/contracts/wlvlp/wlvlp.buyer.get.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Buyer Dashboard",
+    "usedOnPages": ["/dashboard"],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/buyer/:account_id",
+    "method": "GET",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": null,
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "purchase": {},
+      "template": {},
+      "config": {},
+      "scratch_tickets": []
+    },
+    "error": {
+      "ok": false,
+      "error": "NO_ACTIVE_PURCHASE"
+    },
+    "success": {
+      "ok": true,
+      "purchase": {},
+      "template": {},
+      "config": {},
+      "scratch_tickets": []
+    }
+  },
+  "schema": {
+    "name": "wlvlp_buyer_get",
+    "version": 1
+  }
+}

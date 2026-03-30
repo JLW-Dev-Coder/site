@@ -1,0 +1,67 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["D1"],
+    "governs": "Get details for a specific template including bid history",
+    "path": "/contracts/wlvlp/wlvlp.templates.get.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Template Details",
+    "usedOnPages": ["/templates/[slug]"],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/templates/:slug",
+    "method": "GET",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": null,
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "template": {},
+      "highest_bid": null,
+      "bid_history": []
+    },
+    "error": {
+      "ok": false,
+      "error": "TEMPLATE_NOT_FOUND"
+    },
+    "success": {
+      "ok": true,
+      "template": {},
+      "highest_bid": null,
+      "bid_history": []
+    }
+  },
+  "schema": {
+    "name": "wlvlp_templates_get",
+    "version": 1
+  }
+}

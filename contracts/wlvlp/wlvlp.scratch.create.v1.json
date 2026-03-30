@@ -1,0 +1,63 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1"],
+    "governs": "Generate new scratch ticket for lead generation",
+    "path": "/contracts/wlvlp/wlvlp.scratch.create.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Scratch Ticket Create",
+    "usedOnPages": ["/scratch", "/"],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/scratch",
+    "method": "POST",
+    "receiptKeyPattern": "wlvlp/scratch/{account_id}/{ticket_id}.json",
+    "receiptSource": "wlvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "account_id",
+    "eventIdFrom": "ticket_id",
+    "writeOrder": ["canonical", "projection"],
+    "writes": ["wlvlp_scratch_tickets"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": false,
+      "error": "ALREADY_HAS_UNSCRATCHED_TICKET"
+    },
+    "error": {
+      "ok": false,
+      "error": "ALREADY_HAS_UNSCRATCHED_TICKET"
+    },
+    "success": {
+      "ok": true,
+      "ticket_id": "TKT_..."
+    }
+  },
+  "schema": {
+    "name": "wlvlp_scratch_create",
+    "version": 1
+  }
+}

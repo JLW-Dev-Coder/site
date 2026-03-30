@@ -1,0 +1,61 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1"],
+    "governs": "Update website template configuration for owned template",
+    "path": "/contracts/wlvlp/wlvlp.config.update.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Config Update",
+    "usedOnPages": ["/dashboard/[slug]/edit"],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/config/:slug",
+    "method": "PATCH",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "slug + account_id",
+    "eventIdFrom": "slug",
+    "writeOrder": ["canonical", "projection"],
+    "writes": ["wlvlp_site_configs"]
+  },
+  "payload": {
+    "additionalProperties": true,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true
+    },
+    "error": {
+      "ok": false,
+      "error": "UNAUTHORIZED"
+    },
+    "success": {
+      "ok": true
+    }
+  },
+  "schema": {
+    "name": "wlvlp_config_update",
+    "version": 1
+  }
+}

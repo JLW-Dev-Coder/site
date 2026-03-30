@@ -1,0 +1,64 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1"],
+    "governs": "Reveal scratch ticket prize using weighted random",
+    "path": "/contracts/wlvlp/wlvlp.scratch.reveal.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Scratch Ticket Reveal",
+    "usedOnPages": ["/scratch/[ticket_id]"],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/scratch/:ticket_id/reveal",
+    "method": "POST",
+    "receiptKeyPattern": "wlvlp/receipts/scratch/{account_id}/{ticket_id}.json",
+    "receiptSource": "wlvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "ticket_id",
+    "eventIdFrom": "ticket_id",
+    "writeOrder": ["receipt", "canonical", "projection"],
+    "writes": ["wlvlp_scratch_tickets"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": false,
+      "error": "TICKET_ALREADY_SCRATCHED"
+    },
+    "error": {
+      "ok": false,
+      "error": "TICKET_NOT_FOUND"
+    },
+    "success": {
+      "ok": true,
+      "prize_type": "free_month",
+      "prize_value": "Free 1-month claim"
+    }
+  },
+  "schema": {
+    "name": "wlvlp_scratch_reveal",
+    "version": 1
+  }
+}

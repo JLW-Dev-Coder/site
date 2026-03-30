@@ -1,0 +1,63 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1"],
+    "governs": "Vote for a website template to increase its popularity",
+    "path": "/contracts/wlvlp/wlvlp.templates.vote.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Template Vote",
+    "usedOnPages": ["/templates/[slug]"],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/templates/:slug/vote",
+    "method": "POST",
+    "receiptKeyPattern": "wlvlp/receipts/votes/{slug}/{account_id}/{timestamp}.json",
+    "receiptSource": "wlvlp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "session.account_id + params.slug",
+    "eventIdFrom": "vote_id",
+    "writeOrder": ["receipt", "canonical", "projection"],
+    "writes": ["wlvlp_templates"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "vote_count": 0
+    },
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR"
+    },
+    "success": {
+      "ok": true,
+      "vote_count": 0
+    }
+  },
+  "schema": {
+    "name": "wlvlp_templates_vote",
+    "version": 1
+  }
+}

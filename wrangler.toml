@@ -44,7 +44,10 @@ migrations_dir = "workers/migrations"
 # ---------------------------------------
 
 [triggers]
-crons = ["0 9 * * 1"]  # Every Monday 9am UTC - DVLP job matching
+crons = [
+  "0 9 * * 1",   # Every Monday 9am UTC - DVLP job matching
+  "0 10 * * *"   # Every day 10am UTC - WLVLP auction settlement
+]
 
 # ---------------------------------------
 # Vars (non-secret)

@@ -1,0 +1,73 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1"],
+    "governs": "Upload logo file for owned website template",
+    "path": "/contracts/wlvlp/wlvlp.logo.upload.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Logo Upload",
+    "usedOnPages": ["/dashboard/[slug]/edit"],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/upload-logo",
+    "method": "POST",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "slug + account_id",
+    "eventIdFrom": "slug",
+    "writeOrder": ["canonical", "projection"],
+    "writes": ["wlvlp_site_configs"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "file": {
+        "type": "string",
+        "description": "Logo file (multipart form)"
+      },
+      "slug": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Template slug"
+      }
+    },
+    "required": ["file", "slug"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "logo_url": "https://r2.virtuallaunch.pro/..."
+    },
+    "error": {
+      "ok": false,
+      "error": "UNAUTHORIZED"
+    },
+    "success": {
+      "ok": true,
+      "logo_url": "https://r2.virtuallaunch.pro/..."
+    }
+  },
+  "schema": {
+    "name": "wlvlp_logo_upload",
+    "version": 1
+  }
+}

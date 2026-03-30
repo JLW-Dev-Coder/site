@@ -1052,6 +1052,27 @@ const IRS_843_MAILING_ADDRESSES = {
   'VI': 'Internal Revenue Service, Austin, TX 73301-0030',
 };
 
+// WLVLP Business Rules (hardcoded)
+const WLVLP_SCRATCH_PRIZES = [
+  { prize_type: 'free_month',    prize_value: 'Free 1-month claim',      weight: 2  },
+  { prize_type: 'discount_50',   prize_value: '50% off first month',     weight: 7  },
+  { prize_type: 'discount_25',   prize_value: '25% off first month',     weight: 13 },
+  { prize_type: 'credit_9',      prize_value: '$9 credit toward claim',  weight: 25 },
+  { prize_type: 'free_ticket',   prize_value: 'Free scratch ticket',     weight: 17 },
+  { prize_type: 'no_prize',      prize_value: null,                      weight: 36 },
+];
+
+// Weighted random: sum weights = 100
+function drawScratchPrize() {
+  const roll = Math.random() * 100;
+  let cumulative = 0;
+  for (const prize of WLVLP_SCRATCH_PRIZES) {
+    cumulative += prize.weight;
+    if (roll < cumulative) return prize;
+  }
+  return WLVLP_SCRATCH_PRIZES[WLVLP_SCRATCH_PRIZES.length - 1];
+}
+
 const ROUTES = [
 
   // -------------------------------------------------------------------------
@@ -8545,6 +8566,726 @@ TTMP Support Team
     },
   },
 
+  // -------------------------------------------------------------------------
+  // WLVLP (Website Lotto VLP)
+  // -------------------------------------------------------------------------
+
+  // GET /v1/wlvlp/templates
+  {
+    method: 'GET', pattern: '/v1/wlvlp/templates',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const url = new URL(request.url);
+      const category = url.searchParams.get('category');
+      const status = url.searchParams.get('status');
+      const sort = url.searchParams.get('sort');
+
+      let query = "SELECT * FROM wlvlp_templates";
+      const conditions = [];
+      const bindings = [];
+
+      if (category) {
+        conditions.push("category = ?");
+        bindings.push(category);
+      }
+      if (status) {
+        conditions.push("status = ?");
+        bindings.push(status);
+      }
+
+      if (conditions.length > 0) {
+        query += " WHERE " + conditions.join(" AND ");
+      }
+
+      if (sort === 'votes') {
+        query += " ORDER BY vote_count DESC";
+      } else if (sort === 'newest') {
+        query += " ORDER BY created_at DESC";
+      } else {
+        query += " ORDER BY title ASC";
+      }
+
+      try {
+        const templatesResult = await env.DB.prepare(query).bind(...bindings).all();
+        const templates = templatesResult.results || [];
+
+        // Get active bid counts for each template
+        for (const template of templates) {
+          const bidCountResult = await env.DB.prepare(
+            "SELECT COUNT(*) as bid_count FROM wlvlp_bids WHERE slug = ? AND status = 'active'"
+          ).bind(template.slug).first();
+          template.active_bid_count = bidCountResult?.bid_count || 0;
+        }
+
+        return json({
+          ok: true,
+          templates
+        });
+      } catch (e) {
+        console.error('WLVLP templates list error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/templates/:slug
+  {
+    method: 'GET', pattern: '/v1/wlvlp/templates/:slug',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { slug } = params;
+
+      try {
+        // Get template details
+        const template = await env.DB.prepare(
+          "SELECT * FROM wlvlp_templates WHERE slug = ?"
+        ).bind(slug).first();
+
+        if (!template) {
+          return json({ ok: false, error: 'TEMPLATE_NOT_FOUND' }, 404);
+        }
+
+        // Get highest bid
+        const highestBid = await env.DB.prepare(
+          "SELECT MAX(amount) as highest_bid FROM wlvlp_bids WHERE slug = ? AND status = 'active'"
+        ).bind(slug).first();
+
+        // Get recent bid history (last 10)
+        const bidHistoryResult = await env.DB.prepare(
+          "SELECT amount, created_at FROM wlvlp_bids WHERE slug = ? AND status = 'active' ORDER BY amount DESC LIMIT 10"
+        ).bind(slug).all();
+
+        return json({
+          ok: true,
+          template,
+          highest_bid: highestBid?.highest_bid || null,
+          bid_history: bidHistoryResult.results || []
+        });
+      } catch (e) {
+        console.error('WLVLP template get error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/wlvlp/templates/:slug/vote
+  {
+    method: 'POST', pattern: '/v1/wlvlp/templates/:slug/vote',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { slug } = params;
+      const timestamp = new Date().toISOString();
+      const vote_id = `VOTE_${crypto.randomUUID()}`;
+
+      try {
+        // Write receipt to R2
+        const receiptKey = `wlvlp/receipts/votes/${slug}/${session.account_id}/${timestamp}.json`;
+        const receipt = {
+          vote_id,
+          slug,
+          account_id: session.account_id,
+          timestamp,
+          type: 'template_vote'
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, receipt);
+
+        // Update template vote count
+        await env.DB.prepare(
+          "UPDATE wlvlp_templates SET vote_count = vote_count + 1, updated_at = ? WHERE slug = ?"
+        ).bind(timestamp, slug).run();
+
+        // Get updated vote count
+        const template = await env.DB.prepare(
+          "SELECT vote_count FROM wlvlp_templates WHERE slug = ?"
+        ).bind(slug).first();
+
+        return json({
+          ok: true,
+          vote_count: template?.vote_count || 0
+        });
+      } catch (e) {
+        console.error('WLVLP vote error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/wlvlp/templates/:slug/bid
+  {
+    method: 'POST', pattern: '/v1/wlvlp/templates/:slug/bid',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { slug } = params;
+      const body = await parseBody(request);
+      if (!body || !body.amount) {
+        return json({ ok: false, error: 'MISSING_AMOUNT' }, 400);
+      }
+
+      const { amount } = body;
+      if (!Number.isInteger(amount) || amount < 1) {
+        return json({ ok: false, error: 'INVALID_AMOUNT' }, 400);
+      }
+
+      const timestamp = new Date().toISOString();
+      const bid_id = `BID_${crypto.randomUUID()}`;
+
+      try {
+        // Get template details
+        const template = await env.DB.prepare(
+          "SELECT * FROM wlvlp_templates WHERE slug = ?"
+        ).bind(slug).first();
+
+        if (!template) {
+          return json({ ok: false, error: 'TEMPLATE_NOT_FOUND' }, 404);
+        }
+
+        if (!['available', 'auction'].includes(template.status)) {
+          return json({ ok: false, error: 'TEMPLATE_NOT_AVAILABLE' }, 400);
+        }
+
+        if (amount < template.bid_start_price) {
+          return json({ ok: false, error: 'BID_TOO_LOW', min_bid: template.bid_start_price }, 400);
+        }
+
+        // Check if auction has ended
+        if (template.auction_ends_at && new Date(template.auction_ends_at) < new Date()) {
+          return json({ ok: false, error: 'AUCTION_ENDED' }, 400);
+        }
+
+        // Get current highest bid
+        const highestBidResult = await env.DB.prepare(
+          "SELECT MAX(amount) as highest_bid FROM wlvlp_bids WHERE slug = ? AND status = 'active'"
+        ).bind(slug).first();
+        const currentHighBid = highestBidResult?.highest_bid || 0;
+
+        if (amount <= currentHighBid) {
+          return json({ ok: false, error: 'BID_TOO_LOW', current_high_bid: currentHighBid }, 400);
+        }
+
+        // Set auction end time if this is the first bid
+        let auctionEndsAt = template.auction_ends_at;
+        if (template.status === 'available') {
+          auctionEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+          await env.DB.prepare(
+            "UPDATE wlvlp_templates SET status = 'auction', auction_ends_at = ?, updated_at = ? WHERE slug = ?"
+          ).bind(auctionEndsAt, timestamp, slug).run();
+        }
+
+        // Write receipt to R2
+        const receiptKey = `wlvlp/receipts/bids/${slug}/${bid_id}.json`;
+        const receipt = {
+          bid_id,
+          slug,
+          account_id: session.account_id,
+          amount,
+          timestamp,
+          type: 'template_bid'
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, receipt);
+
+        // Insert bid record
+        await env.DB.prepare(
+          "INSERT INTO wlvlp_bids (bid_id, slug, account_id, amount, status, created_at) VALUES (?, ?, ?, ?, 'active', ?)"
+        ).bind(bid_id, slug, session.account_id, amount, timestamp).run();
+
+        return json({
+          ok: true,
+          bid_id,
+          auction_ends_at: auctionEndsAt,
+          current_high_bid: amount
+        });
+      } catch (e) {
+        console.error('WLVLP bid error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/templates/:slug/bids
+  {
+    method: 'GET', pattern: '/v1/wlvlp/templates/:slug/bids',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { slug } = params;
+
+      try {
+        const bidsResult = await env.DB.prepare(
+          "SELECT bid_id, account_id, amount, created_at FROM wlvlp_bids WHERE slug = ? ORDER BY amount DESC"
+        ).bind(slug).all();
+
+        const bids = (bidsResult.results || []).map(bid => ({
+          ...bid,
+          // Mask account_id for privacy
+          account_id: bid.account_id.substring(0, 4) + '****'
+        }));
+
+        return json({
+          ok: true,
+          bids
+        });
+      } catch (e) {
+        console.error('WLVLP bids list error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/wlvlp/checkout
+  {
+    method: 'POST', pattern: '/v1/wlvlp/checkout',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const body = await parseBody(request);
+      if (!body || !body.slug || !body.acquisition_type) {
+        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['slug', 'acquisition_type'] }, 400);
+      }
+
+      const { slug, acquisition_type } = body;
+
+      if (!['buy_now', 'auction_win'].includes(acquisition_type)) {
+        return json({ ok: false, error: 'INVALID_ACQUISITION_TYPE' }, 400);
+      }
+
+      try {
+        // Get template details
+        const template = await env.DB.prepare(
+          "SELECT * FROM wlvlp_templates WHERE slug = ?"
+        ).bind(slug).first();
+
+        if (!template) {
+          return json({ ok: false, error: 'TEMPLATE_NOT_FOUND' }, 404);
+        }
+
+        let monthlyPrice;
+        if (acquisition_type === 'buy_now') {
+          if (template.status !== 'available') {
+            return json({ ok: false, error: 'TEMPLATE_NOT_AVAILABLE' }, 400);
+          }
+          monthlyPrice = template.buy_now_price;
+        } else if (acquisition_type === 'auction_win') {
+          // Verify this account won the auction
+          const highestBid = await env.DB.prepare(
+            "SELECT account_id, amount FROM wlvlp_bids WHERE slug = ? AND status = 'active' ORDER BY amount DESC LIMIT 1"
+          ).bind(slug).first();
+
+          if (!highestBid || highestBid.account_id !== session.account_id) {
+            return json({ ok: false, error: 'NOT_AUCTION_WINNER' }, 403);
+          }
+          monthlyPrice = highestBid.amount;
+        }
+
+        // Create Stripe Checkout Session
+        const stripeSession = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: new URLSearchParams({
+            mode: 'subscription',
+            'line_items[0][price_data][currency]': 'usd',
+            'line_items[0][price_data][unit_amount]': (monthlyPrice * 100).toString(),
+            'line_items[0][price_data][product_data][name]': `${template.title} - Website Template`,
+            'line_items[0][price_data][recurring][interval]': 'month',
+            'line_items[0][quantity]': '1',
+            success_url: `https://websitelotto.virtuallaunch.pro/success?session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `https://websitelotto.virtuallaunch.pro/templates/${slug}`,
+            'metadata[platform]': 'wlvlp',
+            'metadata[slug]': slug,
+            'metadata[account_id]': session.account_id,
+            'metadata[acquisition_type]': acquisition_type
+          }),
+        });
+
+        if (!stripeSession.ok) {
+          console.error('Stripe session creation failed:', await stripeSession.text());
+          return json({ ok: false, error: 'PAYMENT_SETUP_FAILED' }, 500);
+        }
+
+        const sessionData = await stripeSession.json();
+
+        return json({
+          ok: true,
+          session_url: sessionData.url
+        });
+      } catch (e) {
+        console.error('WLVLP checkout error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/wlvlp/scratch
+  {
+    method: 'POST', pattern: '/v1/wlvlp/scratch',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const timestamp = new Date().toISOString();
+      const ticket_id = `TKT_${crypto.randomUUID()}`;
+
+      try {
+        // Check if account already has an unscratched ticket
+        const existingTicket = await env.DB.prepare(
+          "SELECT ticket_id FROM wlvlp_scratch_tickets WHERE account_id = ? AND status = 'unscratched'"
+        ).bind(session.account_id).first();
+
+        if (existingTicket) {
+          return json({ ok: false, error: 'ALREADY_HAS_UNSCRATCHED_TICKET' }, 409);
+        }
+
+        // Write ticket to R2
+        const ticketKey = `wlvlp/scratch/${session.account_id}/${ticket_id}.json`;
+        const ticketData = {
+          ticket_id,
+          account_id: session.account_id,
+          status: 'unscratched',
+          created_at: timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, ticketKey, ticketData);
+
+        // Insert into D1
+        await env.DB.prepare(
+          "INSERT INTO wlvlp_scratch_tickets (ticket_id, account_id, status, created_at) VALUES (?, ?, 'unscratched', ?)"
+        ).bind(ticket_id, session.account_id, timestamp).run();
+
+        return json({
+          ok: true,
+          ticket_id
+        });
+      } catch (e) {
+        console.error('WLVLP scratch create error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/wlvlp/scratch/:ticket_id/reveal
+  {
+    method: 'POST', pattern: '/v1/wlvlp/scratch/:ticket_id/reveal',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { ticket_id } = params;
+      const timestamp = new Date().toISOString();
+
+      try {
+        // Verify ticket ownership and status
+        const ticket = await env.DB.prepare(
+          "SELECT * FROM wlvlp_scratch_tickets WHERE ticket_id = ? AND account_id = ?"
+        ).bind(ticket_id, session.account_id).first();
+
+        if (!ticket) {
+          return json({ ok: false, error: 'TICKET_NOT_FOUND' }, 404);
+        }
+
+        if (ticket.status !== 'unscratched') {
+          return json({ ok: false, error: 'TICKET_ALREADY_SCRATCHED' }, 400);
+        }
+
+        // Draw prize using weighted random
+        const prize = drawScratchPrize();
+
+        // Write receipt to R2
+        const receiptKey = `wlvlp/receipts/scratch/${session.account_id}/${ticket_id}.json`;
+        const receipt = {
+          ticket_id,
+          account_id: session.account_id,
+          prize_type: prize.prize_type,
+          prize_value: prize.prize_value,
+          timestamp,
+          type: 'scratch_reveal'
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, receipt);
+
+        // Update ticket in R2 canonical
+        const ticketKey = `wlvlp/scratch/${session.account_id}/${ticket_id}.json`;
+        const updatedTicketData = {
+          ticket_id,
+          account_id: session.account_id,
+          status: 'scratched',
+          prize_type: prize.prize_type,
+          prize_value: prize.prize_value,
+          revealed_at: timestamp,
+          created_at: ticket.created_at
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, ticketKey, updatedTicketData);
+
+        // Update D1 projection
+        await env.DB.prepare(
+          "UPDATE wlvlp_scratch_tickets SET status = 'scratched', prize_type = ?, prize_value = ?, revealed_at = ? WHERE ticket_id = ?"
+        ).bind(prize.prize_type, prize.prize_value, timestamp, ticket_id).run();
+
+        return json({
+          ok: true,
+          prize_type: prize.prize_type,
+          prize_value: prize.prize_value
+        });
+      } catch (e) {
+        console.error('WLVLP scratch reveal error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/buyer/:account_id
+  {
+    method: 'GET', pattern: '/v1/wlvlp/buyer/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { account_id } = params;
+
+      // Verify account matches session
+      if (account_id !== session.account_id) {
+        return json({ ok: false, error: 'UNAUTHORIZED' }, 403);
+      }
+
+      try {
+        // Get purchase record
+        const purchase = await env.DB.prepare(
+          "SELECT * FROM wlvlp_purchases WHERE account_id = ? AND status = 'active'"
+        ).bind(account_id).first();
+
+        if (!purchase) {
+          return json({ ok: false, error: 'NO_ACTIVE_PURCHASE' }, 404);
+        }
+
+        // Get template details
+        const template = await env.DB.prepare(
+          "SELECT * FROM wlvlp_templates WHERE slug = ?"
+        ).bind(purchase.slug).first();
+
+        // Get site config
+        const config = await env.DB.prepare(
+          "SELECT * FROM wlvlp_site_configs WHERE slug = ?"
+        ).bind(purchase.slug).first();
+
+        // Get active scratch tickets
+        const scratchTicketsResult = await env.DB.prepare(
+          "SELECT * FROM wlvlp_scratch_tickets WHERE account_id = ? AND status = 'unscratched'"
+        ).bind(account_id).all();
+
+        return json({
+          ok: true,
+          purchase,
+          template,
+          config,
+          scratch_tickets: scratchTicketsResult.results || []
+        });
+      } catch (e) {
+        console.error('WLVLP buyer get error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // PATCH /v1/wlvlp/config/:slug
+  {
+    method: 'PATCH', pattern: '/v1/wlvlp/config/:slug',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { slug } = params;
+      const body = await parseBody(request);
+      if (!body) {
+        return json({ ok: false, error: 'INVALID_JSON' }, 400);
+      }
+
+      const timestamp = new Date().toISOString();
+
+      try {
+        // Verify ownership
+        const purchase = await env.DB.prepare(
+          "SELECT * FROM wlvlp_purchases WHERE account_id = ? AND slug = ? AND status = 'active'"
+        ).bind(session.account_id, slug).first();
+
+        if (!purchase) {
+          return json({ ok: false, error: 'UNAUTHORIZED' }, 403);
+        }
+
+        // Update R2 canonical config
+        const configKey = `wlvlp/configs/${slug}.json`;
+        const configData = {
+          slug,
+          account_id: session.account_id,
+          config_json: JSON.stringify(body),
+          updated_at: timestamp
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, configKey, configData);
+
+        // Update D1 projection
+        await env.DB.prepare(
+          "UPDATE wlvlp_site_configs SET config_json = ?, updated_at = ? WHERE slug = ?"
+        ).bind(JSON.stringify(body), timestamp, slug).run();
+
+        return json({ ok: true });
+      } catch (e) {
+        console.error('WLVLP config update error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/wlvlp/upload-logo
+  {
+    method: 'POST', pattern: '/v1/wlvlp/upload-logo',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const formData = await request.formData();
+        const file = formData.get('file');
+        const slug = formData.get('slug');
+
+        if (!file || !slug) {
+          return json({ ok: false, error: 'MISSING_FILE_OR_SLUG' }, 400);
+        }
+
+        // Verify ownership
+        const purchase = await env.DB.prepare(
+          "SELECT * FROM wlvlp_purchases WHERE account_id = ? AND slug = ? AND status = 'active'"
+        ).bind(session.account_id, slug).first();
+
+        if (!purchase) {
+          return json({ ok: false, error: 'UNAUTHORIZED' }, 403);
+        }
+
+        const timestamp = new Date().toISOString();
+        const fileExtension = file.name.split('.').pop();
+        const logoKey = `wlvlp/logos/${slug}/${timestamp}.${fileExtension}`;
+
+        // Upload to R2
+        await env.R2_VIRTUAL_LAUNCH.put(logoKey, file.stream());
+        const logoUrl = `https://r2.virtuallaunch.pro/${logoKey}`;
+
+        // Update D1 projection
+        await env.DB.prepare(
+          "UPDATE wlvlp_site_configs SET logo_url = ?, updated_at = ? WHERE slug = ?"
+        ).bind(logoUrl, timestamp, slug).run();
+
+        return json({
+          ok: true,
+          logo_url: logoUrl
+        });
+      } catch (e) {
+        console.error('WLVLP logo upload error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/wlvlp/stripe/webhook
+  {
+    method: 'POST', pattern: '/v1/wlvlp/stripe/webhook',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const signature = request.headers.get('stripe-signature');
+      const body = await request.text();
+
+      try {
+        // Verify Stripe webhook signature
+        const event = JSON.parse(body);
+        const eventId = event.id;
+        const timestamp = new Date().toISOString();
+
+        if (event.type === 'checkout.session.completed') {
+          const session = event.data.object;
+          const { platform, slug, account_id, acquisition_type } = session.metadata || {};
+
+          if (platform === 'wlvlp' && slug && account_id) {
+            const purchase_id = `PUR_${crypto.randomUUID()}`;
+            const monthly_price = Math.round(session.amount_total / 100);
+
+            // Write receipt
+            const receiptKey = `wlvlp/receipts/stripe/${eventId}.json`;
+            const receipt = {
+              event_id: eventId,
+              type: 'purchase_completed',
+              purchase_id,
+              account_id,
+              slug,
+              acquisition_type,
+              monthly_price,
+              stripe_customer_id: session.customer,
+              stripe_subscription_id: session.subscription,
+              timestamp
+            };
+            await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, receipt);
+
+            // Update template status
+            await env.DB.prepare(
+              "UPDATE wlvlp_templates SET status = 'sold', current_owner_id = ?, updated_at = ? WHERE slug = ?"
+            ).bind(account_id, timestamp, slug).run();
+
+            // Create purchase record
+            await env.DB.prepare(
+              "INSERT INTO wlvlp_purchases (purchase_id, account_id, slug, acquisition_type, monthly_price, stripe_customer_id, stripe_subscription_id, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)"
+            ).bind(purchase_id, account_id, slug, acquisition_type, monthly_price, session.customer, session.subscription, timestamp, timestamp).run();
+
+            // Seed site config
+            await env.DB.prepare(
+              "INSERT INTO wlvlp_site_configs (slug, account_id, config_json, updated_at) VALUES (?, ?, '{}', ?)"
+            ).bind(slug, account_id, timestamp).run();
+
+            // Mark losing bids as lost if this was an auction win
+            if (acquisition_type === 'auction_win') {
+              await env.DB.prepare(
+                "UPDATE wlvlp_bids SET status = 'lost' WHERE slug = ? AND account_id != ?"
+              ).bind(slug, account_id).run();
+            }
+          }
+        } else if (event.type === 'customer.subscription.deleted') {
+          const subscription = event.data.object;
+
+          // Find matching purchase
+          const purchase = await env.DB.prepare(
+            "SELECT * FROM wlvlp_purchases WHERE stripe_subscription_id = ? AND status = 'active'"
+          ).bind(subscription.id).first();
+
+          if (purchase) {
+            const receiptKey = `wlvlp/receipts/recycle/${purchase.slug}/${timestamp}.json`;
+            const receipt = {
+              event_id: eventId,
+              type: 'subscription_cancelled',
+              account_id: purchase.account_id,
+              slug: purchase.slug,
+              timestamp
+            };
+            await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, receipt);
+
+            // Mark purchase as cancelled
+            await env.DB.prepare(
+              "UPDATE wlvlp_purchases SET status = 'cancelled', updated_at = ? WHERE purchase_id = ?"
+            ).bind(timestamp, purchase.purchase_id).run();
+
+            // Reset template to available
+            await env.DB.prepare(
+              "UPDATE wlvlp_templates SET status = 'available', current_owner_id = NULL, auction_ends_at = NULL, updated_at = ? WHERE slug = ?"
+            ).bind(timestamp, purchase.slug).run();
+
+            // Delete site config
+            await env.DB.prepare(
+              "DELETE FROM wlvlp_site_configs WHERE slug = ?"
+            ).bind(purchase.slug).run();
+          }
+        }
+
+        return json({ ok: true });
+      } catch (e) {
+        console.error('WLVLP Stripe webhook error:', e);
+        return json({ ok: false, error: 'WEBHOOK_ERROR' }, 500);
+      }
+    },
+  },
+
 ];
 // ---------------------------------------------------------------------------
 // Router
@@ -8691,6 +9432,159 @@ export default {
         await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/receipts/cron/${errorEventId}.json`, JSON.stringify(errorReceipt));
       } catch (receiptError) {
         console.error('Failed to write error receipt:', receiptError);
+      }
+    }
+
+    // WLVLP Auction Settlement Cron
+    try {
+      const eventId = `EVT_${crypto.randomUUID()}`;
+      const timestamp = new Date().toISOString();
+      const now = new Date();
+
+      // 1. Query ended auctions
+      const endedAuctionsResult = await env.DB.prepare(
+        "SELECT * FROM wlvlp_templates WHERE status = 'auction' AND auction_ends_at < ?"
+      ).bind(now.toISOString()).all();
+      const endedAuctions = endedAuctionsResult.results || [];
+
+      let auctionsProcessed = 0;
+      let winnersNotified = 0;
+
+      // 2. For each ended auction
+      for (const template of endedAuctions) {
+        try {
+          // Find highest bid
+          const highestBid = await env.DB.prepare(
+            "SELECT * FROM wlvlp_bids WHERE slug = ? AND status = 'active' ORDER BY amount DESC LIMIT 1"
+          ).bind(template.slug).first();
+
+          if (highestBid) {
+            // Winner found - create Stripe Checkout Session for auction winner
+            const stripeSession = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: new URLSearchParams({
+                mode: 'subscription',
+                'line_items[0][price_data][currency]': 'usd',
+                'line_items[0][price_data][unit_amount]': (highestBid.amount * 100).toString(),
+                'line_items[0][price_data][product_data][name]': `${template.title} - Website Template (Auction Winner)`,
+                'line_items[0][price_data][recurring][interval]': 'month',
+                'line_items[0][quantity]': '1',
+                success_url: `https://websitelotto.virtuallaunch.pro/success?session_id={CHECKOUT_SESSION_ID}`,
+                cancel_url: `https://websitelotto.virtuallaunch.pro/templates/${template.slug}`,
+                'metadata[platform]': 'wlvlp',
+                'metadata[slug]': template.slug,
+                'metadata[account_id]': highestBid.account_id,
+                'metadata[acquisition_type]': 'auction_win'
+              }),
+            });
+
+            if (stripeSession.ok) {
+              const sessionData = await stripeSession.json();
+
+              // Send winner notification email
+              const winner = await env.DB.prepare(
+                "SELECT email FROM accounts WHERE account_id = ?"
+              ).bind(highestBid.account_id).first();
+
+              if (winner?.email) {
+                const subject = `🎉 You won the auction for ${template.title}!`;
+                const htmlBody = `
+                  <p>Congratulations! You won the auction for <strong>${template.title}</strong>.</p>
+                  <p>Your winning bid: <strong>$${highestBid.amount}/month</strong></p>
+                  <p>To claim your template, complete your payment:</p>
+                  <p><a href="${sessionData.url}" style="background: #007cba; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Complete Payment</a></p>
+                  <p>This link expires in 24 hours.</p>
+                `;
+
+                try {
+                  await sendEmail(winner.email, subject, htmlBody, env);
+                  winnersNotified++;
+                } catch (emailError) {
+                  console.error('Failed to send auction winner email:', emailError);
+                }
+              }
+
+              // Mark losing bids as lost
+              await env.DB.prepare(
+                "UPDATE wlvlp_bids SET status = 'lost' WHERE slug = ? AND account_id != ?"
+              ).bind(template.slug, highestBid.account_id).run();
+
+              // Set template status to pending_payment
+              await env.DB.prepare(
+                "UPDATE wlvlp_templates SET status = 'pending_payment', updated_at = ? WHERE slug = ?"
+              ).bind(timestamp, template.slug).run();
+
+              // Write auction settlement receipt
+              const settlementReceipt = {
+                eventId: `${eventId}_${template.slug}`,
+                timestamp,
+                type: 'auction_settlement',
+                slug: template.slug,
+                winner_account_id: highestBid.account_id,
+                winning_bid: highestBid.amount,
+                stripe_session_url: sessionData.url,
+                action: 'winner_notified'
+              };
+              await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${template.slug}/${timestamp}.json`, settlementReceipt);
+            } else {
+              console.error('Failed to create Stripe session for auction winner:', await stripeSession.text());
+            }
+          } else {
+            // No bids - reset template to available
+            await env.DB.prepare(
+              "UPDATE wlvlp_templates SET status = 'available', auction_ends_at = NULL, updated_at = ? WHERE slug = ?"
+            ).bind(timestamp, template.slug).run();
+
+            // Write no-bids receipt
+            const noBidsReceipt = {
+              eventId: `${eventId}_${template.slug}`,
+              timestamp,
+              type: 'auction_settlement',
+              slug: template.slug,
+              action: 'reset_to_available'
+            };
+            await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${template.slug}/${timestamp}.json`, noBidsReceipt);
+          }
+
+          auctionsProcessed++;
+        } catch (templateError) {
+          console.error(`Failed to process auction for ${template.slug}:`, templateError);
+        }
+      }
+
+      // 3. Write master cron receipt
+      const auctionCronReceipt = {
+        eventId,
+        timestamp,
+        type: 'wlvlp-auction-settlement-cron',
+        stats: {
+          auctions_processed: auctionsProcessed,
+          winners_notified: winnersNotified,
+          ended_auctions_found: endedAuctions.length
+        }
+      };
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${timestamp}.json`, auctionCronReceipt);
+
+      console.log(`WLVLP auction settlement completed: ${auctionsProcessed} auctions processed, ${winnersNotified} winners notified`);
+    } catch (e) {
+      console.error('WLVLP auction settlement cron job failed:', e);
+
+      // Write error receipt
+      const errorEventId = `EVT_${crypto.randomUUID()}`;
+      const errorReceipt = {
+        eventId: errorEventId,
+        timestamp: new Date().toISOString(),
+        type: 'wlvlp-auction-settlement-cron-error',
+        error: e.message
+      };
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${errorEventId}.json`, errorReceipt);
+      } catch (receiptError) {
+        console.error('Failed to write WLVLP auction settlement error receipt:', receiptError);
       }
     }
   },

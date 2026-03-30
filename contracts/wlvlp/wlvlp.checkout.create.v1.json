@@ -1,0 +1,74 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["Stripe"],
+    "governs": "Create Stripe checkout session for template purchase",
+    "path": "/contracts/wlvlp/wlvlp.checkout.create.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Checkout Create",
+    "usedOnPages": ["/templates/[slug]", "/checkout"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/checkout",
+    "method": "POST",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": null,
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "slug": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Template slug to purchase"
+      },
+      "acquisition_type": {
+        "type": "string",
+        "enum": ["buy_now", "auction_win"],
+        "description": "Method of acquisition"
+      }
+    },
+    "required": ["slug", "acquisition_type"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "session_url": "https://checkout.stripe.com/..."
+    },
+    "error": {
+      "ok": false,
+      "error": "TEMPLATE_NOT_AVAILABLE"
+    },
+    "success": {
+      "ok": true,
+      "session_url": "https://checkout.stripe.com/..."
+    }
+  },
+  "schema": {
+    "name": "wlvlp_checkout_create",
+    "version": 1
+  }
+}

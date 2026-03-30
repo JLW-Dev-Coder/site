@@ -1,0 +1,70 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "signature"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1"],
+    "governs": "Process Stripe webhook events for WLVLP subscriptions",
+    "path": "/contracts/wlvlp/wlvlp.stripe.webhook.v1.json",
+    "source": "Website Lotto VLP",
+    "title": "WLVLP — Stripe Webhook",
+    "usedOnPages": [],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/stripe/webhook",
+    "method": "POST",
+    "receiptKeyPattern": "wlvlp/receipts/stripe/{event_id}.json",
+    "receiptSource": "wlvlp",
+    "signature": {
+      "header": "stripe-signature",
+      "required": true,
+      "secretEnvVar": "STRIPE_WEBHOOK_SECRET"
+    }
+  },
+  "effects": {
+    "dedupeKey": "event.id",
+    "eventIdFrom": "event.id",
+    "writeOrder": ["receipt", "canonical", "projection"],
+    "writes": ["wlvlp_purchases", "wlvlp_templates", "wlvlp_site_configs"]
+  },
+  "payload": {
+    "additionalProperties": true,
+    "properties": {
+      "type": {
+        "type": "string",
+        "description": "Stripe event type"
+      },
+      "data": {
+        "type": "object",
+        "description": "Event data object"
+      }
+    },
+    "required": ["type", "data"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true
+    },
+    "error": {
+      "ok": false,
+      "error": "WEBHOOK_ERROR"
+    },
+    "success": {
+      "ok": true
+    }
+  },
+  "schema": {
+    "name": "wlvlp_stripe_webhook",
+    "version": 1
+  }
+}
