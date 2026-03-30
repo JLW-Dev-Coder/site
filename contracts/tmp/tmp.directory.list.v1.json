@@ -1,0 +1,98 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["D1"],
+    "governs": "GET /v1/tmp/directory",
+    "path": "/contracts/tmp/tmp.directory.list.v1.json",
+    "source": "Tax Monitor Pro",
+    "title": "Tax Monitor Pro — Directory — List Professionals",
+    "usedOnPages": ["taxmonitor.pro/directory"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tmp/directory",
+    "method": "GET",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": null,
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "specialty": {
+        "type": "string",
+        "description": "Filter professionals by specialty (case-insensitive)"
+      },
+      "city": {
+        "type": "string",
+        "description": "Filter professionals by city (case-insensitive)"
+      },
+      "state": {
+        "type": "string",
+        "description": "Filter professionals by state (case-insensitive)"
+      },
+      "zip": {
+        "type": "string",
+        "description": "Filter professionals by zip code (case-insensitive)"
+      },
+      "page": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100,
+        "default": 1,
+        "description": "Page number for pagination"
+      }
+    },
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": null,
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR",
+      "message": "Internal server error"
+    },
+    "success": {
+      "ok": true,
+      "professionals": [
+        {
+          "professional_id": "string",
+          "display_name": "string",
+          "bio": "string (truncated to 200 chars)",
+          "specialties": "string",
+          "cal_booking_url": "string",
+          "city": "string",
+          "state": "string",
+          "zip": "string"
+        }
+      ],
+      "page": "integer",
+      "total": "integer"
+    }
+  },
+  "schema": {
+    "name": "tmp_directory_list",
+    "version": 1
+  }
+}

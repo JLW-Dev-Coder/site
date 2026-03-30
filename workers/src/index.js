@@ -5730,6 +5730,112 @@ TTMP Support Team
     },
   },
 
+  // -------------------------------------------------------------------------
+  // TMP (Tax Monitor Pro) Routes
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'GET', pattern: '/v1/tmp/directory',
+    handler: async (_method, _pattern, _params, request, env) => {
+      // Parse query parameters
+      const url = new URL(request.url);
+      const specialty = url.searchParams.get('specialty') || null;
+      const city = url.searchParams.get('city') || null;
+      const state = url.searchParams.get('state') || null;
+      const zip = url.searchParams.get('zip') || null;
+      const page = Math.max(1, Math.min(100, parseInt(url.searchParams.get('page')) || 1));
+
+      // Build query
+      let query = `SELECT professional_id, display_name, bio, specialties, cal_booking_url, city, state, zip
+                   FROM profiles
+                   WHERE status = 'active'`;
+      const params = [];
+
+      // Filter by specialty if provided (case-insensitive)
+      if (specialty) {
+        query += ` AND LOWER(specialties) LIKE LOWER(?)`;
+        params.push(`%${specialty}%`);
+      }
+
+      // Filter by city if provided (case-insensitive)
+      if (city) {
+        query += ` AND LOWER(city) LIKE LOWER(?)`;
+        params.push(`%${city}%`);
+      }
+
+      // Filter by state if provided (case-insensitive)
+      if (state) {
+        query += ` AND LOWER(state) LIKE LOWER(?)`;
+        params.push(`%${state}%`);
+      }
+
+      // Filter by zip if provided (case-insensitive)
+      if (zip) {
+        query += ` AND LOWER(zip) LIKE LOWER(?)`;
+        params.push(`%${zip}%`);
+      }
+
+      // Pagination
+      const limit = 20;
+      const offset = (page - 1) * limit;
+      query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+      params.push(limit, offset);
+
+      try {
+        // Execute query
+        const result = await env.DB.prepare(query).bind(...params).all();
+
+        // Get total count for pagination
+        let countQuery = `SELECT COUNT(*) as total FROM profiles WHERE status = 'active'`;
+        const countParams = [];
+        if (specialty) {
+          countQuery += ` AND LOWER(specialties) LIKE LOWER(?)`;
+          countParams.push(`%${specialty}%`);
+        }
+        if (city) {
+          countQuery += ` AND LOWER(city) LIKE LOWER(?)`;
+          countParams.push(`%${city}%`);
+        }
+        if (state) {
+          countQuery += ` AND LOWER(state) LIKE LOWER(?)`;
+          countParams.push(`%${state}%`);
+        }
+        if (zip) {
+          countQuery += ` AND LOWER(zip) LIKE LOWER(?)`;
+          countParams.push(`%${zip}%`);
+        }
+        const countResult = await env.DB.prepare(countQuery).bind(...countParams).first();
+        const total = countResult?.total || 0;
+
+        // Process results - truncate bio and remove account_id
+        const professionals = result.results.map(prof => ({
+          professional_id: prof.professional_id,
+          display_name: prof.display_name,
+          bio: prof.bio ? prof.bio.substring(0, 200) : null,
+          specialties: prof.specialties,
+          cal_booking_url: prof.cal_booking_url,
+          city: prof.city,
+          state: prof.state,
+          zip: prof.zip
+        }));
+
+        return json({
+          ok: true,
+          professionals,
+          page,
+          total
+        });
+      } catch (error) {
+        console.error('Directory listing error:', error);
+        return json({
+          ok: false,
+          error: 'INTERNAL_ERROR',
+          message: 'Internal server error'
+        }, 500);
+      }
+    },
+  },
+
 ];
 // ---------------------------------------------------------------------------
 // Router

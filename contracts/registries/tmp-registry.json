@@ -3,5 +3,23 @@
   "name": "Tax Monitor Pro",
   "version": "1.0",
   "lastUpdated": "2026-03-29",
-  "contracts": []
+  "contracts": [
+    {
+      "id": "tmp.directory.list.v1",
+      "path": "/contracts/tmp/tmp.directory.list.v1.json",
+      "endpoint": "/v1/tmp/directory",
+      "method": "GET",
+      "status": "active",
+      "category": "directory",
+      "authRequired": false,
+      "signatureRequired": false,
+      "dedupeKey": null,
+      "receiptKeyPattern": null,
+      "receiptSource": null,
+      "writes": [],
+      "usedOnPages": ["taxmonitor.pro/directory"],
+      "version": "1",
+      "addedDate": "2026-03-29"
+    }
+  ]
 }
