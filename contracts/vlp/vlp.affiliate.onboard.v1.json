@@ -1,0 +1,64 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Affiliate Stripe Connect Express onboarding initiation",
+    "path": "/contracts/vlp/vlp.affiliate.onboard.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "VLP — Affiliate — Connect Onboarding",
+    "usedOnPages": ["/dashboard/affiliate"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/affiliates/connect/onboard",
+    "method": "POST",
+    "receiptKeyPattern": "affiliates/receipts/onboard/{eventId}.json",
+    "receiptSource": "affiliate",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "session.account_id",
+    "eventIdFrom": "session.account_id",
+    "writeOrder": ["receiptAppend"],
+    "writes": ["affiliates"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "ok": true,
+      "onboard_url": "{generated_url}"
+    },
+    "error": {
+      "error": "INTERNAL_ERROR",
+      "ok": false,
+      "message": "Affiliate onboarding failed"
+    },
+    "success": {
+      "ok": true,
+      "onboard_url": "{generated_url}"
+    }
+  },
+  "schema": {
+    "name": "vlp_affiliate_onboard",
+    "version": 1
+  }
+}

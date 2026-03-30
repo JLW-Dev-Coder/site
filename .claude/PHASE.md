@@ -1,6 +1,6 @@
 # Current Phase
 
-## Active: Phase 2 — TTMP Transcript Dashboard
+## Completed: Phase 3 — Affiliate Program (2026-03-30)
 
 ### What We're Building
 Tax professionals upload IRS transcript PDFs and receive
@@ -91,15 +91,15 @@ On INVOICE_PAID → check referred_by on account →
 write commission event → update affiliate balance.
 
 ### Phase 3 Checklist
-- ❌ 3.0: Referral code generated at account creation
-- ❌ 3.1: POST /v1/affiliates/connect/onboard
-- ❌ 3.2: GET  /v1/affiliates/connect/callback
-- ❌ 3.3: GET  /v1/affiliates/{account_id} dashboard data
-- ❌ 3.4: GET  /v1/affiliates/{account_id}/events history
-- ❌ 3.5: POST /v1/affiliates/payout/request
-- ❌ 3.6: GET  /v1/affiliates/payout/{payout_id}
-- ❌ 3.7: Stripe webhook updated for commission on INVOICE_PAID
-- ❌ 3.8: Referral link landing page (virtuallaunch.pro/ref/{code})
+- ✅ 3.0: Referral code generated at account creation
+- ✅ 3.1: POST /v1/affiliates/connect/onboard
+- ✅ 3.2: GET  /v1/affiliates/connect/callback
+- ✅ 3.3: GET  /v1/affiliates/{account_id} dashboard data
+- ✅ 3.4: GET  /v1/affiliates/{account_id}/events history
+- ✅ 3.5: POST /v1/affiliates/payout/request
+- ✅ 3.6: GET  /v1/affiliates/payout/{payout_id}
+- ✅ 3.7: Stripe webhook updated for commission on INVOICE_PAID
+- ✅ 3.8: Referral link landing page (virtuallaunch.pro/ref/{code})
 - ❌ 3.9: Affiliate dashboard UI (platform frontend TBD)
 
 ### Business Model Reminder

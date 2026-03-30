@@ -1096,6 +1096,15 @@ const ROUTES = [
         }
       } catch {/* fall back to session.membership */}
 
+      // Get referral code for affiliate program
+      let referralCode = null;
+      try {
+        const affiliateRow = await env.DB.prepare('SELECT referral_code FROM affiliates WHERE account_id = ?').bind(session.account_id).first();
+        if (affiliateRow) {
+          referralCode = affiliateRow.referral_code;
+        }
+      } catch {/* ignore affiliate lookup errors */}
+
       return json({
         ok: true,
         session: {
@@ -1104,6 +1113,7 @@ const ROUTES = [
           membership,
           platform: session.platform,
           expires_at: session.expires_at,
+          referral_code: referralCode,
         },
       });
     },
@@ -1490,23 +1500,60 @@ const ROUTES = [
       const { error } = await requireSession(request, env);
       if (error) return error;
       const body = await parseBody(request);
-      const { accountId, email, firstName, lastName, platform, role, source } = body ?? {};
+      const { accountId, email, firstName, lastName, platform, role, source, referredBy } = body ?? {};
       if (!accountId || !email || !firstName || !lastName || !platform || !role || !source) {
         return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, email, firstName, lastName, platform, role, source required' }, 400);
       }
       try {
         const eventId = `EVT_${crypto.randomUUID()}`;
         const now = new Date().toISOString();
+
+        // Generate referral code — 8 char alphanumeric, uppercase
+        const referralCode = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+          .map(b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32])
+          .join('');
+
+        // Look up referrer account_id if referredBy is provided
+        let referrerAccountId = null;
+        if (referredBy) {
+          try {
+            const referrerRow = await env.DB.prepare('SELECT account_id FROM affiliates WHERE referral_code = ?').bind(referredBy).first();
+            if (referrerRow) {
+              referrerAccountId = referrerRow.account_id;
+            }
+          } catch (e) {
+            // Silently ignore invalid referral code - don't fail account creation
+          }
+        }
+
         await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/accounts/${eventId}.json`, {
-          accountId, email, event: 'ACCOUNT_CREATED', created_at: now, source,
+          accountId, email, event: 'ACCOUNT_CREATED', created_at: now, source, referredBy: referrerAccountId,
         });
+
         await d1Run(env.DB,
-          `INSERT OR IGNORE INTO accounts (account_id, email, first_name, last_name, platform, role, status, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
-          [accountId, email, firstName, lastName, platform, role, now]
+          `INSERT OR IGNORE INTO accounts (account_id, email, first_name, last_name, platform, role, status, referred_by, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
+          [accountId, email, firstName, lastName, platform, role, referrerAccountId, now]
         );
+
+        // Insert affiliate row
+        await d1Run(env.DB,
+          'INSERT OR IGNORE INTO affiliates (account_id, referral_code, created_at) VALUES (?, ?, ?)',
+          [accountId, referralCode, now]
+        );
+
+        // Write to R2
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `affiliates/${accountId}.json`, {
+          account_id: accountId,
+          referral_code: referralCode,
+          connect_status: 'pending',
+          balance_pending: 0,
+          balance_paid: 0,
+          created_at: now
+        });
+
         await r2Put(env.R2_VIRTUAL_LAUNCH, `accounts_vlp/VLP_ACCT_${accountId}.json`, {
-          accountId, email, firstName, lastName, platform, role, status: 'active', createdAt: now,
+          accountId, email, firstName, lastName, platform, role, status: 'active', referredBy: referrerAccountId, createdAt: now,
         });
         return json({ ok: true, accountId, status: 'created' });
       } catch (e) {
@@ -2473,14 +2520,86 @@ const ROUTES = [
             const customerRow = await env.DB.prepare(
               'SELECT account_id FROM billing_customers WHERE stripe_customer_id = ?'
             ).bind(obj.customer).first();
+
+            const accountId = customerRow?.account_id;
+
             await r2Put(env.R2_VIRTUAL_LAUNCH, `billing_invoices/${invoiceId}.json`, {
               invoiceId,
-              accountId: customerRow?.account_id ?? null,
+              accountId,
               amount: obj.amount_paid,
               currency: obj.currency,
               status: 'paid',
               paidAt: now,
             });
+
+            // Process affiliate commission if account has a referrer
+            if (accountId) {
+              try {
+                const accountRow = await env.DB.prepare('SELECT referred_by FROM accounts WHERE account_id = ?').bind(accountId).first();
+                if (accountRow?.referred_by) {
+                  const referrerAccountId = accountRow.referred_by;
+
+                  // Calculate commission: 20% flat rate
+                  const commissionAmount = Math.floor(obj.amount_paid * parseFloat(env.AFFILIATE_COMMISSION_RATE));
+
+                  // Generate event_id
+                  const eventId = `EVT_${crypto.randomUUID()}`;
+
+                  // Detect platform from metadata or price/product mapping
+                  const platform = obj.metadata?.platform || 'vlp'; // Default to vlp if not specified
+
+                  // Write receipt
+                  await r2Put(env.R2_VIRTUAL_LAUNCH, `affiliates/receipts/${eventId}.json`, {
+                    event_id: eventId,
+                    referrer_account_id: referrerAccountId,
+                    referred_account_id: accountId,
+                    stripe_invoice_id: invoiceId,
+                    platform,
+                    gross_amount: obj.amount_paid,
+                    commission_amount: commissionAmount,
+                    status: 'pending',
+                    created_at: now
+                  });
+
+                  // Write event
+                  await r2Put(env.R2_VIRTUAL_LAUNCH, `affiliate_events/${eventId}.json`, {
+                    event_id: eventId,
+                    referrer_account_id: referrerAccountId,
+                    referred_account_id: accountId,
+                    stripe_invoice_id: invoiceId,
+                    platform,
+                    gross_amount: obj.amount_paid,
+                    commission_amount: commissionAmount,
+                    status: 'pending',
+                    created_at: now
+                  });
+
+                  // Insert into affiliate_events table
+                  await d1Run(env.DB,
+                    'INSERT INTO affiliate_events (event_id, referrer_account_id, referred_account_id, stripe_invoice_id, platform, gross_amount, commission_amount, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [eventId, referrerAccountId, accountId, invoiceId, platform, obj.amount_paid, commissionAmount, 'pending', now]
+                  );
+
+                  // Update affiliates balance_pending
+                  await d1Run(env.DB,
+                    'UPDATE affiliates SET balance_pending = balance_pending + ?, updated_at = ? WHERE account_id = ?',
+                    [commissionAmount, now, referrerAccountId]
+                  );
+
+                  // Update R2 canonical affiliate record
+                  const existingAffiliate = await env.R2_VIRTUAL_LAUNCH.get(`affiliates/${referrerAccountId}.json`);
+                  if (existingAffiliate) {
+                    const affiliateRecord = await existingAffiliate.json();
+                    affiliateRecord.balance_pending = (affiliateRecord.balance_pending || 0) + commissionAmount;
+                    affiliateRecord.updated_at = now;
+                    await r2Put(env.R2_VIRTUAL_LAUNCH, `affiliates/${referrerAccountId}.json`, affiliateRecord);
+                  }
+                }
+              } catch (e) {
+                console.error('Affiliate commission processing error:', e);
+                // Don't fail the webhook - just log the error
+              }
+            }
             break;
           }
 
@@ -9283,6 +9402,289 @@ TTMP Support Team
         console.error('WLVLP Stripe webhook error:', e);
         return json({ ok: false, error: 'WEBHOOK_ERROR' }, 500);
       }
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // AFFILIATES
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'POST', pattern: '/v1/affiliates/connect/onboard',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const onboardUrl = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${env.STRIPE_CONNECT_CLIENT_ID}&scope=read_write&redirect_uri=https://api.virtuallaunch.pro/v1/affiliates/connect/callback&state=${session.account_id}`;
+        return json({ ok: true, onboard_url: onboardUrl });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Affiliate onboarding failed' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/affiliates/connect/callback',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const url = new URL(request.url);
+      const code = url.searchParams.get('code');
+      const accountId = url.searchParams.get('state');
+
+      if (!code || !accountId) {
+        return new Response('', {
+          status: 302,
+          headers: {
+            'Location': 'https://virtuallaunch.pro/dashboard/affiliate?error=invalid_request',
+          },
+        });
+      }
+
+      try {
+        // Exchange code for Connect account ID
+        const tokenResponse = await fetch('https://connect.stripe.com/oauth/token', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `grant_type=authorization_code&code=${code}`,
+        });
+
+        if (!tokenResponse.ok) {
+          throw new Error('Stripe Connect token exchange failed');
+        }
+
+        const tokenData = await tokenResponse.json();
+        const connectAccountId = tokenData.stripe_user_id;
+        const now = new Date().toISOString();
+
+        // Update affiliates table
+        await d1Run(env.DB,
+          'UPDATE affiliates SET stripe_connect_account_id = ?, connect_status = ?, updated_at = ? WHERE account_id = ?',
+          [connectAccountId, 'active', now, accountId]
+        );
+
+        // Update R2 canonical
+        const existingAffiliate = await env.R2_VIRTUAL_LAUNCH.get(`affiliates/${accountId}.json`);
+        if (existingAffiliate) {
+          const affiliateRecord = await existingAffiliate.json();
+          affiliateRecord.stripe_connect_account_id = connectAccountId;
+          affiliateRecord.connect_status = 'active';
+          affiliateRecord.updated_at = now;
+          await r2Put(env.R2_VIRTUAL_LAUNCH, `affiliates/${accountId}.json`, affiliateRecord);
+        }
+
+        return new Response('', {
+          status: 302,
+          headers: {
+            'Location': 'https://virtuallaunch.pro/dashboard/affiliate?connected=true',
+          },
+        });
+      } catch (e) {
+        return new Response('', {
+          status: 302,
+          headers: {
+            'Location': 'https://virtuallaunch.pro/dashboard/affiliate?error=connect_failed',
+          },
+        });
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/affiliates/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      if (session.account_id !== params.account_id) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403);
+      }
+
+      try {
+        const affiliateRow = await env.DB.prepare('SELECT * FROM affiliates WHERE account_id = ?').bind(params.account_id).first();
+        if (!affiliateRow) {
+          return json({ ok: false, error: 'NOT_FOUND' }, 404);
+        }
+
+        // Count referred accounts
+        const referralCount = await env.DB.prepare('SELECT COUNT(*) as count FROM affiliate_events WHERE referrer_account_id = ?').bind(params.account_id).first();
+
+        return json({
+          ok: true,
+          affiliate: {
+            referral_code: affiliateRow.referral_code,
+            connect_status: affiliateRow.connect_status,
+            balance_pending: affiliateRow.balance_pending,
+            balance_paid: affiliateRow.balance_paid,
+            referral_url: `https://virtuallaunch.pro/ref/${affiliateRow.referral_code}`,
+            referred_count: referralCount?.count || 0,
+          },
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Affiliate lookup failed' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/affiliates/:account_id/events',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      if (session.account_id !== params.account_id) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403);
+      }
+
+      const url = new URL(request.url);
+      const limit = Math.min(parseInt(url.searchParams.get('limit') || '20'), 100);
+      const offset = parseInt(url.searchParams.get('offset') || '0');
+
+      try {
+        const events = await env.DB.prepare(
+          'SELECT * FROM affiliate_events WHERE referrer_account_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?'
+        ).bind(params.account_id, limit, offset).all();
+
+        return json({
+          ok: true,
+          events: events.results || [],
+          pagination: { limit, offset },
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Events lookup failed' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/affiliates/payout/request',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const affiliateRow = await env.DB.prepare('SELECT * FROM affiliates WHERE account_id = ?').bind(session.account_id).first();
+        if (!affiliateRow) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Affiliate record not found' }, 404);
+        }
+
+        if (affiliateRow.connect_status !== 'active') {
+          return json({ ok: false, error: 'CONNECT_REQUIRED', message: 'Stripe Connect account required' }, 400);
+        }
+
+        if (affiliateRow.balance_pending < 1000) { // Minimum $10.00 payout
+          return json({ ok: false, error: 'INSUFFICIENT_BALANCE', message: 'Minimum $10.00 required for payout' }, 400);
+        }
+
+        const payoutId = `PAY_${crypto.randomUUID()}`;
+        const amount = affiliateRow.balance_pending;
+        const now = new Date().toISOString();
+
+        // Create Stripe Transfer
+        const transferResponse = await fetch('https://api.stripe.com/v1/transfers', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: `amount=${amount}&currency=usd&destination=${affiliateRow.stripe_connect_account_id}`,
+        });
+
+        if (!transferResponse.ok) {
+          return json({ ok: false, error: 'TRANSFER_FAILED', message: 'Stripe transfer failed' }, 500);
+        }
+
+        const transferData = await transferResponse.json();
+
+        // Write receipt
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `affiliates/receipts/payouts/${payoutId}.json`, {
+          payout_id: payoutId,
+          account_id: session.account_id,
+          stripe_transfer_id: transferData.id,
+          amount,
+          status: 'pending',
+          requested_at: now
+        });
+
+        // Insert into affiliate_payouts
+        await d1Run(env.DB,
+          'INSERT INTO affiliate_payouts (payout_id, account_id, stripe_transfer_id, amount, status, requested_at) VALUES (?, ?, ?, ?, ?, ?)',
+          [payoutId, session.account_id, transferData.id, amount, 'pending', now]
+        );
+
+        // Update affiliates balance
+        await d1Run(env.DB,
+          'UPDATE affiliates SET balance_pending = balance_pending - ?, balance_paid = balance_paid + ?, updated_at = ? WHERE account_id = ?',
+          [amount, amount, now, session.account_id]
+        );
+
+        // Update R2 canonical
+        const existingAffiliate = await env.R2_VIRTUAL_LAUNCH.get(`affiliates/${session.account_id}.json`);
+        if (existingAffiliate) {
+          const affiliateRecord = await existingAffiliate.json();
+          affiliateRecord.balance_pending = (affiliateRecord.balance_pending || 0) - amount;
+          affiliateRecord.balance_paid = (affiliateRecord.balance_paid || 0) + amount;
+          affiliateRecord.updated_at = now;
+          await r2Put(env.R2_VIRTUAL_LAUNCH, `affiliates/${session.account_id}.json`, affiliateRecord);
+        }
+
+        return json({ ok: true, payout_id: payoutId, amount, status: 'pending' });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Payout request failed' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/affiliates/payout/:payout_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const payoutRow = await env.DB.prepare('SELECT * FROM affiliate_payouts WHERE payout_id = ?').bind(params.payout_id).first();
+        if (!payoutRow) {
+          return json({ ok: false, error: 'NOT_FOUND' }, 404);
+        }
+
+        if (payoutRow.account_id !== session.account_id) {
+          return json({ ok: false, error: 'FORBIDDEN' }, 403);
+        }
+
+        return json({ ok: true, payout: payoutRow });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Payout lookup failed' }, 500);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/ref/:code',
+    handler: async (_method, _pattern, params, request, env) => {
+      const referralCode = params.code;
+
+      try {
+        const affiliateRow = await env.DB.prepare('SELECT account_id FROM affiliates WHERE referral_code = ?').bind(referralCode).first();
+        if (affiliateRow) {
+          return new Response('', {
+            status: 302,
+            headers: {
+              'Location': `https://virtuallaunch.pro?ref=${referralCode}`,
+            },
+          });
+        }
+      } catch (e) {
+        // Ignore errors, fall through to default redirect
+      }
+
+      return new Response('', {
+        status: 302,
+        headers: {
+          'Location': 'https://virtuallaunch.pro',
+        },
+      });
     },
   },
 

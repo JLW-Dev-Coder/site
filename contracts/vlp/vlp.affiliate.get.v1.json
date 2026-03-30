@@ -1,0 +1,71 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["DB"],
+    "governs": "Affiliate account information retrieval",
+    "path": "/contracts/vlp/vlp.affiliate.get.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "VLP — Affiliate — Get Info",
+    "usedOnPages": ["/dashboard/affiliate"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/affiliates/:account_id",
+    "method": "GET",
+    "receiptKeyPattern": "affiliates/receipts/get/{eventId}.json",
+    "receiptSource": "affiliate",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.account_id",
+    "eventIdFrom": "params.account_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "ok": true,
+      "affiliate": "{affiliate_record}"
+    },
+    "error": {
+      "error": "NOT_FOUND|FORBIDDEN|INTERNAL_ERROR",
+      "ok": false,
+      "message": "{error_message}"
+    },
+    "success": {
+      "ok": true,
+      "affiliate": {
+        "referral_code": "{referral_code}",
+        "connect_status": "{connect_status}",
+        "balance_pending": "{balance_pending}",
+        "balance_paid": "{balance_paid}",
+        "referral_url": "{referral_url}",
+        "referred_count": "{referred_count}"
+      }
+    }
+  },
+  "schema": {
+    "name": "vlp_affiliate_get",
+    "version": 1
+  }
+}

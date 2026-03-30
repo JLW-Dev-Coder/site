@@ -1,0 +1,76 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["DB"],
+    "governs": "Affiliate commission event history retrieval",
+    "path": "/contracts/vlp/vlp.affiliate.events.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "VLP — Affiliate — Events List",
+    "usedOnPages": ["/dashboard/affiliate"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/affiliates/:account_id/events",
+    "method": "GET",
+    "receiptKeyPattern": "affiliates/receipts/events/{eventId}.json",
+    "receiptSource": "affiliate",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.account_id",
+    "eventIdFrom": "params.account_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": true,
+    "properties": {
+      "limit": {
+        "type": "string"
+      },
+      "offset": {
+        "type": "string"
+      }
+    },
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "ok": true,
+      "events": "{events_list}",
+      "pagination": "{pagination_info}"
+    },
+    "error": {
+      "error": "FORBIDDEN|INTERNAL_ERROR",
+      "ok": false,
+      "message": "{error_message}"
+    },
+    "success": {
+      "ok": true,
+      "events": "{events_list}",
+      "pagination": {
+        "limit": "{limit}",
+        "offset": "{offset}"
+      }
+    }
+  },
+  "schema": {
+    "name": "vlp_affiliate_events",
+    "version": 1
+  }
+}

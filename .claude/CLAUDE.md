@@ -36,20 +36,15 @@ Track legacy Worker status here. Update this section as work completes.
 
 ## Current Build Phase
 
-**Phase 2: TTMP Transcript Dashboard**
-- Phase 2.0: PDF upload route (POST /v1/transcripts/upload) — DONE
-- Phase 2.1: VLP architecture review (in progress)
-- Phase 2.2: Transcript job history dashboard — NOT STARTED
-- Phase 2.3: Individual report display — NOT STARTED
-- Phase 2.4: Frontend updated to call VLP API — NOT STARTED
-- Phase 2.5: Legacy TTMP Worker deleted — NOT STARTED
+**Phase 3: Affiliate Program — COMPLETE (2026-03-30)**
+- Referral code generation at account creation — COMPLETE
+- 6 affiliate routes built in VLP Worker — COMPLETE
+- Stripe Connect Express integration — COMPLETE
+- Commission tracking on invoice payment — COMPLETE
+- R2 + D1 storage pattern implemented — COMPLETE
+- 6 contracts created in vlp-registry.json — COMPLETE
 
 **Upcoming Phases:**
-- Phase 3: Affiliate program (VLP core feature, ecosystem-wide)
-  - Stripe Connect Express accounts
-  - Lifetime attribution
-  - Cash payouts
-  - AFFILIATE_COMMISSION_RATE = 0.20 (flat, all platforms)
 - Phase 4: Token purchase flow wired to membership gating
 - Phase 5: TMP + DVLP + GVLP membership tiers
 - Phase 6: WLVLP marketplace

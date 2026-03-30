@@ -1,0 +1,68 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "DB"],
+    "governs": "Affiliate payout request processing via Stripe Connect",
+    "path": "/contracts/vlp/vlp.affiliate.payout.request.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "VLP — Affiliate — Payout Request",
+    "usedOnPages": ["/dashboard/affiliate"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/affiliates/payout/request",
+    "method": "POST",
+    "receiptKeyPattern": "affiliates/receipts/payouts/{eventId}.json",
+    "receiptSource": "affiliate",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "session.account_id",
+    "eventIdFrom": "generated.payout_id",
+    "writeOrder": ["receiptAppend", "canonicalUpsert", "projectionUpdate"],
+    "writes": ["affiliates", "affiliate_payouts"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "ok": true,
+      "payout_id": "{payout_id}",
+      "amount": "{amount}",
+      "status": "pending"
+    },
+    "error": {
+      "error": "NOT_FOUND|CONNECT_REQUIRED|INSUFFICIENT_BALANCE|TRANSFER_FAILED|INTERNAL_ERROR",
+      "ok": false,
+      "message": "{error_message}"
+    },
+    "success": {
+      "ok": true,
+      "payout_id": "{payout_id}",
+      "amount": "{amount}",
+      "status": "pending"
+    }
+  },
+  "schema": {
+    "name": "vlp_affiliate_payout_request",
+    "version": 1
+  }
+}

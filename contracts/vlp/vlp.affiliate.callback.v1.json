@@ -1,0 +1,67 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "DB"],
+    "governs": "Affiliate Stripe Connect Express OAuth callback processing",
+    "path": "/contracts/vlp/vlp.affiliate.callback.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "VLP — Affiliate — Connect Callback",
+    "usedOnPages": ["OAuth redirect"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/affiliates/connect/callback",
+    "method": "GET",
+    "receiptKeyPattern": "affiliates/receipts/callback/{eventId}.json",
+    "receiptSource": "affiliate",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "query.state",
+    "eventIdFrom": "query.state",
+    "writeOrder": ["receiptAppend", "canonicalUpsert", "projectionUpdate"],
+    "writes": ["affiliates"]
+  },
+  "payload": {
+    "additionalProperties": true,
+    "properties": {
+      "code": {
+        "type": "string"
+      },
+      "state": {
+        "type": "string"
+      }
+    },
+    "required": ["code", "state"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "redirect": "https://virtuallaunch.pro/dashboard/affiliate?connected=true"
+    },
+    "error": {
+      "redirect": "https://virtuallaunch.pro/dashboard/affiliate?error=connect_failed"
+    },
+    "success": {
+      "redirect": "https://virtuallaunch.pro/dashboard/affiliate?connected=true"
+    }
+  },
+  "schema": {
+    "name": "vlp_affiliate_callback",
+    "version": 1
+  }
+}
