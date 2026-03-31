@@ -6402,13 +6402,13 @@ TTMP Support Team
             { "key": "tmp_premier_yearly",   "name": "Premier Yearly",   "price": 399, "interval": "year",  "price_id": env.STRIPE_PRICE_TMP_PREMIER_YEARLY,         "features": ["40 tool tokens/mo", "10 transcript tokens/mo", "Dedicated support"] }
           ],
           "plan_ii": [
-            { "key": "tmp_bronze",   "name": "Bronze",   "price": 275, "duration": "6 weeks",  "price_id": null, "features": ["Active monitoring", "Tax pro assignment", "5+5 tokens"] },
-            { "key": "tmp_silver",   "name": "Silver",   "price": 325, "duration": "8 weeks",  "price_id": null, "features": ["Active monitoring", "Tax pro assignment", "10+10 tokens"] },
-            { "key": "tmp_gold",     "name": "Gold",     "price": 425, "duration": "12 weeks", "price_id": null, "features": ["Active monitoring", "Tax pro assignment", "20+20 tokens"] },
-            { "key": "tmp_snapshot", "name": "Snapshot", "price": 425, "duration": "one-time", "price_id": null, "features": ["One-time transcript pull", "1 transcript token"] }
+            { "key": "tmp_bronze",   "name": "Bronze",   "price": 275, "duration": "6 weeks",  "price_id": env.STRIPE_PRICE_TMP_BRONZE, "features": ["Active monitoring", "Tax pro assignment", "5+5 tokens"] },
+            { "key": "tmp_silver",   "name": "Silver",   "price": 325, "duration": "8 weeks",  "price_id": env.STRIPE_PRICE_TMP_SILVER, "features": ["Active monitoring", "Tax pro assignment", "10+10 tokens"] },
+            { "key": "tmp_gold",     "name": "Gold",     "price": 425, "duration": "12 weeks", "price_id": env.STRIPE_PRICE_TMP_GOLD, "features": ["Active monitoring", "Tax pro assignment", "20+20 tokens"] },
+            { "key": "tmp_snapshot", "name": "Snapshot", "price": 425, "duration": "one-time", "price_id": env.STRIPE_PRICE_TMP_SNAPSHOT, "features": ["One-time transcript pull", "1 transcript token"] }
           ],
           "addons": [
-            { "key": "tmp_mfj", "name": "MFJ Add-On", "price": 79, "price_id": null, "features": ["Married Filing Jointly spouse coverage"] }
+            { "key": "tmp_mfj", "name": "MFJ Add-On", "price": 79, "price_id": env.STRIPE_PRICE_TMP_MFJ, "features": ["Married Filing Jointly spouse coverage"] }
           ]
         });
       } catch (e) {
@@ -6447,11 +6447,11 @@ TTMP Support Team
           'tmp_plus_yearly':       env.STRIPE_PRICE_TMP_PLUS_YEARLY,
           'tmp_premier':           env.STRIPE_PRICE_TMP_PREMIER_MONTHLY,
           'tmp_premier_yearly':    env.STRIPE_PRICE_TMP_PREMIER_YEARLY,
-          // Plan II — pending real price IDs
-          'tmp_bronze':   null,
-          'tmp_silver':   null,
-          'tmp_gold':     null,
-          'tmp_snapshot': null,
+          // Plan II — Monitoring Plans
+          'tmp_bronze':   env.STRIPE_PRICE_TMP_BRONZE,
+          'tmp_silver':   env.STRIPE_PRICE_TMP_SILVER,
+          'tmp_gold':     env.STRIPE_PRICE_TMP_GOLD,
+          'tmp_snapshot': env.STRIPE_PRICE_TMP_SNAPSHOT,
         };
 
         const stripe_price_id = TMP_PRICE_MAP[plan_key];
