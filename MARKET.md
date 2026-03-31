@@ -53,7 +53,7 @@ Last updated: 2026-03-31
 ## Tax Tools Arcade (TTTMP)
 **Domain:** taxtools.taxmonitor.pro
 **Tagline:** Tax education through play
-**One-liner:** Gamified tax education tools and IRS form autofill — learn the tax code while doing real work.
+**One-liner:** Gamified tax education tools for tax professionals — learn the tax code through interactive games and transcript practice.
 **Value prop:** Master IRS procedures through interactive games, then use the same platform to autofill Form 2848 and Form 8821 in minutes.
 **Audience:** Tax professionals and students seeking engaging tax education + productivity tools
 **Token packages:**
@@ -62,7 +62,7 @@ Last updated: 2026-03-31
 - $39 / 200 tokens
 **Stripe products:**
 - prod_UExej9awY6pNCe (Tax Tools Arcade Token Pack)
-**Key features:** IRS notice games, form autofill (2848, 8821), transcript parser access
+**Key features:** IRS notice games, transcript parser access
 
 ---
 
