@@ -118,7 +118,6 @@ export default function TranscriptSubmitPage() {
           transcript_type: transcriptType,
           transactions: previewData.transactions ?? [],
           ...previewData,
-          transcript_type: transcriptType,
         },
       }
 
@@ -252,11 +251,11 @@ export default function TranscriptSubmitPage() {
             <pre className="mt-2 max-h-48 overflow-auto rounded-xl bg-slate-950/60 p-3 text-xs font-mono text-slate-300">
               {JSON.stringify(previewData, null, 2).slice(0, 2000)}
             </pre>
-            {previewData.transactions && Array.isArray(previewData.transactions) && (
+            {previewData.transactions && Array.isArray(previewData.transactions) ? (
               <p className="mt-2 text-xs text-slate-500">
                 {previewData.transactions.length} transaction(s) found
               </p>
-            )}
+            ) : null}
           </div>
         )}
 

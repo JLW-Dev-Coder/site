@@ -21,6 +21,10 @@ import type {
   TranscriptJobPayload,
   TranscriptJob,
   TranscriptJobHistoryEntry,
+  AffiliateData,
+  AffiliateEvent,
+  AffiliateOnboardingResponse,
+  PayoutResponse,
   ApiResult,
 } from './types'
 import { getSessionToken } from '../auth/session'
@@ -362,4 +366,55 @@ export async function getTranscriptHistory(accountId: string): Promise<Transcrip
   )
   if (!result.ok) throw new Error(result.error.message)
   return result.data.jobs
+}
+
+// ---------------------------------------------------------------------------
+// Affiliates
+// ---------------------------------------------------------------------------
+
+export async function getAffiliate(accountId: string): Promise<AffiliateData> {
+  const token = await getSessionToken()
+  if (!token) throw new Error('No session token')
+
+  const result = await apiFetch<AffiliateData>(`/v1/affiliates/${accountId}`, {
+    headers: getAuthHeaders(token),
+  })
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data
+}
+
+export async function getAffiliateEvents(accountId: string): Promise<AffiliateEvent[]> {
+  const token = await getSessionToken()
+  if (!token) throw new Error('No session token')
+
+  const result = await apiFetch<AffiliateEvent[]>(`/v1/affiliates/${accountId}/events`, {
+    headers: getAuthHeaders(token),
+  })
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data
+}
+
+export async function startAffiliateOnboarding(): Promise<AffiliateOnboardingResponse> {
+  const token = await getSessionToken()
+  if (!token) throw new Error('No session token')
+
+  const result = await apiFetch<AffiliateOnboardingResponse>('/v1/affiliates/connect/onboard', {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+  })
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data
+}
+
+export async function requestPayout(amount: number): Promise<PayoutResponse> {
+  const token = await getSessionToken()
+  if (!token) throw new Error('No session token')
+
+  const result = await apiFetch<PayoutResponse>('/v1/affiliates/payout/request', {
+    method: 'POST',
+    headers: getAuthHeaders(token),
+    body: JSON.stringify({ amount }),
+  })
+  if (!result.ok) throw new Error(result.error.message)
+  return result.data
 }

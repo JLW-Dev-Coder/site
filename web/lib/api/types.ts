@@ -187,4 +187,34 @@ export interface ApiError {
   message: string
 }
 
+// ---------------------------------------------------------------------------
+// Affiliates
+// ---------------------------------------------------------------------------
+
+export interface AffiliateData {
+  referral_code: string
+  connect_status: 'active' | 'inactive' | 'pending'
+  balance_pending: number
+  balance_paid: number
+  referral_url: string
+}
+
+export interface AffiliateEvent {
+  platform: string
+  gross_amount: number
+  commission_amount: number
+  status: 'pending' | 'paid'
+  created_at: string
+}
+
+export interface AffiliateOnboardingResponse {
+  onboard_url: string
+}
+
+export interface PayoutResponse {
+  payout_id: string
+  amount: number
+  status: string
+}
+
 export type ApiResult<T> = { ok: true; data: T } | { ok: false; error: ApiError }

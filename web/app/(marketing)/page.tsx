@@ -84,7 +84,7 @@ export default function HomePage() {
             <p className="mx-auto mt-6 max-w-3xl text-base text-white/70 md:text-lg">Virtual Launch Pro is built around the tools tax professionals actually use — membership management, transcript requests, booking analytics, and a professional directory listing that drives inbound cases.</p>
           </div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {[whyItems.map](http://whyItems.map)((item) => (
+            {whyItems.map((item) => (
               <div key={item.title} className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-[0_10px_30px_rgba(0,0,0,0.12)]">
                 <h3 className="text-lg font-extrabold mb-3">{item.title}</h3>
                 <p className="text-sm text-white/70">{item.body}</p>
@@ -105,13 +105,13 @@ export default function HomePage() {
             <p className="mx-auto mt-5 max-w-2xl text-base text-white/70">Start with the membership that matches your volume, then upgrade when your caseload justifies it.</p>
           </div>
           <div className="grid gap-6 md:grid-cols-3">
-            {[offers.map](http://offers.map)((o) => (
+            {offers.map((o) => (
               <article key={o.tier} className={`rounded-2xl p-8 shadow-[0_10px_30px_rgba(0,0,0,0.12)] ${o.featured ? 'border-2 border-orange-500/70 bg-gradient-to-b from-white/8 to-white/5' : 'border border-white/10 bg-white/5'}`}>
                 <div className="text-sm font-semibold tracking-widest text-orange-400">{o.tier}</div>
                 <h3 className="mt-3 text-2xl font-extrabold">{o.title}</h3>
                 <p className="mt-4 text-sm text-white/70">{o.body}</p>
                 <ul className="mt-6 space-y-3 text-sm text-white/75">
-                  {[o.items.map](http://o.items.map)((item) => (
+                  {o.items.map((item) => (
                     <li key={item} className="flex items-start gap-3">
                       <span className="mt-1 h-1.5 w-1.5 rounded-full bg-orange-500 shrink-0" aria-hidden="true" />
                       <span>{item}</span>
@@ -156,7 +156,7 @@ export default function HomePage() {
             <p className="mx-auto mt-5 max-w-2xl text-base text-white/70">Virtual Launch Pro supports tax professionals at every stage — solo practitioners, small firms, and high-volume practices that need real infrastructure to grow.</p>
           </div>
           <div className="grid gap-8 md:grid-cols-3">
-            {[audiences.map](http://audiences.map)((a) => (
+            {audiences.map((a) => (
               <div key={a.title} className="rounded-2xl border-2 border-amber-500 bg-amber-500/10 p-8 backdrop-blur-sm">
                 <h3 className="text-lg font-extrabold text-white mb-3">{a.title}</h3>
                 <p className="text-sm text-white/70">{a.body}</p>
@@ -175,7 +175,7 @@ export default function HomePage() {
             <h2 className="text-3xl font-extrabold md:text-4xl">Frequently asked questions</h2>
           </div>
           <div className="mx-auto max-w-3xl space-y-4">
-            {[faqs.map](http://faqs.map)((f) => (
+            {faqs.map((f) => (
               <details key={f.q} className="group rounded-2xl border border-white/10 bg-white/5 p-5">
                 <summary className="flex cursor-pointer list-none items-center justify-between text-left font-semibold">
                   {f.q}<span className="ml-4 text-white/60 transition-transform group-open:rotate-180">▾</span>
