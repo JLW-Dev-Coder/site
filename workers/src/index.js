@@ -10306,6 +10306,62 @@ function route(method, pathname) {
 }
 
 // ---------------------------------------------------------------------------
+// WLVLP Subdomain Site Handler
+// ---------------------------------------------------------------------------
+
+async function handleWlvlpSite(slug, request, env) {
+  // 1. Fetch template HTML from R2
+  const templateKey = `wlvlp/sites/${slug}/index.html`;
+  const templateObj = await env.R2_VIRTUAL_LAUNCH.get(templateKey);
+
+  if (!templateObj) {
+    return new Response('Site not found', { status: 404 });
+  }
+
+  let html = await templateObj.text();
+
+  // 2. Fetch buyer config from R2
+  const configKey = `wlvlp/configs/${slug}.json`;
+  const configObj = await env.R2_VIRTUAL_LAUNCH.get(configKey);
+
+  if (configObj) {
+    const config = JSON.parse(await configObj.text());
+    // 3. Inject config — replace defaultConfig in the HTML
+    html = html.replace(
+      /const defaultConfig\s*=\s*\{[^}]*\}/s,
+      `const defaultConfig = ${JSON.stringify(config)}`
+    );
+  }
+
+  // 4. Check auth cookie for edit panel injection
+  const cookie = request.headers.get('cookie') || '';
+  const sessionMatch = cookie.match(/vlp_session=([^;]+)/);
+
+  if (sessionMatch) {
+    // Verify session owns this slug
+    const session = await getSessionFromRequest(request, env);
+    if (session) {
+      const purchase = await env.DB.prepare(
+        "SELECT slug FROM wlvlp_purchases WHERE account_id = ? AND slug = ? AND status = 'active'"
+      ).bind(session.account_id, slug).first();
+
+      if (purchase) {
+        // Inject edit panel script before </body>
+        const editPanelScript = `<script src="https://websitelotto.virtuallaunch.pro/_sdk/edit-panel.js"></script>`;
+        html = html.replace('</body>', `${editPanelScript}</body>`);
+      }
+    }
+  }
+
+  return new Response(html, {
+    headers: {
+      'Content-Type': 'text/html;charset=UTF-8',
+      'Cache-Control': 'no-store',
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Fetch handler
 // ---------------------------------------------------------------------------
 
@@ -10318,6 +10374,16 @@ export default {
     // Handle CORS preflight.
     if (method === 'OPTIONS') {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
+    }
+
+    // WLVLP subdomain site serving
+    // Check if request is for {slug}.websitelotto.virtuallaunch.pro
+    const host = request.headers.get('host') || '';
+    const wlvlpMatch = host.match(/^([a-z0-9-]+)\.websitelotto\.virtuallaunch\.pro$/);
+
+    if (wlvlpMatch) {
+      const slug = wlvlpMatch[1];
+      return handleWlvlpSite(slug, request, env);
     }
 
     const result = route(method, pathname);
