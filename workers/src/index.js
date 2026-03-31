@@ -3313,9 +3313,9 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/profiles/public/:professional_id',
     handler: async (_method, _pattern, params, _request, env) => {
       const obj = await env.R2_VIRTUAL_LAUNCH.get(`profiles/${params.professional_id}.json`);
-      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404, request);
+      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404, _request);
       const { accountId: _accountId, ...publicProfile } = await obj.json();
-      return json({ ok: true, profile: publicProfile }, 200, request);
+      return json({ ok: true, profile: publicProfile }, 200, _request);
     },
   },
 
@@ -4295,7 +4295,7 @@ const ROUTES = [
           'SELECT google_access_token FROM accounts WHERE account_id = ?'
         ).bind(session.account_id).first();
         const connected = !!(row && row.google_access_token);
-        return json({ ok: true, connected });
+        return json({ ok: true, connected }, 200, request);
       } catch {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check Google status' }, 500, request);
       }
@@ -4446,7 +4446,7 @@ const ROUTES = [
           error: 'SUBSCRIPTION_REQUIRED',
           message: 'An active paid subscription is required to use form tools.',
           upgrade_url: '/pricing'
-        }, 402);
+        }, 402, request);
       }
 
       const { form_data: formData } = payload;
@@ -4596,7 +4596,7 @@ const ROUTES = [
           error: 'SUBSCRIPTION_REQUIRED',
           message: 'An active paid subscription is required to use form tools.',
           upgrade_url: '/pricing'
-        }, 402);
+        }, 402, request);
       }
 
       // Check token balance
@@ -4775,7 +4775,7 @@ const ROUTES = [
           error: 'INSUFFICIENT_TOKENS',
           tokens_remaining: tokensRemaining,
           upgrade_url: '/pricing'
-        }, 402);
+        }, 402, request);
       }
 
       // --- Write pipeline ---
@@ -4941,7 +4941,7 @@ const ROUTES = [
         return json({
           ok: false, error: 'EXTRACTION_FAILED',
           message: 'Could not extract text from PDF. The file may be scanned/image-based. Please use a digitally generated IRS transcript.',
-        }, 422);
+        }, 422, request);
       }
 
       // --- Detect transcript type ---
@@ -4961,7 +4961,7 @@ const ROUTES = [
         return json({
           ok: false, error: 'UNRECOGNIZED_TRANSCRIPT',
           message: 'Could not detect transcript type. Supported: Account, Return, Wage & Income, Record of Account.',
-        }, 422);
+        }, 422, request);
       }
 
       // --- Extract transaction lines ---
@@ -5008,7 +5008,7 @@ const ROUTES = [
         return json({
           ok: false, error: 'NO_TRANSACTIONS_FOUND',
           message: 'No IRS transaction codes found in the PDF. Ensure this is a valid IRS transcript with transaction lines.',
-        }, 422);
+        }, 422, request);
       }
 
       // --- Dedupe check via SHA-256 of file content ---
@@ -6429,7 +6429,7 @@ TTMP Support Team
           "addons": [
             { "key": "tmp_mfj", "name": "MFJ Add-On", "price": 79, "price_id": env.STRIPE_PRICE_TMP_MFJ, "features": ["Married Filing Jointly spouse coverage"] }
           ]
-        });
+        }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch pricing' }, 500, request);
       }
@@ -6558,7 +6558,7 @@ TTMP Support Team
             ok: false,
             error: 'SUBSCRIPTION_REQUIRED',
             upgrade_url: '/pricing'
-          }, 402);
+          }, 402, request);
         }
 
         // Get account info
@@ -6604,7 +6604,7 @@ TTMP Support Team
             ok: false,
             error: 'PLAN_II_REQUIRED',
             upgrade_url: '/pricing'
-          }, 402);
+          }, 402, request);
         }
 
         // Get compliance status
@@ -7982,7 +7982,7 @@ TTMP Support Team
             ok: false,
             error: 'DEVELOPER_NOT_ELIGIBLE',
             message: 'This developer has not upgraded to receive curated matches.'
-          }, 402);
+          }, 402, request);
         }
 
         const eventId = `EVT_${crypto.randomUUID()}`;
