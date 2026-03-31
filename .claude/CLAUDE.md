@@ -28,7 +28,7 @@ Track legacy Worker status here. Update this section as work completes.
 |---|---|---|---|---|
 | TTMP | ✅ Yes | ✅ Complete (24/24) | ✅ Complete | ✅ Deleted |
 | TTTMP | ✅ Yes | ✅ Complete (13/13) | ✅ Complete | ✅ Deleted |
-| TMP | Unknown | Unknown | Unknown | Unknown |
+| TMP | ✅ Yes (deleted) | ✅ Complete | ✅ Complete | ✅ Deleted |
 | DVLP | Unknown | Unknown | Unknown | Unknown |
 | GVLP | Unknown | Unknown | Unknown | Unknown |
 | TCVLP | Unknown | Unknown | Unknown | Unknown |
@@ -365,6 +365,29 @@ R2:          virtuallaunch-pro
 Secrets are managed via `wrangler secret put` — never committed to the repo. See `wrangler.toml` comments for the full secret list.
 
 ---
+
+## Cloudflare Pages Build Configuration
+
+All platform frontends are Next.js. Build configs are verified and must not
+be changed without updating this table.
+
+| Platform | Pages Project | Build Command | Output Dir | Adapter |
+|---|---|---|---|---|
+| VLP | `virtuallaunch-pro-web` | `cd web && npm install && npm run pages:build` | `web/.vercel/output/static` | `@cloudflare/next-on-pages` |
+| TMP | `taxmonitor-pro-site` | `npm run build` | `out` | static export |
+| TTMP | `transcript-taxmonitor-pro-site` | `npm run cf:build` | `.open-next/assets` | OpenNext |
+| TTTMP | `taxtools-taxmonitor-pro-site` | `npx @cloudflare/next-on-pages` | `.vercel/output/static` | `@cloudflare/next-on-pages` |
+| DVLP | `developers-virtuallaunch-pro-site` | `npm run pages:build` | `.vercel/output/static` | `@cloudflare/next-on-pages` |
+| GVLP | `games-virtuallaunch-pro` | `npm run build` | `out` | static export |
+| TCVLP | `taxclaim-virtuallaunch-pro` | `npm run build` | `out` | static export |
+| WLVLP | `websitelotto-virtuallaunch-pro` | `npm run build` | `out` | static export |
+
+**Notes:**
+- DVLP has a `wrangler.toml` with R2 and KV bindings — do not overwrite it
+- TTMP uses OpenNext adapter — `npm run cf:build` is correct, not `npm run build`
+- TMP has both `output: 'export'` and `@cloudflare/next-on-pages` installed — static export takes precedence and works correctly
+- Root directory is empty (repo root) for all projects
+- Never set output to `public/`, `dist/`, `.next/`, or repo root
 
 ## Phased Build Plan
 
