@@ -1,7 +1,15 @@
 export const runtime = 'edge'
 
 import type { Metadata } from 'next'
+import { Raleway } from 'next/font/google'
 import './globals.css'
+
+const raleway = Raleway({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  display: 'swap',
+  variable: '--font-raleway',
+})
 
 export const metadata: Metadata = {
   title: {
@@ -24,7 +32,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={raleway.variable}>
       <body className="antialiased">{children}</body>
     </html>
   )
