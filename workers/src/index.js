@@ -109,27 +109,45 @@
 // Helpers
 // ---------------------------------------------------------------------------
 
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': 'https://virtuallaunch.pro',
-  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-  'Access-Control-Allow-Credentials': 'true',
-};
+const ALLOWED_ORIGINS = [
+  'https://virtuallaunch.pro',
+  'https://taxmonitor.pro',
+  'https://transcript.taxmonitor.pro',
+  'https://taxtools.taxmonitor.pro',
+  'https://developers.virtuallaunch.pro',
+  'https://games.virtuallaunch.pro',
+  'https://taxclaim.virtuallaunch.pro',
+  'https://websitelotto.virtuallaunch.pro',
+];
 
-function json(body, status = 200) {
+function getCorsHeaders(request) {
+  const origin = request?.headers?.get('Origin') || '';
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin)
+    ? origin
+    : 'https://virtuallaunch.pro';
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true',
+  };
+}
+
+function json(body, status = 200, request) {
+  const corsHeaders = getCorsHeaders(request);
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...CORS_HEADERS },
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
   });
 }
 
 
 function notFound(path) {
-  return json({ ok: false, error: 'NOT_FOUND', path }, 404);
+  return json({ ok: false, error: 'NOT_FOUND', path }, 404, request);
 }
 
 function methodNotAllowed(method, path) {
-  return json({ ok: false, error: 'METHOD_NOT_ALLOWED', route: `${method} ${path}` }, 405);
+  return json({ ok: false, error: 'METHOD_NOT_ALLOWED', route: `${method} ${path}` }, 405, request);
 }
 
 /**
@@ -672,12 +690,13 @@ function makeSessionCookie(sessionId, env) {
   ].join('; ');
 }
 
-function jsonWithCookie(body, sessionId, env, status = 200) {
+function jsonWithCookie(body, sessionId, env, status = 200, request) {
+  const corsHeaders = getCorsHeaders(request);
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json',
-      ...CORS_HEADERS,
+      ...corsHeaders,
       'Set-Cookie': makeSessionCookie(sessionId, env),
     },
   });
@@ -1115,7 +1134,7 @@ const ROUTES = [
           expires_at: session.expires_at,
           referral_code: referralCode,
         },
-      });
+      }, 200, request);
     },
   },
 
@@ -1127,13 +1146,13 @@ const ROUTES = [
       try {
         await d1Run(env.DB, 'DELETE FROM sessions WHERE session_id = ?', [session.session_id]);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to delete session' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to delete session' }, 500, request);
       }
       return new Response(JSON.stringify({ ok: true, status: 'logged_out' }), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          ...CORS_HEADERS,
+          ...getCorsHeaders(request),
           'Set-Cookie': [
             'vlp_session=',
             'Domain=' + (env.COOKIE_DOMAIN ?? '.virtuallaunch.pro'),
@@ -1158,7 +1177,7 @@ const ROUTES = [
       url.searchParams.set('response_type', 'code');
       url.searchParams.set('scope', 'openid email profile');
       url.searchParams.set('state', state);
-      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() });
+      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() }, 200, _request);
     },
   },
 
@@ -1169,7 +1188,7 @@ const ROUTES = [
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
       if (!code || !state) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'code and state required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'code and state required' }, 400, request);
       }
       try {
         const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -1183,20 +1202,20 @@ const ROUTES = [
             grant_type: 'authorization_code',
           }),
         });
-        if (!tokenRes.ok) return json({ ok: false, error: 'OAUTH_ERROR', message: 'Token exchange failed' }, 502);
+        if (!tokenRes.ok) return json({ ok: false, error: 'OAUTH_ERROR', message: 'Token exchange failed' }, 502, request);
         const { access_token } = await tokenRes.json();
 
         const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${access_token}` },
         });
-        if (!userRes.ok) return json({ ok: false, error: 'OAUTH_ERROR', message: 'Failed to fetch user info' }, 502);
+        if (!userRes.ok) return json({ ok: false, error: 'OAUTH_ERROR', message: 'Failed to fetch user info' }, 502, request);
         const user = await userRes.json();
 
         const { accountId } = await upsertAccount(user.email, user.given_name ?? '', user.family_name ?? '', env);
         const { sessionId } = await createSession(accountId, user.email, env);
         return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Google callback failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Google callback failed' }, 500, request);
       }
     },
   },
@@ -1206,7 +1225,7 @@ const ROUTES = [
     handler: async (_method, _pattern, _params, request, env) => {
       const body = await parseBody(request);
       if (!body?.email || !body?.redirectUri) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'email and redirectUri required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'email and redirectUri required' }, 400, request);
       }
       const { email, redirectUri } = body;
       try {
@@ -1219,9 +1238,9 @@ const ROUTES = [
         await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/auth/${eventId}.json`, {
           email, requested_at: new Date().toISOString(), event: 'MAGIC_LINK_REQUESTED',
         });
-        return json({ ok: true, status: 'requested', email });
+        return json({ ok: true, status: 'requested', email }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link request failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link request failed' }, 500, request);
       }
     },
   },
@@ -1233,17 +1252,17 @@ const ROUTES = [
       const token = url.searchParams.get('token');
       const email = url.searchParams.get('email');
       if (!token || !email) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'token and email required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'token and email required' }, 400, request);
       }
       try {
         const payload = await verifyJwt(token, env.JWT_SECRET);
-        if (!payload) return json({ ok: false, error: 'INVALID_TOKEN' }, 401);
-        if (payload.email !== email) return json({ ok: false, error: 'INVALID_TOKEN' }, 401);
+        if (!payload) return json({ ok: false, error: 'INVALID_TOKEN' }, 401, request);
+        if (payload.email !== email) return json({ ok: false, error: 'INVALID_TOKEN' }, 401, request);
         const { accountId } = await upsertAccount(email, '', '', env);
         const { sessionId } = await createSession(accountId, email, env);
         return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link verification failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link verification failed' }, 500, request);
       }
     },
   },
@@ -1258,7 +1277,7 @@ const ROUTES = [
       url.searchParams.set('response_type', 'code');
       url.searchParams.set('scope', 'openid email profile');
       url.searchParams.set('state', state);
-      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() });
+      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() }, 200, _request);
     },
   },
 
@@ -1269,7 +1288,7 @@ const ROUTES = [
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
       if (!code || !state) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'code and state required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'code and state required' }, 400, request);
       }
       try {
         const tokenRes = await fetch(`${env.SSO_OIDC_ISSUER}/o/oauth2/token`, {
@@ -1283,20 +1302,20 @@ const ROUTES = [
             grant_type: 'authorization_code',
           }),
         });
-        if (!tokenRes.ok) return json({ ok: false, error: 'OAUTH_ERROR', message: 'Token exchange failed' }, 502);
+        if (!tokenRes.ok) return json({ ok: false, error: 'OAUTH_ERROR', message: 'Token exchange failed' }, 502, request);
         const { access_token } = await tokenRes.json();
 
         const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${access_token}` },
         });
-        if (!userRes.ok) return json({ ok: false, error: 'OAUTH_ERROR', message: 'Failed to fetch user info' }, 502);
+        if (!userRes.ok) return json({ ok: false, error: 'OAUTH_ERROR', message: 'Failed to fetch user info' }, 502, request);
         const user = await userRes.json();
 
         const { accountId } = await upsertAccount(user.email, user.given_name ?? '', user.family_name ?? '', env);
         const { sessionId } = await createSession(accountId, user.email, env);
-        return jsonWithCookie({ ok: true, status: 'callback_completed', redirectTo: `https://virtuallaunch.pro/dashboard` }, sessionId, env);
+        return jsonWithCookie({ ok: true, status: 'callback_completed', redirectTo: `https://virtuallaunch.pro/dashboard` }, sessionId, env, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'OIDC callback failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'OIDC callback failed' }, 500, request);
       }
     },
   },
@@ -1304,7 +1323,7 @@ const ROUTES = [
   {
     method: 'GET', pattern: '/v1/auth/sso/saml/start',
     handler: async (_method, _pattern, _params, _request, env) => {
-      return json({ ok: true, status: 'redirect_required', authorizationUrl: env.SSO_SAML_IDP_SSO_URL });
+      return json({ ok: true, status: 'redirect_required', authorizationUrl: env.SSO_SAML_IDP_SSO_URL }, 200, _request);
     },
   },
 
@@ -1313,7 +1332,7 @@ const ROUTES = [
     handler: async (_method, _pattern, _params, request, env) => {
       const body = await parseBody(request);
       if (!body?.samlResponse || !body?.relayState) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'samlResponse and relayState required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'samlResponse and relayState required' }, 400, request);
       }
       try {
         const decoded = atob(body.samlResponse);
@@ -1324,12 +1343,12 @@ const ROUTES = [
           const attrMatch = decoded.match(/email[^>]*>([^<]+@[^<]+)</i);
           if (attrMatch) email = attrMatch[1].trim();
         }
-        if (!email) return json({ ok: false, error: 'BAD_REQUEST', message: 'Could not extract email from SAML response' }, 400);
+        if (!email) return json({ ok: false, error: 'BAD_REQUEST', message: 'Could not extract email from SAML response' }, 400, request);
         const { accountId } = await upsertAccount(email, '', '', env);
         const { sessionId } = await createSession(accountId, email, env);
         return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'SAML ACS failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'SAML ACS failed' }, 500, request);
       }
     },
   },
@@ -1343,10 +1362,10 @@ const ROUTES = [
         const row = await env.DB.prepare(
           'SELECT two_factor_enabled FROM accounts WHERE account_id = ?'
         ).bind(params.account_id).first();
-        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404);
-        return json({ ok: true, accountId: params.account_id, enabled: row.two_factor_enabled === 1 });
+        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404, request);
+        return json({ ok: true, accountId: params.account_id, enabled: row.two_factor_enabled === 1 }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: '2FA status lookup failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: '2FA status lookup failed' }, 500, request);
       }
     },
   },
@@ -1357,19 +1376,19 @@ const ROUTES = [
       const { error } = await requireSession(request, env);
       if (error) return error;
       const body = await parseBody(request);
-      if (!body?.accountId) return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId required' }, 400);
+      if (!body?.accountId) return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId required' }, 400, request);
       const { accountId } = body;
       try {
         const secretBytes = crypto.getRandomValues(new Uint8Array(32));
         const secret = base32Encode(secretBytes);
         const row = await env.DB.prepare('SELECT email FROM accounts WHERE account_id = ?').bind(accountId).first();
-        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404);
+        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404, request);
         await d1Run(env.DB, 'UPDATE accounts SET totp_pending_secret = ? WHERE account_id = ?', [secret, accountId]);
         const issuer = env.TWOFA_TOTP_ISSUER ?? 'VirtualLaunchPro';
         const otpauthUri = `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(row.email)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}`;
-        return json({ ok: true, status: 'enrollment_started', accountId, challenge: { otpauthUri, secret } });
+        return json({ ok: true, status: 'enrollment_started', accountId, challenge: { otpauthUri, secret } }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: '2FA enrollment init failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: '2FA enrollment init failed' }, 500, request);
       }
     },
   },
@@ -1380,14 +1399,14 @@ const ROUTES = [
       const { error } = await requireSession(request, env);
       if (error) return error;
       const body = await parseBody(request);
-      if (!body?.accountId || !body?.otpCode) return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId and otpCode required' }, 400);
+      if (!body?.accountId || !body?.otpCode) return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId and otpCode required' }, 400, request);
       const { accountId, otpCode } = body;
-      if (String(otpCode).length !== 6) return json({ ok: false, error: 'INVALID_OTP' }, 401);
+      if (String(otpCode).length !== 6) return json({ ok: false, error: 'INVALID_OTP' }, 401, request);
       try {
         const row = await env.DB.prepare('SELECT totp_pending_secret, email FROM accounts WHERE account_id = ?').bind(accountId).first();
-        if (!row?.totp_pending_secret) return json({ ok: false, error: 'BAD_REQUEST', message: 'No pending enrollment found' }, 400);
+        if (!row?.totp_pending_secret) return json({ ok: false, error: 'BAD_REQUEST', message: 'No pending enrollment found' }, 400, request);
         const valid = await verifyTotp(row.totp_pending_secret, String(otpCode));
-        if (!valid) return json({ ok: false, error: 'INVALID_OTP' }, 401);
+        if (!valid) return json({ ok: false, error: 'INVALID_OTP' }, 401, request);
         await d1Run(env.DB,
           'UPDATE accounts SET totp_secret = totp_pending_secret, totp_pending_secret = NULL, two_factor_enabled = 1 WHERE account_id = ?',
           [accountId]
@@ -1398,9 +1417,9 @@ const ROUTES = [
         record2faEnroll.twoFactorEnabled = true;
         record2faEnroll.updatedAt = now;
         await r2Put(env.R2_VIRTUAL_LAUNCH, `accounts_vlp/VLP_ACCT_${accountId}.json`, record2faEnroll);
-        return json({ ok: true, status: 'enrollment_verified', accountId });
+        return json({ ok: true, status: 'enrollment_verified', accountId }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: '2FA enrollment verify failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: '2FA enrollment verify failed' }, 500, request);
       }
     },
   },
@@ -1410,18 +1429,18 @@ const ROUTES = [
     handler: async (_method, _pattern, _params, request, env) => {
       const body = await parseBody(request);
       if (!body?.accountId || !body?.otpCode || !body?.sessionToken) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, otpCode, and sessionToken required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, otpCode, and sessionToken required' }, 400, request);
       }
       const { accountId, otpCode, sessionToken } = body;
       try {
         const row = await env.DB.prepare('SELECT totp_secret FROM accounts WHERE account_id = ?').bind(accountId).first();
-        if (!row?.totp_secret) return json({ ok: false, error: 'BAD_REQUEST', message: '2FA not enrolled' }, 400);
+        if (!row?.totp_secret) return json({ ok: false, error: 'BAD_REQUEST', message: '2FA not enrolled' }, 400, request);
         const valid = await verifyTotp(row.totp_secret, String(otpCode));
-        if (!valid) return json({ ok: false, error: 'INVALID_OTP' }, 401);
+        if (!valid) return json({ ok: false, error: 'INVALID_OTP' }, 401, request);
         await d1Run(env.DB, 'UPDATE sessions SET two_fa_verified = 1 WHERE session_id = ?', [sessionToken]);
-        return json({ ok: true, status: 'verified', accountId });
+        return json({ ok: true, status: 'verified', accountId }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: '2FA challenge verify failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: '2FA challenge verify failed' }, 500, request);
       }
     },
   },
@@ -1433,14 +1452,14 @@ const ROUTES = [
       if (error) return error;
       const body = await parseBody(request);
       if (!body?.accountId || !body?.challengeToken) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId and challengeToken required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId and challengeToken required' }, 400, request);
       }
       const { accountId, challengeToken } = body;
       try {
         const row = await env.DB.prepare('SELECT totp_secret, email FROM accounts WHERE account_id = ?').bind(accountId).first();
-        if (!row?.totp_secret) return json({ ok: false, error: 'BAD_REQUEST', message: '2FA not enrolled' }, 400);
+        if (!row?.totp_secret) return json({ ok: false, error: 'BAD_REQUEST', message: '2FA not enrolled' }, 400, request);
         const valid = await verifyTotp(row.totp_secret, String(challengeToken));
-        if (!valid) return json({ ok: false, error: 'INVALID_OTP' }, 401);
+        if (!valid) return json({ ok: false, error: 'INVALID_OTP' }, 401, request);
         await d1Run(env.DB, 'UPDATE accounts SET totp_secret = NULL, two_factor_enabled = 0 WHERE account_id = ?', [accountId]);
         const now = new Date().toISOString();
         const existing2faDisable = await env.R2_VIRTUAL_LAUNCH.get(`accounts_vlp/VLP_ACCT_${accountId}.json`);
@@ -1448,9 +1467,9 @@ const ROUTES = [
         record2faDisable.twoFactorEnabled = false;
         record2faDisable.updatedAt = now;
         await r2Put(env.R2_VIRTUAL_LAUNCH, `accounts_vlp/VLP_ACCT_${accountId}.json`, record2faDisable);
-        return json({ ok: true, status: 'disabled', accountId });
+        return json({ ok: true, status: 'disabled', accountId }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: '2FA disable failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: '2FA disable failed' }, 500, request);
       }
     },
   },
@@ -1466,10 +1485,10 @@ const ROUTES = [
         const body = await parseBody(request);
         const { email, eventId, message, name, source } = body ?? {};
         if (!email || !eventId || !message || !name || !source) {
-          return json({ ok: false, error: 'MISSING_FIELDS', message: 'email, eventId, message, name, source are required' }, 400);
+          return json({ ok: false, error: 'MISSING_FIELDS', message: 'email, eventId, message, name, source are required' }, 400, request);
         }
-        if (name.length > 200) return json({ ok: false, error: 'VALIDATION', message: 'name max 200 chars' }, 400);
-        if (message.length > 5000) return json({ ok: false, error: 'VALIDATION', message: 'message max 5000 chars' }, 400);
+        if (name.length > 200) return json({ ok: false, error: 'VALIDATION', message: 'name max 200 chars' }, 400, request);
+        if (message.length > 5000) return json({ ok: false, error: 'VALIDATION', message: 'message max 5000 chars' }, 400, request);
         const now = new Date().toISOString();
         await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/contact/${eventId}.json`, {
           email, name, message, source, event: 'CONTACT_SUBMITTED', created_at: now,
@@ -1483,9 +1502,9 @@ const ROUTES = [
           `<p>From: ${name} (${email})</p><p>Source: ${source}</p><p>Message: ${message}</p>`,
           env
         );
-        return json({ ok: true, eventId, status: 'submitted' });
+        return json({ ok: true, eventId, status: 'submitted' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Contact submit failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Contact submit failed' }, 500, request);
       }
     },
   },
@@ -1502,7 +1521,7 @@ const ROUTES = [
       const body = await parseBody(request);
       const { accountId, email, firstName, lastName, platform, role, source, referredBy } = body ?? {};
       if (!accountId || !email || !firstName || !lastName || !platform || !role || !source) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, email, firstName, lastName, platform, role, source required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, email, firstName, lastName, platform, role, source required' }, 400, request);
       }
       try {
         const eventId = `EVT_${crypto.randomUUID()}`;
@@ -1555,9 +1574,9 @@ const ROUTES = [
         await r2Put(env.R2_VIRTUAL_LAUNCH, `accounts_vlp/VLP_ACCT_${accountId}.json`, {
           accountId, email, firstName, lastName, platform, role, status: 'active', referredBy: referrerAccountId, createdAt: now,
         });
-        return json({ ok: true, accountId, status: 'created' });
+        return json({ ok: true, accountId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Account creation failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Account creation failed' }, 500, request);
       }
     },
   },
@@ -1570,10 +1589,10 @@ const ROUTES = [
       try {
         const row = await env.DB.prepare('SELECT * FROM accounts WHERE email = ?')
           .bind(decodeURIComponent(params.email)).first();
-        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404);
-        return json({ ok: true, account: row });
+        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404, request);
+        return json({ ok: true, account: row }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Account lookup failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Account lookup failed' }, 500, request);
       }
     },
   },
@@ -1585,10 +1604,10 @@ const ROUTES = [
       if (error) return error;
       try {
         const row = await env.DB.prepare('SELECT * FROM accounts WHERE account_id = ?').bind(params.account_id).first();
-        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404);
-        return json({ ok: true, account: row });
+        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404, request);
+        return json({ ok: true, account: row }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Account lookup failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Account lookup failed' }, 500, request);
       }
     },
   },
@@ -1599,14 +1618,14 @@ const ROUTES = [
       const { error } = await requireSession(request, env);
       if (error) return error;
       const body = await parseBody(request);
-      if (!body) return json({ ok: false, error: 'BAD_REQUEST', message: 'Request body required' }, 400);
+      if (!body) return json({ ok: false, error: 'BAD_REQUEST', message: 'Request body required' }, 400, request);
       const allowed = ['email', 'firstName', 'lastName', 'phone', 'status', 'timezone'];
       const dbCols = { email: 'email', firstName: 'first_name', lastName: 'last_name', phone: 'phone', status: 'status', timezone: 'timezone' };
       const sets = [], vals = [];
       for (const key of allowed) {
         if (body[key] !== undefined) { sets.push(`${dbCols[key]} = ?`); vals.push(body[key]); }
       }
-      if (sets.length === 0) return json({ ok: false, error: 'BAD_REQUEST', message: 'No updatable fields provided' }, 400);
+      if (sets.length === 0) return json({ ok: false, error: 'BAD_REQUEST', message: 'No updatable fields provided' }, 400, request);
       const now = new Date().toISOString();
       sets.push('updated_at = ?');
       vals.push(now);
@@ -1618,9 +1637,9 @@ const ROUTES = [
         for (const key of allowed) { if (body[key] !== undefined) record[key] = body[key]; }
         record.updatedAt = now;
         await r2Put(env.R2_VIRTUAL_LAUNCH, `accounts_vlp/VLP_ACCT_${params.account_id}.json`, record);
-        return json({ ok: true, accountId: params.account_id, status: 'updated' });
+        return json({ ok: true, accountId: params.account_id, status: 'updated' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Account update failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Account update failed' }, 500, request);
       }
     },
   },
@@ -1638,9 +1657,9 @@ const ROUTES = [
         record.status = 'archived';
         record.updatedAt = now;
         await r2Put(env.R2_VIRTUAL_LAUNCH, `accounts_vlp/VLP_ACCT_${params.account_id}.json`, record);
-        return json({ ok: true, accountId: params.account_id, status: 'archived' });
+        return json({ ok: true, accountId: params.account_id, status: 'archived' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Account archive failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Account archive failed' }, 500, request);
       }
     },
   },
@@ -1653,20 +1672,20 @@ const ROUTES = [
     method: 'POST', pattern: '/v1/memberships',
     handler: async (_method, _pattern, _params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const body = await parseBody(request);
         const { accountId, membershipId, planKey, status, stripeCustomerId } = body ?? {};
         if (!accountId || !membershipId || !planKey || !status) {
-          return json({ ok: false, error: 'MISSING_FIELDS', message: 'accountId, membershipId, planKey, status are required' }, 400);
+          return json({ ok: false, error: 'MISSING_FIELDS', message: 'accountId, membershipId, planKey, status are required' }, 400, request);
         }
         const validPlans = ['vlp_free', 'vlp_starter', 'vlp_advanced', 'vlp_scale'];
         if (!validPlans.includes(planKey)) {
-          return json({ ok: false, error: 'VALIDATION', message: `planKey must be one of: ${validPlans.join(', ')}` }, 400);
+          return json({ ok: false, error: 'VALIDATION', message: `planKey must be one of: ${validPlans.join(', ')}` }, 400, request);
         }
         const validStatuses = ['active', 'cancelled', 'past_due', 'pending', 'trialing'];
         if (!validStatuses.includes(status)) {
-          return json({ ok: false, error: 'VALIDATION', message: `status must be one of: ${validStatuses.join(', ')}` }, 400);
+          return json({ ok: false, error: 'VALIDATION', message: `status must be one of: ${validStatuses.join(', ')}` }, 400, request);
         }
         const now = new Date().toISOString();
         await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/memberships/${membershipId}.json`, {
@@ -1679,9 +1698,9 @@ const ROUTES = [
           `INSERT OR IGNORE INTO memberships (membership_id, account_id, plan_key, status, stripe_customer_id, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
           [membershipId, accountId, planKey, status, stripeCustomerId ?? null, now]
         );
-        return json({ ok: true, membershipId, status: 'created' });
+        return json({ ok: true, membershipId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Membership creation failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Membership creation failed' }, 500, request);
       }
     },
   },
@@ -1690,14 +1709,14 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/memberships/by-account/:account_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const rows = await env.DB.prepare(
           `SELECT * FROM memberships WHERE account_id = ? ORDER BY created_at DESC`
         ).bind(params.account_id).all();
-        return json({ ok: true, membership: rows.results[0] ?? null });
+        return json({ ok: true, membership: rows.results[0] ?? null }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch membership' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch membership' }, 500, request);
       }
     },
   },
@@ -1706,15 +1725,15 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/memberships/:membership_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const row = await env.DB.prepare(
           `SELECT * FROM memberships WHERE membership_id = ?`
         ).bind(params.membership_id).first();
-        if (!row) return json({ ok: false, error: 'NOT_FOUND', message: 'Membership not found' }, 404);
-        return json({ ok: true, membership: row });
+        if (!row) return json({ ok: false, error: 'NOT_FOUND', message: 'Membership not found' }, 404, request);
+        return json({ ok: true, membership: row }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch membership' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch membership' }, 500, request);
       }
     },
   },
@@ -1723,7 +1742,7 @@ const ROUTES = [
     method: 'PATCH', pattern: '/v1/memberships/:membership_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const body = await parseBody(request);
         const now = new Date().toISOString();
@@ -1732,11 +1751,11 @@ const ROUTES = [
         const validPlans = ['vlp_free', 'vlp_starter', 'vlp_advanced', 'vlp_scale'];
         const validStatuses = ['active', 'cancelled', 'past_due', 'pending', 'trialing'];
         if (body?.planKey !== undefined) {
-          if (!validPlans.includes(body.planKey)) return json({ ok: false, error: 'VALIDATION', message: `planKey must be one of: ${validPlans.join(', ')}` }, 400);
+          if (!validPlans.includes(body.planKey)) return json({ ok: false, error: 'VALIDATION', message: `planKey must be one of: ${validPlans.join(', ')}` }, 400, request);
           setClauses.push('plan_key = ?'); vals.push(body.planKey);
         }
         if (body?.status !== undefined) {
-          if (!validStatuses.includes(body.status)) return json({ ok: false, error: 'VALIDATION', message: `status must be one of: ${validStatuses.join(', ')}` }, 400);
+          if (!validStatuses.includes(body.status)) return json({ ok: false, error: 'VALIDATION', message: `status must be one of: ${validStatuses.join(', ')}` }, 400, request);
           setClauses.push('status = ?'); vals.push(body.status);
         }
         if (body?.stripeSubscriptionId !== undefined) { setClauses.push('stripe_subscription_id = ?'); vals.push(body.stripeSubscriptionId); }
@@ -1751,9 +1770,9 @@ const ROUTES = [
         if (body?.status !== undefined) updated.status = body.status;
         if (body?.stripeSubscriptionId !== undefined) updated.stripeSubscriptionId = body.stripeSubscriptionId;
         await r2Put(env.R2_VIRTUAL_LAUNCH, `memberships/${params.membership_id}.json`, updated);
-        return json({ ok: true, membershipId: params.membership_id, status: 'updated' });
+        return json({ ok: true, membershipId: params.membership_id, status: 'updated' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Membership update failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Membership update failed' }, 500, request);
       }
     },
   },
@@ -1778,13 +1797,13 @@ const ROUTES = [
             vlp_scale:    { monthly: env.STRIPE_PRICE_VLP_SCALE_MONTHLY,    yearly: env.STRIPE_PRICE_VLP_SCALE_YEARLY },
           },
         },
-      });
+      }, 200, _request);
     },
   },
 
   {
     method: 'GET', pattern: '/v1/pricing',
-    handler: async () => {
+    handler: async (_method, _pattern, _params, request, _env) => {
       return json({
         ok: true,
         pricing: {
@@ -1793,7 +1812,7 @@ const ROUTES = [
           vlp_advanced: { label: 'Advanced', monthlyUsd: 9900,   yearlyUsd: 95900 },
           vlp_scale:    { label: 'Scale',    monthlyUsd: 19900,  yearlyUsd: 199000 },
         },
-      });
+      }, 200, request);
     },
   },
 
@@ -1805,7 +1824,7 @@ const ROUTES = [
       const body = await parseBody(request);
       const { accountId, email, eventId, fullName } = body ?? {};
       if (!accountId || !email || !eventId || !fullName) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, email, eventId, fullName required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, email, eventId, fullName required' }, 400, request);
       }
       try {
         const customer = await stripePost('/customers', {
@@ -1826,9 +1845,9 @@ const ROUTES = [
           'INSERT OR REPLACE INTO billing_customers (account_id, stripe_customer_id, email, created_at) VALUES (?, ?, ?, ?)',
           [accountId, customerId, email, now]
         );
-        return json({ ok: true, customerId, eventId, status: 'created' });
+        return json({ ok: true, customerId, eventId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -1842,11 +1861,11 @@ const ROUTES = [
         const row = await env.DB.prepare(
           'SELECT stripe_customer_id FROM billing_customers WHERE account_id = ?'
         ).bind(params.account_id).first();
-        if (!row) return json({ ok: true, methods: [], status: 'retrieved' });
+        if (!row) return json({ ok: true, methods: [], status: 'retrieved' }, 200, request);
         const stripeRes = await stripeGet(`/payment_methods?customer=${row.stripe_customer_id}&type=card`, env);
-        return json({ ok: true, methods: stripeRes.data, status: 'retrieved' });
+        return json({ ok: true, methods: stripeRes.data, status: 'retrieved' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -1859,7 +1878,7 @@ const ROUTES = [
       const body = await parseBody(request);
       const { accountId, customerId, eventId, paymentMethodId, setDefault } = body ?? {};
       if (!accountId || !customerId || !eventId || !paymentMethodId || setDefault === undefined) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, customerId, eventId, paymentMethodId, setDefault required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, customerId, eventId, paymentMethodId, setDefault required' }, 400, request);
       }
       try {
         await stripePost(`/payment_methods/${paymentMethodId}/attach`, { customer: customerId }, env);
@@ -1875,9 +1894,9 @@ const ROUTES = [
         await r2Put(env.R2_VIRTUAL_LAUNCH, `billing_payment_methods/${accountId}.json`, {
           accountId, customerId, paymentMethodId, setDefault, updatedAt: now,
         });
-        return json({ ok: true, paymentMethodId, eventId, status: 'attached' });
+        return json({ ok: true, paymentMethodId, eventId, status: 'attached' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -1890,10 +1909,10 @@ const ROUTES = [
       const body = await parseBody(request);
       const { accountId, customerId, eventId, usage } = body ?? {};
       if (!accountId || !customerId || !eventId || !usage) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, customerId, eventId, usage required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, customerId, eventId, usage required' }, 400, request);
       }
       if (usage !== 'off_session' && usage !== 'on_session') {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'usage must be off_session or on_session' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'usage must be off_session or on_session' }, 400, request);
       }
       try {
         const si = await stripePost('/setup_intents', {
@@ -1909,9 +1928,9 @@ const ROUTES = [
         await r2Put(env.R2_VIRTUAL_LAUNCH, `billing_setup_intents/${eventId}.json`, {
           accountId, customerId, setupIntentId, clientSecret: si.client_secret, usage, createdAt: now,
         });
-        return json({ ok: true, setupIntentId, clientSecret: si.client_secret, eventId, status: 'created' });
+        return json({ ok: true, setupIntentId, clientSecret: si.client_secret, eventId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -1924,13 +1943,13 @@ const ROUTES = [
       const body = await parseBody(request);
       const { accountId, amount, currency, customerId, eventId, metadata } = body ?? {};
       if (!accountId || !amount || !currency || !customerId || !eventId) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, amount, currency, customerId, eventId required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, amount, currency, customerId, eventId required' }, 400, request);
       }
       if (!Number.isInteger(amount) || amount < 1) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'amount must be integer >= 1' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'amount must be integer >= 1' }, 400, request);
       }
       if (currency !== 'usd') {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'currency must be usd' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'currency must be usd' }, 400, request);
       }
       try {
         const pi = await stripePost('/payment_intents', {
@@ -1947,9 +1966,9 @@ const ROUTES = [
         await r2Put(env.R2_VIRTUAL_LAUNCH, `billing_payment_intents/${eventId}.json`, {
           accountId, amount, currency, customerId, paymentIntentId, clientSecret: pi.client_secret, createdAt: now,
         });
-        return json({ ok: true, paymentIntentId, clientSecret: pi.client_secret, eventId, status: 'created' });
+        return json({ ok: true, paymentIntentId, clientSecret: pi.client_secret, eventId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -1962,13 +1981,13 @@ const ROUTES = [
       const body = await parseBody(request);
       const { accountId, billingInterval, customerId, eventId, membershipId, planKey, priceId, productId } = body ?? {};
       if (!accountId || !billingInterval || !customerId || !eventId || !membershipId || !planKey || !priceId || !productId) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, billingInterval, customerId, eventId, membershipId, planKey, priceId, productId required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, billingInterval, customerId, eventId, membershipId, planKey, priceId, productId required' }, 400, request);
       }
       if (billingInterval !== 'monthly' && billingInterval !== 'yearly') {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'billingInterval must be monthly or yearly' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'billingInterval must be monthly or yearly' }, 400, request);
       }
       if (!['vlp_free', 'vlp_starter', 'vlp_advanced', 'vlp_scale'].includes(planKey)) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid planKey' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid planKey' }, 400, request);
       }
       try {
         const sub = await stripePost('/subscriptions', {
@@ -2005,9 +2024,9 @@ const ROUTES = [
           'INSERT OR REPLACE INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at) VALUES (?, ?, ?, ?)',
           [accountId, tokenGrant.taxGameTokens, tokenGrant.transcriptTokens, now]
         );
-        return json({ ok: true, membershipId, subscriptionId, eventId, status: 'created' });
+        return json({ ok: true, membershipId, subscriptionId, eventId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -2020,16 +2039,16 @@ const ROUTES = [
       const body = await parseBody(request);
       const { billingInterval, eventId, membershipId, planKey, priceId } = body ?? {};
       if (!billingInterval || !eventId || !membershipId || !planKey || !priceId) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'billingInterval, eventId, membershipId, planKey, priceId required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'billingInterval, eventId, membershipId, planKey, priceId required' }, 400, request);
       }
       try {
         const row = await env.DB.prepare('SELECT * FROM memberships WHERE membership_id = ?').bind(params.membership_id).first();
-        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404);
+        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404, request);
 
         // GET current subscription from Stripe to find item ID
         const sub = await stripeGet(`/subscriptions/${row.stripe_subscription_id}`, env);
         const itemId = sub.items?.data?.[0]?.id;
-        if (!itemId) return json({ ok: false, error: 'INTERNAL_ERROR', message: 'No subscription item found' }, 502);
+        if (!itemId) return json({ ok: false, error: 'INTERNAL_ERROR', message: 'No subscription item found' }, 502, request);
 
         // Update subscription item with new price
         await stripePost(`/subscription_items/${itemId}`, { price: priceId }, env);
@@ -2070,9 +2089,9 @@ const ROUTES = [
           'INSERT OR REPLACE INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at) VALUES (?, ?, ?, ?)',
           [row.account_id, tokenGrant.taxGameTokens, tokenGrant.transcriptTokens, now]
         );
-        return json({ ok: true, membershipId: params.membership_id, eventId, status: 'updated' });
+        return json({ ok: true, membershipId: params.membership_id, eventId, status: 'updated' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -2085,11 +2104,11 @@ const ROUTES = [
       const body = await parseBody(request);
       const { accountId, cancelAtPeriodEnd, eventId, membershipId, reason } = body ?? {};
       if (!accountId || cancelAtPeriodEnd === undefined || !eventId || !membershipId) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, cancelAtPeriodEnd, eventId, membershipId required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, cancelAtPeriodEnd, eventId, membershipId required' }, 400, request);
       }
       try {
         const row = await env.DB.prepare('SELECT stripe_subscription_id FROM memberships WHERE membership_id = ?').bind(params.membership_id).first();
-        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404);
+        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404, request);
 
         if (cancelAtPeriodEnd) {
           await stripePost(`/subscriptions/${row.stripe_subscription_id}`, { cancel_at_period_end: true }, env);
@@ -2112,9 +2131,9 @@ const ROUTES = [
           'UPDATE memberships SET status = \'cancelled\', updated_at = ? WHERE membership_id = ?',
           [now, params.membership_id]
         );
-        return json({ ok: true, membershipId, eventId, status: 'cancelled' });
+        return json({ ok: true, membershipId, eventId, status: 'cancelled' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -2127,7 +2146,7 @@ const ROUTES = [
       const body = await parseBody(request);
       const { accountId, customerId, eventId, returnUrl } = body ?? {};
       if (!accountId || !customerId || !eventId || !returnUrl) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, customerId, eventId, returnUrl required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, customerId, eventId, returnUrl required' }, 400, request);
       }
       try {
         const portal = await stripePost('/billing_portal/sessions', {
@@ -2147,9 +2166,9 @@ const ROUTES = [
         customerRecord.updatedAt = now;
         await r2Put(env.R2_VIRTUAL_LAUNCH, `billing_customers/${accountId}.json`, customerRecord);
 
-        return json({ ok: true, url: portalUrl, eventId, status: 'created' });
+        return json({ ok: true, url: portalUrl, eventId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -2162,16 +2181,16 @@ const ROUTES = [
       const body = await parseBody(request);
       const { accountId, amount, currency, eventId, quantity, tokenType } = body ?? {};
       if (!accountId || !amount || !currency || !eventId || !quantity || !tokenType) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, amount, currency, eventId, quantity, tokenType required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, amount, currency, eventId, quantity, tokenType required' }, 400, request);
       }
       if (tokenType !== 'tax_game' && tokenType !== 'transcript') {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'tokenType must be tax_game or transcript' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'tokenType must be tax_game or transcript' }, 400, request);
       }
       if (currency !== 'usd') {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'currency must be usd' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'currency must be usd' }, 400, request);
       }
       if (!Number.isInteger(quantity) || quantity < 1) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'quantity must be integer >= 1' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'quantity must be integer >= 1' }, 400, request);
       }
       try {
         const pi = await stripePost('/payment_intents', {
@@ -2204,9 +2223,9 @@ const ROUTES = [
           'INSERT OR REPLACE INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at) VALUES (?, ?, ?, ?)',
           [accountId, newTaxGame, newTranscript, now]
         );
-        return json({ ok: true, accountId, eventId, status: 'purchased' });
+        return json({ ok: true, accountId, eventId, status: 'purchased' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -2229,9 +2248,9 @@ const ROUTES = [
           })
         );
         const receipts = results.filter(Boolean);
-        return json({ ok: true, receipts, status: 'retrieved' });
+        return json({ ok: true, receipts, status: 'retrieved' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Receipt listing failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Receipt listing failed' }, 500, request);
       }
     },
   },
@@ -2248,10 +2267,10 @@ const ROUTES = [
       const { billingObject, planKey, email } = body ?? {};
 
       if (!billingObject || !planKey) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'billingObject and planKey are required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'billingObject and planKey are required' }, 400, request);
       }
       if (planKey === 'vlp_free') {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'Free plan does not require checkout' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'Free plan does not require checkout' }, 400, request);
       }
 
       const billingInterval = planKey.endsWith('_yearly') ? 'yearly' : 'monthly';
@@ -2285,9 +2304,9 @@ const ROUTES = [
           [membershipId, pendingAccountId, planKey, billingInterval, now]
         );
 
-        return json({ ok: true, url: stripeSession.url });
+        return json({ ok: true, url: stripeSession.url }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -2300,14 +2319,14 @@ const ROUTES = [
       const body = await parseBody(request);
       const { accountId, billingInterval, cancelUrl, planKey, successUrl } = body ?? {};
       if (!accountId || !billingInterval || !cancelUrl || !planKey || !successUrl) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, billingInterval, cancelUrl, planKey, successUrl required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'accountId, billingInterval, cancelUrl, planKey, successUrl required' }, 400, request);
       }
       if (planKey === 'vlp_free') {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'Free plan does not require checkout' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'Free plan does not require checkout' }, 400, request);
       }
       const priceId = getPriceId(planKey, billingInterval, env);
       if (!priceId) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid planKey or billingInterval' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid planKey or billingInterval' }, 400, request);
       }
       try {
         const membershipId = `MEM_${crypto.randomUUID()}`;
@@ -2330,9 +2349,9 @@ const ROUTES = [
            VALUES (?, ?, ?, ?, 'pending', ?)`,
           [membershipId, accountId, planKey, billingInterval, now]
         );
-        return json({ ok: true, checkoutSessionId, status: 'created' });
+        return json({ ok: true, checkoutSessionId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -2344,7 +2363,7 @@ const ROUTES = [
       if (error) return error;
       const url = new URL(request.url);
       const sessionId = url.searchParams.get('sessionId');
-      if (!sessionId) return json({ ok: false, error: 'BAD_REQUEST', message: 'sessionId required' }, 400);
+      if (!sessionId) return json({ ok: false, error: 'BAD_REQUEST', message: 'sessionId required' }, 400, request);
       try {
         const session = await stripeGet(`/checkout/sessions/${sessionId}`, env);
         return json({
@@ -2352,9 +2371,9 @@ const ROUTES = [
           status: session.status,
           paymentStatus: session.payment_status,
           customerEmail: session.customer_details?.email,
-        });
+        }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 502, request);
       }
     },
   },
@@ -2378,12 +2397,12 @@ const ROUTES = [
       const signatures = v1Parts.map(p => p.slice(3));
 
       if (!timestamp || signatures.length === 0) {
-        return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400);
+        return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
       }
 
       // Reject stale webhooks (> 300 seconds)
       if (Math.floor(Date.now() / 1000) - parseInt(timestamp) > 300) {
-        return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400);
+        return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
       }
 
       // Verify HMAC-SHA256 signature
@@ -2397,9 +2416,9 @@ const ROUTES = [
         const sigBuf = await crypto.subtle.sign('HMAC', key, enc.encode(`${timestamp}.${rawBody}`));
         const expectedHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
         const isValid = signatures.some(s => s === expectedHex);
-        if (!isValid) return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400);
+        if (!isValid) return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
       } catch {
-        return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400);
+        return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
       }
 
       // Parse event
@@ -2407,7 +2426,7 @@ const ROUTES = [
       try {
         event = JSON.parse(rawBody);
       } catch {
-        return json({ ok: true, received: true }); // malformed but always 200
+        return json({ ok: true, received: true }, 200, request); // malformed but always 200
       }
 
       // Handle event — errors are logged, never returned to Stripe
@@ -2833,7 +2852,7 @@ const ROUTES = [
         console.error(`[webhook] Error handling ${event?.type}: ${e.message}`);
       }
 
-      return json({ ok: true, received: true });
+      return json({ ok: true, received: true }, 200, request);
     },
   },
 
@@ -2846,10 +2865,10 @@ const ROUTES = [
       const sigHeader = request.headers.get('X-Cal-Signature-256') ?? '';
       if (env.CAL_WEBHOOK_SECRET) {
         const valid = await verifyCalSignature(rawBody, sigHeader, env.CAL_WEBHOOK_SECRET);
-        if (!valid) return json({ ok: false, error: 'INVALID_SIGNATURE' }, 401);
+        if (!valid) return json({ ok: false, error: 'INVALID_SIGNATURE' }, 401, request);
       }
       let payload;
-      try { payload = JSON.parse(rawBody); } catch { return json({ ok: false, error: 'INVALID_JSON' }, 400); }
+      try { payload = JSON.parse(rawBody); } catch { return json({ ok: false, error: 'INVALID_JSON' }, 400, request); }
 
       const eventType = payload?.triggerEvent ?? payload?.type ?? '';
       const now = new Date().toISOString();
@@ -3017,7 +3036,7 @@ const ROUTES = [
       } catch (e) {
         console.error(`[cal-webhook] Error handling ${eventType}: ${e.message}`);
       }
-      return json({ ok: true, received: true });
+      return json({ ok: true, received: true }, 200, request);
     },
   },
 
@@ -3073,7 +3092,7 @@ const ROUTES = [
       url.searchParams.set('state', state);
       url.searchParams.set('code_challenge', codeChallenge);
       url.searchParams.set('code_challenge_method', 'S256');
-      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() });
+      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() }, 200, request);
     },
   },
 
@@ -3092,7 +3111,7 @@ const ROUTES = [
       url.searchParams.set('client_id', calClientId);
       url.searchParams.set('redirect_uri', redirectUri);
       url.searchParams.set('response_type', 'code');
-      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() });
+      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() }, 200, request);
     },
   },
 
@@ -3144,9 +3163,9 @@ const ROUTES = [
         ).bind(session.account_id, 'cal_pro').first();
         const proConnected = !!proRow;
 
-        return json({ ok: true, vlpConnected, proConnected });
+        return json({ ok: true, vlpConnected, proConnected }, 200, request);
       } catch {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check Cal.com status' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check Cal.com status' }, 500, request);
       }
     },
   },
@@ -3163,11 +3182,11 @@ const ROUTES = [
       const body = await parseBody(request);
       const { professionalId, bookingType, scheduledAt, timezone } = body ?? {};
       if (!professionalId || !bookingType || !scheduledAt || !timezone) {
-        return json({ ok: false, error: 'MISSING_FIELDS', message: 'professionalId, bookingType, scheduledAt, timezone required' }, 400);
+        return json({ ok: false, error: 'MISSING_FIELDS', message: 'professionalId, bookingType, scheduledAt, timezone required' }, 400, request);
       }
       const connectionId = `cal_${professionalId}`;
       const connObj = await env.R2_VIRTUAL_LAUNCH.get(`cal_connections/${connectionId}.json`);
-      if (!connObj) return json({ ok: false, error: 'PROFESSIONAL_NOT_CONNECTED', message: 'Professional not connected to Cal.com' }, 422);
+      if (!connObj) return json({ ok: false, error: 'PROFESSIONAL_NOT_CONNECTED', message: 'Professional not connected to Cal.com' }, 422, request);
       const connection = await connObj.json();
 
       const now = new Date().toISOString();
@@ -3197,7 +3216,7 @@ const ROUTES = [
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [bookingId, session.account_id, professionalId, calBookingUid, bookingType, scheduledAt, timezone, 'pending', now, now]
       );
-      return json({ ok: true, booking }, 201);
+      return json({ ok: true, booking }, 201, request);
     },
   },
 
@@ -3209,7 +3228,7 @@ const ROUTES = [
       const rows = await env.DB.prepare(
         'SELECT * FROM bookings WHERE account_id = ? ORDER BY scheduled_at DESC'
       ).bind(params.account_id).all();
-      return json({ ok: true, bookings: rows.results ?? [] });
+      return json({ ok: true, bookings: rows.results ?? [] }, 200, request);
     },
   },
 
@@ -3221,7 +3240,7 @@ const ROUTES = [
       const rows = await env.DB.prepare(
         'SELECT * FROM bookings WHERE professional_id = ? ORDER BY scheduled_at DESC'
       ).bind(params.professional_id).all();
-      return json({ ok: true, bookings: rows.results ?? [] });
+      return json({ ok: true, bookings: rows.results ?? [] }, 200, request);
     },
   },
 
@@ -3231,8 +3250,8 @@ const ROUTES = [
       const { error } = await requireSession(request, env);
       if (error) return error;
       const obj = await env.R2_VIRTUAL_LAUNCH.get(`bookings/${params.booking_id}.json`);
-      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Booking not found' }, 404);
-      return json({ ok: true, booking: await obj.json() });
+      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Booking not found' }, 404, request);
+      return json({ ok: true, booking: await obj.json() }, 200, request);
     },
   },
 
@@ -3243,7 +3262,7 @@ const ROUTES = [
       if (error) return error;
       const body = await parseBody(request);
       const obj = await env.R2_VIRTUAL_LAUNCH.get(`bookings/${params.booking_id}.json`);
-      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Booking not found' }, 404);
+      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Booking not found' }, 404, request);
       const existing = await obj.json();
       const now = new Date().toISOString();
       const updated = { ...existing, updatedAt: now };
@@ -3255,7 +3274,7 @@ const ROUTES = [
       if (body?.bookingType) { updated.bookingType = body.bookingType; setClauses.unshift('booking_type = ?'); vals.unshift(body.bookingType); }
       await r2Put(env.R2_VIRTUAL_LAUNCH, `bookings/${params.booking_id}.json`, updated);
       await d1Run(env.DB, `UPDATE bookings SET ${setClauses.join(', ')} WHERE booking_id = ?`, [...vals, params.booking_id]);
-      return json({ ok: true, booking: updated });
+      return json({ ok: true, booking: updated }, 200, request);
     },
   },
 
@@ -3271,7 +3290,7 @@ const ROUTES = [
       const body = await parseBody(request);
       const { professionalId, displayName } = body ?? {};
       if (!professionalId || !displayName) {
-        return json({ ok: false, error: 'MISSING_FIELDS', message: 'professionalId and displayName required' }, 400);
+        return json({ ok: false, error: 'MISSING_FIELDS', message: 'professionalId and displayName required' }, 400, request);
       }
       const now = new Date().toISOString();
       const profile = {
@@ -3286,7 +3305,7 @@ const ROUTES = [
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [professionalId, session.account_id, displayName, profile.title, profile.bio, profile.specialties, profile.availability, now, now]
       );
-      return json({ ok: true, profile }, 201);
+      return json({ ok: true, profile }, 201, request);
     },
   },
 
@@ -3294,9 +3313,9 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/profiles/public/:professional_id',
     handler: async (_method, _pattern, params, _request, env) => {
       const obj = await env.R2_VIRTUAL_LAUNCH.get(`profiles/${params.professional_id}.json`);
-      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404);
+      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404, request);
       const { accountId: _accountId, ...publicProfile } = await obj.json();
-      return json({ ok: true, profile: publicProfile });
+      return json({ ok: true, profile: publicProfile }, 200, request);
     },
   },
 
@@ -3306,8 +3325,8 @@ const ROUTES = [
       const { error } = await requireSession(request, env);
       if (error) return error;
       const obj = await env.R2_VIRTUAL_LAUNCH.get(`profiles/${params.professional_id}.json`);
-      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404);
-      return json({ ok: true, profile: await obj.json() });
+      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404, request);
+      return json({ ok: true, profile: await obj.json() }, 200, request);
     },
   },
 
@@ -3318,7 +3337,7 @@ const ROUTES = [
       if (error) return error;
       const body = await parseBody(request);
       const obj = await env.R2_VIRTUAL_LAUNCH.get(`profiles/${params.professional_id}.json`);
-      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404);
+      if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404, request);
       const existing = await obj.json();
       const now = new Date().toISOString();
       const updated = { ...existing, updatedAt: now };
@@ -3331,7 +3350,7 @@ const ROUTES = [
       if (body?.availability) { updated.availability = body.availability; setClauses.unshift('availability = ?');  vals.unshift(body.availability); }
       await r2Put(env.R2_VIRTUAL_LAUNCH, `profiles/${params.professional_id}.json`, updated);
       await d1Run(env.DB, `UPDATE profiles SET ${setClauses.join(', ')} WHERE professional_id = ?`, [...vals, params.professional_id]);
-      return json({ ok: true, profile: updated });
+      return json({ ok: true, profile: updated }, 200, request);
     },
   },
 
@@ -3343,19 +3362,19 @@ const ROUTES = [
     method: 'POST', pattern: '/v1/support/tickets',
     handler: async (_method, _pattern, _params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const body = await parseBody(request);
         const { accountId, message, priority, subject, ticketId } = body ?? {};
         if (!accountId || !message || !priority || !subject || !ticketId) {
-          return json({ ok: false, error: 'MISSING_FIELDS', message: 'accountId, message, priority, subject, ticketId are required' }, 400);
+          return json({ ok: false, error: 'MISSING_FIELDS', message: 'accountId, message, priority, subject, ticketId are required' }, 400, request);
         }
         const validPriorities = ['high', 'low', 'normal', 'urgent'];
         if (!validPriorities.includes(priority)) {
-          return json({ ok: false, error: 'VALIDATION', message: `priority must be one of: ${validPriorities.join(', ')}` }, 400);
+          return json({ ok: false, error: 'VALIDATION', message: `priority must be one of: ${validPriorities.join(', ')}` }, 400, request);
         }
-        if (subject.length > 255) return json({ ok: false, error: 'VALIDATION', message: 'subject max 255 chars' }, 400);
-        if (message.length > 5000) return json({ ok: false, error: 'VALIDATION', message: 'message max 5000 chars' }, 400);
+        if (subject.length > 255) return json({ ok: false, error: 'VALIDATION', message: 'subject max 255 chars' }, 400, request);
+        if (message.length > 5000) return json({ ok: false, error: 'VALIDATION', message: 'message max 5000 chars' }, 400, request);
         const now = new Date().toISOString();
         await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/support/${ticketId}.json`, {
           ticketId, accountId, subject, priority, event: 'SUPPORT_TICKET_CREATED', created_at: now,
@@ -3367,9 +3386,9 @@ const ROUTES = [
           `INSERT INTO support_tickets (ticket_id, account_id, subject, message, priority, status, created_at) VALUES (?, ?, ?, ?, ?, 'open', ?)`,
           [ticketId, accountId, subject, message, priority, now]
         );
-        return json({ ok: true, ticketId, status: 'created' });
+        return json({ ok: true, ticketId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Support ticket creation failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Support ticket creation failed' }, 500, request);
       }
     },
   },
@@ -3378,14 +3397,14 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/support/tickets/by-account/:account_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const rows = await env.DB.prepare(
           `SELECT * FROM support_tickets WHERE account_id = ? ORDER BY created_at DESC`
         ).bind(params.account_id).all();
-        return json({ ok: true, tickets: rows.results });
+        return json({ ok: true, tickets: rows.results }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch tickets' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch tickets' }, 500, request);
       }
     },
   },
@@ -3394,15 +3413,15 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/support/tickets/:ticket_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const row = await env.DB.prepare(
           `SELECT * FROM support_tickets WHERE ticket_id = ?`
         ).bind(params.ticket_id).first();
-        if (!row) return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404);
-        return json({ ok: true, ticket: row });
+        if (!row) return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404, request);
+        return json({ ok: true, ticket: row }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch ticket' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch ticket' }, 500, request);
       }
     },
   },
@@ -3411,7 +3430,7 @@ const ROUTES = [
     method: 'PATCH', pattern: '/v1/support/tickets/:ticket_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const body = await parseBody(request);
         const now = new Date().toISOString();
@@ -3420,7 +3439,7 @@ const ROUTES = [
         const validStatuses = ['closed', 'in_progress', 'open', 'reopened', 'resolved'];
         if (body?.message !== undefined) { setClauses.push('message = ?'); vals.push(body.message); }
         if (body?.status !== undefined) {
-          if (!validStatuses.includes(body.status)) return json({ ok: false, error: 'VALIDATION', message: `status must be one of: ${validStatuses.join(', ')}` }, 400);
+          if (!validStatuses.includes(body.status)) return json({ ok: false, error: 'VALIDATION', message: `status must be one of: ${validStatuses.join(', ')}` }, 400, request);
           setClauses.push('status = ?'); vals.push(body.status);
         }
         await d1Run(env.DB,
@@ -3433,9 +3452,9 @@ const ROUTES = [
         if (body?.message !== undefined) updated.message = body.message;
         if (body?.status !== undefined) updated.status = body.status;
         await r2Put(env.R2_VIRTUAL_LAUNCH, `support_tickets/${params.ticket_id}.json`, updated);
-        return json({ ok: true, ticketId: params.ticket_id, status: 'updated' });
+        return json({ ok: true, ticketId: params.ticket_id, status: 'updated' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Ticket update failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Ticket update failed' }, 500, request);
       }
     },
   },
@@ -3448,16 +3467,16 @@ const ROUTES = [
     method: 'POST', pattern: '/v1/notifications/in-app',
     handler: async (_method, _pattern, _params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const body = await parseBody(request);
         const { accountId, message, notificationId, severity, title } = body ?? {};
         if (!accountId || !message || !notificationId || !severity || !title) {
-          return json({ ok: false, error: 'MISSING_FIELDS', message: 'accountId, message, notificationId, severity, title are required' }, 400);
+          return json({ ok: false, error: 'MISSING_FIELDS', message: 'accountId, message, notificationId, severity, title are required' }, 400, request);
         }
         const validSeverities = ['error', 'info', 'success', 'warning'];
         if (!validSeverities.includes(severity)) {
-          return json({ ok: false, error: 'VALIDATION', message: `severity must be one of: ${validSeverities.join(', ')}` }, 400);
+          return json({ ok: false, error: 'VALIDATION', message: `severity must be one of: ${validSeverities.join(', ')}` }, 400, request);
         }
         const now = new Date().toISOString();
         await r2Put(env.R2_VIRTUAL_LAUNCH, `notifications/in-app/${notificationId}.json`, {
@@ -3467,9 +3486,9 @@ const ROUTES = [
           `INSERT INTO notifications (notification_id, account_id, title, message, severity, read, created_at) VALUES (?, ?, ?, ?, ?, 0, ?)`,
           [notificationId, accountId, title, message, severity, now]
         );
-        return json({ ok: true, notificationId, status: 'created' });
+        return json({ ok: true, notificationId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Notification creation failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Notification creation failed' }, 500, request);
       }
     },
   },
@@ -3478,19 +3497,19 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/notifications/in-app',
     handler: async (_method, _pattern, _params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const url = new URL(request.url);
         const accountId = url.searchParams.get('accountId');
-        if (!accountId) return json({ ok: false, error: 'MISSING_FIELDS', message: 'accountId query param is required' }, 400);
+        if (!accountId) return json({ ok: false, error: 'MISSING_FIELDS', message: 'accountId query param is required' }, 400, request);
         const limitParam = parseInt(url.searchParams.get('limit') ?? '20', 10);
         const limit = Math.min(isNaN(limitParam) ? 20 : limitParam, 100);
         const rows = await env.DB.prepare(
           `SELECT * FROM notifications WHERE account_id = ? ORDER BY created_at DESC LIMIT ?`
         ).bind(accountId, limit).all();
-        return json({ ok: true, notifications: rows.results });
+        return json({ ok: true, notifications: rows.results }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch notifications' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch notifications' }, 500, request);
       }
     },
   },
@@ -3499,21 +3518,21 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/notifications/preferences/:account_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const row = await env.DB.prepare(
           `SELECT * FROM vlp_preferences WHERE account_id = ?`
         ).bind(params.account_id).first();
         if (!row) {
-          return json({ ok: true, preferences: { accountId: params.account_id, inAppEnabled: true, smsEnabled: false } });
+          return json({ ok: true, preferences: { accountId: params.account_id, inAppEnabled: true, smsEnabled: false } }, 200, request);
         }
         return json({ ok: true, preferences: {
           accountId: params.account_id,
           inAppEnabled: row.in_app_enabled === 1,
           smsEnabled: row.sms_enabled === 1,
-        }});
+        }}, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch notification preferences' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch notification preferences' }, 500, request);
       }
     },
   },
@@ -3522,7 +3541,7 @@ const ROUTES = [
     method: 'PATCH', pattern: '/v1/notifications/preferences/:account_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const body = await parseBody(request);
         const now = new Date().toISOString();
@@ -3540,9 +3559,9 @@ const ROUTES = [
         await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp_preferences/${params.account_id}.json`, {
           ...current, inAppEnabled: inAppEnabled === 1, smsEnabled: smsEnabled === 1, updatedAt: now,
         });
-        return json({ ok: true, accountId: params.account_id, status: 'updated' });
+        return json({ ok: true, accountId: params.account_id, status: 'updated' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Notification preferences update failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Notification preferences update failed' }, 500, request);
       }
     },
   },
@@ -3551,20 +3570,20 @@ const ROUTES = [
     method: 'POST', pattern: '/v1/notifications/sms/send',
     handler: async (_method, _pattern, _params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const body = await parseBody(request);
         const { accountId, message, phone } = body ?? {};
         if (!accountId || !message || !phone) {
-          return json({ ok: false, error: 'MISSING_FIELDS', message: 'accountId, message, phone are required' }, 400);
+          return json({ ok: false, error: 'MISSING_FIELDS', message: 'accountId, message, phone are required' }, 400, request);
         }
-        if (phone.length < 7) return json({ ok: false, error: 'VALIDATION', message: 'phone min 7 chars' }, 400);
-        if (message.length > 1600) return json({ ok: false, error: 'VALIDATION', message: 'message max 1600 chars' }, 400);
+        if (phone.length < 7) return json({ ok: false, error: 'VALIDATION', message: 'phone min 7 chars' }, 400, request);
+        if (message.length > 1600) return json({ ok: false, error: 'VALIDATION', message: 'message max 1600 chars' }, 400, request);
         const prefs = await env.DB.prepare(
           `SELECT sms_enabled FROM vlp_preferences WHERE account_id = ?`
         ).bind(accountId).first();
         if (!prefs || prefs.sms_enabled === 0) {
-          return json({ ok: false, error: 'SMS_DISABLED', message: 'SMS notifications are disabled for this account' }, 400);
+          return json({ ok: false, error: 'SMS_DISABLED', message: 'SMS notifications are disabled for this account' }, 400, request);
         }
         const now = new Date().toISOString();
         await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/notifications/sms_${accountId}_${now}.json`, {
@@ -3576,9 +3595,9 @@ const ROUTES = [
           ...current, lastSmsQueued: now,
         });
         // Wire Twilio send here when TWILIO_ACCOUNT_SID secret is configured
-        return json({ ok: true, accountId, status: 'queued' });
+        return json({ ok: true, accountId, status: 'queued' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'SMS queue failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'SMS queue failed' }, 500, request);
       }
     },
   },
@@ -3591,22 +3610,22 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/tokens/balance/:account_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const row = await env.DB.prepare(
           `SELECT * FROM tokens WHERE account_id = ?`
         ).bind(params.account_id).first();
         if (!row) {
-          return json({ ok: true, balance: { accountId: params.account_id, taxGameTokens: 0, transcriptTokens: 0, updatedAt: null } });
+          return json({ ok: true, balance: { accountId: params.account_id, taxGameTokens: 0, transcriptTokens: 0, updatedAt: null } }, 200, request);
         }
         return json({ ok: true, balance: {
           accountId: params.account_id,
           taxGameTokens: row.tax_game_tokens,
           transcriptTokens: row.transcript_tokens,
           updatedAt: row.updated_at,
-        }});
+        }}, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch token balance' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch token balance' }, 500, request);
       }
     },
   },
@@ -3619,16 +3638,16 @@ const ROUTES = [
 
       const payload = await parseBody(request);
       if (!payload || typeof payload !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400, request);
       }
 
       const { price_id, token_type } = payload;
       if (!price_id || !token_type) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing price_id or token_type' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing price_id or token_type' }, 400, request);
       }
 
       if (!['tax_game', 'transcript'].includes(token_type)) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'token_type must be tax_game or transcript' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'token_type must be tax_game or transcript' }, 400, request);
       }
 
       // Token purchase mapping
@@ -3645,11 +3664,11 @@ const ROUTES = [
 
       const purchaseInfo = TOKEN_PURCHASE_MAP[price_id];
       if (!purchaseInfo) {
-        return json({ ok: false, error: 'INVALID_PRICE_ID', message: 'Unknown price_id' }, 400);
+        return json({ ok: false, error: 'INVALID_PRICE_ID', message: 'Unknown price_id' }, 400, request);
       }
 
       if (purchaseInfo.type !== token_type) {
-        return json({ ok: false, error: 'TOKEN_TYPE_MISMATCH', message: 'price_id does not match token_type' }, 400);
+        return json({ ok: false, error: 'TOKEN_TYPE_MISMATCH', message: 'price_id does not match token_type' }, 400, request);
       }
 
       try {
@@ -3677,14 +3696,14 @@ const ROUTES = [
         if (!checkoutSession.ok) {
           const errorText = await checkoutSession.text();
           console.error('Stripe checkout session creation failed:', errorText);
-          return json({ ok: false, error: 'STRIPE_ERROR', message: 'Failed to create checkout session' }, 500);
+          return json({ ok: false, error: 'STRIPE_ERROR', message: 'Failed to create checkout session' }, 500, request);
         }
 
         const sessionData = await checkoutSession.json();
-        return json({ ok: true, session_url: sessionData.url });
+        return json({ ok: true, session_url: sessionData.url }, 200, request);
       } catch (e) {
         console.error('Token purchase error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create purchase session' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create purchase session' }, 500, request);
       }
     },
   },
@@ -3707,7 +3726,7 @@ const ROUTES = [
             { price_id: env.STRIPE_PRICE_TTTMP_200_TOKENS || 'price_1TGTiqQEa4WBi79gpTsbsLIi', quantity: 200, price_usd: 39, label: '200 Game Tokens' }
           ]
         }
-      });
+      }, 200, _request);
     },
   },
 
@@ -3715,7 +3734,7 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/tokens/usage/:account_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const url = new URL(request.url);
         const limitParam = parseInt(url.searchParams.get('limit') ?? '50', 10);
@@ -3736,9 +3755,9 @@ const ROUTES = [
           .filter(Boolean)
           .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
           .slice(0, limit);
-        return json({ ok: true, usage });
+        return json({ ok: true, usage }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch token usage' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch token usage' }, 500, request);
       }
     },
   },
@@ -3752,22 +3771,22 @@ const ROUTES = [
 
       const body = await parseBody(request);
       if (!body || typeof body !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400, request);
       }
 
       const required = ['account_id', 'amount', 'request_id'];
       for (const field of required) {
         if (!body[field]) {
-          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400, request);
         }
       }
 
       if (body.amount !== 1) {
-        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'amount must equal 1' }, 400);
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'amount must equal 1' }, 400, request);
       }
 
       if (body.account_id !== session.account_id) {
-        return json({ ok: false, error: 'UNAUTHORIZED', message: 'account_id must match authenticated session' }, 403);
+        return json({ ok: false, error: 'UNAUTHORIZED', message: 'account_id must match authenticated session' }, 403, request);
       }
 
       const requestId = body.request_id;
@@ -3785,7 +3804,7 @@ const ROUTES = [
           message: 'Duplicate request detected — returning cached response',
           balance_after: currentBalance.transcriptTokens,
           request_id: requestId
-        });
+        }, 200, request);
       }
 
       // Check current balance
@@ -3796,7 +3815,7 @@ const ROUTES = [
           error: 'insufficient_balance',
           balance: currentBalance.transcriptTokens,
           message: 'Insufficient transcript tokens'
-        }, 400);
+        }, 400, request);
       }
 
       // Write pipeline: receipt → R2 canonical → D1 projection
@@ -3831,7 +3850,7 @@ const ROUTES = [
         ok: true,
         balance_after: newBalance,
         request_id: requestId
-      });
+      }, 200, request);
     },
   },
 
@@ -3844,18 +3863,18 @@ const ROUTES = [
 
       const body = await parseBody(request);
       if (!body || typeof body !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400, request);
       }
 
       const required = ['account_id', 'amount', 'request_id', 'reason'];
       for (const field of required) {
         if (!body[field]) {
-          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400, request);
         }
       }
 
       if (typeof body.amount !== 'number' || body.amount <= 0) {
-        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'amount must be a positive number' }, 400);
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'amount must be a positive number' }, 400, request);
       }
 
       const requestId = body.request_id;
@@ -3875,7 +3894,7 @@ const ROUTES = [
           message: 'Duplicate request detected — returning cached response',
           balance_after: currentBalance.transcriptTokens,
           request_id: requestId
-        });
+        }, 200, request);
       }
 
       // Get current balance
@@ -3914,7 +3933,7 @@ const ROUTES = [
         ok: true,
         balance_after: newBalance,
         request_id: requestId
-      });
+      }, 200, request);
     },
   },
 
@@ -3926,7 +3945,7 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/vlp/preferences/:account_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const row = await env.DB.prepare(
           `SELECT * FROM vlp_preferences WHERE account_id = ?`
@@ -3947,7 +3966,7 @@ const ROUTES = [
           smsEnabled: row.sms_enabled === 1,
         }, accountId: params.account_id });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch VLP preferences' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch VLP preferences' }, 500, request);
       }
     },
   },
@@ -3956,13 +3975,13 @@ const ROUTES = [
     method: 'PATCH', pattern: '/v1/vlp/preferences/:account_id',
     handler: async (_method, _pattern, params, request, env) => {
       const { error } = await requireSession(request, env);
-      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401);
+      if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
         const body = await parseBody(request);
         const now = new Date().toISOString();
         const validAppearances = ['dark', 'light', 'system'];
         if (body?.appearance !== undefined && !validAppearances.includes(body.appearance)) {
-          return json({ ok: false, error: 'VALIDATION', message: `appearance must be one of: ${validAppearances.join(', ')}` }, 400);
+          return json({ ok: false, error: 'VALIDATION', message: `appearance must be one of: ${validAppearances.join(', ')}` }, 400, request);
         }
         const existing = await env.DB.prepare(
           `SELECT * FROM vlp_preferences WHERE account_id = ?`
@@ -3984,9 +4003,9 @@ const ROUTES = [
         await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp_preferences/${params.account_id}.json`, {
           ...currentR2, ...merged, inAppEnabled: merged.inAppEnabled === 1, smsEnabled: merged.smsEnabled === 1, updatedAt: now,
         });
-        return json({ ok: true, accountId: params.account_id, status: 'updated' });
+        return json({ ok: true, accountId: params.account_id, status: 'updated' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'VLP preferences update failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'VLP preferences update failed' }, 500, request);
       }
     },
   },
@@ -4002,7 +4021,7 @@ const ROUTES = [
         const body = await parseBody(request);
         const { inquiryId, firstName, lastName, email, phone } = body ?? {};
         if (!inquiryId || !firstName || !lastName || !email || !phone) {
-          return json({ ok: false, error: 'MISSING_FIELDS', message: 'inquiryId, firstName, lastName, email, phone are required' }, 400);
+          return json({ ok: false, error: 'MISSING_FIELDS', message: 'inquiryId, firstName, lastName, email, phone are required' }, 400, request);
         }
         const now = new Date().toISOString();
         const businessTypes = body.businessTypes ?? [];
@@ -4053,9 +4072,9 @@ const ROUTES = [
             now,
           ]
         );
-        return json({ ok: true, inquiryId, status: 'created' });
+        return json({ ok: true, inquiryId, status: 'created' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Inquiry creation failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Inquiry creation failed' }, 500, request);
       }
     },
   },
@@ -4085,9 +4104,9 @@ const ROUTES = [
           business_types: (() => { try { return JSON.parse(row.business_types ?? '[]'); } catch { return []; } })(),
           services_needed: (() => { try { return JSON.parse(row.services_needed ?? '[]'); } catch { return []; } })(),
         }));
-        return json({ ok: true, inquiries });
+        return json({ ok: true, inquiries }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch inquiries' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch inquiries' }, 500, request);
       }
     },
   },
@@ -4099,11 +4118,11 @@ const ROUTES = [
       if (error) return error;
       try {
         const obj = await env.R2_VIRTUAL_LAUNCH.get(`inquiries/${params.inquiry_id}.json`);
-        if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Inquiry not found' }, 404);
+        if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Inquiry not found' }, 404, request);
         const inquiry = await obj.json();
-        return json({ ok: true, inquiry });
+        return json({ ok: true, inquiry }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch inquiry' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch inquiry' }, 500, request);
       }
     },
   },
@@ -4121,7 +4140,7 @@ const ROUTES = [
         const vals = [now];
         if (body?.status !== undefined) {
           if (!validStatuses.includes(body.status)) {
-            return json({ ok: false, error: 'VALIDATION', message: `status must be one of: ${validStatuses.join(', ')}` }, 400);
+            return json({ ok: false, error: 'VALIDATION', message: `status must be one of: ${validStatuses.join(', ')}` }, 400, request);
           }
           setClauses.push('status = ?');
           vals.push(body.status);
@@ -4145,9 +4164,9 @@ const ROUTES = [
         if (body?.responseMessage !== undefined) updated.responseMessage = body.responseMessage;
         if (body?.assignedProfessionalId !== undefined) updated.assignedProfessionalId = body.assignedProfessionalId;
         await r2Put(env.R2_VIRTUAL_LAUNCH, `inquiries/${params.inquiry_id}.json`, updated);
-        return json({ ok: true, inquiryId: params.inquiry_id, status: 'updated' });
+        return json({ ok: true, inquiryId: params.inquiry_id, status: 'updated' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Inquiry update failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Inquiry update failed' }, 500, request);
       }
     },
   },
@@ -4161,7 +4180,7 @@ const ROUTES = [
         const body = await parseBody(request);
         const { message, professionalName } = body ?? {};
         if (!message || !message.trim()) {
-          return json({ ok: false, error: 'MISSING_FIELDS', message: 'message is required' }, 400);
+          return json({ ok: false, error: 'MISSING_FIELDS', message: 'message is required' }, 400, request);
         }
         const now = new Date().toISOString();
         await d1Run(env.DB,
@@ -4179,9 +4198,9 @@ const ROUTES = [
           updatedAt: now,
         });
         // Wire Twilio/email notification here when ready
-        return json({ ok: true, inquiryId: params.inquiry_id, status: 'responded' });
+        return json({ ok: true, inquiryId: params.inquiry_id, status: 'responded' }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Respond to inquiry failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Respond to inquiry failed' }, 500, request);
       }
     },
   },
@@ -4210,7 +4229,7 @@ const ROUTES = [
       url.searchParams.set('access_type', 'offline');
       url.searchParams.set('prompt', 'consent');
       url.searchParams.set('state', state);
-      return json({ ok: true, authorizationUrl: url.toString() });
+      return json({ ok: true, authorizationUrl: url.toString() }, 200, request);
     },
   },
 
@@ -4278,7 +4297,7 @@ const ROUTES = [
         const connected = !!(row && row.google_access_token);
         return json({ ok: true, connected });
       } catch {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check Google status' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check Google status' }, 500, request);
       }
     },
   },
@@ -4293,7 +4312,7 @@ const ROUTES = [
           'SELECT google_access_token, google_refresh_token, google_token_expiry FROM accounts WHERE account_id = ?'
         ).bind(session.account_id).first();
         if (!row || !row.google_access_token) {
-          return json({ ok: false, error: 'NOT_CONNECTED', message: 'Google Calendar not connected' }, 400);
+          return json({ ok: false, error: 'NOT_CONNECTED', message: 'Google Calendar not connected' }, 400, request);
         }
 
         let accessToken = row.google_access_token;
@@ -4364,7 +4383,7 @@ const ROUTES = [
         }
 
         if (!calRes.ok) {
-          return json({ ok: false, error: 'GOOGLE_API_ERROR', message: 'Failed to fetch Google Calendar events' }, 502);
+          return json({ ok: false, error: 'GOOGLE_API_ERROR', message: 'Failed to fetch Google Calendar events' }, 502, request);
         }
 
         const calData = await calRes.json();
@@ -4383,7 +4402,7 @@ const ROUTES = [
 
         return json({ ok: true, events });
       } catch {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch Google Calendar events' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch Google Calendar events' }, 500, request);
       }
     },
   },
@@ -4401,19 +4420,19 @@ const ROUTES = [
 
       const payload = await parseBody(request);
       if (!payload || typeof payload !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400, request);
       }
 
       if (!payload.account_id || !payload.form_data) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing account_id or form_data' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing account_id or form_data' }, 400, request);
       }
 
       if (payload.account_id !== session.account_id) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'account_id must match authenticated session' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'account_id must match authenticated session' }, 400, request);
       }
 
       if (!/^ACCT_[a-f0-9-]{36}$/.test(payload.account_id)) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Invalid account_id format' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Invalid account_id format' }, 400, request);
       }
 
       // Check membership — form tools free with any paid subscription
@@ -4432,29 +4451,29 @@ const ROUTES = [
 
       const { form_data: formData } = payload;
       if (!formData || typeof formData !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'form_data must be an object' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'form_data must be an object' }, 400, request);
       }
       if (!formData.taxpayer_name || !formData.taxpayer_ssn || !formData.representative_name) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing required form fields' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing required form fields' }, 400, request);
       }
       if (!/^\d{3}-\d{2}-\d{4}$/.test(formData.taxpayer_ssn)) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Invalid SSN format (must be XXX-XX-XXXX)' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Invalid SSN format (must be XXX-XX-XXXX)' }, 400, request);
       }
 
       const allowedPayloadFields = ['account_id', 'form_data'];
       const payloadExtraFields = Object.keys(payload).filter((k) => !allowedPayloadFields.includes(k));
       if (payloadExtraFields.length > 0) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Unexpected top-level fields: ${payloadExtraFields.join(', ')}` }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Unexpected top-level fields: ${payloadExtraFields.join(', ')}` }, 400, request);
       }
 
       const allowedFormFields = ['taxpayer_name', 'taxpayer_ssn', 'representative_name', 'representative_caf', 'tax_matters'];
       const extraFields = Object.keys(formData).filter((k) => !allowedFormFields.includes(k));
       if (extraFields.length > 0) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Unexpected fields: ${extraFields.join(', ')}` }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Unexpected fields: ${extraFields.join(', ')}` }, 400, request);
       }
 
       if (formData.tax_matters !== undefined && !Array.isArray(formData.tax_matters)) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'tax_matters must be an array when provided' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'tax_matters must be an array when provided' }, 400, request);
       }
 
       const accountId = payload.account_id;
@@ -4555,15 +4574,15 @@ const ROUTES = [
 
       const body = await parseBody(request);
       if (!body || typeof body !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400, request);
       }
 
       const required = ['eventId', 'taxpayerName', 'taxpayerTin', 'taxpayerAddress', 'appointeeName', 'appointeeAddress', 'taxMatters'];
       for (const field of required) {
-        if (!body[field]) return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+        if (!body[field]) return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400, request);
       }
       if (!Array.isArray(body.taxMatters) || body.taxMatters.length === 0) {
-        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'taxMatters must be a non-empty array' }, 400);
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'taxMatters must be a non-empty array' }, 400, request);
       }
 
       // Check membership — form tools free with any paid subscription
@@ -4585,7 +4604,7 @@ const ROUTES = [
         'SELECT tax_game_tokens FROM tokens WHERE account_id = ?'
       ).bind(session.account_id).first();
       if (!tokenRow || tokenRow.tax_game_tokens < 1) {
-        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 tax_game token required' }, 403);
+        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 tax_game token required' }, 403, request);
       }
 
       const now = new Date().toISOString();
@@ -4655,7 +4674,7 @@ const ROUTES = [
         const windowStart = Date.now() - 60000;
         const recentHits = (rlData.hits || []).filter((t) => t > windowStart);
         if (recentHits.length >= 5) {
-          return json({ ok: false, error: 'RATE_LIMIT_EXCEEDED', message: 'Maximum 5 transcript parses per minute' }, 429);
+          return json({ ok: false, error: 'RATE_LIMIT_EXCEEDED', message: 'Maximum 5 transcript parses per minute' }, 429, request);
         }
         recentHits.push(Date.now());
         await r2Put(env.R2_VIRTUAL_LAUNCH, rlKey, { hits: recentHits });
@@ -4665,59 +4684,59 @@ const ROUTES = [
 
       const payload = await parseBody(request);
       if (!payload || typeof payload !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400, request);
       }
 
       if (!payload.account_id || !payload.transcript_data) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing account_id or transcript_data' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing account_id or transcript_data' }, 400, request);
       }
 
       if (payload.account_id !== session.account_id) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'account_id must match authenticated session' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'account_id must match authenticated session' }, 400, request);
       }
 
       if (!/^ACCT_[a-f0-9-]{36}$/.test(payload.account_id)) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Invalid account_id format' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Invalid account_id format' }, 400, request);
       }
 
       // Whitelist top-level fields
       const allowedPayloadFields = ['account_id', 'transcript_data'];
       const payloadExtraFields = Object.keys(payload).filter((k) => !allowedPayloadFields.includes(k));
       if (payloadExtraFields.length > 0) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Unexpected top-level fields: ${payloadExtraFields.join(', ')}` }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Unexpected top-level fields: ${payloadExtraFields.join(', ')}` }, 400, request);
       }
 
       const { transcript_data } = payload;
       if (!transcript_data || typeof transcript_data !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'transcript_data must be an object' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'transcript_data must be an object' }, 400, request);
       }
       if (!transcript_data.transcript_type || !transcript_data.transactions) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing required transcript fields: transcript_type, transactions' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing required transcript fields: transcript_type, transactions' }, 400, request);
       }
 
       const validTypes = ['account', 'return', 'wage_income', 'record_of_account'];
       if (!validTypes.includes(transcript_data.transcript_type)) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Invalid transcript_type. Must be one of: ${validTypes.join(', ')}` }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: `Invalid transcript_type. Must be one of: ${validTypes.join(', ')}` }, 400, request);
       }
 
       if (!Array.isArray(transcript_data.transactions) || transcript_data.transactions.length === 0) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'transactions must be a non-empty array' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'transactions must be a non-empty array' }, 400, request);
       }
 
       // Validate each transaction
       for (let i = 0; i < transcript_data.transactions.length; i++) {
         const t = transcript_data.transactions[i];
         if (!t || typeof t !== 'object') {
-          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}] must be an object` }, 400);
+          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}] must be an object` }, 400, request);
         }
         if (t.code === undefined || t.date === undefined || t.amount === undefined) {
-          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}] missing required fields: code, date, amount` }, 400);
+          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}] missing required fields: code, date, amount` }, 400, request);
         }
         if (!/^\d{3}$/.test(t.code)) {
-          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}].code must be a 3-digit string` }, 400);
+          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}].code must be a 3-digit string` }, 400, request);
         }
         if (typeof t.amount !== 'number') {
-          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}].amount must be a number` }, 400);
+          return json({ ok: false, error: 'INVALID_PAYLOAD', message: `transactions[${i}].amount must be a number` }, 400, request);
         }
       }
 
@@ -4876,7 +4895,7 @@ const ROUTES = [
         const windowStart = Date.now() - 60000;
         const recentHits = (rlData.hits || []).filter((t) => t > windowStart);
         if (recentHits.length >= 10) {
-          return json({ ok: false, error: 'RATE_LIMIT_EXCEEDED', message: 'Maximum 10 transcript uploads per minute' }, 429);
+          return json({ ok: false, error: 'RATE_LIMIT_EXCEEDED', message: 'Maximum 10 transcript uploads per minute' }, 429, request);
         }
         recentHits.push(Date.now());
         await r2Put(env.R2_VIRTUAL_LAUNCH, rlKey, { hits: recentHits });
@@ -4889,27 +4908,27 @@ const ROUTES = [
       try {
         formData = await request.formData();
       } catch {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'multipart/form-data required with a file field' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'multipart/form-data required with a file field' }, 400, request);
       }
 
       const file = formData.get('file');
       if (!file || typeof file === 'string') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing file field — upload a PDF via multipart/form-data' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Missing file field — upload a PDF via multipart/form-data' }, 400, request);
       }
 
       // Validate file type
       if (file.type !== 'application/pdf' && !file.name?.toLowerCase().endsWith('.pdf')) {
-        return json({ ok: false, error: 'INVALID_FILE_TYPE', message: 'Only PDF files are accepted' }, 400);
+        return json({ ok: false, error: 'INVALID_FILE_TYPE', message: 'Only PDF files are accepted' }, 400, request);
       }
 
       // Validate file size (5 MB max)
       const MAX_FILE_SIZE = 5 * 1024 * 1024;
       const fileBuffer = await file.arrayBuffer();
       if (fileBuffer.byteLength > MAX_FILE_SIZE) {
-        return json({ ok: false, error: 'FILE_TOO_LARGE', message: 'PDF must be under 5 MB' }, 400);
+        return json({ ok: false, error: 'FILE_TOO_LARGE', message: 'PDF must be under 5 MB' }, 400, request);
       }
       if (fileBuffer.byteLength === 0) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Uploaded file is empty' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'Uploaded file is empty' }, 400, request);
       }
 
       // --- PDF text extraction (lightweight, Worker-compatible) ---
@@ -5095,16 +5114,16 @@ const ROUTES = [
 
       const body = await parseBody(request);
       if (!body || typeof body !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400, request);
       }
 
       const required = ['eventId', 'transcriptText', 'transcriptType'];
       for (const field of required) {
-        if (!body[field]) return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+        if (!body[field]) return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400, request);
       }
       const validTypes = ['account', 'record_of_account', 'return', 'wage_and_income'];
       if (!validTypes.includes(body.transcriptType)) {
-        return json({ ok: false, error: 'VALIDATION_FAILED', message: `transcriptType must be one of: ${validTypes.join(', ')}` }, 400);
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: `transcriptType must be one of: ${validTypes.join(', ')}` }, 400, request);
       }
 
       // Check transcript token balance
@@ -5112,7 +5131,7 @@ const ROUTES = [
         'SELECT transcript_tokens FROM tokens WHERE account_id = ?'
       ).bind(session.account_id).first();
       if (!tokenRow || tokenRow.transcript_tokens < 1) {
-        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 transcript token required' }, 403);
+        return json({ ok: false, error: 'INSUFFICIENT_TOKENS', message: 'At least 1 transcript token required' }, 403, request);
       }
 
       const now = new Date().toISOString();
@@ -5190,7 +5209,7 @@ const ROUTES = [
         ).bind(params.job_id, session.account_id).first();
 
         if (!row) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Transcript job not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Transcript job not found' }, 404, request);
         }
 
         let result = null;
@@ -5211,7 +5230,7 @@ const ROUTES = [
           result,
         });
       } catch {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript job' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript job' }, 500, request);
       }
     },
   },
@@ -5228,7 +5247,7 @@ const ROUTES = [
 
       // Authorization: account must match session
       if (params.account_id !== session.account_id) {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Account mismatch' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Account mismatch' }, 403, request);
       }
 
       try {
@@ -5247,7 +5266,7 @@ const ROUTES = [
 
         return json({ ok: true, jobs });
       } catch {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript history' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript history' }, 500, request);
       }
     },
   },
@@ -5265,13 +5284,13 @@ const ROUTES = [
 
       const body = await parseBody(request);
       if (!body || typeof body !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400, request);
       }
 
       const required = ['report_data', 'event_id'];
       for (const field of required) {
         if (!body[field]) {
-          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400, request);
         }
       }
 
@@ -5288,7 +5307,7 @@ const ROUTES = [
           error: 'insufficient_balance',
           balance: currentBalance.transcriptTokens,
           message: 'Insufficient transcript tokens'
-        }, 400);
+        }, 400, request);
       }
 
       // Dedupe check for token consumption
@@ -5414,7 +5433,7 @@ const ROUTES = [
           cursor: nextCursor
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch reports' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch reports' }, 500, request);
       }
     },
   },
@@ -5429,7 +5448,7 @@ const ROUTES = [
       const url = new URL(request.url);
       const reportId = url.searchParams.get('report_id');
       if (!reportId) {
-        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'Missing report_id parameter' }, 400);
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'Missing report_id parameter' }, 400, request);
       }
 
       try {
@@ -5439,17 +5458,17 @@ const ROUTES = [
         ).bind(reportId).first();
 
         if (!row) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Report not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report not found' }, 404, request);
         }
 
         if (row.account_id !== session.account_id) {
-          return json({ ok: false, error: 'UNAUTHORIZED', message: 'Report does not belong to authenticated account' }, 403);
+          return json({ ok: false, error: 'UNAUTHORIZED', message: 'Report does not belong to authenticated account' }, 403, request);
         }
 
         // Fetch report payload from R2
         const reportObject = await env.R2_VIRTUAL_LAUNCH.get(`ttmp/reports/${session.account_id}/${reportId}.json`);
         if (!reportObject) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Report data not found in storage' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report data not found in storage' }, 404, request);
         }
 
         const reportData = await reportObject.json();
@@ -5460,7 +5479,7 @@ const ROUTES = [
           created_at: row.created_at
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch report data' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch report data' }, 500, request);
       }
     },
   },
@@ -5474,12 +5493,12 @@ const ROUTES = [
 
       const body = await parseBody(request);
       if (!body || typeof body !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400, request);
       }
 
       const reportId = body.report_id;
       if (!reportId) {
-        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'Missing report_id field' }, 400);
+        return json({ ok: false, error: 'VALIDATION_FAILED', message: 'Missing report_id field' }, 400, request);
       }
 
       try {
@@ -5489,11 +5508,11 @@ const ROUTES = [
         ).bind(reportId).first();
 
         if (!row) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Report not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report not found' }, 404, request);
         }
 
         if (row.account_id !== session.account_id) {
-          return json({ ok: false, error: 'UNAUTHORIZED', message: 'Report does not belong to authenticated account' }, 403);
+          return json({ ok: false, error: 'UNAUTHORIZED', message: 'Report does not belong to authenticated account' }, 403, request);
         }
 
         // Check if short link already exists
@@ -5525,7 +5544,7 @@ const ROUTES = [
           short_url: shortUrl
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to generate report link' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to generate report link' }, 500, request);
       }
     },
   },
@@ -5553,7 +5572,7 @@ const ROUTES = [
           status: 302,
           headers: {
             'Location': linkData.report_url,
-            ...CORS_HEADERS
+            ...getCorsHeaders(request)
           }
         });
       } catch (e) {
@@ -5575,13 +5594,13 @@ const ROUTES = [
 
       const body = await parseBody(request);
       if (!body || typeof body !== 'object') {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400);
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'JSON body required' }, 400, request);
       }
 
       const required = ['report_id', 'email', 'event_id'];
       for (const field of required) {
         if (!body[field]) {
-          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400);
+          return json({ ok: false, error: 'VALIDATION_FAILED', message: `Missing required field: ${field}` }, 400, request);
         }
       }
 
@@ -5596,11 +5615,11 @@ const ROUTES = [
         ).bind(reportId).first();
 
         if (!row) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Report not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report not found' }, 404, request);
         }
 
         if (row.account_id !== session.account_id) {
-          return json({ ok: false, error: 'UNAUTHORIZED', message: 'Report does not belong to authenticated account' }, 403);
+          return json({ ok: false, error: 'UNAUTHORIZED', message: 'Report does not belong to authenticated account' }, 403, request);
         }
 
         // Verify event_id matches a valid consume event by checking if report was generated with this event
@@ -5609,13 +5628,13 @@ const ROUTES = [
         ).bind(reportId, eventId).first();
 
         if (!reportRow) {
-          return json({ ok: false, error: 'VALIDATION_FAILED', message: 'event_id does not match report generation event' }, 400);
+          return json({ ok: false, error: 'VALIDATION_FAILED', message: 'event_id does not match report generation event' }, 400, request);
         }
 
         // Get short URL for report
         const linkObject = await env.R2_VIRTUAL_LAUNCH.get(`ttmp/report-links/${reportId}.json`);
         if (!linkObject) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Report link not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report link not found' }, 404, request);
         }
 
         const linkData = await linkObject.json();
@@ -5656,11 +5675,11 @@ TTMP Support Team
 
           if (!gmailResponse.ok) {
             console.error('Gmail API error:', await gmailResponse.text());
-            return json({ ok: false, error: 'EMAIL_SEND_FAILED', message: 'Failed to send report email' }, 500);
+            return json({ ok: false, error: 'EMAIL_SEND_FAILED', message: 'Failed to send report email' }, 500, request);
           }
         } catch (emailError) {
           console.error('Email send error:', emailError);
-          return json({ ok: false, error: 'EMAIL_SEND_FAILED', message: 'Failed to send report email' }, 500);
+          return json({ ok: false, error: 'EMAIL_SEND_FAILED', message: 'Failed to send report email' }, 500, request);
         }
 
         // Write receipt to R2
@@ -5679,7 +5698,7 @@ TTMP Support Team
           short_url: shortUrl
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send report email' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send report email' }, 500, request);
       }
     },
   },
@@ -5736,7 +5755,7 @@ TTMP Support Team
           purchases: validPurchases
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch purchase history' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch purchase history' }, 500, request);
       }
     },
   },
@@ -5755,7 +5774,7 @@ TTMP Support Team
         });
 
         if (!stripeResponse.ok) {
-          return json({ ok: false, error: 'STRIPE_ERROR', message: 'Failed to fetch pricing from Stripe' }, 500);
+          return json({ ok: false, error: 'STRIPE_ERROR', message: 'Failed to fetch pricing from Stripe' }, 500, request);
         }
 
         const stripeData = await stripeResponse.json();
@@ -5787,7 +5806,7 @@ TTMP Support Team
           prices
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript pricing' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript pricing' }, 500, request);
       }
     },
   },
@@ -5802,7 +5821,7 @@ TTMP Support Team
     handler: async (_method, _pattern, _params, request, env) => {
       const body = await parseBody(request);
       if (!body?.email) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'email required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'email required' }, 400, request);
       }
       const { email, redirect } = body;
       try {
@@ -5821,9 +5840,9 @@ TTMP Support Team
         await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/auth/${eventId}.json`, {
           email, requested_at: new Date().toISOString(), event: 'TTTMP_MAGIC_LINK_REQUESTED',
         });
-        return json({ ok: true, status: 'requested', email });
+        return json({ ok: true, status: 'requested', email }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link request failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link request failed' }, 500, request);
       }
     },
   },
@@ -5835,12 +5854,12 @@ TTMP Support Team
       const token = url.searchParams.get('token');
       const email = url.searchParams.get('email');
       if (!token || !email) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'token and email required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'token and email required' }, 400, request);
       }
       try {
         const payload = await verifyJwt(token, env.JWT_SECRET);
-        if (!payload) return json({ ok: false, error: 'INVALID_TOKEN' }, 401);
-        if (payload.email !== email) return json({ ok: false, error: 'INVALID_TOKEN' }, 401);
+        if (!payload) return json({ ok: false, error: 'INVALID_TOKEN' }, 401, request);
+        if (payload.email !== email) return json({ ok: false, error: 'INVALID_TOKEN' }, 401, request);
 
         // Delete the token from R2 (one-time use)
         try {
@@ -5854,12 +5873,12 @@ TTMP Support Team
           status: 302,
           headers: {
             'Location': payload.redirect_uri || 'https://taxtools.taxmonitor.pro/',
-            ...CORS_HEADERS,
+            ...getCorsHeaders(request),
             'Set-Cookie': makeTttmpSessionCookie(sessionId, env),
           },
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link verification failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link verification failed' }, 500, request);
       }
     },
   },
@@ -5896,13 +5915,13 @@ TTMP Support Team
           await env.R2_VIRTUAL_LAUNCH.delete(`tttmp/auth/sessions/${session.session_id}.json`);
         } catch {/* may not exist */}
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to delete session' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to delete session' }, 500, request);
       }
       return new Response(JSON.stringify({ ok: true, status: 'logged_out' }), {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          ...CORS_HEADERS,
+          ...getCorsHeaders(request),
           'Set-Cookie': [
             'tttmp_session=',
             'Domain=' + (env.COOKIE_DOMAIN ?? '.taxmonitor.pro'),
@@ -5926,7 +5945,7 @@ TTMP Support Team
 
       const body = await parseBody(request);
       if (!body?.price_id) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'price_id required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'price_id required' }, 400, request);
       }
 
       const { price_id, success_url, cancel_url } = body;
@@ -5969,7 +5988,7 @@ TTMP Support Team
           checkout_url: checkoutSession.url
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500, request);
       }
     },
   },
@@ -5983,14 +6002,14 @@ TTMP Support Team
       const url = new URL(request.url);
       const sessionId = url.searchParams.get('session_id');
       if (!sessionId) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'session_id required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'session_id required' }, 400, request);
       }
 
       try {
         // Get Stripe session status
         const stripeSession = await stripeGet(`/checkout/sessions/${sessionId}`, env);
         if (stripeSession.metadata?.account_id !== session.account_id) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Session not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Session not found' }, 404, request);
         }
 
         let creditsAdded = 0;
@@ -6013,7 +6032,7 @@ TTMP Support Team
           balance: newBalance
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check checkout status' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check checkout status' }, 500, request);
       }
     },
   },
@@ -6027,7 +6046,7 @@ TTMP Support Team
 
       const body = await parseBody(request);
       if (!body?.game_slug) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'game_slug required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'game_slug required' }, 400, request);
       }
 
       const { game_slug } = body;
@@ -6036,7 +6055,7 @@ TTMP Support Team
         // Check token balance
         const balance = await getTokenBalance(session.account_id, env);
         if (balance.taxGameTokens < 1) {
-          return json({ ok: false, error: 'PAYMENT_REQUIRED', message: 'Insufficient tokens' }, 402);
+          return json({ ok: false, error: 'PAYMENT_REQUIRED', message: 'Insufficient tokens' }, 402, request);
         }
 
         // Deduct token
@@ -6072,7 +6091,7 @@ TTMP Support Team
           balance_after: newBalance.taxGameTokens
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to grant game access' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to grant game access' }, 500, request);
       }
     },
   },
@@ -6088,7 +6107,7 @@ TTMP Support Team
       const grantId = url.searchParams.get('grant_id');
 
       if (!gameSlug || !grantId) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'game_slug and grant_id required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'game_slug and grant_id required' }, 400, request);
       }
 
       try {
@@ -6096,7 +6115,7 @@ TTMP Support Team
         const grantObj = await r2Get(env.R2_VIRTUAL_LAUNCH, `tttmp/play_grants/${session.account_id}/${grantId}.json`);
 
         if (!grantObj) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Grant not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Grant not found' }, 404, request);
         }
 
         const grant = JSON.parse(grantObj);
@@ -6110,7 +6129,7 @@ TTMP Support Team
           expires_at: grant.expires_at
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to verify game access' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to verify game access' }, 500, request);
       }
     },
   },
@@ -6123,7 +6142,7 @@ TTMP Support Team
 
       const body = await parseBody(request);
       if (!body?.grant_id) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'grant_id required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'grant_id required' }, 400, request);
       }
 
       const { grant_id, score, completed } = body;
@@ -6133,7 +6152,7 @@ TTMP Support Team
         const grantObj = await r2Get(env.R2_VIRTUAL_LAUNCH, `tttmp/play_grants/${session.account_id}/${grant_id}.json`);
 
         if (!grantObj) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Grant not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Grant not found' }, 404, request);
         }
 
         const grant = JSON.parse(grantObj);
@@ -6152,7 +6171,7 @@ TTMP Support Team
 
         return json({ ok: true, grant_id });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to end game session' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to end game session' }, 500, request);
       }
     },
   },
@@ -6166,7 +6185,7 @@ TTMP Support Team
 
       const body = await parseBody(request);
       if (!body?.subject || !body?.message) {
-        return json({ ok: false, error: 'BAD_REQUEST', message: 'subject and message required' }, 400);
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'subject and message required' }, 400, request);
       }
 
       const { subject, message, priority, category } = body;
@@ -6205,7 +6224,7 @@ TTMP Support Team
 
         return json({ ok: true, ticket_id: ticketId, status: 'open' });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create support ticket' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create support ticket' }, 500, request);
       }
     },
   },
@@ -6223,14 +6242,14 @@ TTMP Support Team
         const ticketObj = await r2Get(env.R2_VIRTUAL_LAUNCH, `support_tickets/${ticket_id}.json`);
 
         if (!ticketObj) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404, request);
         }
 
         const ticket = JSON.parse(ticketObj);
 
         // Verify ownership
         if (ticket.account_id !== session.account_id) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404, request);
         }
 
         return json({
@@ -6242,7 +6261,7 @@ TTMP Support Team
           updated_at: ticket.updated_at || ticket.created_at
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to retrieve support ticket' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to retrieve support ticket' }, 500, request);
       }
     },
   },
@@ -6262,7 +6281,7 @@ TTMP Support Team
           account_id: session.account_id
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to get token balance' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to get token balance' }, 500, request);
       }
     },
   },
@@ -6380,7 +6399,7 @@ TTMP Support Team
           ok: false,
           error: 'INTERNAL_ERROR',
           message: 'Internal server error'
-        }, 500);
+        }, 500, request);
       }
     },
   },
@@ -6412,7 +6431,7 @@ TTMP Support Team
           ]
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch pricing' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch pricing' }, 500, request);
       }
     },
   },
@@ -6435,7 +6454,7 @@ TTMP Support Team
         ];
 
         if (!validPlans.includes(plan_key)) {
-          return json({ ok: false, error: 'INVALID_PLAN', message: 'Invalid plan_key' }, 400);
+          return json({ ok: false, error: 'INVALID_PLAN', message: 'Invalid plan_key' }, 400, request);
         }
 
         // Map plan_key to Stripe price ID using wrangler.toml vars
@@ -6456,7 +6475,7 @@ TTMP Support Team
 
         const stripe_price_id = TMP_PRICE_MAP[plan_key];
         if (!stripe_price_id) {
-          return json({ ok: false, error: 'PLAN_NOT_AVAILABLE', message: 'This plan is not yet available for purchase.' }, 503);
+          return json({ ok: false, error: 'PLAN_NOT_AVAILABLE', message: 'This plan is not yet available for purchase.' }, 503, request);
         }
 
         // Create Stripe checkout session
@@ -6484,7 +6503,7 @@ TTMP Support Team
 
         return json({ ok: true, session_url: checkout_session.url });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500, request);
       }
     },
   },
@@ -6516,7 +6535,7 @@ TTMP Support Team
           }
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch membership' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch membership' }, 500, request);
       }
     },
   },
@@ -6562,7 +6581,7 @@ TTMP Support Team
           }
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch dashboard' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch dashboard' }, 500, request);
       }
     },
   },
@@ -6606,7 +6625,7 @@ TTMP Support Team
           membership_plan: membership.plan_key
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch monitoring status' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch monitoring status' }, 500, request);
       }
     },
   },
@@ -6653,7 +6672,7 @@ TTMP Support Team
           }
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to get preferences' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to get preferences' }, 500, request);
       }
     },
   },
@@ -6707,9 +6726,9 @@ TTMP Support Team
           [accountId, appearance, timezone, default_dashboard, accent_color, in_app_enabled, sms_enabled, timestamp]
         );
 
-        return json({ ok: true, preferences: canonicalData });
+        return json({ ok: true, preferences: canonicalData }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update preferences' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update preferences' }, 500, request);
       }
     },
   },
@@ -6725,7 +6744,7 @@ TTMP Support Team
         const { account_id, file_type } = body;
 
         if (!file_type || !['image/jpeg', 'image/png', 'image/webp'].includes(file_type)) {
-          return json({ ok: false, error: 'BAD_REQUEST', message: 'file_type must be image/jpeg, image/png, or image/webp' }, 400);
+          return json({ ok: false, error: 'BAD_REQUEST', message: 'file_type must be image/jpeg, image/png, or image/webp' }, 400, request);
         }
 
         const ext = file_type.split('/')[1];
@@ -6734,7 +6753,7 @@ TTMP Support Team
         // Check if createPresignedUrl method exists
         if (typeof env.R2_VIRTUAL_LAUNCH.createPresignedUrl === 'function') {
           const upload_url = await env.R2_VIRTUAL_LAUNCH.createPresignedUrl('PUT', key);
-          return json({ ok: true, upload_url, key });
+          return json({ ok: true, upload_url, key }, 200, request);
         } else {
           // Fall back to direct upload endpoint
           return json({
@@ -6745,7 +6764,7 @@ TTMP Support Team
           });
         }
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to initialize upload' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to initialize upload' }, 500, request);
       }
     },
   },
@@ -6763,7 +6782,7 @@ TTMP Support Team
         // Verify the R2 object exists at key
         const object = await env.R2_VIRTUAL_LAUNCH.head(key);
         if (!object) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Uploaded file not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Uploaded file not found' }, 404, request);
         }
 
         // Construct public URL
@@ -6789,9 +6808,9 @@ TTMP Support Team
           console.warn('avatar_url column may not exist in accounts table:', dbError.message);
         }
 
-        return json({ ok: true, avatar_url });
+        return json({ ok: true, avatar_url }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to complete upload' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to complete upload' }, 500, request);
       }
     },
   },
@@ -6820,7 +6839,7 @@ TTMP Support Team
             current_step: null,
             step_status: 'pending'
           };
-          return json({ ok: true, status: defaultStatus });
+          return json({ ok: true, status: defaultStatus }, 200, request);
         }
 
         return json({
@@ -6838,7 +6857,7 @@ TTMP Support Team
           }
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to get status' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to get status' }, 500, request);
       }
     },
   },
@@ -6892,19 +6911,19 @@ TTMP Support Team
               [newMessageId, account_id, subject, messageBody, timestamp, timestamp]
             );
 
-            return json({ ok: true, message_id: newMessageId, action: 'create' });
+            return json({ ok: true, message_id: newMessageId, action: 'create' }, 200, request);
           }
 
           case 'update': {
             if (!message_id) {
-              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for update' }, 400);
+              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for update' }, 400, request);
             }
 
             // Read existing from R2
             const messageKey = `support/messages/${account_id}/${message_id}.json`;
             const existingObj = await env.R2_VIRTUAL_LAUNCH.get(messageKey);
             if (!existingObj) {
-              return json({ ok: false, error: 'NOT_FOUND', message: 'Message not found' }, 404);
+              return json({ ok: false, error: 'NOT_FOUND', message: 'Message not found' }, 404, request);
             }
 
             const existingData = await existingObj.json();
@@ -6931,19 +6950,19 @@ TTMP Support Team
             // Rewrite canonical
             await env.R2_VIRTUAL_LAUNCH.put(messageKey, JSON.stringify(updatedData));
 
-            return json({ ok: true, message_id, action: 'update' });
+            return json({ ok: true, message_id, action: 'update' }, 200, request);
           }
 
           case 'delete_soft': {
             if (!message_id) {
-              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for delete' }, 400);
+              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for delete' }, 400, request);
             }
 
             // Read existing from R2
             const messageKey = `support/messages/${account_id}/${message_id}.json`;
             const existingObj = await env.R2_VIRTUAL_LAUNCH.get(messageKey);
             if (!existingObj) {
-              return json({ ok: false, error: 'NOT_FOUND', message: 'Message not found' }, 404);
+              return json({ ok: false, error: 'NOT_FOUND', message: 'Message not found' }, 404, request);
             }
 
             const existingData = await existingObj.json();
@@ -6967,19 +6986,19 @@ TTMP Support Team
             // Rewrite canonical
             await env.R2_VIRTUAL_LAUNCH.put(messageKey, JSON.stringify(updatedData));
 
-            return json({ ok: true, message_id, action: 'delete_soft' });
+            return json({ ok: true, message_id, action: 'delete_soft' }, 200, request);
           }
 
           case 'restore': {
             if (!message_id) {
-              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for restore' }, 400);
+              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for restore' }, 400, request);
             }
 
             // Read existing from R2
             const messageKey = `support/messages/${account_id}/${message_id}.json`;
             const existingObj = await env.R2_VIRTUAL_LAUNCH.get(messageKey);
             if (!existingObj) {
-              return json({ ok: false, error: 'NOT_FOUND', message: 'Message not found' }, 404);
+              return json({ ok: false, error: 'NOT_FOUND', message: 'Message not found' }, 404, request);
             }
 
             const existingData = await existingObj.json();
@@ -7000,12 +7019,12 @@ TTMP Support Team
             // Rewrite canonical
             await env.R2_VIRTUAL_LAUNCH.put(messageKey, JSON.stringify(restoredData));
 
-            return json({ ok: true, message_id, action: 'restore' });
+            return json({ ok: true, message_id, action: 'restore' }, 200, request);
           }
 
           case 'delete_permanent': {
             if (!message_id) {
-              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for permanent delete' }, 400);
+              return json({ ok: false, error: 'BAD_REQUEST', message: 'message_id required for permanent delete' }, 400, request);
             }
 
             // Write receipt to R2
@@ -7021,14 +7040,14 @@ TTMP Support Team
             const messageKey = `support/messages/${account_id}/${message_id}.json`;
             await env.R2_VIRTUAL_LAUNCH.delete(messageKey);
 
-            return json({ ok: true, message_id, action: 'delete_permanent' });
+            return json({ ok: true, message_id, action: 'delete_permanent' }, 200, request);
           }
 
           default:
-            return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid action' }, 400);
+            return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid action' }, 400, request);
         }
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to process message' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to process message' }, 500, request);
       }
     },
   },
@@ -7087,7 +7106,7 @@ TTMP Support Team
           message: 'Report generation queued'
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to generate report' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to generate report' }, 500, request);
       }
     },
   },
@@ -7120,9 +7139,9 @@ TTMP Support Team
         const stmt = env.DB.prepare(query);
         const result = await stmt.bind(...queryParams).all();
 
-        return json({ ok: true, developers: result.results || [] });
+        return json({ ok: true, developers: result.results || [] }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developers' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developers' }, 500, request);
       }
     },
   },
@@ -7151,7 +7170,7 @@ TTMP Support Team
           ]
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch pricing' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch pricing' }, 500, request);
       }
     },
   },
@@ -7163,7 +7182,7 @@ TTMP Support Team
       const ref = url.searchParams.get('ref');
 
       if (!ref) {
-        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400);
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400, request);
       }
 
       try {
@@ -7172,12 +7191,12 @@ TTMP Support Team
         ).bind(ref).first();
 
         if (!result) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404, request);
         }
 
-        return json({ ok: true, developer: result });
+        return json({ ok: true, developer: result }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developer' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developer' }, 500, request);
       }
     },
   },
@@ -7190,7 +7209,7 @@ TTMP Support Team
         const { full_name, email, skills, experience_years, hourly_rate, availability } = body;
 
         if (!full_name || !email) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'full_name and email required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'full_name and email required' }, 400, request);
         }
 
         const developerId = `DVLP_ACCT_${crypto.randomUUID()}`;
@@ -7232,9 +7251,9 @@ TTMP Support Team
           [developerId, refNumber, full_name, email, skills, experience_years, hourly_rate, availability, timestamp, timestamp]
         );
 
-        return json({ ok: true, developer_id: developerId, ref_number: refNumber });
+        return json({ ok: true, developer_id: developerId, ref_number: refNumber }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create developer' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create developer' }, 500, request);
       }
     },
   },
@@ -7250,7 +7269,7 @@ TTMP Support Team
         const { ref_number, ...updates } = body;
 
         if (!ref_number) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number required' }, 400, request);
         }
 
         // Look up developer and verify ownership
@@ -7259,11 +7278,11 @@ TTMP Support Team
         ).bind(ref_number).first();
 
         if (!developer) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404, request);
         }
 
         if (developer.account_id && developer.account_id !== session.account_id) {
-          return json({ ok: false, error: 'FORBIDDEN', message: 'Cannot update another user\'s profile' }, 403);
+          return json({ ok: false, error: 'FORBIDDEN', message: 'Cannot update another user\'s profile' }, 403, request);
         }
 
         const timestamp = new Date().toISOString();
@@ -7297,7 +7316,7 @@ TTMP Support Team
         }
 
         if (Object.keys(filteredUpdates).length === 0) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400, request);
         }
 
         // Update canonical R2
@@ -7314,9 +7333,9 @@ TTMP Support Team
           values
         );
 
-        return json({ ok: true });
+        return json({ ok: true }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update developer' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update developer' }, 500, request);
       }
     },
   },
@@ -7328,7 +7347,7 @@ TTMP Support Team
       const ref = url.searchParams.get('ref');
 
       if (!ref) {
-        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400);
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400, request);
       }
 
       try {
@@ -7337,12 +7356,12 @@ TTMP Support Team
         ).bind(ref).first();
 
         if (!result) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404, request);
         }
 
-        return json({ ok: true, status: result.status, updated_at: result.updated_at });
+        return json({ ok: true, status: result.status, updated_at: result.updated_at }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch status' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch status' }, 500, request);
       }
     },
   },
@@ -7355,9 +7374,9 @@ TTMP Support Team
           "SELECT * FROM dvlp_jobs WHERE status != 'closed' ORDER BY created_at DESC"
         ).all();
 
-        return json({ ok: true, jobs: result.results || [] });
+        return json({ ok: true, jobs: result.results || [] }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch jobs' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch jobs' }, 500, request);
       }
     },
   },
@@ -7370,9 +7389,9 @@ TTMP Support Team
           "SELECT * FROM dvlp_reviews WHERE status = 'approved' ORDER BY created_at DESC"
         ).all();
 
-        return json({ ok: true, reviews: result.results || [] });
+        return json({ ok: true, reviews: result.results || [] }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch reviews' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch reviews' }, 500, request);
       }
     },
   },
@@ -7385,7 +7404,7 @@ TTMP Support Team
         const { reviewer_name, reviewer_email, rating, body: reviewBody } = body;
 
         if (!reviewer_name || !rating || !reviewBody || rating < 1 || rating > 5) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'reviewer_name, rating (1-5), and body required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'reviewer_name, rating (1-5), and body required' }, 400, request);
         }
 
         const reviewId = `RES_${crypto.randomUUID()}`;
@@ -7410,9 +7429,9 @@ TTMP Support Team
           [reviewId, reviewer_name, reviewer_email, rating, reviewBody, timestamp]
         );
 
-        return json({ ok: true, review_id: reviewId });
+        return json({ ok: true, review_id: reviewId }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create review' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create review' }, 500, request);
       }
     },
   },
@@ -7434,9 +7453,9 @@ TTMP Support Team
         // Write to R2
         await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/match-intake/${eventId}.json`, JSON.stringify(intakeData));
 
-        return json({ ok: true, eventId });
+        return json({ ok: true, eventId }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to process intake' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to process intake' }, 500, request);
       }
     },
   },
@@ -7450,7 +7469,7 @@ TTMP Support Team
         const { plan, email, ref_number } = body;
 
         if (!plan || !email || !ref_number) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'plan, email, and ref_number required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'plan, email, and ref_number required' }, 400, request);
         }
 
         const priceId = plan === 'free' ? env.STRIPE_DVLP_PRICE_FREE : env.STRIPE_DVLP_PRICE_PAID;
@@ -7476,12 +7495,12 @@ TTMP Support Team
 
         const session = await response.json();
         if (!response.ok) {
-          return json({ ok: false, error: 'STRIPE_ERROR', message: session.error?.message }, 400);
+          return json({ ok: false, error: 'STRIPE_ERROR', message: session.error?.message }, 400, request);
         }
 
-        return json({ ok: true, session_url: session.url });
+        return json({ ok: true, session_url: session.url }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500, request);
       }
     },
   },
@@ -7493,7 +7512,7 @@ TTMP Support Team
       const sessionId = url.searchParams.get('session_id');
 
       if (!sessionId) {
-        return json({ ok: false, error: 'INVALID_REQUEST', message: 'session_id parameter required' }, 400);
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'session_id parameter required' }, 400, request);
       }
 
       try {
@@ -7503,7 +7522,7 @@ TTMP Support Team
 
         const session = await response.json();
         if (!response.ok) {
-          return json({ ok: false, error: 'STRIPE_ERROR', message: session.error?.message }, 400);
+          return json({ ok: false, error: 'STRIPE_ERROR', message: session.error?.message }, 400, request);
         }
 
         return json({
@@ -7512,7 +7531,7 @@ TTMP Support Team
           customer_email: session.customer_details?.email
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check session status' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check session status' }, 500, request);
       }
     },
   },
@@ -7538,7 +7557,7 @@ TTMP Support Team
           .then(signature => Array.from(new Uint8Array(signature), b => b.toString(16).padStart(2, '0')).join(''));
 
         if (signatureHash !== expectedSignature) {
-          return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400);
+          return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
         }
 
         const event = JSON.parse(body);
@@ -7568,9 +7587,9 @@ TTMP Support Team
           );
         }
 
-        return json({ ok: true });
+        return json({ ok: true }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Webhook processing failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Webhook processing failed' }, 500, request);
       }
     },
   },
@@ -7585,7 +7604,7 @@ TTMP Support Team
       // Check admin role
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -7614,7 +7633,7 @@ TTMP Support Team
           }
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch analytics' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch analytics' }, 500, request);
       }
     },
   },
@@ -7627,7 +7646,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -7660,9 +7679,9 @@ TTMP Support Team
 
         const result = await env.DB.prepare(query).bind(...queryParams).all();
 
-        return json({ ok: true, submissions: result.results || [], page, limit });
+        return json({ ok: true, submissions: result.results || [], page, limit }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch submissions' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch submissions' }, 500, request);
       }
     },
   },
@@ -7675,20 +7694,20 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       const url = new URL(request.url);
       const ref = url.searchParams.get('ref');
 
       if (!ref) {
-        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400);
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400, request);
       }
 
       try {
         const d1Record = await env.DB.prepare("SELECT * FROM dvlp_developers WHERE ref_number = ?").bind(ref).first();
         if (!d1Record) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404, request);
         }
 
         // Merge with R2 canonical if available
@@ -7696,12 +7715,12 @@ TTMP Support Team
           const r2Data = await r2Get(env.R2_VIRTUAL_LAUNCH, `dvlp/onboarding/${d1Record.developer_id}.json`);
           const canonical = JSON.parse(r2Data);
           const merged = { ...d1Record, ...canonical };
-          return json({ ok: true, developer: merged });
+          return json({ ok: true, developer: merged }, 200, request);
         } catch {
-          return json({ ok: true, developer: d1Record });
+          return json({ ok: true, developer: d1Record }, 200, request);
         }
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developer' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developer' }, 500, request);
       }
     },
   },
@@ -7714,7 +7733,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -7722,12 +7741,12 @@ TTMP Support Team
         const { ref_number, ...updates } = body;
 
         if (!ref_number) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number required' }, 400, request);
         }
 
         const developer = await env.DB.prepare("SELECT * FROM dvlp_developers WHERE ref_number = ?").bind(ref_number).first();
         if (!developer) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404, request);
         }
 
         const timestamp = new Date().toISOString();
@@ -7739,7 +7758,7 @@ TTMP Support Team
         );
 
         if (Object.keys(filteredUpdates).length === 0) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400, request);
         }
 
         // Update R2 canonical
@@ -7763,9 +7782,9 @@ TTMP Support Team
           values
         );
 
-        return json({ ok: true });
+        return json({ ok: true }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update developer' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update developer' }, 500, request);
       }
     },
   },
@@ -7778,7 +7797,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -7786,9 +7805,9 @@ TTMP Support Team
           "SELECT ref_number, full_name, status, publish_profile FROM dvlp_developers ORDER BY created_at DESC"
         ).all();
 
-        return json({ ok: true, developers: result.results || [] });
+        return json({ ok: true, developers: result.results || [] }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developers' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch developers' }, 500, request);
       }
     },
   },
@@ -7801,7 +7820,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -7820,9 +7839,9 @@ TTMP Support Team
 
         const result = await env.DB.prepare(query).bind(...queryParams).all();
 
-        return json({ ok: true, jobs: result.results || [] });
+        return json({ ok: true, jobs: result.results || [] }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch jobs' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch jobs' }, 500, request);
       }
     },
   },
@@ -7835,7 +7854,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -7843,7 +7862,7 @@ TTMP Support Team
         const { title, description, skills_required, budget_min, budget_max } = body;
 
         if (!title) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'title required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'title required' }, 400, request);
         }
 
         const jobId = `JOB_${crypto.randomUUID()}`;
@@ -7872,9 +7891,9 @@ TTMP Support Team
           [jobId, title, description, skills_required, budget_min, budget_max, session.account_id, timestamp, timestamp]
         );
 
-        return json({ ok: true, job_id: jobId });
+        return json({ ok: true, job_id: jobId }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create job' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create job' }, 500, request);
       }
     },
   },
@@ -7887,7 +7906,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       const { job_id } = params;
@@ -7898,7 +7917,7 @@ TTMP Support Team
 
         const job = await env.DB.prepare("SELECT * FROM dvlp_jobs WHERE job_id = ?").bind(job_id).first();
         if (!job) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Job not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Job not found' }, 404, request);
         }
 
         const timestamp = new Date().toISOString();
@@ -7909,7 +7928,7 @@ TTMP Support Team
         );
 
         if (Object.keys(filteredUpdates).length === 0) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400, request);
         }
 
         // Update R2
@@ -7925,9 +7944,9 @@ TTMP Support Team
           values
         );
 
-        return json({ ok: true });
+        return json({ ok: true }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update job' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update job' }, 500, request);
       }
     },
   },
@@ -7940,7 +7959,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -7948,12 +7967,12 @@ TTMP Support Team
         const { ref_number, job_title, message } = body;
 
         if (!ref_number || !job_title || !message) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number, job_title, and message required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number, job_title, and message required' }, 400, request);
         }
 
         const developer = await env.DB.prepare("SELECT email, full_name, plan FROM dvlp_developers WHERE ref_number = ?").bind(ref_number).first();
         if (!developer) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404, request);
         }
 
         // Check developer plan eligibility for curated job matches
@@ -7988,9 +8007,9 @@ TTMP Support Team
           env
         );
 
-        return json({ ok: true, eventId });
+        return json({ ok: true, eventId }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send post' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send post' }, 500, request);
       }
     },
   },
@@ -8003,7 +8022,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -8011,12 +8030,12 @@ TTMP Support Team
         const { ref_number, subject, message } = body;
 
         if (!ref_number || !subject || !message) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number, subject, and message required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number, subject, and message required' }, 400, request);
         }
 
         const developer = await env.DB.prepare("SELECT email, full_name FROM dvlp_developers WHERE ref_number = ?").bind(ref_number).first();
         if (!developer) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404, request);
         }
 
         const eventId = `EVT_${crypto.randomUUID()}`;
@@ -8037,9 +8056,9 @@ TTMP Support Team
         // Send email
         await sendEmail(developer.email, subject, `<p>Hi ${developer.full_name},</p><p>${message}</p>`, env);
 
-        return json({ ok: true, eventId });
+        return json({ ok: true, eventId }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send message' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send message' }, 500, request);
       }
     },
   },
@@ -8052,14 +8071,14 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       const url = new URL(request.url);
       const ref = url.searchParams.get('ref');
 
       if (!ref) {
-        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400);
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref parameter required' }, 400, request);
       }
 
       try {
@@ -8069,9 +8088,9 @@ TTMP Support Team
 
         // Note: This is a simplified implementation. In practice, you'd need to list R2 objects
         // For now, returning empty array as placeholder
-        return json({ ok: true, messages: [] });
+        return json({ ok: true, messages: [] }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch messages' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch messages' }, 500, request);
       }
     },
   },
@@ -8084,7 +8103,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -8103,9 +8122,9 @@ TTMP Support Team
 
         const result = await env.DB.prepare(query).bind(...queryParams).all();
 
-        return json({ ok: true, tickets: result.results || [] });
+        return json({ ok: true, tickets: result.results || [] }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch tickets' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch tickets' }, 500, request);
       }
     },
   },
@@ -8118,7 +8137,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       const { ticket_id } = params;
@@ -8129,7 +8148,7 @@ TTMP Support Team
 
         const ticket = await env.DB.prepare("SELECT * FROM support_tickets WHERE ticket_id = ?").bind(ticket_id).first();
         if (!ticket) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Ticket not found' }, 404, request);
         }
 
         const timestamp = new Date().toISOString();
@@ -8148,9 +8167,9 @@ TTMP Support Team
           values
         );
 
-        return json({ ok: true });
+        return json({ ok: true }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update ticket' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update ticket' }, 500, request);
       }
     },
   },
@@ -8163,7 +8182,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -8182,9 +8201,9 @@ TTMP Support Team
 
         const result = await env.DB.prepare(query).bind(...queryParams).all();
 
-        return json({ ok: true, responses: result.results || [] });
+        return json({ ok: true, responses: result.results || [] }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch canned responses' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch canned responses' }, 500, request);
       }
     },
   },
@@ -8197,7 +8216,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -8205,7 +8224,7 @@ TTMP Support Team
         const { title, body: responseBody, user_type, is_default } = body;
 
         if (!title || !responseBody) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'title and body required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'title and body required' }, 400, request);
         }
 
         const templateId = `TPL_${crypto.randomUUID()}`;
@@ -8217,9 +8236,9 @@ TTMP Support Team
           [templateId, title, responseBody, user_type || 'developer', is_default ? 1 : 0, timestamp, timestamp]
         );
 
-        return json({ ok: true, template_id: templateId });
+        return json({ ok: true, template_id: templateId }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create canned response' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create canned response' }, 500, request);
       }
     },
   },
@@ -8232,7 +8251,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       const { template_id } = params;
@@ -8243,7 +8262,7 @@ TTMP Support Team
 
         const template = await env.DB.prepare("SELECT * FROM dvlp_canned_responses WHERE template_id = ?").bind(template_id).first();
         if (!template) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Template not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Template not found' }, 404, request);
         }
 
         const timestamp = new Date().toISOString();
@@ -8254,7 +8273,7 @@ TTMP Support Team
         );
 
         if (Object.keys(filteredUpdates).length === 0) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400, request);
         }
 
         const setClause = Object.keys(filteredUpdates).map(k => `${k} = ?`).join(', ');
@@ -8265,9 +8284,9 @@ TTMP Support Team
           values
         );
 
-        return json({ ok: true });
+        return json({ ok: true }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update canned response' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update canned response' }, 500, request);
       }
     },
   },
@@ -8280,7 +8299,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       const { template_id } = params;
@@ -8288,18 +8307,18 @@ TTMP Support Team
       try {
         const template = await env.DB.prepare("SELECT is_default FROM dvlp_canned_responses WHERE template_id = ?").bind(template_id).first();
         if (!template) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Template not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Template not found' }, 404, request);
         }
 
         if (template.is_default === 1) {
-          return json({ ok: false, error: 'BAD_REQUEST', message: 'Cannot delete default template' }, 400);
+          return json({ ok: false, error: 'BAD_REQUEST', message: 'Cannot delete default template' }, 400, request);
         }
 
         await d1Run(env.DB, "DELETE FROM dvlp_canned_responses WHERE template_id = ?", [template_id]);
 
-        return json({ ok: true });
+        return json({ ok: true }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to delete canned response' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to delete canned response' }, 500, request);
       }
     },
   },
@@ -8312,7 +8331,7 @@ TTMP Support Team
 
       const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
       if (!account || account.role !== 'admin') {
-        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
       try {
@@ -8320,7 +8339,7 @@ TTMP Support Team
         const { filters, subject, message, dry_run } = body;
 
         if (!subject || !message) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'subject and message required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'subject and message required' }, 400, request);
         }
 
         // Build query based on filters
@@ -8344,7 +8363,7 @@ TTMP Support Team
         const developers = result.results || [];
 
         if (dry_run) {
-          return json({ ok: true, count: developers.length, dry_run: true });
+          return json({ ok: true, count: developers.length, dry_run: true }, 200, request);
         }
 
         // Send emails in batches of 50 (Resend limit)
@@ -8370,9 +8389,9 @@ TTMP Support Team
         };
         await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/receipts/bulk-email/${eventId}.json`, JSON.stringify(receiptData));
 
-        return json({ ok: true, sent_count: sentCount });
+        return json({ ok: true, sent_count: sentCount }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send bulk email' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send bulk email' }, 500, request);
       }
     },
   },
@@ -8389,7 +8408,7 @@ TTMP Support Team
       const client_id = url.searchParams.get('client_id');
 
       if (!client_id) {
-        return json({ ok: false, error: 'INVALID_REQUEST', message: 'client_id required' }, 400);
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'client_id required' }, 400, request);
       }
 
       try {
@@ -8398,7 +8417,7 @@ TTMP Support Team
         ).bind(client_id).first();
 
         if (!operator) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404, request);
         }
 
         const unlocked_games = GVLP_GAME_UNLOCK[operator.tier] || [];
@@ -8410,7 +8429,7 @@ TTMP Support Team
           tokens_balance: operator.tokens_balance
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch config' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch config' }, 500, request);
       }
     },
   },
@@ -8424,7 +8443,7 @@ TTMP Support Team
         const { client_id, visitor_id, game_slug, tokens_cost = 1 } = body;
 
         if (!client_id || !visitor_id || !game_slug) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'client_id, visitor_id, and game_slug required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'client_id, visitor_id, and game_slug required' }, 400, request);
         }
 
         // Get operator
@@ -8433,18 +8452,18 @@ TTMP Support Team
         ).bind(client_id).first();
 
         if (!operator) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404, request);
         }
 
         // Validate game is unlocked for this tier
         const unlockedGames = GVLP_GAME_UNLOCK[operator.tier] || [];
         if (!unlockedGames.includes(game_slug)) {
-          return json({ ok: false, error: 'GAME_LOCKED', message: 'Game not available for current tier' }, 403);
+          return json({ ok: false, error: 'GAME_LOCKED', message: 'Game not available for current tier' }, 403, request);
         }
 
         // Check token balance
         if (operator.tokens_balance < tokens_cost) {
-          return json({ ok: false, error: 'INSUFFICIENT_TOKENS' }, 402);
+          return json({ ok: false, error: 'INSUFFICIENT_TOKENS' }, 402, request);
         }
 
         const play_id = `PLAY_${crypto.randomUUID()}`;
@@ -8501,7 +8520,7 @@ TTMP Support Team
           play_id
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to use tokens' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to use tokens' }, 500, request);
       }
     },
   },
@@ -8514,7 +8533,7 @@ TTMP Support Team
       const client_id = url.searchParams.get('client_id');
 
       if (!client_id) {
-        return json({ ok: false, error: 'INVALID_REQUEST', message: 'client_id required' }, 400);
+        return json({ ok: false, error: 'INVALID_REQUEST', message: 'client_id required' }, 400, request);
       }
 
       try {
@@ -8523,7 +8542,7 @@ TTMP Support Team
         ).bind(client_id).first();
 
         if (!operator) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404, request);
         }
 
         return json({
@@ -8532,7 +8551,7 @@ TTMP Support Team
           tier: operator.tier
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch balance' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch balance' }, 500, request);
       }
     },
   },
@@ -8546,11 +8565,11 @@ TTMP Support Team
         const { account_id, tier } = body;
 
         if (!account_id || !tier) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'account_id and tier required' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'account_id and tier required' }, 400, request);
         }
 
         if (!GVLP_TIERS[tier]) {
-          return json({ ok: false, error: 'INVALID_TIER', message: 'Invalid tier specified' }, 400);
+          return json({ ok: false, error: 'INVALID_TIER', message: 'Invalid tier specified' }, 400, request);
         }
 
         const tierConfig = GVLP_TIERS[tier];
@@ -8580,7 +8599,7 @@ TTMP Support Team
         });
 
         if (!response.ok) {
-          return json({ ok: false, error: 'STRIPE_ERROR', message: 'Failed to create checkout session' }, 500);
+          return json({ ok: false, error: 'STRIPE_ERROR', message: 'Failed to create checkout session' }, 500, request);
         }
 
         const session = await response.json();
@@ -8590,7 +8609,7 @@ TTMP Support Team
           session_url: session.url
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout' }, 500, request);
       }
     },
   },
@@ -8617,7 +8636,7 @@ TTMP Support Team
           .map(b => b.toString(16).padStart(2, '0')).join('');
 
         if (!sig || !sig.includes(expectedSig)) {
-          return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400);
+          return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
         }
 
         const event = JSON.parse(body);
@@ -8684,9 +8703,9 @@ TTMP Support Team
           );
         }
 
-        return json({ ok: true });
+        return json({ ok: true }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Webhook processing failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Webhook processing failed' }, 500, request);
       }
     },
   },
@@ -8704,7 +8723,7 @@ TTMP Support Team
       if (session.account_id !== account_id) {
         const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
         if (!account || account.role !== 'admin') {
-          return json({ ok: false, error: 'FORBIDDEN', message: 'Account access required' }, 403);
+          return json({ ok: false, error: 'FORBIDDEN', message: 'Account access required' }, 403, request);
         }
       }
 
@@ -8714,7 +8733,7 @@ TTMP Support Team
         ).bind(account_id).first();
 
         if (!operator) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404, request);
         }
 
         // Get last 30 days play count
@@ -8734,7 +8753,7 @@ TTMP Support Team
           }
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch operator' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch operator' }, 500, request);
       }
     },
   },
@@ -8752,7 +8771,7 @@ TTMP Support Team
       if (session.account_id !== account_id) {
         const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
         if (!account || account.role !== 'admin') {
-          return json({ ok: false, error: 'FORBIDDEN', message: 'Account access required' }, 403);
+          return json({ ok: false, error: 'FORBIDDEN', message: 'Account access required' }, 403, request);
         }
       }
 
@@ -8761,7 +8780,7 @@ TTMP Support Team
         const { client_id } = body;
 
         if (!client_id) {
-          return json({ ok: false, error: 'INVALID_REQUEST', message: 'Only client_id updates allowed' }, 400);
+          return json({ ok: false, error: 'INVALID_REQUEST', message: 'Only client_id updates allowed' }, 400, request);
         }
 
         const operator = await env.DB.prepare(
@@ -8769,7 +8788,7 @@ TTMP Support Team
         ).bind(account_id).first();
 
         if (!operator) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404, request);
         }
 
         const timestamp = new Date().toISOString();
@@ -8804,7 +8823,7 @@ TTMP Support Team
           client_id
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update operator' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update operator' }, 500, request);
       }
     },
   },
@@ -8822,7 +8841,7 @@ TTMP Support Team
       if (session.account_id !== account_id) {
         const account = await env.DB.prepare("SELECT role FROM accounts WHERE account_id = ?").bind(session.account_id).first();
         if (!account || account.role !== 'admin') {
-          return json({ ok: false, error: 'FORBIDDEN', message: 'Account access required' }, 403);
+          return json({ ok: false, error: 'FORBIDDEN', message: 'Account access required' }, 403, request);
         }
       }
 
@@ -8832,7 +8851,7 @@ TTMP Support Team
         ).bind(account_id).first();
 
         if (!operator) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Operator not found' }, 404, request);
         }
 
         const url = new URL(request.url);
@@ -8863,7 +8882,7 @@ TTMP Support Team
           total_count: totalCount?.count || 0
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch plays' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch plays' }, 500, request);
       }
     },
   },
@@ -8881,13 +8900,13 @@ TTMP Support Team
 
       const body = await parseBody(request);
       if (!body) {
-        return json({ ok: false, error: 'INVALID_JSON' }, 400);
+        return json({ ok: false, error: 'INVALID_JSON' }, 400, request);
       }
 
       const { firm_name, display_name, logo_url, welcome_message, slug } = body;
 
       if (!firm_name) {
-        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['firm_name'] }, 400);
+        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['firm_name'] }, 400, request);
       }
 
       const timestamp = new Date().toISOString();
@@ -8908,7 +8927,7 @@ TTMP Support Team
       if (existingPro) {
         if (slug) {
           // User provided slug is taken
-          return json({ ok: false, error: 'SLUG_TAKEN', message: 'The requested slug is already in use' }, 409);
+          return json({ ok: false, error: 'SLUG_TAKEN', message: 'The requested slug is already in use' }, 409, request);
         } else {
           // Auto-generated slug is taken, add random suffix
           finalSlug = `${finalSlug}-${crypto.randomUUID().substring(0, 4)}`;
@@ -8964,7 +8983,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('TCVLP onboarding error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create professional profile' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create professional profile' }, 500, request);
       }
     },
   },
@@ -8979,7 +8998,7 @@ TTMP Support Team
         const pro = await env.DB.prepare("SELECT firm_name, display_name, logo_url, welcome_message, slug FROM tcvlp_pros WHERE pro_id = ? AND status = 'active'").bind(pro_id).first();
 
         if (!pro) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Professional not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Professional not found' }, 404, request);
         }
 
         return json({
@@ -8992,7 +9011,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('TCVLP get pro error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch professional profile' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch professional profile' }, 500, request);
       }
     },
   },
@@ -9007,7 +9026,7 @@ TTMP Support Team
         const pro = await env.DB.prepare("SELECT firm_name, display_name, logo_url, welcome_message, slug FROM tcvlp_pros WHERE slug = ? AND status = 'active'").bind(slug).first();
 
         if (!pro) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Professional not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Professional not found' }, 404, request);
         }
 
         return json({
@@ -9020,7 +9039,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('TCVLP get pro by slug error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch professional profile' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch professional profile' }, 500, request);
       }
     },
   },
@@ -9033,7 +9052,7 @@ TTMP Support Team
       const state = url.searchParams.get('state');
 
       if (!state || !IRS_843_MAILING_ADDRESSES[state.toUpperCase()]) {
-        return json({ ok: false, error: 'STATE_NOT_FOUND', message: 'Invalid state code provided' }, 404);
+        return json({ ok: false, error: 'STATE_NOT_FOUND', message: 'Invalid state code provided' }, 404, request);
       }
 
       return json({
@@ -9054,13 +9073,13 @@ TTMP Support Team
         const pro_id = formData.get('pro_id');
 
         if (!pdfFile || !pro_id) {
-          return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['file', 'pro_id'] }, 400);
+          return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['file', 'pro_id'] }, 400, request);
         }
 
         // Verify pro exists
         const pro = await env.DB.prepare("SELECT pro_id FROM tcvlp_pros WHERE pro_id = ? AND status = 'active'").bind(pro_id).first();
         if (!pro) {
-          return json({ ok: false, error: 'INVALID_PRO_ID', message: 'Professional not found' }, 400);
+          return json({ ok: false, error: 'INVALID_PRO_ID', message: 'Professional not found' }, 400, request);
         }
 
         // Extract text from PDF
@@ -9068,7 +9087,7 @@ TTMP Support Team
         const extractedText = extractTextFromPdf(new Uint8Array(pdfBytes));
 
         if (!extractedText) {
-          return json({ ok: false, error: 'EXTRACTION_FAILED', message: 'Failed to extract text from PDF' }, 400);
+          return json({ ok: false, error: 'EXTRACTION_FAILED', message: 'Failed to extract text from PDF' }, 400, request);
         }
 
         // Parse transcript and filter for Kwong window
@@ -9113,7 +9132,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('TCVLP transcript upload error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to process transcript' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to process transcript' }, 500, request);
       }
     },
   },
@@ -9124,30 +9143,30 @@ TTMP Support Team
     handler: async (_method, _pattern, _params, request, env) => {
       const body = await parseBody(request);
       if (!body) {
-        return json({ ok: false, error: 'INVALID_JSON' }, 400);
+        return json({ ok: false, error: 'INVALID_JSON' }, 400, request);
       }
 
       const { pro_id, taxpayer_name, taxpayer_email, tax_year, penalty_type, penalty_amount, state, transcript_used } = body;
 
       if (!pro_id || !taxpayer_name || !tax_year || !penalty_type || !state) {
-        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['pro_id', 'taxpayer_name', 'tax_year', 'penalty_type', 'state'] }, 400);
+        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['pro_id', 'taxpayer_name', 'tax_year', 'penalty_type', 'state'] }, 400, request);
       }
 
       // Validate state
       if (!IRS_843_MAILING_ADDRESSES[state.toUpperCase()]) {
-        return json({ ok: false, error: 'INVALID_STATE', message: 'Invalid state code provided' }, 400);
+        return json({ ok: false, error: 'INVALID_STATE', message: 'Invalid state code provided' }, 400, request);
       }
 
       // Validate tax year
       const yearNum = parseInt(tax_year);
       if (yearNum < 2020 || yearNum > 2023) {
-        return json({ ok: false, error: 'INVALID_TAX_YEAR', message: 'Tax year must be between 2020-2023' }, 400);
+        return json({ ok: false, error: 'INVALID_TAX_YEAR', message: 'Tax year must be between 2020-2023' }, 400, request);
       }
 
       // Verify pro exists
       const pro = await env.DB.prepare("SELECT pro_id FROM tcvlp_pros WHERE pro_id = ? AND status = 'active'").bind(pro_id).first();
       if (!pro) {
-        return json({ ok: false, error: 'INVALID_PRO_ID', message: 'Professional not found' }, 400);
+        return json({ ok: false, error: 'INVALID_PRO_ID', message: 'Professional not found' }, 400, request);
       }
 
       const timestamp = new Date().toISOString();
@@ -9219,7 +9238,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('TCVLP Form 843 generation error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to generate Form 843 preparation guide' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to generate Form 843 preparation guide' }, 500, request);
       }
     },
   },
@@ -9230,13 +9249,13 @@ TTMP Support Team
     handler: async (_method, _pattern, _params, request, env) => {
       const body = await parseBody(request);
       if (!body) {
-        return json({ ok: false, error: 'INVALID_JSON' }, 400);
+        return json({ ok: false, error: 'INVALID_JSON' }, 400, request);
       }
 
       const { submission_id, confirmed } = body;
 
       if (!submission_id || !confirmed) {
-        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['submission_id', 'confirmed'] }, 400);
+        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['submission_id', 'confirmed'] }, 400, request);
       }
 
       const timestamp = new Date().toISOString();
@@ -9248,7 +9267,7 @@ TTMP Support Team
         ).bind(timestamp, submission_id).run();
 
         if (result.changes === 0) {
-          return json({ ok: false, error: 'SUBMISSION_NOT_FOUND', message: 'Submission not found' }, 404);
+          return json({ ok: false, error: 'SUBMISSION_NOT_FOUND', message: 'Submission not found' }, 404, request);
         }
 
         // Update R2 canonical
@@ -9270,7 +9289,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('TCVLP Form 843 submission error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to submit Form 843' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to submit Form 843' }, 500, request);
       }
     },
   },
@@ -9331,7 +9350,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('WLVLP templates list error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9349,7 +9368,7 @@ TTMP Support Team
         ).bind(slug).first();
 
         if (!template) {
-          return json({ ok: false, error: 'TEMPLATE_NOT_FOUND' }, 404);
+          return json({ ok: false, error: 'TEMPLATE_NOT_FOUND' }, 404, request);
         }
 
         // Get highest bid
@@ -9370,7 +9389,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('WLVLP template get error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9414,7 +9433,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('WLVLP vote error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9429,12 +9448,12 @@ TTMP Support Team
       const { slug } = params;
       const body = await parseBody(request);
       if (!body || !body.amount) {
-        return json({ ok: false, error: 'MISSING_AMOUNT' }, 400);
+        return json({ ok: false, error: 'MISSING_AMOUNT' }, 400, request);
       }
 
       const { amount } = body;
       if (!Number.isInteger(amount) || amount < 1) {
-        return json({ ok: false, error: 'INVALID_AMOUNT' }, 400);
+        return json({ ok: false, error: 'INVALID_AMOUNT' }, 400, request);
       }
 
       const timestamp = new Date().toISOString();
@@ -9447,20 +9466,20 @@ TTMP Support Team
         ).bind(slug).first();
 
         if (!template) {
-          return json({ ok: false, error: 'TEMPLATE_NOT_FOUND' }, 404);
+          return json({ ok: false, error: 'TEMPLATE_NOT_FOUND' }, 404, request);
         }
 
         if (!['available', 'auction'].includes(template.status)) {
-          return json({ ok: false, error: 'TEMPLATE_NOT_AVAILABLE' }, 400);
+          return json({ ok: false, error: 'TEMPLATE_NOT_AVAILABLE' }, 400, request);
         }
 
         if (amount < template.bid_start_price) {
-          return json({ ok: false, error: 'BID_TOO_LOW', min_bid: template.bid_start_price }, 400);
+          return json({ ok: false, error: 'BID_TOO_LOW', min_bid: template.bid_start_price }, 400, request);
         }
 
         // Check if auction has ended
         if (template.auction_ends_at && new Date(template.auction_ends_at) < new Date()) {
-          return json({ ok: false, error: 'AUCTION_ENDED' }, 400);
+          return json({ ok: false, error: 'AUCTION_ENDED' }, 400, request);
         }
 
         // Get current highest bid
@@ -9470,7 +9489,7 @@ TTMP Support Team
         const currentHighBid = highestBidResult?.highest_bid || 0;
 
         if (amount <= currentHighBid) {
-          return json({ ok: false, error: 'BID_TOO_LOW', current_high_bid: currentHighBid }, 400);
+          return json({ ok: false, error: 'BID_TOO_LOW', current_high_bid: currentHighBid }, 400, request);
         }
 
         // Set auction end time if this is the first bid
@@ -9507,7 +9526,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('WLVLP bid error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9535,7 +9554,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('WLVLP bids list error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9549,13 +9568,13 @@ TTMP Support Team
 
       const body = await parseBody(request);
       if (!body || !body.slug || !body.acquisition_type) {
-        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['slug', 'acquisition_type'] }, 400);
+        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['slug', 'acquisition_type'] }, 400, request);
       }
 
       const { slug, acquisition_type } = body;
 
       if (!['buy_now', 'auction_win'].includes(acquisition_type)) {
-        return json({ ok: false, error: 'INVALID_ACQUISITION_TYPE' }, 400);
+        return json({ ok: false, error: 'INVALID_ACQUISITION_TYPE' }, 400, request);
       }
 
       try {
@@ -9565,13 +9584,13 @@ TTMP Support Team
         ).bind(slug).first();
 
         if (!template) {
-          return json({ ok: false, error: 'TEMPLATE_NOT_FOUND' }, 404);
+          return json({ ok: false, error: 'TEMPLATE_NOT_FOUND' }, 404, request);
         }
 
         let monthlyPrice;
         if (acquisition_type === 'buy_now') {
           if (template.status !== 'available') {
-            return json({ ok: false, error: 'TEMPLATE_NOT_AVAILABLE' }, 400);
+            return json({ ok: false, error: 'TEMPLATE_NOT_AVAILABLE' }, 400, request);
           }
           monthlyPrice = template.buy_now_price;
         } else if (acquisition_type === 'auction_win') {
@@ -9581,7 +9600,7 @@ TTMP Support Team
           ).bind(slug).first();
 
           if (!highestBid || highestBid.account_id !== session.account_id) {
-            return json({ ok: false, error: 'NOT_AUCTION_WINNER' }, 403);
+            return json({ ok: false, error: 'NOT_AUCTION_WINNER' }, 403, request);
           }
           monthlyPrice = highestBid.amount;
         }
@@ -9611,7 +9630,7 @@ TTMP Support Team
 
         if (!stripeSession.ok) {
           console.error('Stripe session creation failed:', await stripeSession.text());
-          return json({ ok: false, error: 'PAYMENT_SETUP_FAILED' }, 500);
+          return json({ ok: false, error: 'PAYMENT_SETUP_FAILED' }, 500, request);
         }
 
         const sessionData = await stripeSession.json();
@@ -9622,7 +9641,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('WLVLP checkout error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9644,7 +9663,7 @@ TTMP Support Team
         ).bind(session.account_id).first();
 
         if (existingTicket) {
-          return json({ ok: false, error: 'ALREADY_HAS_UNSCRATCHED_TICKET' }, 409);
+          return json({ ok: false, error: 'ALREADY_HAS_UNSCRATCHED_TICKET' }, 409, request);
         }
 
         // Write ticket to R2
@@ -9668,7 +9687,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('WLVLP scratch create error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9690,11 +9709,11 @@ TTMP Support Team
         ).bind(ticket_id, session.account_id).first();
 
         if (!ticket) {
-          return json({ ok: false, error: 'TICKET_NOT_FOUND' }, 404);
+          return json({ ok: false, error: 'TICKET_NOT_FOUND' }, 404, request);
         }
 
         if (ticket.status !== 'unscratched') {
-          return json({ ok: false, error: 'TICKET_ALREADY_SCRATCHED' }, 400);
+          return json({ ok: false, error: 'TICKET_ALREADY_SCRATCHED' }, 400, request);
         }
 
         // Draw prize using weighted random
@@ -9737,7 +9756,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('WLVLP scratch reveal error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9753,7 +9772,7 @@ TTMP Support Team
 
       // Verify account matches session
       if (account_id !== session.account_id) {
-        return json({ ok: false, error: 'UNAUTHORIZED' }, 403);
+        return json({ ok: false, error: 'UNAUTHORIZED' }, 403, request);
       }
 
       try {
@@ -9763,7 +9782,7 @@ TTMP Support Team
         ).bind(account_id).first();
 
         if (!purchase) {
-          return json({ ok: false, error: 'NO_ACTIVE_PURCHASE' }, 404);
+          return json({ ok: false, error: 'NO_ACTIVE_PURCHASE' }, 404, request);
         }
 
         // Get template details
@@ -9790,7 +9809,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('WLVLP buyer get error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9805,7 +9824,7 @@ TTMP Support Team
       const { slug } = params;
       const body = await parseBody(request);
       if (!body) {
-        return json({ ok: false, error: 'INVALID_JSON' }, 400);
+        return json({ ok: false, error: 'INVALID_JSON' }, 400, request);
       }
 
       const timestamp = new Date().toISOString();
@@ -9817,7 +9836,7 @@ TTMP Support Team
         ).bind(session.account_id, slug).first();
 
         if (!purchase) {
-          return json({ ok: false, error: 'UNAUTHORIZED' }, 403);
+          return json({ ok: false, error: 'UNAUTHORIZED' }, 403, request);
         }
 
         // Update R2 canonical config
@@ -9835,10 +9854,10 @@ TTMP Support Team
           "UPDATE wlvlp_site_configs SET config_json = ?, updated_at = ? WHERE slug = ?"
         ).bind(JSON.stringify(body), timestamp, slug).run();
 
-        return json({ ok: true });
+        return json({ ok: true }, 200, request);
       } catch (e) {
         console.error('WLVLP config update error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9856,7 +9875,7 @@ TTMP Support Team
         const slug = formData.get('slug');
 
         if (!file || !slug) {
-          return json({ ok: false, error: 'MISSING_FILE_OR_SLUG' }, 400);
+          return json({ ok: false, error: 'MISSING_FILE_OR_SLUG' }, 400, request);
         }
 
         // Verify ownership
@@ -9865,7 +9884,7 @@ TTMP Support Team
         ).bind(session.account_id, slug).first();
 
         if (!purchase) {
-          return json({ ok: false, error: 'UNAUTHORIZED' }, 403);
+          return json({ ok: false, error: 'UNAUTHORIZED' }, 403, request);
         }
 
         const timestamp = new Date().toISOString();
@@ -9887,7 +9906,7 @@ TTMP Support Team
         });
       } catch (e) {
         console.error('WLVLP logo upload error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
   },
@@ -9987,10 +10006,10 @@ TTMP Support Team
           }
         }
 
-        return json({ ok: true });
+        return json({ ok: true }, 200, request);
       } catch (e) {
         console.error('WLVLP Stripe webhook error:', e);
-        return json({ ok: false, error: 'WEBHOOK_ERROR' }, 500);
+        return json({ ok: false, error: 'WEBHOOK_ERROR' }, 500, request);
       }
     },
   },
@@ -10007,9 +10026,9 @@ TTMP Support Team
 
       try {
         const onboardUrl = `https://connect.stripe.com/oauth/authorize?response_type=code&client_id=${env.STRIPE_CONNECT_CLIENT_ID}&scope=read_write&redirect_uri=https://api.virtuallaunch.pro/v1/affiliates/connect/callback&state=${session.account_id}`;
-        return json({ ok: true, onboard_url: onboardUrl });
+        return json({ ok: true, onboard_url: onboardUrl }, 200, request);
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Affiliate onboarding failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Affiliate onboarding failed' }, 500, request);
       }
     },
   },
@@ -10089,13 +10108,13 @@ TTMP Support Team
       if (error) return error;
 
       if (session.account_id !== params.account_id) {
-        return json({ ok: false, error: 'FORBIDDEN' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
       }
 
       try {
         const affiliateRow = await env.DB.prepare('SELECT * FROM affiliates WHERE account_id = ?').bind(params.account_id).first();
         if (!affiliateRow) {
-          return json({ ok: false, error: 'NOT_FOUND' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND' }, 404, request);
         }
 
         // Count referred accounts
@@ -10113,7 +10132,7 @@ TTMP Support Team
           },
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Affiliate lookup failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Affiliate lookup failed' }, 500, request);
       }
     },
   },
@@ -10125,7 +10144,7 @@ TTMP Support Team
       if (error) return error;
 
       if (session.account_id !== params.account_id) {
-        return json({ ok: false, error: 'FORBIDDEN' }, 403);
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
       }
 
       const url = new URL(request.url);
@@ -10143,7 +10162,7 @@ TTMP Support Team
           pagination: { limit, offset },
         });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Events lookup failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Events lookup failed' }, 500, request);
       }
     },
   },
@@ -10157,15 +10176,15 @@ TTMP Support Team
       try {
         const affiliateRow = await env.DB.prepare('SELECT * FROM affiliates WHERE account_id = ?').bind(session.account_id).first();
         if (!affiliateRow) {
-          return json({ ok: false, error: 'NOT_FOUND', message: 'Affiliate record not found' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Affiliate record not found' }, 404, request);
         }
 
         if (affiliateRow.connect_status !== 'active') {
-          return json({ ok: false, error: 'CONNECT_REQUIRED', message: 'Stripe Connect account required' }, 400);
+          return json({ ok: false, error: 'CONNECT_REQUIRED', message: 'Stripe Connect account required' }, 400, request);
         }
 
         if (affiliateRow.balance_pending < 1000) { // Minimum $10.00 payout
-          return json({ ok: false, error: 'INSUFFICIENT_BALANCE', message: 'Minimum $10.00 required for payout' }, 400);
+          return json({ ok: false, error: 'INSUFFICIENT_BALANCE', message: 'Minimum $10.00 required for payout' }, 400, request);
         }
 
         const payoutId = `PAY_${crypto.randomUUID()}`;
@@ -10183,7 +10202,7 @@ TTMP Support Team
         });
 
         if (!transferResponse.ok) {
-          return json({ ok: false, error: 'TRANSFER_FAILED', message: 'Stripe transfer failed' }, 500);
+          return json({ ok: false, error: 'TRANSFER_FAILED', message: 'Stripe transfer failed' }, 500, request);
         }
 
         const transferData = await transferResponse.json();
@@ -10222,7 +10241,7 @@ TTMP Support Team
 
         return json({ ok: true, payout_id: payoutId, amount, status: 'pending' });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Payout request failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Payout request failed' }, 500, request);
       }
     },
   },
@@ -10236,16 +10255,16 @@ TTMP Support Team
       try {
         const payoutRow = await env.DB.prepare('SELECT * FROM affiliate_payouts WHERE payout_id = ?').bind(params.payout_id).first();
         if (!payoutRow) {
-          return json({ ok: false, error: 'NOT_FOUND' }, 404);
+          return json({ ok: false, error: 'NOT_FOUND' }, 404, request);
         }
 
         if (payoutRow.account_id !== session.account_id) {
-          return json({ ok: false, error: 'FORBIDDEN' }, 403);
+          return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
         }
 
         return json({ ok: true, payout: payoutRow });
       } catch (e) {
-        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Payout lookup failed' }, 500);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Payout lookup failed' }, 500, request);
       }
     },
   },
@@ -10373,7 +10392,7 @@ export default {
 
     // Handle CORS preflight.
     if (method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204, headers: getCorsHeaders(request) });
     }
 
     // WLVLP subdomain site serving
