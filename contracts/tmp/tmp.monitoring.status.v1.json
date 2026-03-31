@@ -1,0 +1,70 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["D1"],
+    "governs": "GET /v1/tmp/monitoring/status - Get compliance monitoring status (Plan II gate)",
+    "path": "/contracts/tmp/tmp.monitoring.status.v1.json",
+    "source": "Tax Monitor Pro",
+    "title": "Tax Monitor Pro — Monitoring — Get Status",
+    "usedOnPages": ["taxmonitor.pro/monitoring", "taxmonitor.pro/compliance"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tmp/monitoring/status",
+    "method": "GET",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "session.account_id",
+    "eventIdFrom": null,
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": null,
+    "error": {
+      "ok": false,
+      "error": "PLAN_II_REQUIRED|INTERNAL_ERROR",
+      "message": "string",
+      "upgrade_url": "string"
+    },
+    "success": {
+      "ok": true,
+      "monitoring_status": {
+        "phase": "string",
+        "intake_complete": "number",
+        "processing_complete": "number",
+        "assigned_professional_id": "string|null",
+        "current_step": "string|null",
+        "step_status": "string"
+      },
+      "membership_plan": "string"
+    }
+  },
+  "schema": {
+    "name": "tmp_monitoring_status",
+    "version": 1
+  }
+}

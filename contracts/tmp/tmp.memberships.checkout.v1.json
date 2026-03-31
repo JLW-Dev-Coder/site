@@ -1,0 +1,76 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "Stripe"],
+    "governs": "POST /v1/tmp/memberships/checkout - Create TMP subscription checkout session",
+    "path": "/contracts/tmp/tmp.memberships.checkout.v1.json",
+    "source": "Tax Monitor Pro",
+    "title": "Tax Monitor Pro — Memberships — Create Checkout",
+    "usedOnPages": ["taxmonitor.pro/pricing", "taxmonitor.pro/upgrade"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tmp/memberships/checkout",
+    "method": "POST",
+    "receiptKeyPattern": "tmp/receipts/checkout/{account_id}/{timestamp}.json",
+    "receiptSource": "tmp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.plan_key",
+    "eventIdFrom": "session.account_id",
+    "writeOrder": ["receipt"],
+    "writes": ["stripe_sessions"]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "plan_key": {
+        "type": "string",
+        "enum": ["tmp_essential", "tmp_plus", "tmp_premier", "tmp_bronze", "tmp_silver", "tmp_gold", "tmp_snapshot"],
+        "description": "TMP subscription plan identifier"
+      },
+      "addon_mfj": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether to add Married Filing Jointly addon"
+      }
+    },
+    "required": ["plan_key"],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "session_url": "string",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "INVALID_PLAN|PRICE_NOT_CONFIGURED|INTERNAL_ERROR",
+      "message": "string"
+    },
+    "success": {
+      "ok": true,
+      "session_url": "string"
+    }
+  },
+  "schema": {
+    "name": "tmp_memberships_checkout",
+    "version": 1
+  }
+}

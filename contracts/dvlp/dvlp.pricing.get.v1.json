@@ -1,0 +1,69 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["static"],
+    "governs": "GET /v1/dvlp/pricing - Return DVLP subscription plan structure",
+    "path": "/contracts/dvlp/dvlp.pricing.get.v1.json",
+    "source": "Developers VLP",
+    "title": "Developers VLP — Pricing — Get Plans",
+    "usedOnPages": ["developers.virtuallaunch.pro/pricing"],
+    "validation": {
+      "enumStrict": true,
+      "normalizeCheckboxToBoolean": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/dvlp/pricing",
+    "method": "GET",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": null,
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": null,
+    "error": {
+      "ok": false,
+      "error": "INTERNAL_ERROR",
+      "message": "Failed to fetch pricing"
+    },
+    "success": {
+      "ok": true,
+      "plans": [
+        {
+          "key": "string",
+          "name": "string",
+          "price": "number",
+          "interval": "string",
+          "features": ["string"]
+        }
+      ]
+    }
+  },
+  "schema": {
+    "name": "dvlp_pricing_get",
+    "version": 1
+  }
+}

@@ -2432,6 +2432,51 @@ const ROUTES = [
               }
             }
 
+            // Handle TMP membership activation
+            if (platform === 'tmp' && account_id && plan_key) {
+              try {
+                const membershipId = `MEM_${crypto.randomUUID()}`;
+
+                // Write receipt to R2
+                await r2Put(env.R2_VIRTUAL_LAUNCH, `tmp/receipts/memberships/${account_id}/${now}.json`, {
+                  event_type: 'membership_activated',
+                  account_id,
+                  plan_key,
+                  membership_id: membershipId,
+                  stripe_customer_id: obj.customer,
+                  stripe_subscription_id: obj.subscription,
+                  stripe_session_id: obj.id,
+                  addon_mfj: obj.metadata?.addon_mfj === 'true',
+                  timestamp: now
+                });
+
+                // Write canonical to R2
+                await r2Put(env.R2_VIRTUAL_LAUNCH, `tmp/memberships/${account_id}.json`, {
+                  membership_id: membershipId,
+                  account_id,
+                  plan_key,
+                  status: 'active',
+                  stripe_customer_id: obj.customer,
+                  stripe_subscription_id: obj.subscription,
+                  addon_mfj: obj.metadata?.addon_mfj === 'true',
+                  created_at: now,
+                  updated_at: now
+                });
+
+                // Upsert into memberships table
+                await d1Run(env.DB,
+                  `INSERT OR REPLACE INTO memberships
+                   (membership_id, account_id, plan_key, status, stripe_customer_id, stripe_subscription_id, created_at, updated_at)
+                   VALUES (?, ?, ?, 'active', ?, ?, ?, ?)`,
+                  [membershipId, account_id, plan_key, obj.customer, obj.subscription, now, now]
+                );
+
+                console.log(`TMP membership activated: ${account_id} -> ${plan_key}`);
+              } catch (e) {
+                console.error('TMP membership activation error:', e);
+              }
+            }
+
             if (membership_id) {
               const existingMem = await env.R2_VIRTUAL_LAUNCH.get(`memberships/${membership_id}.json`);
               const memRecord = existingMem ? await existingMem.json() : {};
@@ -2575,6 +2620,16 @@ const ROUTES = [
               );
             } catch (e) {
               console.error('TCVLP Stripe subscription deletion error:', e);
+            }
+
+            // Handle TMP subscription cancellation
+            try {
+              await d1Run(env.DB,
+                'UPDATE memberships SET status = \'cancelled\', updated_at = ? WHERE stripe_subscription_id = ? AND plan_key LIKE \'tmp_%\'',
+                [now, obj.id]
+              );
+            } catch (e) {
+              console.error('TMP Stripe subscription deletion error:', e);
             }
 
             if (membership_id) {
@@ -6330,6 +6385,232 @@ TTMP Support Team
     },
   },
 
+  // GET /v1/tmp/pricing
+  {
+    method: 'GET', pattern: '/v1/tmp/pricing',
+    handler: async (_method, _pattern, _params, request, env) => {
+      try {
+        return json({
+          "ok": true,
+          "plan_i": [
+            { "key": "tmp_free",             "name": "Free",             "price": 0,   "interval": "month", "price_id": env.STRIPE_PRICE_TMP_FREE_MONTHLY,           "features": ["Basic monitoring", "Inquiry submission", "Directory access"] },
+            { "key": "tmp_essential",        "name": "Essential",        "price": 9,   "interval": "month", "price_id": env.STRIPE_PRICE_TMP_ESSENTIAL_MONTHLY,      "features": ["5 tool tokens/mo", "2 transcript tokens/mo", "Email support"] },
+            { "key": "tmp_essential_yearly", "name": "Essential Yearly", "price": 99,  "interval": "year",  "price_id": env.STRIPE_PRICE_TMP_ESSENTIAL_YEARLY,       "features": ["5 tool tokens/mo", "2 transcript tokens/mo", "Email support"] },
+            { "key": "tmp_plus",             "name": "Plus",             "price": 19,  "interval": "month", "price_id": env.STRIPE_PRICE_TMP_PLUS_MONTHLY,           "features": ["15 tool tokens/mo", "5 transcript tokens/mo", "Priority support"] },
+            { "key": "tmp_plus_yearly",      "name": "Plus Yearly",      "price": 199, "interval": "year",  "price_id": env.STRIPE_PRICE_TMP_PLUS_YEARLY,            "features": ["15 tool tokens/mo", "5 transcript tokens/mo", "Priority support"] },
+            { "key": "tmp_premier",          "name": "Premier",          "price": 39,  "interval": "month", "price_id": env.STRIPE_PRICE_TMP_PREMIER_MONTHLY,        "features": ["40 tool tokens/mo", "10 transcript tokens/mo", "Dedicated support"] },
+            { "key": "tmp_premier_yearly",   "name": "Premier Yearly",   "price": 399, "interval": "year",  "price_id": env.STRIPE_PRICE_TMP_PREMIER_YEARLY,         "features": ["40 tool tokens/mo", "10 transcript tokens/mo", "Dedicated support"] }
+          ],
+          "plan_ii": [
+            { "key": "tmp_bronze",   "name": "Bronze",   "price": 275, "duration": "6 weeks",  "price_id": null, "features": ["Active monitoring", "Tax pro assignment", "5+5 tokens"] },
+            { "key": "tmp_silver",   "name": "Silver",   "price": 325, "duration": "8 weeks",  "price_id": null, "features": ["Active monitoring", "Tax pro assignment", "10+10 tokens"] },
+            { "key": "tmp_gold",     "name": "Gold",     "price": 425, "duration": "12 weeks", "price_id": null, "features": ["Active monitoring", "Tax pro assignment", "20+20 tokens"] },
+            { "key": "tmp_snapshot", "name": "Snapshot", "price": 425, "duration": "one-time", "price_id": null, "features": ["One-time transcript pull", "1 transcript token"] }
+          ],
+          "addons": [
+            { "key": "tmp_mfj", "name": "MFJ Add-On", "price": 79, "price_id": null, "features": ["Married Filing Jointly spouse coverage"] }
+          ]
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch pricing' }, 500);
+      }
+    },
+  },
+
+  // POST /v1/tmp/memberships/checkout
+  {
+    method: 'POST', pattern: '/v1/tmp/memberships/checkout',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const body = await request.json();
+        const { plan_key, addon_mfj } = body;
+
+        // Validate plan_key
+        const validPlans = [
+          'tmp_free', 'tmp_essential', 'tmp_essential_yearly', 'tmp_plus', 'tmp_plus_yearly',
+          'tmp_premier', 'tmp_premier_yearly', 'tmp_bronze', 'tmp_silver', 'tmp_gold', 'tmp_snapshot'
+        ];
+
+        if (!validPlans.includes(plan_key)) {
+          return json({ ok: false, error: 'INVALID_PLAN', message: 'Invalid plan_key' }, 400);
+        }
+
+        // Map plan_key to Stripe price ID using wrangler.toml vars
+        const TMP_PRICE_MAP = {
+          'tmp_free':              env.STRIPE_PRICE_TMP_FREE_MONTHLY,
+          'tmp_essential':         env.STRIPE_PRICE_TMP_ESSENTIAL_MONTHLY,
+          'tmp_essential_yearly':  env.STRIPE_PRICE_TMP_ESSENTIAL_YEARLY,
+          'tmp_plus':              env.STRIPE_PRICE_TMP_PLUS_MONTHLY,
+          'tmp_plus_yearly':       env.STRIPE_PRICE_TMP_PLUS_YEARLY,
+          'tmp_premier':           env.STRIPE_PRICE_TMP_PREMIER_MONTHLY,
+          'tmp_premier_yearly':    env.STRIPE_PRICE_TMP_PREMIER_YEARLY,
+          // Plan II — pending real price IDs
+          'tmp_bronze':   null,
+          'tmp_silver':   null,
+          'tmp_gold':     null,
+          'tmp_snapshot': null,
+        };
+
+        const stripe_price_id = TMP_PRICE_MAP[plan_key];
+        if (!stripe_price_id) {
+          return json({ ok: false, error: 'PLAN_NOT_AVAILABLE', message: 'This plan is not yet available for purchase.' }, 503);
+        }
+
+        // Create Stripe checkout session
+        const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+
+        const sessionData = {
+          mode: plan_key === 'tmp_snapshot' ? 'payment' : 'subscription',
+          line_items: [{ price: stripe_price_id, quantity: 1 }],
+          success_url: 'https://virtuallaunch.pro/checkout/success?session_id={CHECKOUT_SESSION_ID}',
+          cancel_url: 'https://virtuallaunch.pro/pricing',
+          metadata: {
+            platform: 'tmp',
+            plan_key,
+            account_id: session.account_id,
+            addon_mfj: addon_mfj ? 'true' : 'false'
+          }
+        };
+
+        // Add MFJ addon if requested
+        if (addon_mfj && env.STRIPE_PRICE_TMP_MFJ) {
+          sessionData.line_items.push({ price: env.STRIPE_PRICE_TMP_MFJ, quantity: 1 });
+        }
+
+        const checkout_session = await stripe.checkout.sessions.create(sessionData);
+
+        return json({ ok: true, session_url: checkout_session.url });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/tmp/memberships/:account_id
+  {
+    method: 'GET', pattern: '/v1/tmp/memberships/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const accountId = params.account_id;
+
+      try {
+        const membership = await env.DB.prepare(
+          "SELECT * FROM memberships WHERE account_id = ? AND plan_key LIKE 'tmp_%' ORDER BY created_at DESC LIMIT 1"
+        ).bind(accountId).first();
+
+        if (!membership) {
+          return json({ ok: true, membership: null });
+        }
+
+        return json({
+          ok: true,
+          membership: {
+            plan_key: membership.plan_key,
+            status: membership.status,
+            created_at: membership.created_at
+          }
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch membership' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/tmp/dashboard
+  {
+    method: 'GET', pattern: '/v1/tmp/dashboard',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        // Check for active TMP subscription
+        const membership = await env.DB.prepare(
+          "SELECT * FROM memberships WHERE account_id = ? AND plan_key LIKE 'tmp_%' AND status = 'active' ORDER BY created_at DESC LIMIT 1"
+        ).bind(session.account_id).first();
+
+        if (!membership) {
+          return json({
+            ok: false,
+            error: 'SUBSCRIPTION_REQUIRED',
+            upgrade_url: '/pricing'
+          }, 402);
+        }
+
+        // Get account info
+        const account = await env.DB.prepare(
+          "SELECT * FROM accounts WHERE account_id = ?"
+        ).bind(session.account_id).first();
+
+        return json({
+          ok: true,
+          account: {
+            account_id: account.account_id,
+            email: account.email,
+            first_name: account.first_name,
+            last_name: account.last_name
+          },
+          membership: {
+            plan_key: membership.plan_key,
+            status: membership.status,
+            created_at: membership.created_at
+          }
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch dashboard' }, 500);
+      }
+    },
+  },
+
+  // GET /v1/tmp/monitoring/status
+  {
+    method: 'GET', pattern: '/v1/tmp/monitoring/status',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        // Check membership is Plan II (tmp_bronze, tmp_silver, tmp_gold, tmp_snapshot)
+        const membership = await env.DB.prepare(
+          "SELECT * FROM memberships WHERE account_id = ? AND plan_key IN ('tmp_bronze', 'tmp_silver', 'tmp_gold', 'tmp_snapshot') AND status = 'active' ORDER BY created_at DESC LIMIT 1"
+        ).bind(session.account_id).first();
+
+        if (!membership) {
+          return json({
+            ok: false,
+            error: 'PLAN_II_REQUIRED',
+            upgrade_url: '/pricing'
+          }, 402);
+        }
+
+        // Get compliance status
+        const status = await env.DB.prepare(
+          "SELECT * FROM compliance_status WHERE account_id = ?"
+        ).bind(session.account_id).first();
+
+        return json({
+          ok: true,
+          monitoring_status: {
+            phase: status?.phase || 'intake',
+            intake_complete: status?.intake_complete || 0,
+            processing_complete: status?.processing_complete || 0,
+            assigned_professional_id: status?.assigned_professional_id || null,
+            current_step: status?.current_step || null,
+            step_status: status?.step_status || 'pending'
+          },
+          membership_plan: membership.plan_key
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch monitoring status' }, 500);
+      }
+    },
+  },
+
   // -------------------------------------------------------------------------
   // VLP Account Preferences Routes
   // -------------------------------------------------------------------------
@@ -6846,6 +7127,35 @@ TTMP Support Team
     },
   },
 
+  // GET /v1/dvlp/pricing
+  {
+    method: 'GET', pattern: '/v1/dvlp/pricing',
+    handler: async (_method, _pattern, _params, request, env) => {
+      try {
+        return json({
+          "ok": true,
+          "plans": [
+            {
+              "key": "free",
+              "name": "Free",
+              "price": 0,
+              "features": ["Profile in directory", "Receive inquiries", "Respond to inquiries"]
+            },
+            {
+              "key": "paid",
+              "name": "Intro Track",
+              "price": 2.99,
+              "interval": "month",
+              "features": ["Everything in Free", "Curated job matches", "1-on-1 intro consultation", "Featured placement in directory"]
+            }
+          ]
+        });
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch pricing' }, 500);
+      }
+    },
+  },
+
   {
     method: 'GET', pattern: '/v1/dvlp/onboarding',
     handler: async (_method, _pattern, params, request, env) => {
@@ -6958,11 +7268,33 @@ TTMP Support Team
 
         const timestamp = new Date().toISOString();
 
+        // Check developer's plan for featured placement logic
+        const developerPlan = developer.plan || 'free';
+
         // Filter allowed updates (immutable: ref_number, email, developer_id, created_at)
         const allowedFields = ['full_name', 'skills', 'experience_years', 'hourly_rate', 'availability', 'publish_profile'];
+
+        // Add 'featured' to allowed fields if developer has paid plan
+        if (developerPlan === 'paid') {
+          allowedFields.push('featured');
+        }
+
         const filteredUpdates = Object.fromEntries(
           Object.entries(updates).filter(([key]) => allowedFields.includes(key))
         );
+
+        // Handle featured placement logic based on plan
+        if (updates.publish_profile === true) {
+          if (developerPlan === 'free') {
+            // Free plan: allow publish but set featured: false
+            filteredUpdates.featured = false;
+          } else if (developerPlan === 'paid') {
+            // Paid plan: allow featured: true (but don't force it)
+            if (updates.featured !== undefined) {
+              filteredUpdates.featured = updates.featured;
+            }
+          }
+        }
 
         if (Object.keys(filteredUpdates).length === 0) {
           return json({ ok: false, error: 'INVALID_REQUEST', message: 'No valid fields to update' }, 400);
@@ -7619,9 +7951,19 @@ TTMP Support Team
           return json({ ok: false, error: 'INVALID_REQUEST', message: 'ref_number, job_title, and message required' }, 400);
         }
 
-        const developer = await env.DB.prepare("SELECT email, full_name FROM dvlp_developers WHERE ref_number = ?").bind(ref_number).first();
+        const developer = await env.DB.prepare("SELECT email, full_name, plan FROM dvlp_developers WHERE ref_number = ?").bind(ref_number).first();
         if (!developer) {
           return json({ ok: false, error: 'NOT_FOUND', message: 'Developer not found' }, 404);
+        }
+
+        // Check developer plan eligibility for curated job matches
+        const developerPlan = developer.plan || 'free';
+        if (developerPlan === 'free') {
+          return json({
+            ok: false,
+            error: 'DEVELOPER_NOT_ELIGIBLE',
+            message: 'This developer has not upgraded to receive curated matches.'
+          }, 402);
         }
 
         const eventId = `EVT_${crypto.randomUUID()}`;

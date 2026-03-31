@@ -513,6 +513,23 @@
       "usedOnPages": ["/operator/bulk-email"],
       "version": 1,
       "addedDate": "2026-03-30"
+    },
+    {
+      "id": "dvlp.pricing.get.v1",
+      "path": "/contracts/dvlp/dvlp.pricing.get.v1.json",
+      "endpoint": "/v1/dvlp/pricing",
+      "method": "GET",
+      "status": "active",
+      "category": "pricing",
+      "authRequired": false,
+      "signatureRequired": false,
+      "dedupeKey": null,
+      "receiptKeyPattern": null,
+      "receiptSource": null,
+      "writes": [],
+      "usedOnPages": ["developers.virtuallaunch.pro/pricing"],
+      "version": 1,
+      "addedDate": "2026-03-30"
     }
   ]
 }
