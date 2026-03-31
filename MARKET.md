@@ -1,407 +1,141 @@
-# MARKET
+# VLP Ecosystem — Marketing Copy Source of Truth
 
-Market definition, positioning, and opportunity analysis for **Virtual Launch Pro (VLP)** and the **Tax Monitor Network**.
+This file is the canonical source for product descriptions, taglines, and positioning across all 8 platforms. When updating marketing copy in any platform repo, pull from here first.
 
----
-
-# Overview
-
-Virtual Launch Pro operates at the intersection of three growing markets:
-
-- Accounting and tax professional services
-- Professional service enablement platforms
-- SaaS workflow and client‑acquisition infrastructure
-
-The platform is designed to help independent tax professionals launch structured services, acquire clients through a network distribution model, and deliver recurring monitoring services built on top of transcript and tax‑data tooling.
-
-The core thesis:
-
-A large portion of skilled tax professionals lack reliable distribution, structured offers, and repeatable client acquisition systems. Virtual Launch Pro provides the infrastructure that converts expertise into recurring service revenue.
+Last updated: 2026-03-31
 
 ---
 
-# Market Problem
-
-The independent tax professional ecosystem is fragmented. Most practitioners operate small practices without structured growth infrastructure.
-
-Common structural problems include:
-
-- Inconsistent client acquisition
-- Lack of packaged services
-- Overreliance on seasonal tax preparation
-- Poor onboarding workflows
-- Weak marketing positioning
-
-These constraints limit revenue growth despite strong technical expertise.
-
-Virtual Launch Pro addresses these constraints by providing:
-
-- Client distribution through the Tax Monitor network
-- Offer packaging with clear service endpoints
-- Structured onboarding systems
-- Recurring monitoring services
+## Virtual Launch Pro (VLP)
+**Domain:** virtuallaunch.pro
+**Tagline:** The hub behind every platform
+**One-liner:** VLP is the identity, billing, and token layer that powers the entire ecosystem — one account, every tool.
+**Value prop:** One login. One wallet. Eight platforms. Every tool your practice needs, connected.
+**Audience:** Tax professionals, developers, and business owners using the VLP ecosystem
 
 ---
 
-# Target Market Segments
-
-Primary segments served by the platform include tax professionals authorized to represent taxpayers before the IRS and sign Form 2848 (Power of Attorney).
-
-These professionals include:
-
-- Attorneys (tax attorneys)
-- Certified Public Accountants (CPAs)
-- Enrolled Agents (EAs)
-
-Secondary segments include professionals who often work alongside representation-authorized practitioners:
-
-- Bookkeepers expanding into tax services
-- Fractional finance professionals
-- Solo accounting practices
-
----
-
-# Customer Personas
-
-### Independent Tax Professional
-
-A solo practitioner or small firm owner with strong technical knowledge but limited marketing infrastructure.
-
-Goals:
-
-- Acquire better clients
-- Increase recurring revenue
-- Reduce reliance on seasonal filing work
-
-### Tax Resolution Specialist
-
-Professionals handling IRS issues who want a pipeline of monitoring clients before problems escalate.
-
-Goals:
-
-- Earlier client engagement
-- Recurring monitoring relationships
-- Lead flow from educational tools
-
-### Modern Virtual Practice
-
-Digitally native firms operating remote tax and accounting services.
-
-Goals:
-
-- Structured onboarding
-- Automated workflows
-- Scalable service packaging
+## Tax Monitor Pro (TMP)
+**Domain:** taxmonitor.pro
+**Tagline:** Proactive tax monitoring
+**One-liner:** TMP connects taxpayers with the right tax professional, then keeps them informed with transcript monitoring, plain-language reports, and member perks.
+**Value prop:** Find the right tax pro for your situation — then stay ahead of IRS activity with automatic monitoring, plain-English alerts, and tools that give you clarity before problems grow.
+**Audience:** Individual taxpayers and small business owners seeking tax professional representation
+**Tiers:**
+- Free — Basic monitoring, inquiry submission, directory access
+- Essential ($9/mo or $99/yr) — 5 tool tokens/mo, 2 transcript tokens/mo, email support
+- Plus ($19/mo or $199/yr) — 15 tool tokens/mo, 5 transcript tokens/mo, priority support
+- Premier ($39/mo or $399/yr) — 40 tool tokens/mo, 10 transcript tokens/mo, dedicated support
+**Service Plans:**
+- Bronze ($275 / 6 weeks) — Active monitoring, tax pro assignment, 5+5 tokens
+- Silver ($325 / 8 weeks) — Active monitoring, tax pro assignment, 10+10 tokens
+- Gold ($425 / 12 weeks) — Active monitoring, tax pro assignment, 20+20 tokens
+- Snapshot ($425 one-time) — One-time transcript pull, 1 transcript token
+**Add-on:** MFJ Add-On ($79) — Married Filing Jointly spouse coverage
 
 ---
 
-# Pain Points
-
-Professionals entering the market frequently experience the following challenges:
-
-- Client acquisition dependent on referrals
-- Marketing systems that feel fragmented or improvised
-- Onboarding processes that require manual coordination
-- Service offerings that lack defined endpoints
-- Seasonal revenue concentration during filing periods
-- Tax resolution becoming the default offer instead of proactive monitoring
-
-Virtual Launch Pro solves these issues by combining distribution, structured offers, and SaaS tooling within a single ecosystem.
-
----
-
-# Existing Alternatives
-
-Professionals currently rely on a mixture of disconnected tools and strategies.
-
-Common alternatives include:
-
-- Cold outreach
-- Generic website marketing
-- Lead marketplaces
-- Paid advertising
-- Referral networks
-
-These channels typically lack service infrastructure or recurring revenue alignment.
+## Transcript Tax Monitor Pro (TTMP)
+**Domain:** transcript.taxmonitor.pro
+**Tagline:** Transcript automation for tax professionals
+**One-liner:** Upload a client's IRS transcript PDF and get a plain-English analysis report in seconds — with every transaction code explained and recommendations included.
+**Value prop:** Built for 750,000+ U.S. tax professionals. Stop spending 20 minutes per client translating IRS codes. Get a professional report in seconds.
+**Audience:** Tax professionals (CPAs, EAs, tax attorneys) who work with IRS transcripts daily
+**Pricing:** 1 token per transcript analysis
+**Token packages:**
+- 10 tokens — $19
+- 25 tokens — $29
+- 100 tokens — $129
+**Key features:** Smart PDF parsing, IRS code interpretation, plain-language reports, print/email to client
 
 ---
 
-# Competitive Landscape
-
-Virtual Launch Pro sits between several adjacent product categories.
-
-Comparable ecosystems include:
-
-- Client acquisition marketplaces
-- Practice management software
-- Professional directory platforms
-- Tax resolution lead networks
-
-Most competitors address only one layer of the stack.
-
-Virtual Launch Pro integrates:
-
-- Client discovery
-- Monitoring services
-- Practice launch infrastructure
+## Tax Tools Arcade (TTTMP)
+**Domain:** taxtools.taxmonitor.pro
+**Tagline:** Tax education through play
+**One-liner:** Gamified tax education tools and IRS form autofill — learn the tax code while doing real work.
+**Value prop:** Master IRS procedures through interactive games, then use the same platform to autofill Form 2848 and Form 8821 in minutes.
+**Audience:** Tax professionals and students seeking engaging tax education + productivity tools
+**Token packages:**
+- $9 / 30 tokens
+- $19 / 80 tokens
+- $39 / 200 tokens
+**Stripe products:**
+- prod_UExej9awY6pNCe (Tax Tools Arcade Token Pack)
+**Key features:** IRS notice games, form autofill (2848, 8821), transcript parser access
 
 ---
 
-# Market Size
-
-The U.S. tax professional market is large and fragmented.
-
-Key reference indicators:
-
-- Over 700,000 active tax preparers operate in the United States
-- Approximately 70,000 Enrolled Agents are licensed by the IRS
-- Hundreds of thousands of small accounting and tax practices operate nationwide
-
-This creates a significant opportunity for infrastructure platforms that help practitioners modernize their service models.
-
-Even modest network penetration represents a meaningful market.
-
-Example scenario:
-
-- 1,000 active members
-- Average monthly membership: $199
-
-This alone represents roughly $2.4M annual recurring revenue before platform fees or service expansion.
+## Developers VLP (DVLP)
+**Domain:** developers.virtuallaunch.pro
+**Tagline:** Where developers meet clients
+**One-liner:** A matching marketplace connecting vetted freelance developers with clients who need custom digital work.
+**Value prop:** Find developers who specialize in exactly what you need — or get found by clients ready to hire.
+**Audience:** Freelance developers and businesses seeking development talent
+**Tiers:** Free + $2.99 intro tier
 
 ---
 
-# Distribution Channels
-
-Virtual Launch Pro relies on network‑driven and educational distribution.
-
-Primary channels include:
-
-- Content marketing
-- Platform cross‑promotion
-- Professional directory visibility
-- Search discovery through tools
-
-Secondary channels include:
-
-- Educational articles
-- Industry communities
-- Professional referrals
+## Games VLP (GVLP)
+**Domain:** games.virtuallaunch.pro
+**Tagline:** Gamified subscriptions for tax professionals
+**One-liner:** JavaScript embeds tax professionals rent to increase taxpayer engagement on their own website — powered by token-based subscriptions.
+**Value prop:** Add interactive, gamified tax content to your professional website. Keep clients engaged between appointments. B2B2C model — you rent the embed, your clients play.
+**Audience:** Tax professionals (B2B) who want to increase client engagement on their own websites
+**Token tiers:** $9/mo, $19/mo, $39/mo
+**Model:** B2B2C — tax pro rents embed, taxpayer interacts on pro's site
 
 ---
 
-# Platform Ecosystem: Transcripts and Tax Tools
-
-Virtual Launch Pro is designed to work alongside two operational platforms in the broader ecosystem:
-
-- Tax Tools
-- Transcripts
-
-These platforms act as both **utility software for professionals** and **distribution channels for client acquisition**.
-
-### Transcripts Platform
-
-The Transcripts platform provides tools that allow professionals to:
-
-- Analyze IRS transcripts
-- Generate client reports
-- Identify issues earlier in the taxpayer lifecycle
-
-This creates two strategic effects:
-
-- Tax professionals gain operational tooling to diagnose issues quickly.
-- Taxpayers using transcript analysis tools can be referred to professionals within the Tax Monitor network.
-
-### Tax Tools Arcade
-
-Tax Tools provides interactive tools that attract taxpayers researching IRS problems and tax situations.
-
-These tools function as:
-
-- Educational resources that engage taxpayers
-- Engagement mechanisms that bring taxpayers into the ecosystem
-- Fun interactive games that encourage member profile clicks
-
-When taxpayers discover issues through these tools, they can be connected with professionals listed within the Virtual Launch Pro network.
-
-### Ecosystem Effect
-
-Together, the three components form a self‑reinforcing system:
-
-- Tax Tools attract taxpayers searching for answers.
-- Transcripts provide diagnostic and monitoring capabilities.
-- Virtual Launch Pro provides the professional network that delivers the services.
-
-This structure turns software usage into professional distribution while simultaneously increasing the value of the tools themselves.
+## Tax Claim VLP (TCVLP)
+**Domain:** taxclaim.virtuallaunch.pro
+**Tagline:** Automate your IRS abatement claims
+**One-liner:** Generate IRS Form 843 automatically — penalty abatement requests built from your transcript data in minutes.
+**Value prop:** Stop manually preparing Form 843. Upload transcript data and get a complete, accurate abatement claim ready to file.
+**Audience:** Tax professionals and taxpayers filing IRS penalty abatement requests
+**Pricing:** $10/mo flat
 
 ---
 
-# Transcript Tokens and Revenue Opportunity
-
-Virtual Launch Pro memberships include **transcript processing tokens** that members can use to generate transcript analysis and client reports through the Transcripts platform.
-
-These tokens create both an **operational advantage** and a **direct revenue opportunity** for member firms.
-
-Operational advantages include:
-
-- Faster transcript analysis for new client consultations
-- Automated report generation for taxpayer situations
-- Reduced manual transcript review time
-
-Revenue opportunities include:
-
-- Charging for transcript analysis during consultations
-- Offering transcript diagnostic reports as a standalone service
-- Using transcript analysis to convert prospects into monitoring clients
-
-Example use cases:
-
-- A firm charges $95–$195 for a transcript diagnostic review
-- The review identifies compliance issues or monitoring opportunities
-- The client converts into a monitoring plan or tax resolution engagement
-
-Because transcript tokens are bundled within membership tiers, firms can transform a small operational cost into a **high‑margin service entry point**.
-
-This allows professionals to move through flexible service paths depending on their practice model:
-
-Taxpayer discovery → transcript analysis → monitoring or resolution service.
-
-Professionals can choose how they serve the client once discovered in the ecosystem:
-
-- Serve the client through **Tax Monitor monitoring plans (TM)**.
-- Use **Transcript reports and diagnostics** to provide consultations or paid transcript reviews.
-- Combine both approaches by using transcript diagnostics as the entry point and converting clients into monitoring, compliance, or representation services.
+## Website Lotto VLP (WLVLP)
+**Domain:** websitelotto.virtuallaunch.pro
+**Tagline:** Win a professional website
+**One-liner:** A marketplace of Canva-built professional websites available to claim via subscription, auction, or buy-now — with community voting to surface the best designs.
+**Value prop:** Get a professionally designed website for your practice without paying agency prices. Vote for your favorites, bid on auctions, or buy now.
+**Audience:** Small business owners and tax professionals who need a professional website
+**Acquisition methods:** Monthly subscription ($99/mo), auction bidding (min $29), buy-now
+**Key features:** Live site preview via iframe, vote system, bid history, countdown timers
 
 ---
 
-# Monetization Model
-
-The platform uses a hybrid SaaS and network model.
-
-Revenue sources include:
-
-- Membership subscriptions
-- Platform service fees
-- Tool usage tokens
-
-Membership tiers provide increasing levels of:
-
-- Client exposure
-- Network promotion
-- Tool capacity
+## Affiliate Program (All Platforms)
+**Rate:** 20% flat commission on all purchases, every platform, for life
+**Attribution:** Lifetime — every purchase a referred account ever makes
+**Payout:** Cash via Stripe Connect Express
+**Referral:** Every VLP account gets a unique referral code at signup
+**Landing page:** virtuallaunch.pro/ref/{code}
 
 ---
 
-# Strategic Advantage
+## Tone & Voice Guidelines
 
-Virtual Launch Pro combines several components rarely integrated in one system.
-
-Key advantages include:
-
-- Built‑in professional distribution
-- Recurring monitoring services
-- Structured service packaging
-- Tax transcript tooling
-
-Together these elements create a platform where practitioners can launch faster and scale recurring revenue more predictably.
+- **Direct** — No fluff. State the benefit immediately.
+- **Professional but accessible** — Written for tax professionals, not consumers. Assume intelligence.
+- **Specific** — Use real numbers (token counts, prices, timeframes). Vague claims undermine trust.
+- **Problem-first** — Lead with the pain point, follow with the solution.
+- **No emoji in body copy** — Professional audience. Emoji only in UI micro-copy if at all.
 
 ---
 
-# Example Firm Use Cases
+## Brand Colors by Platform
 
-The following scenarios illustrate how firms of different sizes can benefit from the Virtual Launch Pro ecosystem.
-
-These examples assume:
-
-- Average monthly client value: $425
-- Conservative conversion from platform exposure: 1–3%
-
-### Large Firm Example
-
-Firm profile:
-
-- 20+ staff
-- Existing tax resolution or compliance practice
-- Marketing budget already in place
-
-Scenario:
-
-- 2,000 taxpayers interact with tools where the firm appears in member placements
-- 2% conversion into monitoring clients
-
-Result:
-
-- 40 monitoring clients
-- $17,000 monthly client value
-
-Even if only a portion of those convert to ongoing services, the platform becomes a scalable client acquisition channel that supplements existing marketing.
-
-### Mid‑Size Firm Example
-
-Firm profile:
-
-- 5–10 staff
-- Active tax practice with moderate referral traffic
-
-Scenario:
-
-- 800 taxpayers encounter the firm through directory placements and tool recommendations
-- 2% conversion into monitoring clients
-
-Result:
-
-- 16 monitoring clients
-- ~$6,800 monthly client value
-
-This level of conversion can create a meaningful recurring revenue layer without expanding marketing infrastructure.
-
-### Starting Firm Example
-
-Firm profile:
-
-- Solo practitioner
-- Newly launched or transitioning practice
-
-Scenario:
-
-- 200 taxpayers encounter the firm through the network
-- 3% conversion into monitoring clients
-
-Result:
-
-- 6 monitoring clients
-- ~$2,550 monthly client value
-
-At this level, a new firm can often recover membership costs almost immediately while establishing early recurring revenue.
-
-These examples illustrate how the ecosystem scales across firm sizes while maintaining the same underlying distribution model.
-
----
-
-# Risks
-
-Important risks in this market include:
-
-- Platform adoption friction
-- Regulatory shifts affecting tax professionals
-- Seasonal revenue volatility
-
-Mitigation strategies include focusing on recurring monitoring services and platform utility beyond filing season.
-
----
-
-# Expansion Opportunities
-
-Future expansion areas include:
-
-- Automated compliance monitoring
-- Client financial health dashboards
-- Cross‑platform tax tools
-- Professional education ecosystems
-
-These extensions increase network value while strengthening practitioner retention.
-
----
-
-# Notes
-
-This document provides a strategic overview of the addressable market and positioning for Virtual Launch Pro and the Tax Monitor Network.
+| Platform | Accent Color | Hex |
+|---|---|---|
+| VLP | Blue | #3b82f6 |
+| TMP | Amber | #f59e0b |
+| TTMP | Teal | #14b8a6 |
+| TTTMP | Amber Gold | #f59e0b |
+| DVLP | Purple | #8b5cf6 |
+| GVLP | Green | #22c55e |
+| TCVLP | Orange | #f97316 |
+| WLVLP | Pink | #ec4899 |
