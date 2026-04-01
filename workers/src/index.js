@@ -1243,8 +1243,7 @@ const ROUTES = [
         const { accountId } = await upsertAccount(user.email, user.given_name ?? '', user.family_name ?? '', env);
         const { sessionId } = await createSession(accountId, user.email, env);
 
-        const url = new URL(request.url)
-        const returnTo = url.searchParams.get('state') || ''
+        const returnTo = state || ''
 
         // Decode returnTo from state if it's a URL
         let redirectTarget = 'https://virtuallaunch.pro/dashboard'
