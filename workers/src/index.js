@@ -372,7 +372,7 @@ async function getSessionFromRequest(request, env) {
 async function requireSession(request, env) {
   const session = await getSessionFromRequest(request, env);
   if (!session) {
-    return { error: json({ ok: false, error: 'UNAUTHORIZED' }, 401) };
+    return { error: json({ ok: false, error: 'UNAUTHORIZED' }, 401, request) };
   }
   return { session };
 }
@@ -749,7 +749,7 @@ async function getTttmpSessionFromRequest(request, env) {
 async function requireTttmpSession(request, env) {
   const session = await getTttmpSessionFromRequest(request, env);
   if (!session) {
-    return { error: json({ ok: false, error: 'UNAUTHORIZED' }, 401) };
+    return { error: json({ ok: false, error: 'UNAUTHORIZED' }, 401, request) };
   }
   return { session };
 }
