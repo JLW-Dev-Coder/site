@@ -5664,6 +5664,36 @@ const ROUTES = [
     },
   },
 
+  // Return actual report JSON for authenticated users
+  {
+    method: 'GET', pattern: '/v1/transcripts/report/data',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const url = new URL(request.url)
+      const reportId = url.searchParams.get('r')
+      if (!reportId) {
+        return json({ ok: false, error: 'MISSING_PARAM', message: 'Missing report ID' }, 400, request)
+      }
+
+      try {
+        const reportObj = await env.R2_VIRTUAL_LAUNCH.get(
+          `ttmp/reports/${session.account_id}/${reportId}.json`
+        )
+
+        if (!reportObj) {
+          return json({ ok: false, error: 'NOT_FOUND', message: 'Report not found' }, 404, request)
+        }
+
+        const reportData = await reportObj.json()
+        return json({ ok: true, ...reportData }, 200, request)
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to load report' }, 500, request)
+      }
+    },
+  },
+
   // -------------------------------------------------------------------------
   // TTMP EMAIL + PURCHASE HISTORY
   // -------------------------------------------------------------------------
