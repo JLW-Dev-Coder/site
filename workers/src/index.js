@@ -1257,8 +1257,50 @@ const ROUTES = [
         const expMinutes = parseInt(env.MAGIC_LINK_EXPIRATION_MINUTES ?? '15', 10);
         const exp = Math.floor(Date.now() / 1000) + expMinutes * 60;
         const token = await signJwt({ email, redirect_uri: redirectUri, exp }, env.JWT_SECRET);
-        const link = `https://virtuallaunch.pro/v1/auth/magic-link/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
-        await sendEmail(email, 'Your sign-in link', `<p>Click to sign in: <a href="${link}">${link}</a></p>`, env);
+        const link = `https://api.virtuallaunch.pro/v1/auth/magic-link/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
+        const emailHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0f1e;font-family:system-ui,-apple-system,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0f1e;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111827;border-radius:12px;border:1px solid #1f2937;overflow:hidden;">
+
+        <!-- Header -->
+        <tr><td style="background:#14b8a6;padding:24px 32px;">
+          <p style="margin:0;font-size:18px;font-weight:700;color:#000;">Transcript Tax Monitor Pro</p>
+          <p style="margin:4px 0 0;font-size:13px;color:rgba(0,0,0,0.7);">Transcript automation for tax professionals</p>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 8px;font-size:22px;font-weight:700;color:#f9fafb;">Your sign-in link</p>
+          <p style="margin:0 0 24px;font-size:15px;color:#9ca3af;line-height:1.6;">Click the button below to sign in to your account. This link expires in 15 minutes and can only be used once.</p>
+
+          <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+            <tr><td style="background:#14b8a6;border-radius:8px;">
+              <a href="${link}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:700;color:#000;text-decoration:none;">
+                Sign In to Transcript Tax Monitor →
+              </a>
+            </td></tr>
+          </table>
+
+          <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="margin:0;font-size:12px;color:#14b8a6;word-break:break-all;">${link}</p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:20px 32px;border-top:1px solid #1f2937;">
+          <p style="margin:0;font-size:12px;color:#4b5563;">If you didn't request this link, you can safely ignore this email. Your account is secure.</p>
+          <p style="margin:8px 0 0;font-size:12px;color:#374151;">&copy; 2026 Lenore, Inc. &nbsp;·&nbsp; <a href="https://transcript.taxmonitor.pro" style="color:#14b8a6;text-decoration:none;">transcript.taxmonitor.pro</a></p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+        await sendEmail(email, 'Your Transcript Tax Monitor sign-in link', emailHtml, env);
         const eventId = `EVT_${crypto.randomUUID()}`;
         await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/auth/${eventId}.json`, {
           email, requested_at: new Date().toISOString(), event: 'MAGIC_LINK_REQUESTED',
@@ -5770,7 +5812,49 @@ TTMP Support Team
         await r2Put(env.R2_VIRTUAL_LAUNCH, `tttmp/auth/tokens/${token}.json`, tokenData);
 
         const link = `https://taxtools.taxmonitor.pro/v1/tttmp/auth/magic-link/verify?token=${encodeURIComponent(token)}&email=${encodeURIComponent(email)}`;
-        await sendEmail(email, 'TTTMP Sign-in Link', `<p>Click to sign in to Tax Tools Arcade: <a href="${link}">${link}</a></p>`, env);
+        const emailHtml = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0a0f1e;font-family:system-ui,-apple-system,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#0a0f1e;padding:40px 20px;">
+    <tr><td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#111827;border-radius:12px;border:1px solid #1f2937;overflow:hidden;">
+
+        <!-- Header -->
+        <tr><td style="background:#f59e0b;padding:24px 32px;">
+          <p style="margin:0;font-size:18px;font-weight:700;color:#000;">Tax Tools Arcade</p>
+          <p style="margin:4px 0 0;font-size:13px;color:rgba(0,0,0,0.7);">Transcript automation for tax professionals</p>
+        </td></tr>
+
+        <!-- Body -->
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 8px;font-size:22px;font-weight:700;color:#f9fafb;">Your sign-in link</p>
+          <p style="margin:0 0 24px;font-size:15px;color:#9ca3af;line-height:1.6;">Click the button below to sign in to your account. This link expires in 15 minutes and can only be used once.</p>
+
+          <table cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+            <tr><td style="background:#f59e0b;border-radius:8px;">
+              <a href="${link}" style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:700;color:#000;text-decoration:none;">
+                Sign In to Tax Tools Arcade →
+              </a>
+            </td></tr>
+          </table>
+
+          <p style="margin:0 0 8px;font-size:13px;color:#6b7280;">If the button doesn't work, copy and paste this link into your browser:</p>
+          <p style="margin:0;font-size:12px;color:#f59e0b;word-break:break-all;">${link}</p>
+        </td></tr>
+
+        <!-- Footer -->
+        <tr><td style="padding:20px 32px;border-top:1px solid #1f2937;">
+          <p style="margin:0;font-size:12px;color:#4b5563;">If you didn't request this link, you can safely ignore this email. Your account is secure.</p>
+          <p style="margin:8px 0 0;font-size:12px;color:#374151;">&copy; 2026 Lenore, Inc. &nbsp;·&nbsp; <a href="https://taxtools.taxmonitor.pro" style="color:#f59e0b;text-decoration:none;">taxtools.taxmonitor.pro</a></p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+        await sendEmail(email, 'Your Tax Tools Arcade sign-in link', emailHtml, env);
 
         const eventId = `EVT_${crypto.randomUUID()}`;
         await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tttmp/auth/${eventId}.json`, {
