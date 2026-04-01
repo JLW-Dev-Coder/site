@@ -442,11 +442,35 @@ async function verifyJwt(token, secret) {
   }
 }
 
-// Replace with Resend/SendGrid when email provider is confirmed
-async function sendEmail(to, subject, htmlBody, _env) {
-  console.log(`[sendEmail] to=${to} subject=${subject}`);
-  console.log(`[sendEmail] body=${htmlBody}`);
-  return true;
+async function sendEmail(to, subject, htmlBody, env) {
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: 'Virtual Launch Pro <noreply@virtuallaunch.pro>',
+        to: [to],
+        subject,
+        html: htmlBody,
+      }),
+    })
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      console.error(`[sendEmail] Resend error: ${res.status}`, JSON.stringify(err))
+      return false
+    }
+
+    const data = await res.json()
+    console.log(`[sendEmail] Sent to ${to} — id: ${data.id}`)
+    return true
+  } catch (err) {
+    console.error(`[sendEmail] Exception:`, err?.message || err)
+    return false
+  }
 }
 
 // ---------------------------------------------------------------------------
