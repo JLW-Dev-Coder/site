@@ -1328,9 +1328,69 @@ const ROUTES = [
         const { accountId } = await upsertAccount(email, '', '', env);
         const { sessionId } = await createSession(accountId, email, env);
         const redirectUri = payload.redirect_uri || 'https://virtuallaunch.pro/dashboard';
+
+        // Check if redirect is to external domain
+        const redirectUrl = new URL(redirectUri);
+        const isExternalDomain = !redirectUrl.hostname.endsWith('.virtuallaunch.pro') &&
+                                 redirectUrl.hostname !== 'virtuallaunch.pro';
+
+        if (isExternalDomain) {
+          // Generate one-time handoff token for cross-domain auth
+          const handoffToken = crypto.randomUUID();
+          const expiresAt = Math.floor(Date.now() / 1000) + 60; // 60 seconds
+
+          await env.DB.prepare(
+            'INSERT INTO handoff_tokens (token, session_id, email, redirect_uri, expires_at) VALUES (?, ?, ?, ?, ?)'
+          ).bind(handoffToken, sessionId, email, redirectUri, expiresAt).run();
+
+          // Redirect to external domain callback with handoff token
+          const callbackUrl = new URL('/auth/callback', redirectUrl.origin);
+          callbackUrl.searchParams.set('token', handoffToken);
+          callbackUrl.searchParams.set('redirect', redirectUri);
+
+          return Response.redirect(callbackUrl.toString(), 302);
+        }
+
+        // Same domain — set cookie and redirect as before
         return redirectWithCookie(redirectUri, sessionId, env, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link verification failed' }, 500, request);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/auth/handoff/exchange',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const url = new URL(request.url);
+      const token = url.searchParams.get('token');
+      if (!token) {
+        return json({ ok: false, error: 'MISSING_TOKEN' }, 400, request);
+      }
+
+      try {
+        const row = await env.DB.prepare(
+          'SELECT * FROM handoff_tokens WHERE token = ? AND used = 0 AND expires_at > ?'
+        ).bind(token, Math.floor(Date.now() / 1000)).first();
+
+        if (!row) {
+          return json({ ok: false, error: 'INVALID_OR_EXPIRED_TOKEN' }, 401, request);
+        }
+
+        // Mark token as used
+        await env.DB.prepare(
+          'UPDATE handoff_tokens SET used = 1 WHERE token = ?'
+        ).bind(token).run();
+
+        // Return session info — client will store this
+        return json({
+          ok: true,
+          sessionId: row.session_id,
+          email: row.email,
+          redirectUri: row.redirect_uri,
+        }, 200, request);
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Handoff exchange failed' }, 500, request);
       }
     },
   },
