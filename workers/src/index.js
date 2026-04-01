@@ -5294,7 +5294,7 @@ const ROUTES = [
         report_url: reportUrl,
         balance_after: finalBalance,
         event_id: eventId
-      });
+      }, 200, request);
     },
   },
 
