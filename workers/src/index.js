@@ -1194,15 +1194,19 @@ const ROUTES = [
 
   {
     method: 'GET', pattern: '/v1/auth/google/start',
-    handler: async (_method, _pattern, _params, _request, env) => {
-      const state = crypto.randomUUID();
-      const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-      url.searchParams.set('client_id', env.GOOGLE_CLIENT_ID);
-      url.searchParams.set('redirect_uri', env.GOOGLE_REDIRECT_URI);
-      url.searchParams.set('response_type', 'code');
-      url.searchParams.set('scope', 'openid email profile');
-      url.searchParams.set('state', state);
-      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() }, 200, _request);
+    handler: async (_method, _pattern, _params, request, env) => {
+      const reqUrl = new URL(request.url)
+      const returnTo = reqUrl.searchParams.get('return_to') || 'https://virtuallaunch.pro/dashboard'
+
+      const state = encodeURIComponent(returnTo)
+      const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
+      url.searchParams.set('client_id', env.GOOGLE_CLIENT_ID)
+      url.searchParams.set('redirect_uri', env.GOOGLE_REDIRECT_URI)
+      url.searchParams.set('response_type', 'code')
+      url.searchParams.set('scope', 'openid email profile')
+      url.searchParams.set('state', state)
+
+      return Response.redirect(url.toString(), 302)
     },
   },
 
@@ -1238,7 +1242,36 @@ const ROUTES = [
 
         const { accountId } = await upsertAccount(user.email, user.given_name ?? '', user.family_name ?? '', env);
         const { sessionId } = await createSession(accountId, user.email, env);
-        return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env, request);
+
+        const url = new URL(request.url)
+        const returnTo = url.searchParams.get('state') || ''
+
+        // Decode returnTo from state if it's a URL
+        let redirectTarget = 'https://virtuallaunch.pro/dashboard'
+        try {
+          const decoded = decodeURIComponent(returnTo)
+          if (decoded.startsWith('https://')) redirectTarget = decoded
+        } catch {}
+
+        const redirectUrl = new URL(redirectTarget)
+        const isExternalDomain = !redirectUrl.hostname.endsWith('.virtuallaunch.pro') &&
+                                  redirectUrl.hostname !== 'virtuallaunch.pro'
+
+        if (isExternalDomain) {
+          const handoffToken = crypto.randomUUID()
+          const expiresAt = Math.floor(Date.now() / 1000) + 60
+
+          await env.DB.prepare(
+            'INSERT INTO handoff_tokens (token, session_id, email, redirect_uri, expires_at) VALUES (?, ?, ?, ?, ?)'
+          ).bind(handoffToken, sessionId, user.email, redirectTarget, expiresAt).run()
+
+          const callbackUrl = new URL('/auth/callback', redirectUrl.origin)
+          callbackUrl.searchParams.set('token', handoffToken)
+
+          return Response.redirect(callbackUrl.toString(), 302)
+        }
+
+        return redirectWithCookie(redirectTarget, sessionId, env, request)
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Google callback failed' }, 500, request);
       }
