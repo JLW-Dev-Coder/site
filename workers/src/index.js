@@ -1327,7 +1327,8 @@ const ROUTES = [
         if (payload.email !== email) return json({ ok: false, error: 'INVALID_TOKEN' }, 401, request);
         const { accountId } = await upsertAccount(email, '', '', env);
         const { sessionId } = await createSession(accountId, email, env);
-        return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env, request);
+        const redirectUri = payload.redirect_uri || 'https://virtuallaunch.pro/dashboard';
+        return redirectWithCookie(redirectUri, sessionId, env, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link verification failed' }, 500, request);
       }
