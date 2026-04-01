@@ -127,9 +127,10 @@ function getCorsHeaders(request) {
     : 'https://virtuallaunch.pro';
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie',
     'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Max-Age': '86400',
   };
 }
 
@@ -702,14 +703,14 @@ function jsonWithCookie(body, sessionId, env, status = 200, request) {
   });
 }
 
-function redirectWithCookie(url, sessionId, env) {
+function redirectWithCookie(url, sessionId, env, request) {
+  const corsHeaders = getCorsHeaders(request);
   return new Response(null, {
     status: 302,
     headers: {
       'Location': url,
       'Set-Cookie': makeSessionCookie(sessionId, env),
-      'Access-Control-Allow-Origin': 'https://virtuallaunch.pro',
-      'Access-Control-Allow-Credentials': 'true',
+      ...corsHeaders,
     },
   });
 }
@@ -1213,7 +1214,7 @@ const ROUTES = [
 
         const { accountId } = await upsertAccount(user.email, user.given_name ?? '', user.family_name ?? '', env);
         const { sessionId } = await createSession(accountId, user.email, env);
-        return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env);
+        return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Google callback failed' }, 500, request);
       }
@@ -1260,7 +1261,7 @@ const ROUTES = [
         if (payload.email !== email) return json({ ok: false, error: 'INVALID_TOKEN' }, 401, request);
         const { accountId } = await upsertAccount(email, '', '', env);
         const { sessionId } = await createSession(accountId, email, env);
-        return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env);
+        return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Magic link verification failed' }, 500, request);
       }
@@ -1346,7 +1347,7 @@ const ROUTES = [
         if (!email) return json({ ok: false, error: 'BAD_REQUEST', message: 'Could not extract email from SAML response' }, 400, request);
         const { accountId } = await upsertAccount(email, '', '', env);
         const { sessionId } = await createSession(accountId, email, env);
-        return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env);
+        return redirectWithCookie(`https://virtuallaunch.pro/dashboard`, sessionId, env, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'SAML ACS failed' }, 500, request);
       }
