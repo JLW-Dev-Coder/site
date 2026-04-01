@@ -1149,6 +1149,17 @@ const ROUTES = [
         }
       } catch {/* ignore affiliate lookup errors */}
 
+      // Fetch token balance from R2
+      let transcriptTokens = 0;
+      try {
+        const tokenKey = `tokens/${session.account_id}.json`;
+        const tokenObj = await env.R2_VIRTUAL_LAUNCH.get(tokenKey);
+        if (tokenObj) {
+          const tokenData = await tokenObj.json();
+          transcriptTokens = tokenData.transcript_tokens ?? 0;
+        }
+      } catch {}
+
       return json({
         ok: true,
         session: {
@@ -1158,6 +1169,7 @@ const ROUTES = [
           platform: session.platform,
           expires_at: session.expires_at,
           referral_code: referralCode,
+          transcript_tokens: transcriptTokens,
         },
       }, 200, request);
     },
