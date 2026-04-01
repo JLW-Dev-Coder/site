@@ -3784,18 +3784,16 @@ const ROUTES = [
       const { error } = await requireSession(request, env);
       if (error) return json({ ok: false, error: 'UNAUTHORIZED', message: error }, 401, request);
       try {
-        const row = await env.DB.prepare(
-          `SELECT * FROM tokens WHERE account_id = ?`
-        ).bind(params.account_id).first();
-        if (!row) {
-          return json({ ok: true, balance: { accountId: params.account_id, taxGameTokens: 0, transcriptTokens: 0, updatedAt: null } }, 200, request);
-        }
-        return json({ ok: true, balance: {
-          accountId: params.account_id,
-          taxGameTokens: row.tax_game_tokens,
-          transcriptTokens: row.transcript_tokens,
-          updatedAt: row.updated_at,
-        }}, 200, request);
+        const balance = await getCurrentTokenBalance(env, params.account_id);
+        return json({
+          ok: true,
+          balance: {
+            accountId: params.account_id,
+            taxGameTokens: balance.taxGameTokens,
+            transcriptTokens: balance.transcriptTokens,
+            updatedAt: balance.updatedAt,
+          }
+        }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch token balance' }, 500, request);
       }
