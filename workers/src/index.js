@@ -158,16 +158,24 @@ function methodNotAllowed(method, path) {
 function matchPath(pattern, pathname) {
   const patternParts = pattern.split('/');
   const pathParts = pathname.split('/');
-  if (patternParts.length !== pathParts.length) return null;
 
   const params = {};
   for (let i = 0; i < patternParts.length; i++) {
-    if (patternParts[i].startsWith(':')) {
+    if (patternParts[i] === '*') {
+      // Wildcard — matches this segment and all remaining segments
+      params['*'] = pathParts.slice(i).join('/');
+      return params;
+    } else if (patternParts[i].startsWith(':')) {
+      if (i >= pathParts.length) return null;
       params[patternParts[i].slice(1)] = pathParts[i];
     } else if (patternParts[i] !== pathParts[i]) {
       return null;
     }
   }
+
+  // No wildcard — lengths must match exactly
+  if (patternParts.length !== pathParts.length) return null;
+
   return params;
 }
 
@@ -10730,6 +10738,45 @@ TTMP Support Team
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to initialize send state' }, 500, request);
       }
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // R2 Read Route
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'GET', pattern: '/v1/r2/*',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('Authorization');
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return json({ error: 'unauthorized' }, 401, request);
+      }
+      const token = authHeader.substring('Bearer '.length);
+      if (token !== env.R2_CANONICAL_WRITE_TOKEN) {
+        return json({ error: 'unauthorized' }, 401, request);
+      }
+
+      const url = new URL(request.url);
+      const key = decodeURIComponent(url.pathname.substring('/v1/r2/'.length));
+
+      if (!key) {
+        return json({ error: 'missing R2 key' }, 400, request);
+      }
+
+      const object = await env.R2_VIRTUAL_LAUNCH.get(key);
+      if (!object) {
+        return json({ error: 'not found', key }, 404, request);
+      }
+
+      const text = await object.text();
+      return new Response(text, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+          ...getCorsHeaders(request),
+        },
+      });
     },
   },
 
