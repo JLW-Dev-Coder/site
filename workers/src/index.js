@@ -10790,7 +10790,7 @@ TTMP Support Team
       try {
         // Extract R2 key from URL path after /v1/r2/
         const url = new URL(request.url);
-        const key = url.pathname.substring('/v1/r2/'.length);
+        const key = decodeURIComponent(url.pathname.substring('/v1/r2/'.length));
 
         if (!key) {
           return json({ error: 'missing R2 key' }, 400, request);
@@ -10810,8 +10810,10 @@ TTMP Support Team
         // Get request body
         const body = await request.text();
 
-        // Write to R2
-        await r2Put(env.R2_VIRTUAL_LAUNCH, key, body, 'application/json');
+        // Write directly to R2 — body is already a JSON string, do not re-stringify
+        await env.R2_VIRTUAL_LAUNCH.put(key, body, {
+          httpMetadata: { contentType: 'application/json' },
+        });
 
         return json({ ok: true, key }, 200, request);
       } catch (error) {
