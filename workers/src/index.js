@@ -10684,8 +10684,11 @@ TTMP Support Team
       const { session, error } = await requireSession(request, env);
       if (error) return error;
 
-      // Admin-only route - check role
-      if (session.role !== 'admin') {
+      // Admin-only route - check role via accounts table
+      const adminAccount = await env.DB.prepare(
+        'SELECT role FROM accounts WHERE account_id = ?'
+      ).bind(session.account_id).first();
+      if (!adminAccount || adminAccount.role !== 'admin') {
         return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
       }
 
