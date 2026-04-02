@@ -413,6 +413,63 @@ async function signJwt(payload, secret) {
   return `${signingInput}.${base64urlEncode(sig)}`;
 }
 
+function pemToDer(pem) {
+  // Strip BEGIN/END headers and all whitespace/newlines
+  const body = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/g, '')
+    .replace(/-----END PRIVATE KEY-----/g, '')
+    .replace(/\s+/g, '');
+
+  // Decode base64 to binary
+  const binaryString = atob(body);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+async function signJwtRS256(payload, pemKey) {
+  const enc = new TextEncoder();
+
+  // Parse service account to extract private key
+  let privateKeyPem;
+  try {
+    const serviceAccount = JSON.parse(pemKey);
+    privateKeyPem = serviceAccount.private_key.replace(/\\n/g, '\n');
+  } catch (e) {
+    // If pemKey is already a PEM string, use it directly
+    privateKeyPem = pemKey.replace(/\\n/g, '\n');
+  }
+
+  // Import RSA private key
+  const cryptoKey = await crypto.subtle.importKey(
+    'pkcs8',
+    pemToDer(privateKeyPem),
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  // Construct JWT header and payload
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const headerB64 = base64urlEncode(enc.encode(JSON.stringify(header)));
+  const payloadB64 = base64urlEncode(enc.encode(JSON.stringify(payload)));
+  const signingInput = `${headerB64}.${payloadB64}`;
+
+  // Sign with RSA-SHA256
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    cryptoKey,
+    enc.encode(signingInput)
+  );
+
+  // Base64url encode signature
+  const signatureB64 = base64urlEncode(signature);
+
+  return `${signingInput}.${signatureB64}`;
+}
+
 async function verifyJwt(token, secret) {
   try {
     const parts = token.split('.');
@@ -464,7 +521,7 @@ async function sendGmailMessage(env, to, subject, body) {
     };
 
     // Sign JWT with RS256
-    const token = await signJwt(jwtPayload, serviceAccount.private_key);
+    const token = await signJwtRS256(jwtPayload, env.GOOGLE_PRIVATE_KEY);
 
     // Exchange JWT for access token
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
@@ -10673,6 +10730,47 @@ TTMP Support Team
     },
   },
 
+  // -------------------------------------------------------------------------
+  // R2 Write Route
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'PUT', pattern: '/v1/r2/*',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        // Extract R2 key from URL path after /v1/r2/
+        const url = new URL(request.url);
+        const key = url.pathname.substring('/v1/r2/'.length);
+
+        if (!key) {
+          return json({ error: 'missing R2 key' }, 400, request);
+        }
+
+        // Validate Bearer token
+        const authHeader = request.headers.get('Authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return json({ error: 'unauthorized' }, 401, request);
+        }
+
+        const token = authHeader.substring('Bearer '.length);
+        if (token !== env.R2_CANONICAL_WRITE_TOKEN) {
+          return json({ error: 'unauthorized' }, 401, request);
+        }
+
+        // Get request body
+        const body = await request.text();
+
+        // Write to R2
+        await r2Put(env.R2_VIRTUAL_LAUNCH, key, body, 'application/json');
+
+        return json({ ok: true, key }, 200, request);
+      } catch (error) {
+        console.error('R2 write error:', error);
+        return json({ error: 'r2 write failed' }, 500, request);
+      }
+    },
+  },
+
 ];
 // ---------------------------------------------------------------------------
 // Router
@@ -10779,6 +10877,19 @@ export default {
     if (wlvlpMatch) {
       const slug = wlvlpMatch[1];
       return handleWlvlpSite(slug, request, env);
+    }
+
+    // Handle /audit/{slug} → /asset/{slug} redirects
+    if (pathname.startsWith('/audit/')) {
+      const remainder = pathname.slice('/audit/'.length);
+      const redirectTarget = `/asset/${remainder}`;
+      return new Response(null, {
+        status: 301,
+        headers: {
+          'Location': redirectTarget,
+          ...getCorsHeaders(request)
+        }
+      });
     }
 
     const result = route(method, pathname);

@@ -1330,6 +1330,23 @@
       "version": 1,
       "writes": ["vlp-scale"],
       "addedDate": "2026-04-02"
+    },
+    {
+      "id": "scale.r2-write.put.v1",
+      "path": "/contracts/scale/scale.r2-write.put.v1.json",
+      "endpoint": "/v1/r2/*",
+      "method": "PUT",
+      "status": "active",
+      "category": "tool",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "none",
+      "receiptSource": "r2",
+      "receiptKeyPattern": "vlp-scale/receipts/r2-write/{eventId}.json",
+      "usedOnPages": ["TTMP push scripts"],
+      "version": 1,
+      "writes": ["r2"],
+      "addedDate": "2026-04-02"
     }
   ]
 }

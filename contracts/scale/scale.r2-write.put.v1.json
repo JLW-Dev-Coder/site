@@ -1,0 +1,55 @@
+{
+  "auth": {
+    "required": true,
+    "type": "bearer_token",
+    "trustClientIdentityFields": false
+  },
+  "contract": {
+    "authority": "virtuallaunch.pro",
+    "governs": "r2_write",
+    "path": "/contracts/scale/scale.r2-write.put.v1.json",
+    "source": "vlp",
+    "title": "Write data to R2 bucket",
+    "usedOnPages": [],
+    "validation": "bearer_token_required",
+    "version": "1.0"
+  },
+  "delivery": {
+    "endpoint": "/v1/r2/*",
+    "method": "PUT",
+    "receiptKeyPattern": "vlp-scale/receipts/r2-write/{eventId}.json",
+    "receiptSource": "r2",
+    "signature": "scale.r2-write.put.v1"
+  },
+  "effects": {
+    "dedupeKey": "none",
+    "eventIdFrom": "generated",
+    "writeOrder": ["r2"],
+    "writes": ["r2"]
+  },
+  "payload": {
+    "additionalProperties": true,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "status": "already_written"
+    },
+    "error": {
+      "ok": false,
+      "error": "string",
+      "message": "string"
+    },
+    "success": {
+      "ok": true,
+      "key": "string"
+    }
+  },
+  "schema": {
+    "name": "scale.r2-write.put.v1",
+    "version": "1.0"
+  }
+}
