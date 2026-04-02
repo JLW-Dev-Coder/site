@@ -1,0 +1,80 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH"
+    ],
+    "governs": "Initialize SCALE email sending state",
+    "path": "/contracts/scale/scale.init-send-state.post.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — SCALE Init Send State",
+    "usedOnPages": [
+      "admin panel"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/scale/init-send-state",
+    "method": "POST",
+    "receiptKeyPattern": "vlp-scale/receipts/init/{eventId}.json",
+    "receiptSource": "scale",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.eventId",
+    "eventIdFrom": "payload.eventId",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "vlp-scale"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "send_start_date": {
+        "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+        "type": "string"
+      }
+    },
+    "required": [
+      "send_start_date"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "eventId": "{effects.eventIdFrom}",
+      "ok": true
+    },
+    "error": {
+      "error": "validation_failed",
+      "ok": false
+    },
+    "success": {
+      "eventId": "{effects.eventIdFrom}",
+      "ok": true,
+      "status": "initialized"
+    }
+  },
+  "schema": {
+    "name": "scale_init_send_state_post",
+    "version": 1
+  }
+}

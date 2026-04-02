@@ -1,0 +1,74 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH"
+    ],
+    "governs": "Asset page data retrieval for SCALE outreach system",
+    "path": "/contracts/scale/scale.asset-page.get.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — SCALE Asset Page Get",
+    "usedOnPages": [
+      "transcript.taxmonitor.pro/scale/*",
+      "taxmonitor.pro/scale/*"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/scale/asset-page/:slug",
+    "method": "GET",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": null,
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "slug": {
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": [
+      "slug"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "deduped": true,
+      "ok": true
+    },
+    "error": {
+      "error": "not found",
+      "ok": false
+    },
+    "success": {
+      "data": "{assetPage.data}",
+      "ok": true
+    }
+  },
+  "schema": {
+    "name": "scale_asset_page_get",
+    "version": 1
+  }
+}
