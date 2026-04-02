@@ -139,6 +139,26 @@ wrangler secret put SECRET_NAME                            # Set a secret
 wrangler tail                                               # Stream live Worker logs
 ```
 
+## Token Management
+
+### Granting tokens (correct procedure)
+Never use `wrangler r2 object put` with `--pipe` or `echo` on Windows — this corrupts JSON.
+
+**Option A — Admin API route (preferred):**
+POST /v1/admin/tokens/grant
+Requires: valid admin session cookie or Bearer token
+Body: { "account_id": "ACCT_xxx", "transcript_tokens": 10, "reason": "test grant" }
+
+**Option B — Manual R2 file write (if route unavailable):**
+1. Create a JSON file locally (never use echo pipe):
+   Write the file in your editor or with: `'{"account_id":"...","transcript_tokens":100,"tax_game_tokens":0,"updated_at":"2026-04-02T00:00:00.000Z"}' | Out-File -Encoding utf8 tokens_patch.json`
+2. Upload: `wrangler r2 object put virtuallaunch-pro tokens/{account_id}.json --file tokens_patch.json`
+3. Update D1: `wrangler d1 execute virtuallaunch-pro --remote --command "UPDATE tokens SET transcript_tokens = X WHERE account_id = 'ACCT_xxx'"`
+4. Delete temp file: `del tokens_patch.json`
+5. Verify: `wrangler r2 object get virtuallaunch-pro tokens/{account_id}.json --pipe`
+
+R2 is always authoritative. D1 must match R2 after any manual grant.
+
 ---
 
 ## Architecture

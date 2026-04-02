@@ -4108,6 +4108,77 @@ const ROUTES = [
   },
 
   // -------------------------------------------------------------------------
+  // ADMIN
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'POST', pattern: '/v1/admin/tokens/grant',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      // Only allow VLP admin accounts
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes(session.email)) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      const body = await parseBody(request)
+      const { account_id, transcript_tokens, tax_game_tokens, reason } = body || {}
+
+      if (!account_id || (transcript_tokens === undefined && tax_game_tokens === undefined)) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'account_id and at least one token type required' }, 400, request)
+      }
+
+      const nowIso = new Date().toISOString()
+
+      // R2 canonical — read current, update, write back
+      const current = await getCurrentTokenBalance(env, account_id)
+      const newTranscript = transcript_tokens !== undefined
+        ? current.transcriptTokens + parseInt(transcript_tokens)
+        : current.transcriptTokens
+      const newGame = tax_game_tokens !== undefined
+        ? current.taxGameTokens + parseInt(tax_game_tokens)
+        : current.taxGameTokens
+
+      const newTokenData = {
+        account_id,
+        transcript_tokens: newTranscript,
+        tax_game_tokens: newGame,
+        updated_at: nowIso,
+      }
+
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/${account_id}.json`, newTokenData)
+
+      // D1 projection
+      await d1Run(env.DB,
+        `INSERT OR REPLACE INTO tokens (account_id, transcript_tokens, tax_game_tokens, updated_at) VALUES (?, ?, ?, ?)`,
+        [account_id, newTranscript, newGame, nowIso]
+      )
+
+      // Receipt in R2
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/admin/token-grant-${crypto.randomUUID()}.json`, {
+        account_id,
+        granted_by: session.email,
+        transcript_tokens_added: transcript_tokens || 0,
+        tax_game_tokens_added: tax_game_tokens || 0,
+        balance_after: newTokenData,
+        reason: reason || 'manual grant',
+        created_at: nowIso,
+      })
+
+      return json({
+        ok: true,
+        account_id,
+        balance: {
+          transcriptTokens: newTranscript,
+          taxGameTokens: newGame,
+        },
+      }, 200, request)
+    },
+  },
+
+  // -------------------------------------------------------------------------
   // VLP PREFERENCES
   // -------------------------------------------------------------------------
 
