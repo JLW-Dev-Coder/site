@@ -47,7 +47,8 @@ migrations_dir = "workers/migrations"
 [triggers]
 crons = [
   "0 9 * * 1",   # Every Monday 9am UTC - DVLP job matching
-  "0 10 * * *"   # Every day 10am UTC - WLVLP auction settlement
+  "0 10 * * *",  # Every day 10am UTC - WLVLP auction settlement
+  "0 14 * * *"   # Every day 14:00 UTC - SCALE email sending
 ]
 
 # ---------------------------------------

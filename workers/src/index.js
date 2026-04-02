@@ -442,6 +442,86 @@ async function verifyJwt(token, secret) {
   }
 }
 
+async function sendGmailMessage(env, to, subject, body) {
+  try {
+    // Parse service account credentials
+    let serviceAccount;
+    try {
+      serviceAccount = JSON.parse(env.GOOGLE_PRIVATE_KEY);
+    } catch (e) {
+      throw new Error('Failed to parse GOOGLE_PRIVATE_KEY JSON');
+    }
+
+    // Create JWT for Google OAuth
+    const now = Math.floor(Date.now() / 1000);
+    const jwtPayload = {
+      iat: now,
+      exp: now + 3600,
+      iss: serviceAccount.client_email || 'virtual-launch-worker@virtual-launch-pro.iam.gserviceaccount.com',
+      scope: 'https://www.googleapis.com/auth/gmail.send',
+      aud: 'https://oauth2.googleapis.com/token',
+      sub: env.GMAIL_IMPERSONATE_SUBJECT
+    };
+
+    // Sign JWT with RS256
+    const token = await signJwt(jwtPayload, serviceAccount.private_key);
+
+    // Exchange JWT for access token
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+        assertion: token
+      })
+    });
+
+    if (!tokenResponse.ok) {
+      const tokenError = await tokenResponse.text();
+      throw new Error(`OAuth token request failed: ${tokenResponse.status} ${tokenError}`);
+    }
+
+    const tokenData = await tokenResponse.json();
+    if (!tokenData.access_token) {
+      throw new Error('No access token in OAuth response');
+    }
+
+    // Construct RFC 2822 message
+    const message = [
+      `From: Jamie L Williams <${env.GMAIL_SENDING_ADDRESS}>`,
+      `To: ${to}`,
+      `Subject: ${subject}`,
+      'Content-Type: text/plain; charset=utf-8',
+      '',
+      body
+    ].join('\r\n');
+
+    // Base64url encode message
+    const encodedMessage = btoa(message).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+    // Send via Gmail API
+    const sendResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ raw: encodedMessage })
+    });
+
+    if (!sendResponse.ok) {
+      const sendError = await sendResponse.text();
+      throw new Error(`Gmail send failed: ${sendResponse.status} ${sendError}`);
+    }
+
+    const sendData = await sendResponse.json();
+    return { messageId: sendData.id };
+
+  } catch (error) {
+    throw new Error(`Gmail send error: ${error.message}`);
+  }
+}
+
 async function sendEmail(to, subject, htmlBody, env) {
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -10521,6 +10601,78 @@ TTMP Support Team
     },
   },
 
+  // -------------------------------------------------------------------------
+  // SCALE OUTREACH
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'GET', pattern: '/scale/asset-page/:slug',
+    handler: async (_method, _pattern, params, request, env) => {
+      try {
+        const obj = await env.R2_VIRTUAL_LAUNCH.get(`vlp-scale/asset-pages/${params.slug}.json`);
+        if (!obj) {
+          return json({ error: 'not found' }, 404, request);
+        }
+        const data = await obj.json();
+        return json(data, 200, request);
+      } catch (e) {
+        return json({ error: 'not found' }, 404, request);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/scale/init-send-state',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      // Admin-only route - check role
+      if (session.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
+      }
+
+      const body = await parseBody(request);
+      if (!body?.send_start_date) {
+        return json({ ok: false, error: 'MISSING_FIELDS', message: 'send_start_date required' }, 400, request);
+      }
+
+      // Validate date format (YYYY-MM-DD)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(body.send_start_date)) {
+        return json({ ok: false, error: 'VALIDATION', message: 'send_start_date must be YYYY-MM-DD format' }, 400, request);
+      }
+
+      try {
+        const eventId = `EVT_${crypto.randomUUID()}`;
+        const now = new Date().toISOString();
+
+        // Create send state object
+        const sendState = {
+          send_start_date: body.send_start_date,
+          total_sent: 0
+        };
+
+        // Write receipt
+        const receipt = {
+          eventId,
+          timestamp: now,
+          type: 'scale-init-send-state',
+          accountId: session.account_id,
+          payload: body,
+          result: sendState
+        };
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/receipts/init/${eventId}.json`, JSON.stringify(receipt));
+
+        // Write canonical send state
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/send-state.json`, JSON.stringify(sendState));
+
+        return json({ ok: true, eventId, status: 'initialized' }, 200, request);
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to initialize send state' }, 500, request);
+      }
+    },
+  },
+
 ];
 // ---------------------------------------------------------------------------
 // Router
@@ -10886,6 +11038,158 @@ export default {
         await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${errorEventId}.json`, errorReceipt);
       } catch (receiptError) {
         console.error('Failed to write WLVLP auction settlement error receipt:', receiptError);
+      }
+    }
+
+    // SCALE Email Sending Cron
+    try {
+      const eventId = `EVT_${crypto.randomUUID()}`;
+      const timestamp = new Date().toISOString();
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+      // Helper function for delays
+      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+      // Read send state
+      let sendState;
+      try {
+        const sendStateObj = await env.R2_VIRTUAL_LAUNCH.get(`vlp-scale/send-state.json`);
+        if (!sendStateObj) {
+          console.log('SCALE cron: No send-state.json found, skipping');
+          return;
+        }
+        sendState = await sendStateObj.json();
+      } catch (e) {
+        console.error('SCALE cron: Failed to read send-state.json:', e);
+        return;
+      }
+
+      // Calculate daily cap
+      const startDate = new Date(sendState.send_start_date);
+      const todayDate = new Date(today);
+      const daysSinceStart = Math.ceil((todayDate - startDate) / (1000 * 60 * 60 * 24)) + 1; // inclusive
+
+      let dailyCap;
+      if (daysSinceStart <= 3) {
+        dailyCap = 10;
+      } else if (daysSinceStart <= 7) {
+        dailyCap = 20;
+      } else if (daysSinceStart <= 14) {
+        dailyCap = 30;
+      } else {
+        dailyCap = 50;
+      }
+
+      let email1Sent = 0;
+      let email2Sent = 0;
+
+      // Email 1 Job
+      try {
+        const email1Obj = await env.R2_VIRTUAL_LAUNCH.get(`vlp-scale/send-queue/email1-pending.json`);
+        if (email1Obj) {
+          const email1Queue = await email1Obj.json();
+          const eligibleForEmail1 = email1Queue.filter(record => !record.email_1_sent_at);
+          const toSendEmail1 = eligibleForEmail1.slice(0, dailyCap);
+
+          for (const record of toSendEmail1) {
+            try {
+              // Randomized delay: 45-90 seconds
+              const delayMs = 45000 + Math.random() * 45000;
+              await delay(delayMs);
+
+              // Send email via Gmail
+              await sendGmailMessage(env, record.email, record.subject, record.body);
+
+              // Update record
+              record.email_1_sent_at = new Date().toISOString();
+              const twoDaysLater = new Date();
+              twoDaysLater.setDate(twoDaysLater.getDate() + 2);
+              record.email_2_scheduled_for = twoDaysLater.toISOString().split('T')[0];
+
+              email1Sent++;
+            } catch (e) {
+              console.error(`SCALE cron: Failed to send email 1 to ${record.slug}/${record.email}:`, e.message);
+            }
+          }
+
+          // Write back updated queue
+          await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/send-queue/email1-pending.json`, JSON.stringify(email1Queue));
+        }
+      } catch (e) {
+        console.error('SCALE cron: Email 1 job failed:', e);
+      }
+
+      // Email 2 Job
+      try {
+        const email2Obj = await env.R2_VIRTUAL_LAUNCH.get(`vlp-scale/send-queue/email2-pending.json`);
+        if (email2Obj) {
+          const email2Queue = await email2Obj.json();
+          const eligibleForEmail2 = email2Queue.filter(record =>
+            !record.email_2_sent_at &&
+            record.email_2_scheduled_for &&
+            record.email_2_scheduled_for <= today
+          );
+
+          for (const record of eligibleForEmail2) {
+            try {
+              // Randomized delay: 30-60 seconds
+              const delayMs = 30000 + Math.random() * 30000;
+              await delay(delayMs);
+
+              // Send email via Gmail
+              await sendGmailMessage(env, record.email, record.subject, record.body);
+
+              // Update record
+              record.email_2_sent_at = new Date().toISOString();
+
+              email2Sent++;
+            } catch (e) {
+              console.error(`SCALE cron: Failed to send email 2 to ${record.slug}/${record.email}:`, e.message);
+            }
+          }
+
+          // Write back updated queue
+          await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/send-queue/email2-pending.json`, JSON.stringify(email2Queue));
+        }
+      } catch (e) {
+        console.error('SCALE cron: Email 2 job failed:', e);
+      }
+
+      // Update send state with total sent count
+      sendState.total_sent += email1Sent;
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/send-state.json`, JSON.stringify(sendState));
+
+      // Write cron receipt
+      const cronReceipt = {
+        eventId,
+        timestamp,
+        type: 'scale-email-cron',
+        stats: {
+          days_since_start: daysSinceStart,
+          daily_cap: dailyCap,
+          email_1_sent: email1Sent,
+          email_2_sent: email2Sent,
+          total_sent_overall: sendState.total_sent
+        }
+      };
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/receipts/cron/${eventId}.json`, JSON.stringify(cronReceipt));
+
+      console.log(`SCALE cron completed: ${email1Sent} email 1 sent, ${email2Sent} email 2 sent, ${sendState.total_sent} total overall`);
+    } catch (e) {
+      console.error('SCALE email cron failed:', e);
+
+      // Write error receipt
+      const errorEventId = `EVT_${crypto.randomUUID()}`;
+      const errorReceipt = {
+        eventId: errorEventId,
+        timestamp: new Date().toISOString(),
+        type: 'scale-email-cron-error',
+        error: e.message
+      };
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/receipts/cron/${errorEventId}.json`, JSON.stringify(errorReceipt));
+      } catch (receiptError) {
+        console.error('Failed to write SCALE email cron error receipt:', receiptError);
       }
     }
   },

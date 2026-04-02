@@ -1296,6 +1296,40 @@
       "version": 1,
       "writes": [],
       "addedDate": "2026-03-30"
+    },
+    {
+      "id": "scale.asset-page.get.v1",
+      "path": "/contracts/scale/scale.asset-page.get.v1.json",
+      "endpoint": "/scale/asset-page/:slug",
+      "method": "GET",
+      "status": "active",
+      "category": "tool",
+      "authRequired": false,
+      "signatureRequired": false,
+      "dedupeKey": null,
+      "receiptSource": null,
+      "receiptKeyPattern": null,
+      "usedOnPages": ["transcript.taxmonitor.pro/scale/*", "taxmonitor.pro/scale/*"],
+      "version": 1,
+      "writes": [],
+      "addedDate": "2026-04-02"
+    },
+    {
+      "id": "scale.init-send-state.post.v1",
+      "path": "/contracts/scale/scale.init-send-state.post.v1.json",
+      "endpoint": "/scale/init-send-state",
+      "method": "POST",
+      "status": "active",
+      "category": "tool",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "payload.eventId",
+      "receiptSource": "scale",
+      "receiptKeyPattern": "vlp-scale/receipts/init/{eventId}.json",
+      "usedOnPages": ["admin panel"],
+      "version": 1,
+      "writes": ["vlp-scale"],
+      "addedDate": "2026-04-02"
     }
   ]
 }
