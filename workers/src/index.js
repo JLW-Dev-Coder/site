@@ -10823,6 +10823,44 @@ TTMP Support Team
     },
   },
 
+  // -------------------------------------------------------------------------
+  // Scale Assets (Public Route)
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'GET', pattern: '/v1/scale/asset/:slug',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { slug } = params;
+
+      // Validate slug: lowercase alphanumeric and hyphens only, max 100 chars
+      if (!slug || typeof slug !== 'string' || slug.length > 100) {
+        return json({ error: 'invalid_slug' }, 400, request);
+      }
+
+      const slugRegex = /^[a-z0-9-]+$/;
+      if (!slugRegex.test(slug)) {
+        return json({ error: 'invalid_slug' }, 400, request);
+      }
+
+      try {
+        // Read from R2 key: vlp-scale/asset-pages/${slug}.json
+        const r2Key = `vlp-scale/asset-pages/${slug}.json`;
+        const object = await env.R2_VIRTUAL_LAUNCH.get(r2Key);
+
+        if (!object) {
+          return json({ error: 'not_found' }, 404, request);
+        }
+
+        // Return the object contents as JSON
+        const content = await object.json();
+        return json(content, 200, request);
+      } catch (error) {
+        console.error('Scale asset read error:', error);
+        return json({ error: 'not_found' }, 404, request);
+      }
+    },
+  },
+
 ];
 // ---------------------------------------------------------------------------
 // Router
