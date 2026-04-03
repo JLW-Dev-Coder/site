@@ -134,7 +134,7 @@ npm run pages:build   # Build for Cloudflare Pages
 |----------|---------------|-----------|---------|
 | VLP | `cd web && npm install && npm run pages:build` | `web/.vercel/output/static` | `@cloudflare/next-on-pages` |
 | TMP | `npm run build` | `out` | static export |
-| TTMP | `npm run cf:build` | `.open-next/assets` | OpenNext |
+| TTMP | `npm run cf:build` | `.open-next/` | `@opennextjs/cloudflare` (Workers, not Pages) |
 | TTTMP | `npx @cloudflare/next-on-pages` | `.vercel/output/static` | `@cloudflare/next-on-pages` |
 | DVLP | `npm run pages:build` | `.vercel/output/static` | `@cloudflare/next-on-pages` |
 | GVLP | `npm run build` | `out` | static export |

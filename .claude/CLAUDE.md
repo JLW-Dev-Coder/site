@@ -388,18 +388,20 @@ POST /v1/uploads/*
 
 ---
 
-## 16. Cloudflare Pages Build Config
+## 16. Cloudflare Build Config
 
 | Platform | Pages Project | Build Command | Output Dir | Adapter |
 |----------|--------------|---------------|-----------|---------|
 | VLP | `virtuallaunch-pro-web` | `cd web && npm install && npm run pages:build` | `web/.vercel/output/static` | `@cloudflare/next-on-pages` |
 | TMP | `taxmonitor-pro-site` | `npm run build` | `out` | static export |
-| TTMP | `transcript-taxmonitor-pro-site` | `npm run cf:build` | `.open-next/assets` | OpenNext |
+| TTMP | `transcript-taxmonitor-pro` (Worker) | `npm run cf:build` | `.open-next/` | `@opennextjs/cloudflare` (Workers, not Pages) |
 | TTTMP | `taxtools-taxmonitor-pro-site` | `npx @cloudflare/next-on-pages` | `.vercel/output/static` | `@cloudflare/next-on-pages` |
 | DVLP | `developers-virtuallaunch-pro-site` | `npm run pages:build` | `.vercel/output/static` | `@cloudflare/next-on-pages` |
 | GVLP | `games-virtuallaunch-pro` | `npm run build` | `out` | static export |
 | TCVLP | `taxclaim-virtuallaunch-pro` | `npm run build` | `out` | static export |
 | WLVLP | `websitelotto-virtuallaunch-pro` | `npm run build` | `out` | static export |
+
+**TTMP deployment note:** TTMP uses Cloudflare Workers (not Pages) via `@opennextjs/cloudflare` and GitHub Actions CI/CD. `@cloudflare/next-on-pages` is deprecated by Cloudflare. All other platforms remain on Pages. The TTMP Worker uses a KV namespace (`NEXT_INC_CACHE_KV`) for incremental cache. See TTMP repo CLAUDE.md for full build documentation.
 
 **Notes (do not change without updating this table):**
 - TTMP: `npm run cf:build` is correct — not `npm run build`
