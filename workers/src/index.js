@@ -4323,6 +4323,68 @@ const ROUTES = [
     },
   },
 
+  {
+    method: 'GET', pattern: '/v1/scale/dashboard',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      // Only allow VLP admin accounts
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes(session.email)) {
+        return json({ ok: false, error: 'forbidden' }, 403, request)
+      }
+
+      const nowIso = new Date().toISOString()
+
+      // Read three R2 objects
+      const [email1Obj, email2Obj, sendStateObj] = await Promise.all([
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email1-pending.json'),
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email2-pending.json'),
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-state.json')
+      ])
+
+      // Parse objects or use empty fallbacks
+      let email1Queue = []
+      let email2Queue = []
+      let sendState = {}
+
+      try {
+        if (email1Obj) {
+          email1Queue = await email1Obj.json()
+        }
+      } catch (e) {
+        // If JSON parsing fails, use empty array
+        email1Queue = []
+      }
+
+      try {
+        if (email2Obj) {
+          email2Queue = await email2Obj.json()
+        }
+      } catch (e) {
+        // If JSON parsing fails, use empty array
+        email2Queue = []
+      }
+
+      try {
+        if (sendStateObj) {
+          sendState = await sendStateObj.json()
+        }
+      } catch (e) {
+        // If JSON parsing fails, use empty object
+        sendState = {}
+      }
+
+      return json({
+        email1_queue: email1Queue,
+        email2_queue: email2Queue,
+        send_state: sendState,
+        fetched_at: nowIso
+      }, 200, request)
+    },
+  },
+
   // -------------------------------------------------------------------------
   // VLP PREFERENCES
   // -------------------------------------------------------------------------

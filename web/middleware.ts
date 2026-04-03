@@ -14,6 +14,7 @@ const PROTECTED_PATHS = [
   '/messaging',
   '/transcripts',
   '/tools',
+  '/scale',
 ]
 
 export function middleware(request: NextRequest) {
@@ -50,5 +51,6 @@ export const config = {
     '/messaging/:path*',
     '/transcripts/:path*',
     '/tools/:path*',
+    '/scale/:path*',
   ],
 }
