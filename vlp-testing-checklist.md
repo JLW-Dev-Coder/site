@@ -8,20 +8,20 @@
 - [X] Navigate to `https://virtuallaunch.pro/scale`
 - [X] Page loads with "SCALE Command Center" title
 - [X] Last fetched timestamp shows in subtitle
-- [ ] Pipeline Overview: 4 cards visible (Total Prospects, Eligible, Exhausted, Days Remaining)
-- [ ] Pipeline cards show real numbers from R2 data (or zeros if no data pushed yet)
-- [ ] Color coding works on Eligible card (green >100, yellow 50-100, red <50)
-- [ ] Color coding works on Days Remaining card (red <7, yellow 7-14, green >14)
-- [ ] Send Queue: Email 1 and Email 2 queue cards visible
-- [ ] Queue cards show counts and mini tables (or empty state if no queue data)
-- [ ] Batch History: table visible with column headers
-- [ ] If no batches pushed to R2 yet, shows "No batches generated yet"
-- [ ] Response Tracking: Bookings and Purchases cards visible
-- [ ] Bookings card shows created/cancelled/rescheduled/paid/no_show counts
-- [ ] Purchases card shows count and revenue (or "No SCALE-attributed purchases yet")
-- [ ] Site Analytics: 8 mini cards visible in grid
-- [ ] Each card shows a domain name
-- [ ] Cards with data show page views, unique visitors, bandwidth
+- [X] Pipeline Overview: 4 cards visible (Total Prospects, Eligible, Exhausted, Days Remaining)
+- [X] Pipeline cards show real numbers from R2 data (or zeros if no data pushed yet)
+- [X] Color coding works on Eligible card (green >100, yellow 50-100, red <50)
+- [X] Color coding works on Days Remaining card (red <7, yellow 7-14, green >14)
+- [X] Send Queue: Email 1 and Email 2 queue cards visible
+- [X] Queue cards show counts and mini tables (or empty state if no queue data)
+- [X] Batch History: table visible with column headers
+- [X] If no batches pushed to R2 yet, shows "No batches generated yet"
+- [X] Response Tracking: Bookings and Purchases cards visible
+- [X] Bookings card shows created/cancelled/rescheduled/paid/no_show counts
+- [X] Purchases card shows count and revenue (or "No SCALE-attributed purchases yet")
+- [X] Site Analytics: 8 mini cards visible in grid
+- [X] Each card shows a domain name
+- [ ] Cards with data show page views, unique visitors, bandwidth — FAIL (all show "Unavailable")
 - [ ] Cards that failed show "Unavailable"
 - [ ] Click Refresh button — spinner appears, data reloads
 - [ ] After refresh, timestamp updates
@@ -29,8 +29,8 @@
 - [ ] Resize browser to 375px — cards stack to 1 per row, tables scroll horizontally
 
 ## 8b — SCALE sidebar navigation
-- [ ] In the VLP app sidebar, "SCALE" link is visible with lightning icon
-- [ ] Click it — navigates to `/scale`
+- [X] In the VLP app sidebar, "SCALE" link is visible with lightning icon
+- [X] Click it — navigates to `/scale`
 
 ## 8c — Cal.com webhook (live test)
 - [ ] Open `https://cal.com/vlp/ttmp-discovery?slug=test-webhook-jamie-sd-ca` in a new tab

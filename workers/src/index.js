@@ -4597,23 +4597,17 @@ const ROUTES = [
   {
     method: 'GET', pattern: '/v1/scale/analytics',
     handler: async (_method, _pattern, _params, request, env) => {
-      // TEMPORARY: Skip session check for debugging analytics
-      console.log('[DEBUG] Skipping session check for analytics debugging')
-      // const { session, error } = await requireSession(request, env)
-      // if (error) return error
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
 
       // Only allow VLP admin accounts
-      // const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
-      // console.log(`[DEBUG] User email: ${session.email}`)
-      // TEMPORARY: Allow any authenticated user for debugging analytics
-      // if (!adminEmails.includes(session.email)) {
-      //   return json({ ok: false, error: 'forbidden' }, 403, request)
-      // }
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes(session.email)) {
+        return json({ ok: false, error: 'forbidden' }, 403, request)
+      }
 
       // Check CF_API_TOKEN is configured
-      console.log('[DEBUG] CF_API_TOKEN type:', typeof env.CF_API_TOKEN)
       if (!env.CF_API_TOKEN) {
-        console.log('[DEBUG] CF_API_TOKEN is not available')
         return json({ error: 'CF_API_TOKEN not configured', ok: false }, 503, request)
       }
 
@@ -4693,12 +4687,31 @@ const ROUTES = [
               query($zoneTag: string, $since: string, $until: string, $hostname: string) {
                 viewer {
                   zones(filter: { zoneTag: $zoneTag }) {
+                    ${isSubdomain ? `
+                    httpRequestsOverview: httpRequestsAdaptiveGroups(
+                      filter: {
+                        date_geq: $since,
+                        date_leq: $until,
+                        clientRequestHTTPHost: $hostname
+                      }
+                      limit: 1000
+                    ) {
+                      count
+                      sum {
+                        edgeResponseBytes
+                      }
+                      uniq {
+                        uniques
+                      }
+                      dimensions {
+                        date
+                      }
+                    }` : `
                     httpRequestsOverview: httpRequests1dGroups(
                       limit: 30
                       filter: {
                         date_geq: $since,
                         date_leq: $until
-                        ${isSubdomain ? ', clientRequestHTTPHost: $hostname' : ''}
                       }
                     ) {
                       dimensions {
@@ -4712,7 +4725,7 @@ const ROUTES = [
                       uniq {
                         uniques
                       }
-                    }
+                    }`}
                   }
                 }
               }
@@ -4747,9 +4760,17 @@ const ROUTES = [
               let totalBandwidth = 0
 
               for (const day of dailyData) {
-                totalPageViews += day.sum?.pageViews || 0
-                totalUniqueVisitors += day.uniq?.uniques || 0
-                totalBandwidth += day.sum?.bytes || 0
+                if (isSubdomain) {
+                  // httpRequestsAdaptiveGroups structure
+                  totalPageViews += day.count || 0 // Use count as proxy for page views
+                  totalUniqueVisitors += day.uniq?.uniques || 0
+                  totalBandwidth += day.sum?.edgeResponseBytes || 0
+                } else {
+                  // httpRequests1dGroups structure
+                  totalPageViews += day.sum?.pageViews || 0
+                  totalUniqueVisitors += day.uniq?.uniques || 0
+                  totalBandwidth += day.sum?.bytes || 0
+                }
               }
 
               sites.push({
