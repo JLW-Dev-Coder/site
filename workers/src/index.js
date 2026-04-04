@@ -143,11 +143,11 @@ function json(body, status = 200, request) {
 }
 
 
-function notFound(path) {
+function notFound(path, request) {
   return json({ ok: false, error: 'NOT_FOUND', path }, 404, request);
 }
 
-function methodNotAllowed(method, path) {
+function methodNotAllowed(method, path, request) {
   return json({ ok: false, error: 'METHOD_NOT_ALLOWED', route: `${method} ${path}` }, 405, request);
 }
 
@@ -2926,6 +2926,53 @@ const ROUTES = [
               }
             }
 
+            // SCALE attribution tracking - check if purchase is from SCALE prospect
+            try {
+              const customerEmail = obj.customer_details?.email ?? obj.customer_email ?? '';
+
+              if (customerEmail) {
+                // Read prospect index to check for SCALE attribution
+                const prospectIndexObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospect-index.json');
+
+                if (prospectIndexObj) {
+                  const prospectIndex = await prospectIndexObj.json();
+                  const slug = prospectIndex[customerEmail];
+
+                  if (slug) {
+                    // This purchase is attributable to SCALE - create purchase event
+                    const eventId = event.id ?? crypto.randomUUID();
+                    const amount = obj.amount_total ?? 0;
+                    const currency = obj.currency ?? 'usd';
+
+                    // Extract product name from line items
+                    let productName = 'Unknown Product';
+                    if (obj.line_items?.data?.[0]?.description) {
+                      productName = obj.line_items.data[0].description;
+                    } else if (obj.display_items?.[0]?.custom?.name) {
+                      productName = obj.display_items[0].custom.name;
+                    }
+
+                    const purchaseEvent = {
+                      slug: slug,
+                      event_type: 'purchase',
+                      stripe_event_id: event.id,
+                      customer_email: customerEmail,
+                      amount: amount,
+                      currency: currency,
+                      product: productName,
+                      created_at: now
+                    };
+
+                    await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/responses/${slug}/purchases/${eventId}.json`, purchaseEvent);
+                    console.log(`[stripe-webhook] SCALE purchase attributed: ${customerEmail} -> ${slug}`);
+                  }
+                }
+              }
+            } catch (scaleError) {
+              // SCALE attribution failure should not block normal Stripe webhook processing
+              console.error('[stripe-webhook] SCALE attribution error:', scaleError.message);
+            }
+
             break;
           }
 
@@ -3189,6 +3236,51 @@ const ROUTES = [
 
       const eventType = payload?.triggerEvent ?? payload?.type ?? '';
       const now = new Date().toISOString();
+
+      // SCALE attribution tracking - extract slug from booking URL and store event
+      try {
+        const bookingUrl = payload.payload?.bookingUrl ?? payload.payload?.bookingLink ?? '';
+        let slug = 'unattributed';
+
+        if (bookingUrl) {
+          try {
+            const url = new URL(bookingUrl);
+            const slugParam = url.searchParams.get('slug');
+            if (slugParam) {
+              slug = slugParam;
+            }
+          } catch (e) {
+            // If URL parsing fails, keep default slug
+          }
+        }
+
+        // Extract booking details for SCALE tracking
+        const attendeeEmail = payload.payload?.attendees?.[0]?.email ?? '';
+        const attendeeName = payload.payload?.attendees?.[0]?.name ?? '';
+        const bookingId = payload.payload?.uid ?? payload.payload?.id ?? crypto.randomUUID();
+        const startTime = payload.payload?.startTime ?? '';
+        const endTime = payload.payload?.endTime ?? '';
+
+        // Write SCALE event to vlp-scale/responses/{slug}/bookings/{event_id}.json
+        const scaleEvent = {
+          slug: slug,
+          event_type: eventType,
+          booking_id: bookingId,
+          attendee_email: attendeeEmail,
+          attendee_name: attendeeName,
+          start_time: startTime,
+          end_time: endTime,
+          created_at: now,
+          raw_trigger: eventType
+        };
+
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/responses/${slug}/bookings/${bookingId}.json`, scaleEvent);
+      } catch (scaleError) {
+        // SCALE tracking failure should not block the main webhook processing
+        console.error('[cal-webhook] SCALE tracking error:', scaleError.message);
+      }
+
+      // Continue with existing booking logic
       try {
         switch (eventType) {
           case 'BOOKING_CREATED': {
@@ -4337,17 +4429,23 @@ const ROUTES = [
 
       const nowIso = new Date().toISOString()
 
-      // Read three R2 objects
-      const [email1Obj, email2Obj, sendStateObj] = await Promise.all([
+      // Read existing R2 objects plus additional ones for expanded dashboard
+      const [email1Obj, email2Obj, sendStateObj, batchHistoryObj, prospectsCSVObj, prospectIndexObj] = await Promise.all([
         env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email1-pending.json'),
         env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email2-pending.json'),
-        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-state.json')
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-state.json'),
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/batch-history.json'),
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.csv'),
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospect-index.json')
       ])
 
       // Parse objects or use empty fallbacks
       let email1Queue = []
       let email2Queue = []
       let sendState = {}
+      let batchHistory = []
+      let prospectCount = 0
+      let pipeline = null
 
       try {
         if (email1Obj) {
@@ -4376,10 +4474,295 @@ const ROUTES = [
         sendState = {}
       }
 
+      try {
+        if (batchHistoryObj) {
+          batchHistory = await batchHistoryObj.json()
+        }
+      } catch (e) {
+        batchHistory = []
+      }
+
+      // Parse prospect index for count
+      try {
+        if (prospectIndexObj) {
+          const prospectIndex = await prospectIndexObj.json()
+          prospectCount = Object.keys(prospectIndex).length
+        }
+      } catch (e) {
+        prospectCount = 0
+      }
+
+      // Parse CSV for pipeline stats
+      try {
+        if (prospectsCSVObj) {
+          const csvText = await prospectsCSVObj.text()
+          const lines = csvText.split('\n').filter(line => line.trim())
+
+          if (lines.length > 1) { // Has header + data
+            const header = lines[0].split(',').map(col => col.trim().replace(/"/g, ''))
+
+            // Find column indices
+            const emailFoundIdx = header.indexOf('email_found')
+            const emailStatusIdx = header.indexOf('email_status')
+            const email1PreparedIdx = header.indexOf('email_1_prepared_at')
+
+            let total = 0
+            let eligible = 0
+            let exhausted = 0
+
+            for (let i = 1; i < lines.length; i++) {
+              const cols = lines[i].split(',').map(col => col.trim().replace(/"/g, ''))
+              if (cols.length >= Math.max(emailFoundIdx, emailStatusIdx, email1PreparedIdx) + 1) {
+                total++
+
+                const emailFound = cols[emailFoundIdx] || ''
+                const emailStatus = cols[emailStatusIdx] || ''
+                const email1Prepared = cols[email1PreparedIdx] || ''
+
+                if (email1Prepared) {
+                  exhausted++
+                } else if (emailFound && emailStatus !== 'invalid') {
+                  eligible++
+                }
+              }
+            }
+
+            const daysRemaining = eligible > 0 ? Math.ceil(eligible / 50) : 0
+            pipeline = { total, eligible, exhausted, days_remaining: daysRemaining }
+          }
+        }
+      } catch (e) {
+        // If CSV parsing fails, leave pipeline as null
+        pipeline = null
+      }
+
+      // Aggregate responses from vlp-scale/responses/ prefix
+      const responses = {
+        bookings: { created: 0, cancelled: 0, rescheduled: 0, paid: 0, no_show: 0 },
+        purchases: { count: 0, total_revenue: 0 }
+      }
+
+      try {
+        const responsesList = await env.R2_VIRTUAL_LAUNCH.list({
+          prefix: 'vlp-scale/responses/'
+        })
+
+        if (responsesList.objects) {
+          for (const obj of responsesList.objects) {
+            try {
+              const responseObj = await env.R2_VIRTUAL_LAUNCH.get(obj.key)
+              if (responseObj) {
+                const data = await responseObj.json()
+
+                if (obj.key.includes('/bookings/')) {
+                  // Booking event
+                  const eventType = data.event_type || data.raw_trigger || ''
+                  if (eventType.includes('CREATED')) responses.bookings.created++
+                  else if (eventType.includes('CANCELLED')) responses.bookings.cancelled++
+                  else if (eventType.includes('RESCHEDULED')) responses.bookings.rescheduled++
+                  else if (eventType.includes('PAID')) responses.bookings.paid++
+                  else if (eventType.includes('NO_SHOW')) responses.bookings.no_show++
+                } else if (obj.key.includes('/purchases/')) {
+                  // Purchase event
+                  responses.purchases.count++
+                  if (data.amount) {
+                    responses.purchases.total_revenue += data.amount
+                  }
+                }
+              }
+            } catch (e) {
+              // Skip individual response files that fail to parse
+              continue
+            }
+          }
+        }
+      } catch (e) {
+        // If responses aggregation fails, use zeroed counts (already set above)
+      }
+
       return json({
         email1_queue: email1Queue,
         email2_queue: email2Queue,
         send_state: sendState,
+        batch_history: batchHistory,
+        pipeline: pipeline,
+        prospect_count: prospectCount,
+        responses: responses,
+        analytics: null,
+        fetched_at: nowIso
+      }, 200, request)
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/scale/analytics',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      // Only allow VLP admin accounts
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes(session.email)) {
+        return json({ ok: false, error: 'forbidden' }, 403, request)
+      }
+
+      // Check CF_API_TOKEN is configured
+      if (!env.CF_API_TOKEN) {
+        return json({ error: 'CF_API_TOKEN not configured', ok: false }, 503, request)
+      }
+
+      const nowIso = new Date().toISOString()
+      const accountId = 'b14e124b2f5dd7e86dfb1546f9ed6e91'
+
+      // The 8 platform domains
+      const domains = [
+        'virtuallaunch.pro',
+        'taxmonitor.pro',
+        'transcript.taxmonitor.pro',
+        'taxtools.taxmonitor.pro',
+        'developers.virtuallaunch.pro',
+        'games.virtuallaunch.pro',
+        'taxclaim.virtuallaunch.pro',
+        'websitelotto.virtuallaunch.pro'
+      ]
+
+      // Cache zone IDs in global variable for subsequent requests
+      if (!globalThis.cfZoneIdCache) {
+        globalThis.cfZoneIdCache = {}
+      }
+
+      const sites = []
+
+      for (const domain of domains) {
+        try {
+          let zoneId = globalThis.cfZoneIdCache[domain]
+
+          // Resolve zone ID if not cached
+          if (!zoneId) {
+            const zoneResponse = await fetch(`https://api.cloudflare.com/client/v4/zones?name=${domain}`, {
+              headers: {
+                'Authorization': `Bearer ${env.CF_API_TOKEN}`,
+                'Content-Type': 'application/json'
+              }
+            })
+
+            if (zoneResponse.ok) {
+              const zoneData = await zoneResponse.json()
+              if (zoneData.result && zoneData.result.length > 0) {
+                zoneId = zoneData.result[0].id
+                globalThis.cfZoneIdCache[domain] = zoneId
+              }
+            }
+          }
+
+          if (!zoneId) {
+            sites.push({
+              domain: domain,
+              zone_id: null,
+              error: 'zone not found'
+            })
+            continue
+          }
+
+          // Query analytics for the last 30 days
+          const endDate = new Date()
+          const startDate = new Date(endDate.getTime() - 30 * 24 * 60 * 60 * 1000)
+
+          const graphqlQuery = {
+            query: `
+              query($zoneTag: string, $since: string, $until: string) {
+                viewer {
+                  zones(filter: { zoneTag: $zoneTag }) {
+                    httpRequestsOverview: httpRequests1dGroups(
+                      limit: 1000
+                      filter: { date_geq: $since, date_leq: $until }
+                    ) {
+                      sum {
+                        requests
+                        pageViews
+                        bytes
+                      }
+                      uniq {
+                        uniques
+                      }
+                    }
+                    httpRequestsTopPaths: httpRequests1dGroups(
+                      limit: 10
+                      orderBy: [requests_DESC]
+                      filter: { date_geq: $since, date_leq: $until }
+                    ) {
+                      dimensions {
+                        path
+                      }
+                      sum {
+                        requests
+                      }
+                    }
+                  }
+                }
+              }
+            `,
+            variables: {
+              zoneTag: zoneId,
+              since: startDate.toISOString().split('T')[0],
+              until: endDate.toISOString().split('T')[0]
+            }
+          }
+
+          const analyticsResponse = await fetch('https://api.cloudflare.com/client/v4/graphql', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${env.CF_API_TOKEN}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(graphqlQuery)
+          })
+
+          if (analyticsResponse.ok) {
+            const analyticsData = await analyticsResponse.json()
+            const zone = analyticsData.data?.viewer?.zones?.[0]
+
+            if (zone) {
+              const overview = zone.httpRequestsOverview?.[0]
+              const topPaths = zone.httpRequestsTopPaths || []
+
+              sites.push({
+                domain: domain,
+                zone_id: zoneId,
+                page_views: overview?.sum?.pageViews || 0,
+                unique_visitors: overview?.uniq?.uniques || 0,
+                bandwidth_bytes: overview?.sum?.bytes || 0,
+                top_pages: topPaths.map(path => ({
+                  path: path.dimensions?.path || '/',
+                  views: path.sum?.requests || 0
+                })).slice(0, 5)
+              })
+            } else {
+              sites.push({
+                domain: domain,
+                zone_id: zoneId,
+                error: 'no analytics data'
+              })
+            }
+          } else {
+            sites.push({
+              domain: domain,
+              zone_id: zoneId,
+              error: 'analytics request failed'
+            })
+          }
+        } catch (e) {
+          sites.push({
+            domain: domain,
+            zone_id: null,
+            error: 'processing error'
+          })
+        }
+      }
+
+      return json({
+        period: 'last_30_days',
+        sites: sites,
         fetched_at: nowIso
       }, 200, request)
     },
@@ -11048,9 +11431,9 @@ export default {
 
     if (!result.matched) {
       if (result.reason === 'METHOD_NOT_ALLOWED') {
-        return methodNotAllowed(method, pathname);
+        return methodNotAllowed(method, pathname, request);
       }
-      return notFound(pathname);
+      return notFound(pathname, request);
     }
 
     return result.handler(method, result.pattern, result.params, request, env, ctx);

@@ -1,0 +1,78 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "Cloudflare_Analytics_API"],
+    "governs": "SCALE operator analytics dashboard data from Cloudflare Analytics API for all 8 platform domains",
+    "path": "/contracts/vlp/vlp.scale.analytics.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — SCALE Analytics Dashboard",
+    "usedOnPages": ["/scale"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/scale/analytics",
+    "method": "GET",
+    "receiptKeyPattern": "receipts/vlp/scale/analytics/{eventId}.json",
+    "receiptSource": "scale_analytics",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "session.account_id",
+    "eventIdFrom": "session.account_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "period": "last_30_days",
+      "sites": [],
+      "fetched_at": "{timestamp}"
+    },
+    "error": {
+      "error": "CF_API_TOKEN not configured",
+      "ok": false
+    },
+    "success": {
+      "period": "last_30_days",
+      "sites": [
+        {
+          "domain": "virtuallaunch.pro",
+          "zone_id": "string",
+          "page_views": 0,
+          "unique_visitors": 0,
+          "bandwidth_bytes": 0,
+          "top_pages": [
+            {
+              "path": "/",
+              "views": 0
+            }
+          ]
+        }
+      ],
+      "fetched_at": "{timestamp}"
+    }
+  },
+  "schema": {
+    "name": "vlp_scale_analytics",
+    "version": 1
+  }
+}

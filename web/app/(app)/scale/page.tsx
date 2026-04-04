@@ -1,6 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Card from '@/components/ui/Card'
+import styles from './page.module.css'
+
+interface Pipeline {
+  total: number
+  eligible: number
+  exhausted: number
+  days_remaining: number
+}
 
 interface QueueRecord {
   email: string
@@ -12,168 +21,402 @@ interface QueueRecord {
   email_1_sent_at?: string
   email_2_sent_at?: string
   email_2_scheduled_for?: string
+  status?: string
 }
 
-interface SendState {
-  total_email1_sent?: number
-  total_email2_sent?: number
-  last_run?: string
-  ramp_day?: number
-  [key: string]: unknown
+interface BatchHistory {
+  date: string
+  record_count: number
+  email1_pushed: number
+  asset_pages_pushed: number
+}
+
+interface Responses {
+  bookings: {
+    created: number
+    cancelled: number
+    rescheduled: number
+    paid: number
+    no_show: number
+  }
+  purchases: {
+    count: number
+    total_revenue: number
+  }
 }
 
 interface DashboardData {
   email1_queue: QueueRecord[]
   email2_queue: QueueRecord[]
-  send_state: SendState
+  pipeline: Pipeline
+  batch_history: BatchHistory[] | null
+  responses: Responses
+  fetched_at: string
+}
+
+interface DomainAnalytics {
+  domain: string
+  page_views?: number
+  unique_visitors?: number
+  bandwidth?: number
+  error?: string
+}
+
+interface AnalyticsData {
+  domains: DomainAnalytics[]
   fetched_at: string
 }
 
 export default function ScaleDashboard() {
   const [data, setData] = useState<DashboardData | null>(null)
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [analyticsLoading, setAnalyticsLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const fetchDashboard = async () => {
+    try {
+      const response = await fetch('https://api.virtuallaunch.pro/v1/scale/dashboard', {
+        credentials: 'include'
+      })
+      if (response.status === 403) throw new Error('Not authorized')
+      if (!response.ok) throw new Error('Failed to load dashboard data')
+      const result = await response.json()
+      setData(result)
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load dashboard data')
+    }
+  }
+
+  const fetchAnalytics = async () => {
+    try {
+      const response = await fetch('https://api.virtuallaunch.pro/v1/scale/analytics', {
+        credentials: 'include'
+      })
+      if (!response.ok) throw new Error('Failed to load analytics data')
+      const result = await response.json()
+      setAnalytics(result)
+      setAnalyticsError(null)
+    } catch (e) {
+      setAnalyticsError(e instanceof Error ? e.message : 'Failed to load analytics data')
+    }
+  }
 
   useEffect(() => {
-    fetch('https://api.virtuallaunch.pro/v1/scale/dashboard', { credentials: 'include' })
-      .then(r => {
-        if (r.status === 403) throw new Error('Not authorized')
-        if (!r.ok) throw new Error('Failed to load')
-        return r.json()
-      })
-      .then(setData)
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
+    const loadData = async () => {
+      await Promise.allSettled([
+        fetchDashboard().finally(() => setLoading(false)),
+        fetchAnalytics().finally(() => setAnalyticsLoading(false))
+      ])
+    }
+    loadData()
   }, [])
 
-  if (loading) return <div className="p-8 text-slate-400">Loading pipeline data...</div>
-  if (error) return <div className="p-8 text-red-400">{error}</div>
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await Promise.allSettled([fetchDashboard(), fetchAnalytics()])
+    setRefreshing(false)
+  }
+
+  const formatCurrency = (amount: number): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD'
+    }).format(amount)
+  }
+
+  const formatBytes = (bytes: number): string => {
+    if (bytes === 0) return '0 B'
+    const k = 1024
+    const sizes = ['B', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  }
+
+  const getPipelineAccentClass = (value: number, thresholds: { red: number; yellow: number }): string => {
+    if (value < thresholds.red) return styles.statusRed
+    if (value < thresholds.yellow) return styles.statusYellow
+    return styles.statusGreen
+  }
+
+  const getDaysRemainingAccentClass = (days: number): string => {
+    if (days < 7) return styles.statusRed
+    if (days <= 14) return styles.statusYellow
+    return styles.statusGreen
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className={styles.loadingSkeleton}>
+          <div className={styles.skeletonTitle}></div>
+          <div className={styles.skeletonSubtitle}></div>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className={styles.skeletonCard}></div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error && !data) {
+    return (
+      <div className={styles.errorContainer}>
+        <div className={styles.errorTitle}>Error loading dashboard</div>
+        <div className={styles.errorMessage}>{error}</div>
+        <button onClick={() => window.location.reload()} className={styles.retryButton}>
+          Retry
+        </button>
+      </div>
+    )
+  }
+
   if (!data) return null
 
-  const e1 = data.email1_queue || []
-  const e2 = data.email2_queue || []
-  const st = data.send_state || {}
-
-  const e1Sent = e1.filter(r => r.email_1_sent_at).length
-  const e1Pending = e1.length - e1Sent
-  const e2Sent = e2.filter(r => r.email_2_sent_at).length
-  const e2Scheduled = e2.filter(r => r.email_2_scheduled_for && !r.email_2_sent_at).length
-  const e2Pending = e2.length - e2Sent - e2Scheduled
-
-  const today = new Date().toISOString().split('T')[0]
-  const sentToday = e1.filter(r => r.email_1_sent_at && r.email_1_sent_at.startsWith(today)).length
-  const e2SentToday = e2.filter(r => r.email_2_sent_at && r.email_2_sent_at.startsWith(today)).length
-
-  // Merge queues by slug for the table
-  const bySlug: Record<string, { e1: QueueRecord | null; e2: QueueRecord | null }> = {}
-  e1.forEach(r => { bySlug[r.slug] = { e1: r, e2: null } })
-  e2.forEach(r => {
-    if (bySlug[r.slug]) bySlug[r.slug].e2 = r
-    else bySlug[r.slug] = { e1: null, e2: r }
-  })
-  const rows = Object.entries(bySlug).sort((a, b) => a[0].localeCompare(b[0]))
-
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-8">
+    <div className="space-y-8">
+      {/* Section 1: Page Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">SCALE Pipeline</h1>
-        <span className="text-xs text-slate-500">
-          Fetched {new Date(data.fetched_at).toLocaleTimeString()}
-        </span>
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card label="Total Prospects" value={String(e1.length)} />
-        <Card label="Email 1 Sent" value={`${e1Sent} / ${e1.length}`} accent={e1Sent > 0} />
-        <Card label="Email 2 Sent" value={`${e2Sent} / ${e2.length}`} accent={e2Sent > 0} />
-        <Card label="Email 2 Scheduled" value={String(e2Scheduled)} />
-      </div>
-
-      {/* Today */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card label="Email 1 Sent Today" value={String(sentToday)} />
-        <Card label="Email 2 Sent Today" value={String(e2SentToday)} />
-        <Card label="Email 1 Pending" value={String(e1Pending)} />
-        <Card label="Email 2 Pending" value={String(e2Pending)} />
-      </div>
-
-      {/* Send state */}
-      {Object.keys(st).length > 0 && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-          <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-3">Send State</div>
-          <pre className="text-sm text-slate-300 overflow-x-auto whitespace-pre-wrap">
-            {JSON.stringify(st, null, 2)}
-          </pre>
+        <div>
+          <h1 className="text-2xl font-semibold text-white">SCALE Command Center</h1>
+          <p className="mt-1 text-sm text-slate-400">
+            Last fetched {new Date(data.fetched_at).toLocaleString()}
+          </p>
         </div>
-      )}
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          className={styles.refreshButton}
+        >
+          {refreshing ? (
+            <svg className={styles.spinner} viewBox="0 0 24 24">
+              <circle className={styles.spinnerCircle} cx="12" cy="12" r="10" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          )}
+          Refresh
+        </button>
+      </div>
 
-      {/* Prospect table */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden">
-        <div className="p-4 border-b border-slate-800">
-          <div className="text-xs font-semibold uppercase tracking-widest text-slate-500">All Prospects ({rows.length})</div>
+      {/* Section 2: Pipeline Overview */}
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Total Prospects
+          </div>
+          <div className="mt-2 text-3xl font-bold text-white">
+            {data.pipeline.total.toLocaleString()}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Eligible
+          </div>
+          <div className={`mt-2 text-3xl font-bold ${getPipelineAccentClass(data.pipeline.eligible, { red: 50, yellow: 100 })}`}>
+            {data.pipeline.eligible.toLocaleString()}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Exhausted
+          </div>
+          <div className="mt-2 text-3xl font-bold text-white">
+            {data.pipeline.exhausted.toLocaleString()}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Days Remaining
+          </div>
+          <div className={`mt-2 text-3xl font-bold ${getDaysRemainingAccentClass(data.pipeline.days_remaining)}`}>
+            {data.pipeline.days_remaining}
+          </div>
+        </Card>
+      </div>
+
+      {/* Section 3: Send Queue Status */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Email 1 Queue
+          </div>
+          <div className="mt-2 text-3xl font-bold text-white">
+            {data.email1_queue.length.toLocaleString()}
+          </div>
+          <div className="mt-4 space-y-2">
+            {data.email1_queue.slice(0, 10).map((record, i) => (
+              <div key={i} className={styles.queueRecord}>
+                <span className="text-slate-200">{record.name}</span>
+                <span className="text-xs text-slate-500">{record.email}</span>
+                <span className={record.email_1_sent_at ? styles.statusSent : styles.statusPending}>
+                  {record.email_1_sent_at ? 'Sent' : 'Pending'}
+                </span>
+              </div>
+            ))}
+            {data.email1_queue.length > 10 && (
+              <div className="text-xs text-slate-500">+{data.email1_queue.length - 10} more</div>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Email 2 Queue
+          </div>
+          <div className="mt-2 text-3xl font-bold text-white">
+            {data.email2_queue.length.toLocaleString()}
+          </div>
+          <div className="mt-4 space-y-2">
+            {data.email2_queue.slice(0, 10).map((record, i) => (
+              <div key={i} className={styles.queueRecord}>
+                <span className="text-slate-200">{record.name}</span>
+                <span className="text-xs text-slate-500">{record.email}</span>
+                <span className={record.email_2_sent_at ? styles.statusSent : record.email_2_scheduled_for ? styles.statusScheduled : styles.statusWaiting}>
+                  {record.email_2_sent_at ? 'Sent' : record.email_2_scheduled_for ? 'Scheduled' : 'Waiting'}
+                </span>
+              </div>
+            ))}
+            {data.email2_queue.length > 10 && (
+              <div className="text-xs text-slate-500">+{data.email2_queue.length - 10} more</div>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      {/* Section 4: Batch History */}
+      <Card>
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">
+          Batch History
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs uppercase tracking-wider text-slate-500 border-b border-slate-800">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Email</th>
-                <th className="px-4 py-3">Email 1</th>
-                <th className="px-4 py-3">Email 2</th>
-                <th className="px-4 py-3">Asset</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(([slug, { e1: r1, e2: r2 }]) => (
-                <tr key={slug} className="border-b border-slate-800/50 hover:bg-slate-800/30">
-                  <td className="px-4 py-3 text-slate-200 whitespace-nowrap">{r1?.name || r2?.name || slug}</td>
-                  <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{r1?.email || r2?.email || '—'}</td>
-                  <td className="px-4 py-3">
-                    {r1?.email_1_sent_at
-                      ? <span className="text-emerald-400 text-xs">Sent {shortDate(r1.email_1_sent_at)}</span>
-                      : <span className="text-amber-400 text-xs">Pending</span>
-                    }
-                  </td>
-                  <td className="px-4 py-3">
-                    {r2?.email_2_sent_at
-                      ? <span className="text-emerald-400 text-xs">Sent {shortDate(r2.email_2_sent_at)}</span>
-                      : r2?.email_2_scheduled_for
-                        ? <span className="text-blue-400 text-xs">Scheduled {r2.email_2_scheduled_for}</span>
-                        : <span className="text-slate-500 text-xs">Waiting</span>
-                    }
-                  </td>
-                  <td className="px-4 py-3">
-                    <a
-                      href={`https://transcript.taxmonitor.pro/asset/${slug}/`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-teal-400 hover:text-teal-300 text-xs underline"
-                    >
-                      View
-                    </a>
-                  </td>
+        {data.batch_history && data.batch_history.length > 0 ? (
+          <div className={styles.tableContainer}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Record Count</th>
+                  <th>Email 1 Pushed</th>
+                  <th>Asset Pages Pushed</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {[...data.batch_history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((batch, i) => (
+                  <tr key={i}>
+                    <td>{new Date(batch.date).toLocaleDateString()}</td>
+                    <td>{batch.record_count.toLocaleString()}</td>
+                    <td>{batch.email1_pushed.toLocaleString()}</td>
+                    <td>{batch.asset_pages_pushed.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="text-slate-500 text-center py-8">No batches generated yet</div>
+        )}
+      </Card>
+
+      {/* Section 5: Response Tracking */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Bookings
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-lg font-bold text-white">{data.responses.bookings.created}</div>
+              <div className="text-xs text-slate-500">Created</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold text-white">{data.responses.bookings.cancelled}</div>
+              <div className="text-xs text-slate-500">Cancelled</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold text-white">{data.responses.bookings.rescheduled}</div>
+              <div className="text-xs text-slate-500">Rescheduled</div>
+            </div>
+            <div>
+              <div className="text-lg font-bold text-white">{data.responses.bookings.no_show}</div>
+              <div className="text-xs text-slate-500">No Show</div>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t border-slate-800">
+            <div className="text-2xl font-bold text-emerald-400">{data.responses.bookings.paid}</div>
+            <div className="text-xs text-slate-400">Paid Conversions</div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            Purchases
+          </div>
+          {data.responses.purchases.count > 0 ? (
+            <div className="mt-4">
+              <div className="text-2xl font-bold text-emerald-400">
+                {formatCurrency(data.responses.purchases.total_revenue)}
+              </div>
+              <div className="text-xs text-slate-400 mt-1">
+                {data.responses.purchases.count} purchase{data.responses.purchases.count !== 1 ? 's' : ''}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-4">
+              <div className="text-lg font-bold text-slate-500">$0.00</div>
+              <div className="text-xs text-slate-500">No SCALE-attributed purchases yet</div>
+            </div>
+          )}
+        </Card>
       </div>
+
+      {/* Section 6: Site Analytics */}
+      <Card>
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">
+          Site Analytics
+        </div>
+        {analyticsLoading ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className={styles.skeletonAnalyticsCard}></div>
+            ))}
+          </div>
+        ) : analyticsError ? (
+          <div className="text-slate-500 text-center py-8">Analytics unavailable</div>
+        ) : analytics ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {analytics.domains.map((domain, i) => (
+              <div key={i} className={styles.analyticsCard}>
+                <div className="text-sm font-semibold text-white">{domain.domain}</div>
+                {domain.error ? (
+                  <div className="mt-2 text-xs text-red-400">Unavailable</div>
+                ) : (
+                  <div className="mt-2 space-y-1">
+                    <div className="text-xs text-slate-400">
+                      {(domain.page_views || 0).toLocaleString()} page views
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {(domain.unique_visitors || 0).toLocaleString()} unique visitors
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {formatBytes(domain.bandwidth || 0)} bandwidth
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </Card>
     </div>
   )
-}
-
-function Card({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="rounded-xl border border-slate-800 bg-slate-900/50 p-4">
-      <div className="text-xs text-slate-500 mb-1">{label}</div>
-      <div className={`text-2xl font-bold ${accent ? 'text-emerald-400' : 'text-white'}`}>{value}</div>
-    </div>
-  )
-}
-
-function shortDate(iso: string): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return `${d.getMonth() + 1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
 }

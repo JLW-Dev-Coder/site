@@ -1,0 +1,272 @@
+/* Status colors */
+.statusGreen {
+  color: rgb(52, 211, 153); /* emerald-400 */
+}
+
+.statusYellow {
+  color: rgb(251, 191, 36); /* amber-400 */
+}
+
+.statusRed {
+  color: rgb(248, 113, 113); /* red-400 */
+}
+
+/* Queue record styles */
+.queueRecord {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.queueRecord:last-child {
+  border-bottom: none;
+}
+
+/* Status indicators */
+.statusSent {
+  color: rgb(52, 211, 153); /* emerald-400 */
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.statusPending {
+  color: rgb(251, 191, 36); /* amber-400 */
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.statusScheduled {
+  color: rgb(96, 165, 250); /* blue-400 */
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.statusWaiting {
+  color: rgb(148, 163, 184); /* slate-400 */
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* Table styles */
+.tableContainer {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table thead tr {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(148, 163, 184, 1); /* slate-400 */
+}
+
+.table td {
+  padding: 0.75rem 1rem;
+  color: rgba(255, 255, 255, 0.92);
+  white-space: nowrap;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.table tbody tr:hover {
+  background-color: rgba(30, 41, 59, 0.3); /* slate-800/30 */
+}
+
+/* Analytics cards */
+.analyticsCard {
+  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 0.5rem;
+  background-color: rgba(15, 23, 42, 0.4); /* slate-900/40 */
+}
+
+/* Refresh button */
+.refreshButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(to right, rgb(249, 115, 22), rgb(245, 158, 11)); /* orange-500 to amber-500 */
+  color: rgb(15, 23, 42); /* slate-900 */
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refreshButton:hover {
+  background: linear-gradient(to right, rgb(251, 146, 60), rgb(251, 191, 36)); /* orange-400 to amber-400 */
+}
+
+.refreshButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Spinner animation */
+.spinner {
+  width: 1rem;
+  height: 1rem;
+  animation: spin 1s linear infinite;
+}
+
+.spinnerCircle {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-dasharray: 31.416;
+  stroke-dashoffset: 31.416;
+  animation: spinnerDash 1.5s ease-in-out infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinnerDash {
+  0% {
+    stroke-dasharray: 1, 200;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 89, 200;
+    stroke-dashoffset: -35px;
+  }
+  100% {
+    stroke-dasharray: 89, 200;
+    stroke-dashoffset: -124px;
+  }
+}
+
+/* Loading skeletons */
+.loadingSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.skeletonTitle {
+  width: 16rem;
+  height: 2rem;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1) 25%, rgba(148, 163, 184, 0.2) 50%, rgba(148, 163, 184, 0.1) 75%);
+  background-size: 200% 100%;
+  border-radius: 0.5rem;
+  animation: shimmer 2s infinite;
+}
+
+.skeletonSubtitle {
+  width: 12rem;
+  height: 1rem;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1) 25%, rgba(148, 163, 184, 0.2) 50%, rgba(148, 163, 184, 0.1) 75%);
+  background-size: 200% 100%;
+  border-radius: 0.25rem;
+  animation: shimmer 2s infinite;
+}
+
+.skeletonCard {
+  height: 6rem;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1) 25%, rgba(148, 163, 184, 0.2) 50%, rgba(148, 163, 184, 0.1) 75%);
+  background-size: 200% 100%;
+  border-radius: 0.75rem;
+  animation: shimmer 2s infinite;
+}
+
+.skeletonAnalyticsCard {
+  height: 4rem;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.1) 25%, rgba(148, 163, 184, 0.2) 50%, rgba(148, 163, 184, 0.1) 75%);
+  background-size: 200% 100%;
+  border-radius: 0.5rem;
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Error states */
+.errorContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+}
+
+.errorTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgb(248, 113, 113); /* red-400 */
+  margin-bottom: 0.5rem;
+}
+
+.errorMessage {
+  color: rgba(148, 163, 184, 1); /* slate-400 */
+  margin-bottom: 1.5rem;
+}
+
+.retryButton {
+  padding: 0.5rem 1rem;
+  background-color: rgba(59, 130, 246, 1); /* blue-500 */
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.retryButton:hover {
+  background-color: rgba(37, 99, 235, 1); /* blue-600 */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .table {
+    font-size: 0.75rem;
+  }
+
+  .table th,
+  .table td {
+    padding: 0.5rem;
+  }
+
+  .queueRecord {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .analyticsCard {
+    padding: 0.75rem;
+  }
+}

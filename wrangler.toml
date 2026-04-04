@@ -241,6 +241,7 @@ STRIPE_CONNECT_CLIENT_ID = "ca_UEvTMDrQCV82RNrJ4JIaEye4bimUM0RX"
 # Storage / Internal
 # =================================================
 
+# CF_API_TOKEN
 # R2_CANONICAL_WRITE_TOKEN
 
 # =================================================

@@ -1347,6 +1347,21 @@
       "version": 1,
       "writes": ["r2"],
       "addedDate": "2026-04-02"
+    },
+    {
+      "id": "scale.analytics.get.v1",
+      "path": "/contracts/vlp/vlp.scale.analytics.v1.json",
+      "endpoint": "/v1/scale/analytics",
+      "method": "GET",
+      "status": "active",
+      "category": "dashboard",
+      "authRequired": true,
+      "receiptSource": "scale_analytics",
+      "receiptKeyPattern": "receipts/vlp/scale/analytics/{eventId}.json",
+      "usedOnPages": ["/scale"],
+      "version": 1,
+      "writes": [],
+      "addedDate": "2026-04-03"
     }
   ]
 }

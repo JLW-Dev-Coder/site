@@ -462,7 +462,16 @@ Secrets are managed via `wrangler secret put` — never committed to the repo.
 - Membership tier enforcement on tool access
 - Affiliate program (6 routes, Stripe Connect Express)
 
-### Phase 4 — Token purchase flow wired to membership gating (next)
+### Phase 4 — SCALE Operator Dashboard Expansion — COMPLETE (2026-04-03)
+- Expanded GET /v1/scale/dashboard with additional R2 reads (batch history, prospects CSV, responses)
+- Added CSV parsing for pipeline statistics (total/eligible/exhausted prospects)
+- Enhanced Cal.com webhook with SCALE attribution tracking to vlp-scale/responses/{slug}/bookings/
+- Extended Stripe webhook with SCALE attribution tracking to vlp-scale/responses/{slug}/purchases/
+- Added GET /v1/scale/analytics route with Cloudflare Analytics API integration
+- Cloudflare zone resolution and analytics for all 8 platform domains
+- Requires CF_API_TOKEN secret for analytics functionality
+
+### Phase 5 — Token purchase flow wired to membership gating (next)
 
 ### Phase 5 — TMP + DVLP + GVLP (membership tiers)
 - Tax pro directory (TMP) — taxpayer intake + matching
