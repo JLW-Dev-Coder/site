@@ -1363,7 +1363,7 @@ const ROUTES = [
       url.searchParams.set('scope', 'openid email profile')
       url.searchParams.set('state', state)
 
-      return Response.redirect(url.toString(), 302)
+      return json({ authorizationUrl: url.toString() }, 200, request)
     },
   },
 

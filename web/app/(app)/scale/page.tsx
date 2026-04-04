@@ -207,43 +207,52 @@ export default function ScaleDashboard() {
       </div>
 
       {/* Section 2: Pipeline Overview */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {!data.pipeline ? (
         <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Total Prospects
-          </div>
-          <div className="mt-2 text-3xl font-bold text-white">
-            {data.pipeline.total.toLocaleString()}
+          <div className="text-center py-8">
+            <div className="text-slate-500 mb-2">Pipeline data unavailable</div>
+            <div className="text-xs text-slate-600">Prospect CSV file not found or could not be parsed</div>
           </div>
         </Card>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Card>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Total Prospects
+            </div>
+            <div className="mt-2 text-3xl font-bold text-white">
+              {(data.pipeline?.total ?? 0).toLocaleString()}
+            </div>
+          </Card>
 
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Eligible
-          </div>
-          <div className={`mt-2 text-3xl font-bold ${getPipelineAccentClass(data.pipeline.eligible, { red: 50, yellow: 100 })}`}>
-            {data.pipeline.eligible.toLocaleString()}
-          </div>
-        </Card>
+          <Card>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Eligible
+            </div>
+            <div className={`mt-2 text-3xl font-bold ${getPipelineAccentClass(data.pipeline?.eligible ?? 0, { red: 50, yellow: 100 })}`}>
+              {(data.pipeline?.eligible ?? 0).toLocaleString()}
+            </div>
+          </Card>
 
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Exhausted
-          </div>
-          <div className="mt-2 text-3xl font-bold text-white">
-            {data.pipeline.exhausted.toLocaleString()}
-          </div>
-        </Card>
+          <Card>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Exhausted
+            </div>
+            <div className="mt-2 text-3xl font-bold text-white">
+              {(data.pipeline?.exhausted ?? 0).toLocaleString()}
+            </div>
+          </Card>
 
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-            Days Remaining
-          </div>
-          <div className={`mt-2 text-3xl font-bold ${getDaysRemainingAccentClass(data.pipeline.days_remaining)}`}>
-            {data.pipeline.days_remaining}
-          </div>
-        </Card>
-      </div>
+          <Card>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Days Remaining
+            </div>
+            <div className={`mt-2 text-3xl font-bold ${getDaysRemainingAccentClass(data.pipeline?.days_remaining ?? 0)}`}>
+              {data.pipeline?.days_remaining ?? 0}
+            </div>
+          </Card>
+        </div>
+      )}
 
       {/* Section 3: Send Queue Status */}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -252,20 +261,26 @@ export default function ScaleDashboard() {
             Email 1 Queue
           </div>
           <div className="mt-2 text-3xl font-bold text-white">
-            {data.email1_queue.length.toLocaleString()}
+            {(data.email1_queue ?? []).length.toLocaleString()}
           </div>
           <div className="mt-4 space-y-2">
-            {data.email1_queue.slice(0, 10).map((record, i) => (
-              <div key={i} className={styles.queueRecord}>
-                <span className="text-slate-200">{record.name}</span>
-                <span className="text-xs text-slate-500">{record.email}</span>
-                <span className={record.email_1_sent_at ? styles.statusSent : styles.statusPending}>
-                  {record.email_1_sent_at ? 'Sent' : 'Pending'}
-                </span>
-              </div>
-            ))}
-            {data.email1_queue.length > 10 && (
-              <div className="text-xs text-slate-500">+{data.email1_queue.length - 10} more</div>
+            {(data.email1_queue ?? []).length === 0 ? (
+              <div className="text-slate-500 text-center py-4">No emails in queue</div>
+            ) : (
+              <>
+                {(data.email1_queue ?? []).slice(0, 10).map((record, i) => (
+                  <div key={i} className={styles.queueRecord}>
+                    <span className="text-slate-200">{record.name}</span>
+                    <span className="text-xs text-slate-500">{record.email}</span>
+                    <span className={record.email_1_sent_at ? styles.statusSent : styles.statusPending}>
+                      {record.email_1_sent_at ? 'Sent' : 'Pending'}
+                    </span>
+                  </div>
+                ))}
+                {(data.email1_queue ?? []).length > 10 && (
+                  <div className="text-xs text-slate-500">+{(data.email1_queue ?? []).length - 10} more</div>
+                )}
+              </>
             )}
           </div>
         </Card>
@@ -275,20 +290,26 @@ export default function ScaleDashboard() {
             Email 2 Queue
           </div>
           <div className="mt-2 text-3xl font-bold text-white">
-            {data.email2_queue.length.toLocaleString()}
+            {(data.email2_queue ?? []).length.toLocaleString()}
           </div>
           <div className="mt-4 space-y-2">
-            {data.email2_queue.slice(0, 10).map((record, i) => (
-              <div key={i} className={styles.queueRecord}>
-                <span className="text-slate-200">{record.name}</span>
-                <span className="text-xs text-slate-500">{record.email}</span>
-                <span className={record.email_2_sent_at ? styles.statusSent : record.email_2_scheduled_for ? styles.statusScheduled : styles.statusWaiting}>
-                  {record.email_2_sent_at ? 'Sent' : record.email_2_scheduled_for ? 'Scheduled' : 'Waiting'}
-                </span>
-              </div>
-            ))}
-            {data.email2_queue.length > 10 && (
-              <div className="text-xs text-slate-500">+{data.email2_queue.length - 10} more</div>
+            {(data.email2_queue ?? []).length === 0 ? (
+              <div className="text-slate-500 text-center py-4">No emails in queue</div>
+            ) : (
+              <>
+                {(data.email2_queue ?? []).slice(0, 10).map((record, i) => (
+                  <div key={i} className={styles.queueRecord}>
+                    <span className="text-slate-200">{record.name}</span>
+                    <span className="text-xs text-slate-500">{record.email}</span>
+                    <span className={record.email_2_sent_at ? styles.statusSent : record.email_2_scheduled_for ? styles.statusScheduled : styles.statusWaiting}>
+                      {record.email_2_sent_at ? 'Sent' : record.email_2_scheduled_for ? 'Scheduled' : 'Waiting'}
+                    </span>
+                  </div>
+                ))}
+                {(data.email2_queue ?? []).length > 10 && (
+                  <div className="text-xs text-slate-500">+{(data.email2_queue ?? []).length - 10} more</div>
+                )}
+              </>
             )}
           </div>
         </Card>
@@ -335,24 +356,24 @@ export default function ScaleDashboard() {
           </div>
           <div className="mt-4 grid grid-cols-2 gap-4">
             <div>
-              <div className="text-lg font-bold text-white">{data.responses.bookings.created}</div>
+              <div className="text-lg font-bold text-white">{data.responses?.bookings?.created ?? 0}</div>
               <div className="text-xs text-slate-500">Created</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-white">{data.responses.bookings.cancelled}</div>
+              <div className="text-lg font-bold text-white">{data.responses?.bookings?.cancelled ?? 0}</div>
               <div className="text-xs text-slate-500">Cancelled</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-white">{data.responses.bookings.rescheduled}</div>
+              <div className="text-lg font-bold text-white">{data.responses?.bookings?.rescheduled ?? 0}</div>
               <div className="text-xs text-slate-500">Rescheduled</div>
             </div>
             <div>
-              <div className="text-lg font-bold text-white">{data.responses.bookings.no_show}</div>
+              <div className="text-lg font-bold text-white">{data.responses?.bookings?.no_show ?? 0}</div>
               <div className="text-xs text-slate-500">No Show</div>
             </div>
           </div>
           <div className="mt-4 pt-4 border-t border-slate-800">
-            <div className="text-2xl font-bold text-emerald-400">{data.responses.bookings.paid}</div>
+            <div className="text-2xl font-bold text-emerald-400">{data.responses?.bookings?.paid ?? 0}</div>
             <div className="text-xs text-slate-400">Paid Conversions</div>
           </div>
         </Card>
@@ -361,13 +382,13 @@ export default function ScaleDashboard() {
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
             Purchases
           </div>
-          {data.responses.purchases.count > 0 ? (
+          {(data.responses?.purchases?.count ?? 0) > 0 ? (
             <div className="mt-4">
               <div className="text-2xl font-bold text-emerald-400">
-                {formatCurrency(data.responses.purchases.total_revenue)}
+                {formatCurrency(data.responses?.purchases?.total_revenue ?? 0)}
               </div>
               <div className="text-xs text-slate-400 mt-1">
-                {data.responses.purchases.count} purchase{data.responses.purchases.count !== 1 ? 's' : ''}
+                {data.responses?.purchases?.count ?? 0} purchase{(data.responses?.purchases?.count ?? 0) !== 1 ? 's' : ''}
               </div>
             </div>
           ) : (
