@@ -5,9 +5,9 @@
 **Worker API:** https://api.virtuallaunch.pro
 
 ## 8a — SCALE Command Center (must be logged in as admin)
-- [ ] Navigate to `https://virtuallaunch.pro/scale`
-- [ ] Page loads with "SCALE Command Center" title
-- [ ] Last fetched timestamp shows in subtitle
+- [X] Navigate to `https://virtuallaunch.pro/scale`
+- [X] Page loads with "SCALE Command Center" title
+- [X] Last fetched timestamp shows in subtitle
 - [ ] Pipeline Overview: 4 cards visible (Total Prospects, Eligible, Exhausted, Days Remaining)
 - [ ] Pipeline cards show real numbers from R2 data (or zeros if no data pushed yet)
 - [ ] Color coding works on Eligible card (green >100, yellow 50-100, red <50)

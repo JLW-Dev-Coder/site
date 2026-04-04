@@ -4731,7 +4731,7 @@ const ROUTES = [
                 zone_id: zoneId,
                 page_views: overview?.sum?.pageViews || 0,
                 unique_visitors: overview?.uniq?.uniques || 0,
-                bandwidth_bytes: overview?.sum?.bytes || 0,
+                bandwidth: overview?.sum?.bytes || 0,
                 top_pages: topPaths.map(path => ({
                   path: path.dimensions?.path || '/',
                   views: path.sum?.requests || 0
@@ -4762,7 +4762,7 @@ const ROUTES = [
 
       return json({
         period: 'last_30_days',
-        sites: sites,
+        domains: sites,
         fetched_at: nowIso
       }, 200, request)
     },
