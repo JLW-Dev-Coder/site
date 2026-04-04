@@ -178,8 +178,10 @@ export default function ScaleDashboard() {
 
   if (!data) return null
 
-  return (
-    <div className="space-y-8">
+  // Render with error boundary protection
+  try {
+    return (
+      <div className="space-y-8">
       {/* Section 1: Page Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -332,7 +334,7 @@ export default function ScaleDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {[...data.batch_history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((batch, i) => (
+                {[...(data.batch_history ?? [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((batch, i) => (
                   <tr key={i}>
                     <td>{new Date(batch.date).toLocaleDateString()}</td>
                     <td>{batch.record_count.toLocaleString()}</td>
@@ -413,31 +415,47 @@ export default function ScaleDashboard() {
           </div>
         ) : analyticsError ? (
           <div className="text-slate-500 text-center py-8">Analytics unavailable</div>
-        ) : analytics ? (
+        ) : analytics && Array.isArray(analytics.domains) ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {analytics.domains.map((domain, i) => (
+            {(analytics.domains ?? []).map((domain, i) => (
               <div key={i} className={styles.analyticsCard}>
-                <div className="text-sm font-semibold text-white">{domain.domain}</div>
-                {domain.error ? (
+                <div className="text-sm font-semibold text-white">{domain?.domain || 'Unknown'}</div>
+                {domain?.error ? (
                   <div className="mt-2 text-xs text-red-400">Unavailable</div>
                 ) : (
                   <div className="mt-2 space-y-1">
                     <div className="text-xs text-slate-400">
-                      {(domain.page_views || 0).toLocaleString()} page views
+                      {(domain?.page_views || 0).toLocaleString()} page views
                     </div>
                     <div className="text-xs text-slate-400">
-                      {(domain.unique_visitors || 0).toLocaleString()} unique visitors
+                      {(domain?.unique_visitors || 0).toLocaleString()} unique visitors
                     </div>
                     <div className="text-xs text-slate-400">
-                      {formatBytes(domain.bandwidth || 0)} bandwidth
+                      {formatBytes(domain?.bandwidth || 0)} bandwidth
                     </div>
                   </div>
                 )}
               </div>
             ))}
           </div>
+        ) : analytics ? (
+          <div className="text-slate-500 text-center py-8">Analytics data format error</div>
         ) : null}
       </Card>
     </div>
-  )
+    )
+  } catch (renderError) {
+    console.error('SCALE dashboard render error:', renderError)
+    return (
+      <div className="space-y-8">
+        <div className={styles.errorContainer}>
+          <div className={styles.errorTitle}>Dashboard render error</div>
+          <div className={styles.errorMessage}>An unexpected error occurred while rendering the dashboard</div>
+          <button onClick={() => window.location.reload()} className={styles.retryButton}>
+            Reload Page
+          </button>
+        </div>
+      </div>
+    )
+  }
 }
