@@ -4,6 +4,16 @@ import { useEffect, useState } from 'react'
 import Card from '@/components/ui/Card'
 import styles from './page.module.css'
 
+// Tooltip component for metric card explanations
+function Tooltip({ text }: { text: string }) {
+  return (
+    <span className={styles.tooltip}>
+      <span className={styles.tooltipIcon}>?</span>
+      <span className={styles.tooltipText}>{text}</span>
+    </span>
+  );
+}
+
 interface Pipeline {
   total: number
   eligible: number
@@ -219,8 +229,9 @@ export default function ScaleDashboard() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
               Total Prospects
+              <Tooltip text="Total rows in the master prospect CSV, including those with and without valid email addresses." />
             </div>
             <div className="mt-2 text-3xl font-bold text-white">
               {(data.pipeline?.total ?? 0).toLocaleString()}
@@ -228,8 +239,9 @@ export default function ScaleDashboard() {
           </Card>
 
           <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
               Eligible
+              <Tooltip text="Prospects with a valid email address who haven't had Email 1 prepared yet. These are available for the next batch." />
             </div>
             <div className={`mt-2 text-3xl font-bold ${getPipelineAccentClass(data.pipeline?.eligible ?? 0, { red: 50, yellow: 100 })}`}>
               {(data.pipeline?.eligible ?? 0).toLocaleString()}
@@ -237,8 +249,9 @@ export default function ScaleDashboard() {
           </Card>
 
           <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Exhausted
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
+              Email 1 Prepared
+              <Tooltip text="Prospects who have had Email 1 copy generated and queued for delivery. This count reflects batch generation, not confirmed sends." />
             </div>
             <div className="mt-2 text-3xl font-bold text-white">
               {(data.pipeline?.exhausted ?? 0).toLocaleString()}
@@ -246,8 +259,9 @@ export default function ScaleDashboard() {
           </Card>
 
           <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
               Days Remaining
+              <Tooltip text="Estimated days until eligible prospects run out, based on generating 50 prospects per batch." />
             </div>
             <div className={`mt-2 text-3xl font-bold ${getDaysRemainingAccentClass(data.pipeline?.days_remaining ?? 0)}`}>
               {data.pipeline?.days_remaining ?? 0}
@@ -259,8 +273,9 @@ export default function ScaleDashboard() {
       {/* Section 3: Send Queue Status */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
             Email 1 Queue
+            <Tooltip text="Total Email 1 messages pushed to the R2 send queue across all batches. Includes pending, sent, and failed." />
           </div>
           <div className="mt-2 text-3xl font-bold text-white">
             {(data.email1_queue ?? []).length.toLocaleString()}
@@ -288,8 +303,9 @@ export default function ScaleDashboard() {
         </Card>
 
         <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
             Email 2 Queue
+            <Tooltip text="Prospects scheduled for Email 2 follow-up, typically 2-3 days after Email 1 was sent." />
           </div>
           <div className="mt-2 text-3xl font-bold text-white">
             {(data.email2_queue ?? []).length.toLocaleString()}
@@ -319,8 +335,9 @@ export default function ScaleDashboard() {
 
       {/* Section 4: Batch History */}
       <Card>
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4 flex items-center gap-1">
           Batch History
+          <Tooltip text="Log of all batch generation runs with record counts and R2 push status." />
         </div>
         {data.batch_history && data.batch_history.length > 0 ? (
           <div className={styles.tableContainer}>
@@ -353,8 +370,9 @@ export default function ScaleDashboard() {
       {/* Section 5: Response Tracking */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
             Bookings
+            <Tooltip text="Cal.com discovery call bookings attributed to SCALE prospects via the slug parameter in booking URLs." />
           </div>
           <div className="mt-4 grid grid-cols-2 gap-4">
             <div>
@@ -381,8 +399,9 @@ export default function ScaleDashboard() {
         </Card>
 
         <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
             Purchases
+            <Tooltip text="Stripe token purchases attributed to SCALE prospects by matching the buyer's email to the prospect index." />
           </div>
           {(data.responses?.purchases?.count ?? 0) > 0 ? (
             <div className="mt-4">
@@ -404,8 +423,9 @@ export default function ScaleDashboard() {
 
       {/* Section 6: Site Analytics */}
       <Card>
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4 flex items-center gap-1">
           Site Analytics
+          <Tooltip text="Page views, unique visitors, and bandwidth for all 8 VLP ecosystem domains from the Cloudflare Analytics API." />
         </div>
         {analyticsLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
