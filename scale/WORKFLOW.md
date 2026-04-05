@@ -69,6 +69,14 @@ Notes:
 
 - [Phase 0 — Source Data from BigQuery](#phase-0--source-data-from-bigquery-one-time-setup)
 - [Phase 1 — Source Prospects via Clay](#phase-1--source-prospects-via-clay)
+  - [Task 1.1 — Select next 50 rows](#task-11--select-next-50-rows-from-foia-sheet)
+  - [Task 1.2 — Export batch to CSV](#task-12--export-batch-to-csv)
+  - [Task 1.3 — Enrich VLP batch in Clay](#task-13--enrich-vlp-batch-in-clay)
+  - [Task 1.4 — Return VLP emails and export](#task-14--return-vlp-emails-to-google-sheet-and-export)
+  - [Task 1.5 — Select next 50 for TTMP](#task-15--select-next-50-rows-for-ttmp-batch)
+  - [Task 1.6 — Export TTMP batch to CSV](#task-16--export-ttmp-batch-to-csv)
+  - [Task 1.7 — Enrich TTMP batch in Clay](#task-17--enrich-ttmp-batch-in-clay)
+  - [Task 1.8 — Return TTMP emails and export](#task-18--return-ttmp-emails-to-google-sheet-and-export)
 - [Phase 2 — Generate Batch](#phase-2--generate-batch)
 - [Phase 3 — Push Asset Pages to R2](#phase-3--push-asset-pages-to-r2)
 - [Phase 4 — Import to Hunter.io and Send](#phase-4--import-to-hunterio-and-send)
@@ -201,11 +209,11 @@ Produce a clean CSV of 30-50 tax professional prospects with verified email addr
 
 ---
 
-### Task 1.3 — Enrich in Clay
+### Task 1.3 — Enrich VLP batch in Clay
 
-**Purpose:** Find verified work email addresses for each prospect using Clay's free-tier Work Email enrichment.
+**Purpose:** Find verified work email addresses for VLP campaign prospects.
 
-**Action:** Create a Clay workbook, import the CSV, run Work Email enrichment.
+**Action:** Create a Clay workbook for VLP, import the CSV, run Work Email enrichment.
 
 **Inputs required:**
 - Access: Clay.com (logged in)
@@ -213,7 +221,7 @@ Produce a clean CSV of 30-50 tax professional prospects with verified email addr
 
 **Steps:**
 1. Go to https://app.clay.com → **+ New workbook**
-2. Name: `VLP FOIA YYYY_MMDD_###` (### = running total)
+2. Name: `VLP FOIA YYYY_MMDD_###` (### = running total of VLP prospects)
 3. Upload the CSV
 4. Run **Tools → Enrichment → Work Email** with mapping:
    - Full Name → `FULL_NAME`
@@ -222,78 +230,144 @@ Produce a clean CSV of 30-50 tax professional prospects with verified email addr
 6. Delete the CSV from Downloads folder (Clay has its copy)
 
 **Validation:**
-- [ ] Work Email column populated for 30+ rows (expect ~60% hit rate)
-- [ ] Workbook name follows naming convention
+- [ ] Work Email column populated for 30+ rows
+- [ ] Workbook name starts with `VLP FOIA`
 
-**Outputs:** Clay workbook with enriched emails.
+**Outputs:** Clay workbook with enriched VLP prospect emails.
 
 **Next:** Task 1.4
 
 ---
 
-### Task 1.4 — Return enriched emails to Google Sheet
+### Task 1.4 — Return VLP emails to Google Sheet and export
 
-**Purpose:** Merge Clay's email results back into the FOIA sheet so they can be validated and exported.
-
-**Action:** Paste Clay's Work Email values into the `email_found` column, aligned by name+domain key.
-
-**Inputs required:**
-- Access: Google Sheets + Clay workbook open side by side
-- Preconditions: Sheet is unfiltered and in original row order
+**Purpose:** Merge Clay's VLP email results back into the sheet, validate, and export for the VLP batch generator.
 
 **Steps:**
-1. Verify Sheet is unfiltered, original row order
-2. Verify Clay workbook matches same row order
-3. Match each email to its row using `FULL_NAME` + `domain_clean` as join key
-4. Paste emails into `email_found` column
-5. Paste Clay workbook ID into `clay_workbook_ref` column for all 50 rows
+1. Return to Google Sheet — verify unfiltered, original row order
+2. Match each email to its row using `FULL_NAME` + `domain_clean` as join key
+3. Paste emails into `email_found` column for VLP batch rows
+4. Paste Clay workbook ID into `clay_workbook_ref` for all 50 rows
+5. Run **Lead Tools → Prepare → Mark email_status**
+6. Run **Lead Tools → Prepare → Validate email ↔ domain match**
+7. Review red rows (domain mismatch) — fix or remove
+8. Review orange rows (personal email) — decide keep or remove
+9. Filter to: `clay_workbook_ref` = this VLP workbook + `email_status` = valid + no red highlights
+10. Check: does `C:\Users\eimaj\virtuallaunch.pro\scale\prospects\new-prospects.csv` already exist with data rows?
+    - If YES: previous batch not processed. Run VLP batch generator first (Phase 2), then come back.
+    - If NO: proceed.
+11. Download filtered rows as CSV
+12. Save to `C:\Users\eimaj\virtuallaunch.pro\scale\prospects\new-prospects.csv`
+13. Delete CSV from Downloads folder immediately
 
 **Validation:**
-- [ ] Every pasted email aligns with the correct name and domain
-- [ ] `clay_workbook_ref` filled for all 50 rows
-- [ ] No off-by-one alignment errors
+- [ ] CSV saved at VLP prospects path with 30+ valid rows
+- [ ] No "undefined" or empty email values
+- [ ] No CSV remains in Downloads folder
+- [ ] `clay_workbook_ref` filled for all 50 rows with VLP workbook ID
 
-**Failure mode if skipped or done wrong:** Emails mapped to wrong prospects = wrong people receive outreach. Highest-risk step in the workflow.
+**Outputs:** `virtuallaunch.pro/scale/prospects/new-prospects.csv` — ready for VLP batch generator.
+
+**Failure mode if skipped:** Bad emails → high bounce rate → sender reputation destroyed.
 
 **Next:** Task 1.5
 
 ---
 
-### Task 1.5 — Validate and export for both campaigns
+### Task 1.5 — Select next 50 rows for TTMP batch
 
-**Purpose:** Ensure email quality and produce clean CSVs for both the VLP and TTMP batch generators. One Clay enrichment cycle feeds both campaigns — no duplicate Clay work.
+**Purpose:** Start a separate Clay enrichment cycle for TTMP campaign prospects. These are different prospects from the VLP batch.
 
-**Action:** Run validation, review flagged rows, then export TWO CSVs — one for each campaign.
+**Action:** Select the next 50 eligible rows from the FOIA sheet for TTMP.
 
 **Steps:**
-1. Run **Lead Tools → Prepare → Mark email_status**
-2. Run **Lead Tools → Prepare → Validate email ↔ domain match**
-3. Review red rows (domain mismatch) — fix or remove
-4. Review orange rows (personal email) — decide keep or remove
-5. Filter to: `clay_workbook_ref` populated + `email_status` = valid + no red highlights
-6. **Split the filtered rows into two groups:**
-   - Group A (VLP campaign): prospects you want to pitch VLP membership ($79-$399 directory listing + tools)
-   - Group B (TTMP campaign): prospects you want to pitch TTMP transcript automation ($19-$129 token packs)
-   - Split criteria: your judgment, or alternate evenly, or segment by credential (e.g., EAs to TTMP since they do more transcript work, CPAs to VLP since they want client leads)
-   - A prospect goes in ONE group, never both
-7. **Export Group A** as CSV → save to `C:\Users\eimaj\virtuallaunch.pro\scale\prospects\new-prospects.csv`
-8. **Export Group B** as CSV → save to `C:\Users\eimaj\transcript.taxmonitor.pro\scale\prospects\new-prospects.csv`
-9. Delete both CSVs from Downloads folder
+1. Confirm the 50 VLP rows from Task 1.1 are no longer eligible (they have `clay_workbook_ref` filled)
+2. Run **Lead Tools → Clay Batch → Select next 50 rows**
+3. 50 NEW rows highlight yellow — these are different prospects from the VLP batch
 
 **Validation:**
-- [ ] Group A CSV saved at VLP prospects path
-- [ ] Group B CSV saved at TTMP prospects path
-- [ ] No prospect appears in both files
-- [ ] No "undefined" or empty email values in either file
-- [ ] Combined row count matches total validated rows
+- [ ] 50 new rows highlighted (not the same rows as VLP)
+- [ ] All highlighted rows have `domain_clean` populated
+- [ ] No highlighted rows have `clay_workbook_ref` already filled
 
-**Outputs:**
-- `virtuallaunch.pro/scale/prospects/new-prospects.csv` — ready for VLP batch generator
-- `transcript.taxmonitor.pro/scale/prospects/new-prospects.csv` — ready for TTMP merge script
+**Next:** Task 1.6
 
-**Failure mode if skipped:** Same prospect gets both a VLP and TTMP email = unprofessional, confusing, damages trust.
+---
 
-**Next:** Phase 2 (VLP batch) and/or TTMP batch generation (see TTMP Quick Reference below)
+### Task 1.6 — Export TTMP batch to CSV
+
+**Purpose:** Create the input file for TTMP Clay enrichment.
+
+**Steps:**
+1. Select only the 50 highlighted rows
+2. Download as CSV
+3. Save to Downloads folder
+
+**Validation:**
+- [ ] CSV has exactly 50 rows plus header
+- [ ] These are DIFFERENT prospects from the VLP batch
+
+**Next:** Task 1.7
+
+---
+
+### Task 1.7 — Enrich TTMP batch in Clay
+
+**Purpose:** Find verified work email addresses for TTMP campaign prospects in a separate Clay workbook.
+
+**Steps:**
+1. Go to https://app.clay.com → **+ New workbook**
+2. Name: `TTMP FOIA YYYY_MMDD_###` (### = running total of TTMP prospects)
+3. Upload the CSV from Task 1.6
+4. Run **Tools → Enrichment → Work Email** with same mapping:
+   - Full Name → `FULL_NAME`
+   - Company Domain → `domain_clean`
+5. Wait for enrichment to complete
+6. Delete the CSV from Downloads folder
+
+**Validation:**
+- [ ] Work Email column populated for 30+ rows
+- [ ] Workbook name starts with `TTMP FOIA`
+
+**Outputs:** Clay workbook with enriched TTMP prospect emails.
+
+**Next:** Task 1.8
+
+---
+
+### Task 1.8 — Return TTMP emails to Google Sheet and export
+
+**Purpose:** Merge Clay's TTMP email results back, validate, and export for the TTMP merge script.
+
+**Steps:**
+1. Return to Google Sheet — verify unfiltered, original row order
+2. Match each email to its row using `FULL_NAME` + `domain_clean` as join key
+3. Paste emails into `email_found` column for TTMP batch rows
+4. Paste TTMP Clay workbook ID into `clay_workbook_ref` for all 50 rows
+5. Run **Lead Tools → Prepare → Mark email_status**
+6. Run **Lead Tools → Prepare → Validate email ↔ domain match**
+7. Review red rows — fix or remove
+8. Review orange rows — decide keep or remove
+9. Filter to: `clay_workbook_ref` = this TTMP workbook + `email_status` = valid + no red highlights
+10. Check: does `C:\Users\eimaj\transcript.taxmonitor.pro\scale\prospects\new-prospects.csv` already exist with data rows?
+    - If YES: previous batch not processed. Run TTMP merge script first, then come back.
+    - If NO: proceed.
+11. Download filtered rows as CSV
+12. Save to `C:\Users\eimaj\transcript.taxmonitor.pro\scale\prospects\new-prospects.csv`
+13. Delete CSV from Downloads folder immediately
+
+**Validation:**
+- [ ] CSV saved at TTMP prospects path with 30+ valid rows
+- [ ] No "undefined" or empty email values
+- [ ] No CSV remains in Downloads folder
+- [ ] No prospect in this CSV also appears in the VLP CSV from Task 1.4
+- [ ] `clay_workbook_ref` filled for all 50 rows with TTMP workbook ID
+
+**Outputs:** `transcript.taxmonitor.pro/scale/prospects/new-prospects.csv` — ready for TTMP merge script.
+
+**Failure mode if skipped:** Same prospect gets VLP and TTMP emails = two cold emails to the same person from the same sender.
+
+**Next:** Phase 2 (VLP batch generation)
 
 ---
 
