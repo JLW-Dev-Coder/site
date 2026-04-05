@@ -16,6 +16,72 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 
+// --- Name normalization helpers ---
+
+const UPPERCASE_WORDS = new Set([
+  'CPA', 'LLC', 'LLP', 'PC', 'PA', 'PS', 'PLC', 'PLLC', 'INC', 'DBA', 'EA', 'JD', 'II', 'III', 'IV'
+]);
+
+function titleCase(str) {
+  if (!str) return '';
+  return str.trim().toLowerCase().replace(/\b\w+/g, word => {
+    const upper = word.toUpperCase();
+    // Preserve known business/credential abbreviations
+    if (UPPERCASE_WORDS.has(upper)) return upper;
+    // Handle P.C., L.L.C. etc — strip dots and check
+    const stripped = upper.replace(/\./g, '');
+    if (UPPERCASE_WORDS.has(stripped)) return word.toUpperCase();
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  });
+}
+
+const CITY_ABBREVS = {
+  'VLY': 'Valley', 'MT': 'Mount', 'FT': 'Fort', 'ST': 'Saint',
+  'PT': 'Point', 'CTR': 'Center', 'HTS': 'Heights', 'SPG': 'Spring',
+  'SPGS': 'Springs', 'JCT': 'Junction', 'PKY': 'Parkway', 'BLF': 'Bluff',
+  'CRK': 'Creek', 'HBR': 'Harbor', 'MDW': 'Meadow', 'MDWS': 'Meadows',
+  'PLN': 'Plain', 'PLNS': 'Plains', 'VLG': 'Village', 'BCH': 'Beach',
+  'BRG': 'Bridge', 'EST': 'Estate', 'FLS': 'Falls', 'FRK': 'Fork',
+  'GRV': 'Grove', 'HVN': 'Haven', 'ISL': 'Island', 'LK': 'Lake',
+  'LKS': 'Lakes', 'LDG': 'Lodge', 'MNR': 'Manor', 'ML': 'Mill',
+  'MLS': 'Mills', 'PKS': 'Parks', 'RDG': 'Ridge', 'SHR': 'Shore',
+  'SHRS': 'Shores', 'STA': 'Station', 'VW': 'View', 'VIS': 'Vista'
+};
+
+function normalizeCity(city) {
+  if (!city) return '';
+  return city.trim().split(/\s+/).map(word => {
+    const upper = word.toUpperCase();
+    if (CITY_ABBREVS[upper]) return CITY_ABBREVS[upper];
+    return titleCase(word);
+  }).join(' ');
+}
+
+function normalizeState(state) {
+  if (!state) return '';
+  return state.trim().toUpperCase();
+}
+
+function normalizeFirstName(name) {
+  if (!name) return '';
+  return titleCase(name.split(/\s+/)[0]);
+}
+
+function normalizeFullName(first, last) {
+  return `${normalizeFirstName(first)} ${titleCase(last)}`.trim();
+}
+
+function normalizeCredentialLabel(profession) {
+  const map = {
+    'EA': 'Enrolled Agent',
+    'CPA': 'Certified Public Accountant',
+    'ATTY': 'Tax Attorney',
+    'JD': 'Tax Attorney',
+    'ATTORNEY': 'Tax Attorney'
+  };
+  return map[profession?.trim()?.toUpperCase()] || 'Tax Professional';
+}
+
 // Credential mappings for tier values and labels
 const CREDENTIAL_CONFIG = {
   'EA': {
@@ -80,69 +146,98 @@ function generateSlug(firstName, lastName, city, state, existingSlugs = new Set(
 }
 
 function generateAssetPage(prospect, credentialConfig) {
-  const { First_NAME, BUS_ADDR_CITY, firm_bucket, DBA } = prospect;
+  const { First_NAME, BUS_ADDR_CITY, BUS_ST_CODE, firm_bucket, DBA, PROFESSION } = prospect;
 
-  // Headline personalization by firm_bucket
-  let headline;
-  if (firm_bucket === 'solo_brand' && DBA) {
-    headline = `${First_NAME}, here's what your ${DBA} practice is leaving on the table`;
-  } else {
-    headline = `${First_NAME}, here's what your ${BUS_ADDR_CITY} practice is leaving on the table`;
-  }
+  const firstName = normalizeFirstName(First_NAME);
+  const city = normalizeCity(BUS_ADDR_CITY);
+  const state = normalizeState(BUS_ST_CODE);
+  const credentialLabel = normalizeCredentialLabel(PROFESSION);
 
   return {
-    headline,
-    subheadline: `A practice analysis for ${credentialConfig.label} who want more qualified clients`,
-    client_gap_analysis: [
-      "No searchable directory listing — taxpayers can't find you",
-      "No online intake workflow — prospects drop off before engaging",
-      "No automated client matching — you wait for referrals instead of earning leads"
+    headline: `${firstName}, your ${city} practice could be reaching more clients`,
+    subheadline: `We analyzed your online visibility and found opportunities worth ${credentialConfig.annual_value} per year in new client revenue.`,
+    credential_label: credentialLabel,
+    revenue_range: credentialConfig.annual_value,
+    problem_cards: [
+      {
+        title: 'Directory visibility',
+        body: `Taxpayers search online for tax help in ${city}. Without a directory listing, they find your competitors instead.`
+      },
+      {
+        title: 'Client intake',
+        body: `When a prospect does find you, there's no online way to start working together. They call, get voicemail, and move on.`
+      },
+      {
+        title: 'Practice tools',
+        body: `Every transcript you read manually is 20 minutes you could spend on billable work. Automation changes that math.`
+      }
     ],
-    new_client_value: `${credentialConfig.annual_value}/yr from 5 additional clients`,
+    value_section: {
+      heading: `What this means for ${firstName}'s practice`,
+      revenue_range: credentialConfig.annual_value,
+      body: `Based on ${credentialLabel.toLowerCase()} billing rates, adding 5 clients through directory visibility could mean ${credentialConfig.annual_value} in annual revenue. That's before accounting for time saved on transcript automation.`
+    },
     tier_comparison: {
-      active: { price: "$79/mo", value: "Directory listing + 2 transcript tokens + 5 game tokens" },
-      featured: { price: "$199/mo", value: "Sponsored placement + 5 transcript tokens + 15 game tokens" },
-      premier: { price: "$399/mo", value: "Placement on 3 platforms + 10 transcript + 40 game tokens" }
+      active: {
+        price: "$79/mo",
+        pitch: "Get listed. Get found. Start receiving client inquiries.",
+        includes: "Directory listing, 2 transcript analyses/mo, 5 game tokens/mo"
+      },
+      featured: {
+        price: "$199/mo",
+        pitch: "Stand out. Sponsored placement puts you ahead of other listings.",
+        includes: "Everything in Active + sponsored placement, 5 transcript analyses/mo, 15 game tokens/mo"
+      },
+      premier: {
+        price: "$399/mo",
+        pitch: "Maximum visibility across three platforms. Priority everything.",
+        includes: "Everything in Featured + placement on TMP + TTMP + TTTMP, 10 transcript analyses/mo, 40 game tokens/mo"
+      }
     },
     ttmp_crosssell: {
-      pitch: "Not ready for a membership? Try transcript automation first.",
+      heading: "Just want to try the transcript tool?",
+      body: "No membership needed. Analyze 10 IRS transcripts for $19. See how much time it saves before you commit to anything.",
       url: "https://transcript.taxmonitor.pro/pricing",
-      price: "10 analyses for $19 — no commitment"
+      cta: "Try transcript automation"
     },
     cta_pricing_url: "https://virtuallaunch.pro/pricing",
-    cta_directory_url: "https://taxmonitor.pro/directory",
-    cta_booking_url: "https://cal.com/vlp/discovery"
+    cta_directory_url: "https://taxmonitor.pro/directory"
   };
 }
 
 function generateEmailSubject(prospect, credentialConfig) {
-  const { First_NAME, PROFESSION, DBA, BUS_ADDR_CITY, firm_bucket } = prospect;
+  const { First_NAME, DBA, BUS_ADDR_CITY, firm_bucket } = prospect;
+
+  const firstName = normalizeFirstName(First_NAME);
+  const city = normalizeCity(BUS_ADDR_CITY);
 
   if (firm_bucket === 'solo_brand' && DBA) {
-    return `${First_NAME} — ${PROFESSION}s running ${DBA} are invisible to taxpayers searching online`;
+    return `${firstName} — taxpayers can't find ${titleCase(DBA)} when they search online`;
   } else if (firm_bucket === 'local_firm') {
-    return `${First_NAME} — taxpayers in ${BUS_ADDR_CITY} are searching for help you're not showing up for`;
+    return `${firstName} — taxpayers in ${city} are searching for help you're not showing up for`;
   } else {
-    // national_firm or fallback
-    return `${First_NAME} — your next 5 clients are searching online right now`;
+    return `${firstName} — your next 5 clients are searching online right now`;
   }
 }
 
 function generateEmailBody(prospect, credentialConfig, slug) {
   const { First_NAME, BUS_ADDR_CITY, firm_bucket, DBA } = prospect;
 
+  const firstName = normalizeFirstName(First_NAME);
+  const city = normalizeCity(BUS_ADDR_CITY);
+
   let firmOrCityPractice;
   if (firm_bucket === 'solo_brand' && DBA) {
-    firmOrCityPractice = DBA;
+    firmOrCityPractice = titleCase(DBA);
   } else {
-    firmOrCityPractice = `your ${BUS_ADDR_CITY} practice`;
+    firmOrCityPractice = `your ${city} practice`;
   }
 
   const credentialLabel = credentialConfig.label.toLowerCase();
 
-  return `${First_NAME},
+  return `${firstName},
 
-Taxpayers in ${BUS_ADDR_CITY} search online for tax help every day. Most never find you because you're not in the places they're looking.
+Taxpayers in ${city} search online for tax help every day. Most never find you because you're not in the places they're looking.
 
 The Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — ${credentialLabel} with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.
 
@@ -163,11 +258,11 @@ virtuallaunch.pro`;
 }
 
 function generateEmail2(prospect, credentialConfig) {
-  const { First_NAME } = prospect;
+  const firstName = normalizeFirstName(prospect.First_NAME);
   const { annual_value } = credentialConfig;
 
   return {
-    subject: `Your practice analysis is ready, ${First_NAME} — ${annual_value} on the table`,
+    subject: `Your practice analysis is ready, ${firstName} — ${annual_value} on the table`,
     timing: "3 days after Email 1",
     note: "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
   };
@@ -182,7 +277,7 @@ function isValidEmail(email) {
          email.includes('@');
 }
 
-function isEligibleRecord(record) {
+function isEligibleRecord(record, force = false) {
   // Section 4: Selection Logic
 
   // 1. Filter: email_found not empty, not "undefined", not NaN
@@ -195,8 +290,8 @@ function isEligibleRecord(record) {
     return false;
   }
 
-  // 3. Filter: vlp_email_1_prepared_at is empty
-  if (record.vlp_email_1_prepared_at && record.vlp_email_1_prepared_at.trim() !== '') {
+  // 3. Filter: vlp_email_1_prepared_at is empty (skip in --force mode)
+  if (!force && record.vlp_email_1_prepared_at && record.vlp_email_1_prepared_at.trim() !== '') {
     return false;
   }
 
@@ -254,7 +349,8 @@ async function main() {
   const DEFAULT_MASTER = path.join(__dirname, 'prospects', 'vlp-master.csv');
   const LOCKFILE = path.join(__dirname, 'prospects', '.batch-in-progress');
 
-  const csvPath = args[0] || DEFAULT_MASTER;
+  const forceMode = args.includes('--force');
+  const csvPath = args.find(a => !a.startsWith('--')) || DEFAULT_MASTER;
 
   if (!fs.existsSync(csvPath)) {
     console.error(`Error: File ${csvPath} does not exist`);
@@ -305,9 +401,13 @@ async function main() {
 
   console.log(`Loaded ${records.length} records from CSV`);
 
+  if (forceMode) {
+    console.log('--force mode: ignoring vlp_email_1_prepared_at timestamps');
+  }
+
   // Filter eligible records (Section 4)
   const eligible = records.filter(record => {
-    if (!isEligibleRecord(record)) {
+    if (!isEligibleRecord(record, forceMode)) {
       return false;
     }
 
@@ -358,14 +458,20 @@ async function main() {
     const emailBody = generateEmailBody(prospect, credentialConfig, slug);
     const email2 = generateEmail2(prospect, credentialConfig);
 
+    const firstName = normalizeFirstName(prospect.First_NAME);
+    const lastName = titleCase(prospect.LAST_NAME);
+    const city = normalizeCity(prospect.BUS_ADDR_CITY);
+    const state = normalizeState(prospect.BUS_ST_CODE);
+
     const prospectData = {
       slug,
       email: prospect.email_found,
-      name: `${prospect.First_NAME} ${prospect.LAST_NAME}`,
+      name: `${firstName} ${lastName}`,
       credential,
-      city: prospect.BUS_ADDR_CITY,
-      state: prospect.BUS_ST_CODE,
-      firm: prospect.DBA || '',
+      credential_label: normalizeCredentialLabel(prospect.PROFESSION),
+      city,
+      state,
+      firm: prospect.DBA ? titleCase(prospect.DBA) : '',
       firm_bucket: prospect.firm_bucket,
       domain_clean: prospect.domain_clean || '',
       asset_page: assetPage,
@@ -381,9 +487,9 @@ async function main() {
     // Hunter.io CSV data
     hunterData.push({
       email: prospect.email_found,
-      first_name: prospect.First_NAME,
-      last_name: prospect.LAST_NAME,
-      company: prospect.DBA || `${prospect.First_NAME} ${prospect.LAST_NAME} Tax Services`,
+      first_name: firstName,
+      last_name: lastName,
+      company: prospect.DBA ? titleCase(prospect.DBA) : `${firstName} ${lastName} Tax Services`,
       subject: emailSubject,
       body: emailBody
     });

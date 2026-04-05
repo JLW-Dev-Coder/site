@@ -435,7 +435,7 @@ Make personalized asset pages live at `virtuallaunch.pro/asset/{slug}` so prospe
 
 **Steps:**
 ```bash
-node scale/push-vlp-asset-pages.js scale/batches/vlp-batch-{date}.json --exec
+node scale/push-vlp-asset-pages.js scale/batches/vlp-batch-{date}.json --exec --remote
 ```
 
 **Validation:**
