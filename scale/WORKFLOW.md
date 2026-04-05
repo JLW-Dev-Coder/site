@@ -24,11 +24,17 @@ The daily operational playbook for running VLP SCALE email campaigns and monitor
 - Authorize Hunter to send from your Gmail
 - Confirm green checkmark on connected account
 
-### 3. Domain warmup (first week)
-- Start at 10-15 emails/day
-- Increase to 20-30/day after 5 days with no bounces
-- Only send Monday through Friday, 9am-5pm
-- Watch for bounce rate — pause if above 5%
+### Domain warmup (first 4 weeks)
+Google Workspace allows 2,000 emails/day but cold email from a new sender needs gradual ramp-up.
+
+| Week | Daily limit in Hunter | Notes |
+|------|----------------------|-------|
+| 1 | 15 | Watch for bounces. If bounce rate > 5%, pause and clean list. |
+| 2 | 25 | Check open rates. If < 15%, test new subject lines. |
+| 3 | 40 | Monitor spam complaints. Any complaints = pause immediately. |
+| 4+ | 50-100 | Only increase if bounce < 3%, no spam complaints. |
+
+Never jump straight to high volume. Sender reputation takes weeks to build and seconds to destroy.
 
 ### Free plan limits
 - 1 connected email account
