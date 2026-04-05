@@ -71,6 +71,17 @@ function normalizeFullName(first, last) {
   return `${normalizeFirstName(first)} ${titleCase(last)}`.trim();
 }
 
+function normalizeFirm(dba, city) {
+  if (!dba || dba.trim() === '') return `${city} practice`;
+  const trimmed = dba.trim();
+  // Detect truncation: IRS FOIA fixed-width fields are 40 chars;
+  // if >=39 chars and doesn't end with a natural terminator, it's clipped
+  if (trimmed.length >= 39 && !trimmed.match(/[.\s,)']$/)) {
+    return `${city} practice`;
+  }
+  return titleCase(trimmed);
+}
+
 function normalizeCredentialLabel(profession) {
   const map = {
     'EA': 'Enrolled Agent',
@@ -217,9 +228,10 @@ function generateEmailSubject(prospect, credentialConfig) {
 
   const firstName = normalizeFirstName(First_NAME);
   const city = normalizeCity(BUS_ADDR_CITY);
+  const firm = normalizeFirm(DBA, city);
 
-  if (firm_bucket === 'solo_brand' && DBA) {
-    return `${firstName} — taxpayers can't find ${titleCase(DBA)} when they search online`;
+  if (firm_bucket === 'solo_brand' && DBA && firm !== `${city} practice`) {
+    return `${firstName} — taxpayers can't find ${firm} when they search online`;
   } else if (firm_bucket === 'local_firm') {
     return `${firstName} — taxpayers in ${city} are searching for help you're not showing up for`;
   } else {
@@ -233,9 +245,10 @@ function generateEmailBody(prospect, credentialConfig, slug) {
   const firstName = normalizeFirstName(First_NAME);
   const city = normalizeCity(BUS_ADDR_CITY);
 
+  const firm = normalizeFirm(DBA, city);
   let firmOrCityPractice;
-  if (firm_bucket === 'solo_brand' && DBA) {
-    firmOrCityPractice = titleCase(DBA);
+  if (firm_bucket === 'solo_brand' && DBA && firm !== `${city} practice`) {
+    firmOrCityPractice = firm;
   } else {
     firmOrCityPractice = `your ${city} practice`;
   }
@@ -478,7 +491,7 @@ async function main() {
       credential_label: normalizeCredentialLabel(prospect.PROFESSION),
       city,
       state,
-      firm: prospect.DBA ? titleCase(prospect.DBA) : '',
+      firm: normalizeFirm(prospect.DBA, city),
       firm_bucket: prospect.firm_bucket,
       domain_clean: prospect.domain_clean || '',
       asset_page: assetPage,
@@ -496,7 +509,7 @@ async function main() {
       email: prospect.email_found,
       first_name: firstName,
       last_name: lastName,
-      company: prospect.DBA ? titleCase(prospect.DBA) : `${firstName} ${lastName} Tax Services`,
+      company: (prospect.DBA && normalizeFirm(prospect.DBA, city) !== `${city} practice`) ? normalizeFirm(prospect.DBA, city) : `${firstName} ${lastName} Tax Services`,
       subject: emailSubject,
       body: emailBody
     });
