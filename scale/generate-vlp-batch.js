@@ -504,14 +504,15 @@ async function main() {
 
     batchData.push(prospectData);
 
-    // Hunter.io CSV data
+    // Hunter.io CSV data — flatten newlines to <br> for single-line CSV cells
+    const hunterBody = emailBody.replace(/\n/g, '<br>');
     hunterData.push({
       email: prospect.email_found,
       first_name: firstName,
       last_name: lastName,
       company: (prospect.DBA && normalizeFirm(prospect.DBA, city) !== `${city} practice`) ? normalizeFirm(prospect.DBA, city) : `${firstName} ${lastName} Tax Services`,
       subject: emailSubject,
-      body: emailBody
+      body: hunterBody
     });
 
     // Update source record with timestamp

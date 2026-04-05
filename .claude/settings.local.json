@@ -22,7 +22,9 @@
       "Read(**)",
       "WebFetch(domain:virtuallaunch.pro)",
       "WebFetch(domain:api.virtuallaunch.pro)",
-      "Bash(wrangler r2:*)"
+      "Bash(wrangler r2:*)",
+      "Read(//c/Users/eimaj/virtuallaunch.pro/NR>1 && $1 ~ /**)",
+      "Read(//c/Users/eimaj/virtuallaunch.pro/**)"
     ]
   },
   "autoApprove": [
