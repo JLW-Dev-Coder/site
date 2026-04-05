@@ -48,12 +48,19 @@ Key tests: landing page, games page, pricing, CTA banner
 
 ---
 
-## Round 3 — Broken platform (fix required)
+## Round 3 — TCVLP
 
 ### 8. TCVLP (taxclaim.virtuallaunch.pro)
-No checklist — needs rebuild first
-Status: Form 843 generation is not functional
-Decision needed: Fix it or take it offline until it works
+Status: Migrated to Next.js, Form 843 generation functional
+Test in browser:
+- [ ] Homepage loads with hero, how-it-works, reviews, pricing
+- [ ] /demo loads (requires auth)
+- [ ] /sign-in loads, magic link works
+- [ ] /what-is-form-843 loads (SEO content page)
+- [ ] Form 843 generation produces a PDF
+- [ ] PDF downloads correctly
+- [ ] CtaBanner appears on all pages (Form 843 + TMP directory)
+- [ ] Mobile responsive
 
 ---
 
