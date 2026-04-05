@@ -22,6 +22,7 @@ Last updated: 2026-04-05
 - [Phase 3 — Push Asset Pages to R2](#phase-3--push-asset-pages-to-r2)
 - [Phase 4 — Import to Hunter.io and Send](#phase-4--import-to-hunterio-and-send)
 - [Phase 5 — Monitor Results](#phase-5--monitor-results)
+- [Worker Cron Reference](#worker-cron-reference)
 - [Phase 6 — Daily Monitoring](#phase-6--daily-monitoring)
 - [Phase 7 — Weekly Review](#phase-7--weekly-review)
 - [Batch Cadence](#batch-cadence)
@@ -706,6 +707,48 @@ virtuallaunch.pro
 4. Out of office: note and follow up when they return
 
 **Next:** Phase 6 (next batch cycle — return to Phase 1)
+
+---
+
+## Worker Cron Reference
+
+### Email 1 — Ramp-up schedule
+
+The VLP Worker cron at 14:00 UTC (7:00 AM Pacific) sends Email 1 with a daily cap based on days since `send_start_date`:
+
+| Days since start | Daily cap |
+|-----------------|-----------|
+| 1–3 | 10 emails |
+| 4–7 | 20 emails |
+| 8–14 | 30 emails |
+| 15+ | 50 emails |
+
+The cap applies only to Email 1. The queue is sliced to the daily cap, each email has a randomized delay of 45–90 seconds between sends, and sent records are marked with timestamps in the R2 queue JSON.
+
+### Email 2 — No cap
+
+Email 2 sends to all eligible records where `email_2_scheduled_for <= today`. There is no daily cap or `.slice()` limit. If a large Email 1 batch went out on the same day, all corresponding Email 2 follow-ups fire in a single cron run 2-3 days later.
+
+**Risk:** A batch of 50 Email 1s sent on the same day produces 50 Email 2s firing simultaneously. Monitor bounce rates on Email 2 days. If bounce rate spikes, add a cap to the Email 2 handler.
+
+### Delivery math examples
+
+| Email 1 batch size | Days to complete | Schedule |
+|-------------------|-----------------|----------|
+| 10 | 1 day | All on day 1 |
+| 33 | 4 days | 10 + 10 + 10 + 3 |
+| 41 | 4 days | 10 + 10 + 10 + 11 |
+| 50 | 5 days | 10 + 10 + 10 + 20 (day 4 cap increases) |
+| 100 | 6 days | 10 + 10 + 10 + 20 + 20 + 30 |
+
+### Delay between sends
+
+| Email type | Delay between sends |
+|-----------|-------------------|
+| Email 1 | 45–90 seconds (randomized) |
+| Email 2 | 30–60 seconds (randomized) |
+
+This section applies to TTMP delivery only. VLP uses Hunter.io which has its own sending limits.
 
 ---
 
