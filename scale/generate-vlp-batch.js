@@ -504,15 +504,18 @@ async function main() {
 
     batchData.push(prospectData);
 
-    // Hunter.io CSV data — flatten newlines to <br> for single-line CSV cells
-    const hunterBody = emailBody.replace(/\n/g, '<br>');
+    // Hunter.io CSV data — individual merge fields for Hunter template
     hunterData.push({
       email: prospect.email_found,
       first_name: firstName,
       last_name: lastName,
       company: (prospect.DBA && normalizeFirm(prospect.DBA, city) !== `${city} practice`) ? normalizeFirm(prospect.DBA, city) : `${firstName} ${lastName} Tax Services`,
       subject: emailSubject,
-      body: hunterBody
+      city,
+      credential_label: credentialConfig.label,
+      firm_display: (prospect.firm_bucket === 'solo_brand' && prospect.DBA && normalizeFirm(prospect.DBA, city) !== `${city} practice`) ? normalizeFirm(prospect.DBA, city) : `your ${city} practice`,
+      asset_url: `https://virtuallaunch.pro/asset/${slug}`,
+      slug
     });
 
     // Update source record with timestamp
@@ -526,7 +529,7 @@ async function main() {
 
   // Write Hunter CSV
   const hunterPath = `scale/hunter/vlp-email1-${dateString}.csv`;
-  const hunterHeaders = ['email', 'first_name', 'last_name', 'company', 'subject', 'body'];
+  const hunterHeaders = ['email', 'first_name', 'last_name', 'company', 'subject', 'city', 'credential_label', 'firm_display', 'asset_url', 'slug'];
   const hunterCSV = [
     hunterHeaders.join(','),
     ...hunterData.map(row =>

@@ -24,7 +24,8 @@
       "WebFetch(domain:api.virtuallaunch.pro)",
       "Bash(wrangler r2:*)",
       "Read(//c/Users/eimaj/virtuallaunch.pro/NR>1 && $1 ~ /**)",
-      "Read(//c/Users/eimaj/virtuallaunch.pro/**)"
+      "Read(//c/Users/eimaj/virtuallaunch.pro/**)",
+      "Bash(awk 'END{print NR}' scale/hunter/vlp-email1-2026-04-05.csv)"
     ]
   },
   "autoApprove": [
