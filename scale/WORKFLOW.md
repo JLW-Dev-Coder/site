@@ -259,11 +259,11 @@ Produce a clean CSV of 30-50 tax professional prospects with verified email addr
 
 ---
 
-### Task 1.5 — Validate and export
+### Task 1.5 — Validate and export for both campaigns
 
-**Purpose:** Ensure email quality and produce the final CSV for the batch generator.
+**Purpose:** Ensure email quality and produce clean CSVs for both the VLP and TTMP batch generators. One Clay enrichment cycle feeds both campaigns — no duplicate Clay work.
 
-**Action:** Run validation, review flagged rows, export clean rows.
+**Action:** Run validation, review flagged rows, then export TWO CSVs — one for each campaign.
 
 **Steps:**
 1. Run **Lead Tools → Prepare → Mark email_status**
@@ -271,20 +271,29 @@ Produce a clean CSV of 30-50 tax professional prospects with verified email addr
 3. Review red rows (domain mismatch) — fix or remove
 4. Review orange rows (personal email) — decide keep or remove
 5. Filter to: `clay_workbook_ref` populated + `email_status` = valid + no red highlights
-6. Download filtered rows as CSV
-7. Save to `C:\Users\eimaj\virtuallaunch.pro\scale\prospects\` as `new-prospects.csv`
-8. Delete CSV from Downloads folder
+6. **Split the filtered rows into two groups:**
+   - Group A (VLP campaign): prospects you want to pitch VLP membership ($79-$399 directory listing + tools)
+   - Group B (TTMP campaign): prospects you want to pitch TTMP transcript automation ($19-$129 token packs)
+   - Split criteria: your judgment, or alternate evenly, or segment by credential (e.g., EAs to TTMP since they do more transcript work, CPAs to VLP since they want client leads)
+   - A prospect goes in ONE group, never both
+7. **Export Group A** as CSV → save to `C:\Users\eimaj\virtuallaunch.pro\scale\prospects\new-prospects.csv`
+8. **Export Group B** as CSV → save to `C:\Users\eimaj\transcript.taxmonitor.pro\scale\prospects\new-prospects.csv`
+9. Delete both CSVs from Downloads folder
 
 **Validation:**
-- [ ] CSV has 30+ rows with valid emails
-- [ ] No "undefined" or empty email values
-- [ ] File saved at correct path
+- [ ] Group A CSV saved at VLP prospects path
+- [ ] Group B CSV saved at TTMP prospects path
+- [ ] No prospect appears in both files
+- [ ] No "undefined" or empty email values in either file
+- [ ] Combined row count matches total validated rows
 
-**Outputs:** `scale/prospects/new-prospects.csv` ready for batch generator.
+**Outputs:**
+- `virtuallaunch.pro/scale/prospects/new-prospects.csv` — ready for VLP batch generator
+- `transcript.taxmonitor.pro/scale/prospects/new-prospects.csv` — ready for TTMP merge script
 
-**Failure mode if skipped:** Bad emails → high bounce rate → sender reputation damaged → future emails go to spam.
+**Failure mode if skipped:** Same prospect gets both a VLP and TTMP email = unprofessional, confusing, damages trust.
 
-**Next:** Phase 2
+**Next:** Phase 2 (VLP batch) and/or TTMP batch generation (see TTMP Quick Reference below)
 
 ---
 
@@ -493,6 +502,30 @@ Scale to 2-3 cycles per week as results prove out.
 
 Hunter free plan: 500 recipients per campaign. Create new campaign when limit reached.
 Google Workspace: 2,000 emails/day — not the bottleneck.
+
+---
+
+## TTMP Batch Generation (quick reference)
+
+After placing the TTMP CSV at `transcript.taxmonitor.pro/scale/prospects/new-prospects.csv`:
+
+**Step 1 — Run merge script:**
+```bash
+cd C:\Users\eimaj\transcript.taxmonitor.pro
+node scale/scripts/merge-intake.js
+```
+
+**Step 2 — Run batch generator:**
+```bash
+node scale/generate-batch.js scale/prospects/{master-csv-filename}.csv
+```
+
+**Step 3 — Upload to Hunter.io:**
+Create a separate Hunter campaign: "TTMP SCALE — Batch {date}"
+Import: `scale/gmail/email1/{date}-batch.csv`
+
+For full TTMP-specific details, see the TTMP WORKFLOW.md stub at:
+`C:\Users\eimaj\transcript.taxmonitor.pro\WORKFLOW.md`
 
 ---
 
