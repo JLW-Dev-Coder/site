@@ -10,6 +10,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { parseCSVLine, formatCSVValue } = require('./csv-utils');
 
 const masterPath = path.join(__dirname, '..', 'prospects', 'vlp-master.csv');
 
@@ -21,7 +22,7 @@ if (!fs.existsSync(masterPath)) {
 const csv = fs.readFileSync(masterPath, 'utf8');
 const lines = csv.split('\n');
 const header = lines[0];
-const headerCols = header.split(',');
+const headerCols = parseCSVLine(header);
 const tsCol = headerCols.indexOf('vlp_email_1_prepared_at');
 
 if (tsCol === -1) {
@@ -35,11 +36,10 @@ const cleared = [header];
 
 for (let i = 1; i < lines.length; i++) {
   if (!lines[i].trim()) continue;
-  // Use simple split — vlp_email_1_prepared_at won't be quoted
-  const cols = lines[i].split(',');
+  const cols = parseCSVLine(lines[i]);
   originals.push(cols[tsCol] || '');
   cols[tsCol] = '';
-  cleared.push(cols.join(','));
+  cleared.push(cols.map(c => formatCSVValue(c)).join(','));
 }
 
 fs.writeFileSync(masterPath, cleared.join('\n') + '\n');

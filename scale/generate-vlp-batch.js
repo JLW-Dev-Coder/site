@@ -240,9 +240,9 @@ function generateEmailBody(prospect, credentialConfig, slug) {
     firmOrCityPractice = `your ${city} practice`;
   }
 
-  const credentialLabel = credentialConfig.label.toLowerCase();
+  const credentialLabel = credentialConfig.label;
 
-  return `${firstName},
+  return `Hello ${firstName},
 
 Taxpayers in ${city} search online for tax help every day. Most never find you because you're not in the places they're looking.
 
