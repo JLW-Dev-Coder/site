@@ -1,16 +1,16 @@
 [
   {
-    "slug": "sarah-chen-austin-tx",
-    "email": "schen@example.com",
-    "name": "Sarah Chen",
+    "slug": "alex-accetta-fountain-vly-ca",
+    "email": "alex@aaccettacpa.com",
+    "name": "ALEX ACCETTA",
     "credential": "CPA",
-    "city": "Austin",
-    "state": "TX",
-    "firm": "Chen Tax Services",
+    "city": "FOUNTAIN VLY",
+    "state": "CA",
+    "firm": "Alex A. Accetta CPA & Associates",
     "firm_bucket": "solo_brand",
-    "domain_clean": "chentaxservices.com",
+    "domain_clean": "aaccettacpa.com",
     "asset_page": {
-      "headline": "Sarah, here's what your Chen Tax Services practice is leaving on the table",
+      "headline": "ALEX, here's what your Alex A. Accetta CPA & Associates practice is leaving on the table",
       "subheadline": "A practice analysis for CPAs who want more qualified clients",
       "client_gap_analysis": [
         "No searchable directory listing — taxpayers can't find you",
@@ -42,27 +42,27 @@
       "cta_booking_url": "https://cal.com/vlp/discovery"
     },
     "email_1": {
-      "subject": "Sarah — CPAs running Chen Tax Services are invisible to taxpayers searching online",
-      "body": "Sarah,\n\nTaxpayers in Austin search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for Chen Tax Services:\nhttps://virtuallaunch.pro/asset/sarah-chen-austin-tx\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+      "subject": "ALEX — CPAs running Alex A. Accetta CPA & Associates are invisible to taxpayers searching online",
+      "body": "ALEX,\n\nTaxpayers in FOUNTAIN VLY search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for Alex A. Accetta CPA & Associates:\nhttps://virtuallaunch.pro/asset/alex-accetta-fountain-vly-ca\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
     },
     "email_2": {
-      "subject": "Your practice analysis is ready, Sarah — $22,500-$120,000 on the table",
+      "subject": "Your practice analysis is ready, ALEX — $22,500-$120,000 on the table",
       "timing": "3 days after Email 1",
       "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
     }
   },
   {
-    "slug": "david-kim-san-antonio-tx",
-    "email": "dkim@example.com",
-    "name": "David Kim",
+    "slug": "howard-abrams-westlake-vlg-ca",
+    "email": "howard@abramscpa.com",
+    "name": "HOWARD ABRAMS",
     "credential": "CPA",
-    "city": "San Antonio",
-    "state": "TX",
-    "firm": "",
-    "firm_bucket": "local_firm",
-    "domain_clean": "kimcpa.com",
+    "city": "WESTLAKE VLG",
+    "state": "CA",
+    "firm": "Howard J Abrams An Accountancy Corporati",
+    "firm_bucket": "solo_brand",
+    "domain_clean": "abramscpa.com",
     "asset_page": {
-      "headline": "David, here's what your San Antonio practice is leaving on the table",
+      "headline": "HOWARD, here's what your Howard J Abrams An Accountancy Corporati practice is leaving on the table",
       "subheadline": "A practice analysis for CPAs who want more qualified clients",
       "client_gap_analysis": [
         "No searchable directory listing — taxpayers can't find you",
@@ -94,131 +94,79 @@
       "cta_booking_url": "https://cal.com/vlp/discovery"
     },
     "email_1": {
-      "subject": "David — taxpayers in San Antonio are searching for help you're not showing up for",
-      "body": "David,\n\nTaxpayers in San Antonio search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your San Antonio practice:\nhttps://virtuallaunch.pro/asset/david-kim-san-antonio-tx\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+      "subject": "HOWARD — CPAs running Howard J Abrams An Accountancy Corporati are invisible to taxpayers searching online",
+      "body": "HOWARD,\n\nTaxpayers in WESTLAKE VLG search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for Howard J Abrams An Accountancy Corporati:\nhttps://virtuallaunch.pro/asset/howard-abrams-westlake-vlg-ca\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
     },
     "email_2": {
-      "subject": "Your practice analysis is ready, David — $22,500-$120,000 on the table",
+      "subject": "Your practice analysis is ready, HOWARD — $22,500-$120,000 on the table",
       "timing": "3 days after Email 1",
       "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
     }
   },
   {
-    "slug": "lisa-martinez-el-paso-tx",
-    "email": "lmartinez@example.com",
-    "name": "Lisa Martinez",
-    "credential": "EA",
-    "city": "El Paso",
-    "state": "TX",
-    "firm": "Martinez Tax Solutions",
-    "firm_bucket": "solo_brand",
-    "domain_clean": "martineztax.com",
-    "asset_page": {
-      "headline": "Lisa, here's what your Martinez Tax Solutions practice is leaving on the table",
-      "subheadline": "A practice analysis for Enrolled Agents who want more qualified clients",
-      "client_gap_analysis": [
-        "No searchable directory listing — taxpayers can't find you",
-        "No online intake workflow — prospects drop off before engaging",
-        "No automated client matching — you wait for referrals instead of earning leads"
-      ],
-      "new_client_value": "$15,000-$90,000/yr from 5 additional clients",
-      "tier_comparison": {
-        "active": {
-          "price": "$79/mo",
-          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
-        },
-        "featured": {
-          "price": "$199/mo",
-          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
-        },
-        "premier": {
-          "price": "$399/mo",
-          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
-        }
-      },
-      "ttmp_crosssell": {
-        "pitch": "Not ready for a membership? Try transcript automation first.",
-        "url": "https://transcript.taxmonitor.pro/pricing",
-        "price": "10 analyses for $19 — no commitment"
-      },
-      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
-      "cta_directory_url": "https://taxmonitor.pro/directory",
-      "cta_booking_url": "https://cal.com/vlp/discovery"
-    },
-    "email_1": {
-      "subject": "Lisa — EAs running Martinez Tax Solutions are invisible to taxpayers searching online",
-      "body": "Lisa,\n\nTaxpayers in El Paso search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — enrolled agents with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for Martinez Tax Solutions:\nhttps://virtuallaunch.pro/asset/lisa-martinez-el-paso-tx\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
-    },
-    "email_2": {
-      "subject": "Your practice analysis is ready, Lisa — $15,000-$90,000 on the table",
-      "timing": "3 days after Email 1",
-      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
-    }
-  },
-  {
-    "slug": "jennifer-thompson-houston-tx",
-    "email": "jthompson@example.com",
-    "name": "Jennifer Thompson",
-    "credential": "JD",
-    "city": "Houston",
-    "state": "TX",
-    "firm": "Thompson & Associates",
-    "firm_bucket": "national_firm",
-    "domain_clean": "thompsonlaw.com",
-    "asset_page": {
-      "headline": "Jennifer, here's what your Houston practice is leaving on the table",
-      "subheadline": "A practice analysis for Tax Attorneys who want more qualified clients",
-      "client_gap_analysis": [
-        "No searchable directory listing — taxpayers can't find you",
-        "No online intake workflow — prospects drop off before engaging",
-        "No automated client matching — you wait for referrals instead of earning leads"
-      ],
-      "new_client_value": "$18,000-$150,000/yr from 5 additional clients",
-      "tier_comparison": {
-        "active": {
-          "price": "$79/mo",
-          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
-        },
-        "featured": {
-          "price": "$199/mo",
-          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
-        },
-        "premier": {
-          "price": "$399/mo",
-          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
-        }
-      },
-      "ttmp_crosssell": {
-        "pitch": "Not ready for a membership? Try transcript automation first.",
-        "url": "https://transcript.taxmonitor.pro/pricing",
-        "price": "10 analyses for $19 — no commitment"
-      },
-      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
-      "cta_directory_url": "https://taxmonitor.pro/directory",
-      "cta_booking_url": "https://cal.com/vlp/discovery"
-    },
-    "email_1": {
-      "subject": "Jennifer — your next 5 clients are searching online right now",
-      "body": "Jennifer,\n\nTaxpayers in Houston search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — tax attorneys with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your Houston practice:\nhttps://virtuallaunch.pro/asset/jennifer-thompson-houston-tx\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
-    },
-    "email_2": {
-      "subject": "Your practice analysis is ready, Jennifer — $18,000-$150,000 on the table",
-      "timing": "3 days after Email 1",
-      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
-    }
-  },
-  {
-    "slug": "michael-rodriguez-dallas-tx",
-    "email": "mrodriguez@example.com",
-    "name": "Michael Rodriguez",
-    "credential": "EA",
-    "city": "Dallas",
-    "state": "TX",
-    "firm": "",
+    "slug": "raymond-abramson-westport-ct",
+    "email": "ray@abramsonco.com",
+    "name": "RAYMOND ABRAMSON",
+    "credential": "CPA",
+    "city": "WESTPORT",
+    "state": "CT",
+    "firm": "ABRAMSON & COMPANY LLC",
     "firm_bucket": "local_firm",
-    "domain_clean": "",
+    "domain_clean": "abramsonco.com",
     "asset_page": {
-      "headline": "Michael, here's what your Dallas practice is leaving on the table",
+      "headline": "RAYMOND, here's what your WESTPORT practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "RAYMOND — taxpayers in WESTPORT are searching for help you're not showing up for",
+      "body": "RAYMOND,\n\nTaxpayers in WESTPORT search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your WESTPORT practice:\nhttps://virtuallaunch.pro/asset/raymond-abramson-westport-ct\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, RAYMOND — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "edward-abramson-washington-dc",
+    "email": "eddie@abramsontax.com",
+    "name": "EDWARD ABRAMSON",
+    "credential": "ATTY",
+    "city": "WASHINGTON",
+    "state": "DC",
+    "firm": "ABRAMSON & ASSOCIATES LLC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "abramsontax.com",
+    "asset_page": {
+      "headline": "EDWARD, here's what your WASHINGTON practice is leaving on the table",
       "subheadline": "A practice analysis for Enrolled Agents who want more qualified clients",
       "client_gap_analysis": [
         "No searchable directory listing — taxpayers can't find you",
@@ -250,11 +198,1519 @@
       "cta_booking_url": "https://cal.com/vlp/discovery"
     },
     "email_1": {
-      "subject": "Michael — taxpayers in Dallas are searching for help you're not showing up for",
-      "body": "Michael,\n\nTaxpayers in Dallas search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — enrolled agents with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your Dallas practice:\nhttps://virtuallaunch.pro/asset/michael-rodriguez-dallas-tx\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+      "subject": "EDWARD — taxpayers in WASHINGTON are searching for help you're not showing up for",
+      "body": "EDWARD,\n\nTaxpayers in WASHINGTON search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — enrolled agents with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your WASHINGTON practice:\nhttps://virtuallaunch.pro/asset/edward-abramson-washington-dc\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
     },
     "email_2": {
-      "subject": "Your practice analysis is ready, Michael — $15,000-$90,000 on the table",
+      "subject": "Your practice analysis is ready, EDWARD — $15,000-$90,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "bruce-abrams-deerfield-il",
+    "email": "babrams@abramssteinberg.com",
+    "name": "BRUCE ABRAMS",
+    "credential": "CPA",
+    "city": "DEERFIELD",
+    "state": "IL",
+    "firm": "Abrams & Steinberg, P.C.",
+    "firm_bucket": "local_firm",
+    "domain_clean": "abramssteinberg.com",
+    "asset_page": {
+      "headline": "BRUCE, here's what your DEERFIELD practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "BRUCE — taxpayers in DEERFIELD are searching for help you're not showing up for",
+      "body": "BRUCE,\n\nTaxpayers in DEERFIELD search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your DEERFIELD practice:\nhttps://virtuallaunch.pro/asset/bruce-abrams-deerfield-il\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, BRUCE — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "edgar-abreu-norwalk-ct",
+    "email": "eabreu@abreucpa.com",
+    "name": "EDGAR ABREU",
+    "credential": "CPA",
+    "city": "NORWALK",
+    "state": "CT",
+    "firm": "Abreu & Affiliates, LLC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "abreucpa.com",
+    "asset_page": {
+      "headline": "EDGAR, here's what your NORWALK practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "EDGAR — taxpayers in NORWALK are searching for help you're not showing up for",
+      "body": "EDGAR,\n\nTaxpayers in NORWALK search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your NORWALK practice:\nhttps://virtuallaunch.pro/asset/edgar-abreu-norwalk-ct\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, EDGAR — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "martin-abroms-florence-al",
+    "email": "abromsm@abroms.com",
+    "name": "MARTIN ABROMS",
+    "credential": "CPA",
+    "city": "FLORENCE",
+    "state": "AL",
+    "firm": "ABROMS & ASSOCIATES, P.C.",
+    "firm_bucket": "local_firm",
+    "domain_clean": "abroms.com",
+    "asset_page": {
+      "headline": "MARTIN, here's what your FLORENCE practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "MARTIN — taxpayers in FLORENCE are searching for help you're not showing up for",
+      "body": "MARTIN,\n\nTaxpayers in FLORENCE search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your FLORENCE practice:\nhttps://virtuallaunch.pro/asset/martin-abroms-florence-al\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, MARTIN — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "anthony-abruzzo-florham-park-nj",
+    "email": "anthony@abruzzoaccounting.com",
+    "name": "ANTHONY ABRUZZO",
+    "credential": "CPA",
+    "city": "FLORHAM PARK",
+    "state": "NJ",
+    "firm": "ABRUZZO ACCOUNTING LLC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "abruzzoaccounting.com",
+    "asset_page": {
+      "headline": "ANTHONY, here's what your FLORHAM PARK practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "ANTHONY — taxpayers in FLORHAM PARK are searching for help you're not showing up for",
+      "body": "ANTHONY,\n\nTaxpayers in FLORHAM PARK search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your FLORHAM PARK practice:\nhttps://virtuallaunch.pro/asset/anthony-abruzzo-florham-park-nj\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, ANTHONY — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "samuel-abraham-houston-tx",
+    "email": "sam@abspcpa.com",
+    "name": "SAMUEL ABRAHAM",
+    "credential": "CPA",
+    "city": "HOUSTON",
+    "state": "TX",
+    "firm": "Abraham Business Solutions PC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "abspcpa.com",
+    "asset_page": {
+      "headline": "SAMUEL, here's what your HOUSTON practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "SAMUEL — taxpayers in HOUSTON are searching for help you're not showing up for",
+      "body": "SAMUEL,\n\nTaxpayers in HOUSTON search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your HOUSTON practice:\nhttps://virtuallaunch.pro/asset/samuel-abraham-houston-tx\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, SAMUEL — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "guvenc-acarkan-jersey-city-nj",
+    "email": "guvenc@acarkanlaw.com",
+    "name": "Guvenc ACARKAN",
+    "credential": "ATTY",
+    "city": "Jersey City",
+    "state": "NJ",
+    "firm": "Acarkan Law",
+    "firm_bucket": "local_firm",
+    "domain_clean": "acarkanlaw.com",
+    "asset_page": {
+      "headline": "Guvenc, here's what your Jersey City practice is leaving on the table",
+      "subheadline": "A practice analysis for Enrolled Agents who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$15,000-$90,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "Guvenc — taxpayers in Jersey City are searching for help you're not showing up for",
+      "body": "Guvenc,\n\nTaxpayers in Jersey City search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — enrolled agents with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your Jersey City practice:\nhttps://virtuallaunch.pro/asset/guvenc-acarkan-jersey-city-nj\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, Guvenc — $15,000-$90,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "gerald-abrams-reisterstown-md",
+    "email": "gabrams@afnw.com",
+    "name": "GERALD ABRAMS",
+    "credential": "CPA",
+    "city": "REISTERSTOWN",
+    "state": "MD",
+    "firm": "Abrams Foster Nole & Williams PA",
+    "firm_bucket": "local_firm",
+    "domain_clean": "afnw.com",
+    "asset_page": {
+      "headline": "GERALD, here's what your REISTERSTOWN practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "GERALD — taxpayers in REISTERSTOWN are searching for help you're not showing up for",
+      "body": "GERALD,\n\nTaxpayers in REISTERSTOWN search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your REISTERSTOWN practice:\nhttps://virtuallaunch.pro/asset/gerald-abrams-reisterstown-md\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, GERALD — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "shurouq-abuaita-lake-mary-fl",
+    "email": "shurouq@aitatax.com",
+    "name": "SHUROUQ ABUAITA",
+    "credential": "CPA",
+    "city": "LAKE MARY",
+    "state": "FL",
+    "firm": "Aita Tax & Accounting Services",
+    "firm_bucket": "local_firm",
+    "domain_clean": "aitatax.com",
+    "asset_page": {
+      "headline": "SHUROUQ, here's what your LAKE MARY practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "SHUROUQ — taxpayers in LAKE MARY are searching for help you're not showing up for",
+      "body": "SHUROUQ,\n\nTaxpayers in LAKE MARY search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your LAKE MARY practice:\nhttps://virtuallaunch.pro/asset/shurouq-abuaita-lake-mary-fl\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, SHUROUQ — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "judith-aburmishan-tequesta-fl",
+    "email": "judy@anacpa.net",
+    "name": "JUDITH ABURMISHAN",
+    "credential": "CPA",
+    "city": "Tequesta",
+    "state": "FL",
+    "firm": "A&A CPA, LLC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "anacpa.net",
+    "asset_page": {
+      "headline": "JUDITH, here's what your Tequesta practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "JUDITH — taxpayers in Tequesta are searching for help you're not showing up for",
+      "body": "JUDITH,\n\nTaxpayers in Tequesta search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your Tequesta practice:\nhttps://virtuallaunch.pro/asset/judith-aburmishan-tequesta-fl\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, JUDITH — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "wajeeh-abushawish-fairfield-nj",
+    "email": "wajeeh.abushawish@aprio.com",
+    "name": "WAJEEH ABUSHAWISH",
+    "credential": "CPA",
+    "city": "Fairfield",
+    "state": "NJ",
+    "firm": "Aprio LLP",
+    "firm_bucket": "local_firm",
+    "domain_clean": "aprio.com",
+    "asset_page": {
+      "headline": "WAJEEH, here's what your Fairfield practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "WAJEEH — taxpayers in Fairfield are searching for help you're not showing up for",
+      "body": "WAJEEH,\n\nTaxpayers in Fairfield search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your Fairfield practice:\nhttps://virtuallaunch.pro/asset/wajeeh-abushawish-fairfield-nj\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, WAJEEH — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "laurie-abramowitz-new-york-ny",
+    "email": "laurie.abramowitz@arnoldporter.com",
+    "name": "LAURIE ABRAMOWITZ",
+    "credential": "ATTY",
+    "city": "NEW YORK",
+    "state": "NY",
+    "firm": "Arnold & Porter Kaye Scholer LLP",
+    "firm_bucket": "local_firm",
+    "domain_clean": "arnoldporter.com",
+    "asset_page": {
+      "headline": "LAURIE, here's what your NEW YORK practice is leaving on the table",
+      "subheadline": "A practice analysis for Enrolled Agents who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$15,000-$90,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "LAURIE — taxpayers in NEW YORK are searching for help you're not showing up for",
+      "body": "LAURIE,\n\nTaxpayers in NEW YORK search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — enrolled agents with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your NEW YORK practice:\nhttps://virtuallaunch.pro/asset/laurie-abramowitz-new-york-ny\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, LAURIE — $15,000-$90,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "christopher-abram-pittsford-ny",
+    "email": "cabram@bonadio.com",
+    "name": "Christopher ABRAM",
+    "credential": "CPA",
+    "city": "Pittsford",
+    "state": "NY",
+    "firm": "Bonadio & Co., LLP",
+    "firm_bucket": "local_firm",
+    "domain_clean": "bonadio.com",
+    "asset_page": {
+      "headline": "Christopher, here's what your Pittsford practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "Christopher — taxpayers in Pittsford are searching for help you're not showing up for",
+      "body": "Christopher,\n\nTaxpayers in Pittsford search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your Pittsford practice:\nhttps://virtuallaunch.pro/asset/christopher-abram-pittsford-ny\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, Christopher — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "joseph-accetturo-johnston-ri",
+    "email": "joe@cpajpa.com",
+    "name": "JOSEPH ACCETTURO",
+    "credential": "CPA",
+    "city": "Johnston",
+    "state": "RI",
+    "firm": "Accetturo Advisors",
+    "firm_bucket": "local_firm",
+    "domain_clean": "cpajpa.com",
+    "asset_page": {
+      "headline": "JOSEPH, here's what your Johnston practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "JOSEPH — taxpayers in Johnston are searching for help you're not showing up for",
+      "body": "JOSEPH,\n\nTaxpayers in Johnston search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your Johnston practice:\nhttps://virtuallaunch.pro/asset/joseph-accetturo-johnston-ri\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, JOSEPH — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "christopher-abt-philadelphia-pa",
+    "email": "christopher.abt@eisneramper.com",
+    "name": "CHRISTOPHER ABT",
+    "credential": "CPA",
+    "city": "PHILADELPHIA",
+    "state": "PA",
+    "firm": "EisnerAmper LLP",
+    "firm_bucket": "local_firm",
+    "domain_clean": "eisneramper.com",
+    "asset_page": {
+      "headline": "CHRISTOPHER, here's what your PHILADELPHIA practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "CHRISTOPHER — taxpayers in PHILADELPHIA are searching for help you're not showing up for",
+      "body": "CHRISTOPHER,\n\nTaxpayers in PHILADELPHIA search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your PHILADELPHIA practice:\nhttps://virtuallaunch.pro/asset/christopher-abt-philadelphia-pa\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, CHRISTOPHER — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "oded-abramson-san-jose-ca",
+    "email": "oabramson@frankrimerman.com",
+    "name": "ODED ABRAMSON",
+    "credential": "CPA",
+    "city": "SAN JOSE",
+    "state": "CA",
+    "firm": "Frank Rimerman",
+    "firm_bucket": "local_firm",
+    "domain_clean": "frankrimerman.com",
+    "asset_page": {
+      "headline": "ODED, here's what your SAN JOSE practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "ODED — taxpayers in SAN JOSE are searching for help you're not showing up for",
+      "body": "ODED,\n\nTaxpayers in SAN JOSE search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your SAN JOSE practice:\nhttps://virtuallaunch.pro/asset/oded-abramson-san-jose-ca\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, ODED — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "carlos-abundis-grosse-pointe-woods-mi",
+    "email": "cabundis@glmcpa.com",
+    "name": "Carlos ABUNDIS",
+    "credential": "CPA",
+    "city": "GROSSE POINTE WOODS",
+    "state": "MI",
+    "firm": "Great Lakes Management Consultants",
+    "firm_bucket": "local_firm",
+    "domain_clean": "glmcpa.com",
+    "asset_page": {
+      "headline": "Carlos, here's what your GROSSE POINTE WOODS practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "Carlos — taxpayers in GROSSE POINTE WOODS are searching for help you're not showing up for",
+      "body": "Carlos,\n\nTaxpayers in GROSSE POINTE WOODS search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your GROSSE POINTE WOODS practice:\nhttps://virtuallaunch.pro/asset/carlos-abundis-grosse-pointe-woods-mi\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, Carlos — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "thomas-abraham-new-britain-pa",
+    "email": "t.abraham@jebrancpas.com",
+    "name": "THOMAS ABRAHAM",
+    "credential": "CPA",
+    "city": "NEW BRITAIN",
+    "state": "PA",
+    "firm": "Jebran & Abraham, P.C.",
+    "firm_bucket": "local_firm",
+    "domain_clean": "jebrancpas.com",
+    "asset_page": {
+      "headline": "THOMAS, here's what your NEW BRITAIN practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "THOMAS — taxpayers in NEW BRITAIN are searching for help you're not showing up for",
+      "body": "THOMAS,\n\nTaxpayers in NEW BRITAIN search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your NEW BRITAIN practice:\nhttps://virtuallaunch.pro/asset/thomas-abraham-new-britain-pa\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, THOMAS — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "sara-abuhussein-evansville-in",
+    "email": "sabuhussein@johnfriendandco.com",
+    "name": "SARA ABU-HUSSEIN",
+    "credential": "CPA",
+    "city": "EVANSVILLE",
+    "state": "IN",
+    "firm": "John Friend & Company, PC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "johnfriendandco.com",
+    "asset_page": {
+      "headline": "SARA, here's what your EVANSVILLE practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "SARA — taxpayers in EVANSVILLE are searching for help you're not showing up for",
+      "body": "SARA,\n\nTaxpayers in EVANSVILLE search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your EVANSVILLE practice:\nhttps://virtuallaunch.pro/asset/sara-abuhussein-evansville-in\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, SARA — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "christopher-acard-poughkeepsie-ny",
+    "email": "chris@kirshoncpa.com",
+    "name": "CHRISTOPHER ACARD",
+    "credential": "CPA",
+    "city": "POUGHKEEPSIE",
+    "state": "NY",
+    "firm": "Kirshon & Company, PC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "kirshoncpa.com",
+    "asset_page": {
+      "headline": "CHRISTOPHER, here's what your POUGHKEEPSIE practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "CHRISTOPHER — taxpayers in POUGHKEEPSIE are searching for help you're not showing up for",
+      "body": "CHRISTOPHER,\n\nTaxpayers in POUGHKEEPSIE search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your POUGHKEEPSIE practice:\nhttps://virtuallaunch.pro/asset/christopher-acard-poughkeepsie-ny\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, CHRISTOPHER — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "michael-abramson-lincoln-ne",
+    "email": "mabramson@labenz.com",
+    "name": "Michael ABRAMSON",
+    "credential": "CPA",
+    "city": "LINCOLN",
+    "state": "NE",
+    "firm": "Labenz & Associates LLC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "labenz.com",
+    "asset_page": {
+      "headline": "Michael, here's what your LINCOLN practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "Michael — taxpayers in LINCOLN are searching for help you're not showing up for",
+      "body": "Michael,\n\nTaxpayers in LINCOLN search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your LINCOLN practice:\nhttps://virtuallaunch.pro/asset/michael-abramson-lincoln-ne\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, Michael — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "marianne-abraitis-san-diego-ca",
+    "email": "marianne@lfhodge.com",
+    "name": "Marianne ABRAITIS",
+    "credential": "EA",
+    "city": "SAN DIEGO",
+    "state": "CA",
+    "firm": "LF HODGE & ASSOCIATES INC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "lfhodge.com",
+    "asset_page": {
+      "headline": "Marianne, here's what your SAN DIEGO practice is leaving on the table",
+      "subheadline": "A practice analysis for Enrolled Agents who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$15,000-$90,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "Marianne — taxpayers in SAN DIEGO are searching for help you're not showing up for",
+      "body": "Marianne,\n\nTaxpayers in SAN DIEGO search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — enrolled agents with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your SAN DIEGO practice:\nhttps://virtuallaunch.pro/asset/marianne-abraitis-san-diego-ca\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, Marianne — $15,000-$90,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "matthew-abrams-hollywood-fl",
+    "email": "matthew@msabrams.com",
+    "name": "MATTHEW ABRAMS",
+    "credential": "CPA",
+    "city": "HOLLYWOOD",
+    "state": "FL",
+    "firm": "Matthew S. Abrams, CPA LLC",
+    "firm_bucket": "solo_brand",
+    "domain_clean": "msabrams.com",
+    "asset_page": {
+      "headline": "MATTHEW, here's what your Matthew S. Abrams, CPA LLC practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "MATTHEW — CPAs running Matthew S. Abrams, CPA LLC are invisible to taxpayers searching online",
+      "body": "MATTHEW,\n\nTaxpayers in HOLLYWOOD search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for Matthew S. Abrams, CPA LLC:\nhttps://virtuallaunch.pro/asset/matthew-abrams-hollywood-fl\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, MATTHEW — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "olga-abramson-granada-hills-ca",
+    "email": "olga@oabramson.com",
+    "name": "OLGA ABRAMSON",
+    "credential": "EA",
+    "city": "Granada Hills",
+    "state": "CA",
+    "firm": "ABRAMSON & ASSOCIATES, LLC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "oabramson.com",
+    "asset_page": {
+      "headline": "OLGA, here's what your Granada Hills practice is leaving on the table",
+      "subheadline": "A practice analysis for Enrolled Agents who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$15,000-$90,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "OLGA — taxpayers in Granada Hills are searching for help you're not showing up for",
+      "body": "OLGA,\n\nTaxpayers in Granada Hills search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — enrolled agents with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your Granada Hills practice:\nhttps://virtuallaunch.pro/asset/olga-abramson-granada-hills-ca\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, OLGA — $15,000-$90,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "raman-abrol-parsippany-nj",
+    "email": "raman@racpaus.com",
+    "name": "RAMAN ABROL",
+    "credential": "CPA",
+    "city": "PARSIPPANY",
+    "state": "NJ",
+    "firm": "Raman Abrol, CPA",
+    "firm_bucket": "solo_brand",
+    "domain_clean": "racpaus.com",
+    "asset_page": {
+      "headline": "RAMAN, here's what your Raman Abrol, CPA practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "RAMAN — CPAs running Raman Abrol, CPA are invisible to taxpayers searching online",
+      "body": "RAMAN,\n\nTaxpayers in PARSIPPANY search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for Raman Abrol, CPA:\nhttps://virtuallaunch.pro/asset/raman-abrol-parsippany-nj\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, RAMAN — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "james-abston-little-rock-ar",
+    "email": "abston@rascowinter.com",
+    "name": "JAMES ABSTON",
+    "credential": "CPA",
+    "city": "LITTLE ROCK",
+    "state": "AR",
+    "firm": "Rasco Winter Thomas Group",
+    "firm_bucket": "local_firm",
+    "domain_clean": "rascowinter.com",
+    "asset_page": {
+      "headline": "JAMES, here's what your LITTLE ROCK practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "JAMES — taxpayers in LITTLE ROCK are searching for help you're not showing up for",
+      "body": "JAMES,\n\nTaxpayers in LITTLE ROCK search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your LITTLE ROCK practice:\nhttps://virtuallaunch.pro/asset/james-abston-little-rock-ar\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, JAMES — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "husam-abusneineh-lomita-ca",
+    "email": "husam@stsfinancial.com",
+    "name": "HUSAM ABUSNEINEH",
+    "credential": "EA",
+    "city": "LOMITA",
+    "state": "CA",
+    "firm": "STS Financial LLC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "stsfinancial.com",
+    "asset_page": {
+      "headline": "HUSAM, here's what your LOMITA practice is leaving on the table",
+      "subheadline": "A practice analysis for Enrolled Agents who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$15,000-$90,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "HUSAM — taxpayers in LOMITA are searching for help you're not showing up for",
+      "body": "HUSAM,\n\nTaxpayers in LOMITA search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — enrolled agents with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your LOMITA practice:\nhttps://virtuallaunch.pro/asset/husam-abusneineh-lomita-ca\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, HUSAM — $15,000-$90,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "inna-abramov-leesburg-va",
+    "email": "iabramov@ucmplc.com",
+    "name": "INNA ABRAMOV",
+    "credential": "CPA",
+    "city": "LEESBURG",
+    "state": "VA",
+    "firm": "Updegrove, McDaniel, McMullen",
+    "firm_bucket": "local_firm",
+    "domain_clean": "ucmplc.com",
+    "asset_page": {
+      "headline": "INNA, here's what your LEESBURG practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "INNA — taxpayers in LEESBURG are searching for help you're not showing up for",
+      "body": "INNA,\n\nTaxpayers in LEESBURG search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your LEESBURG practice:\nhttps://virtuallaunch.pro/asset/inna-abramov-leesburg-va\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, INNA — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "jon-abrahamson-denver-co",
+    "email": "jon.abrahamson@wipfli.com",
+    "name": "JON ABRAHAMSON",
+    "credential": "CPA",
+    "city": "DENVER",
+    "state": "CO",
+    "firm": "Wipfli LLP",
+    "firm_bucket": "local_firm",
+    "domain_clean": "wipfli.com",
+    "asset_page": {
+      "headline": "JON, here's what your DENVER practice is leaving on the table",
+      "subheadline": "A practice analysis for CPAs who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$22,500-$120,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "JON — taxpayers in DENVER are searching for help you're not showing up for",
+      "body": "JON,\n\nTaxpayers in DENVER search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — cpas with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your DENVER practice:\nhttps://virtuallaunch.pro/asset/jon-abrahamson-denver-co\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, JON — $22,500-$120,000 on the table",
+      "timing": "3 days after Email 1",
+      "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
+    }
+  },
+  {
+    "slug": "molly-abshire-bellaire-tx",
+    "email": "molly@wrightabshire.com",
+    "name": "MOLLY ABSHIRE",
+    "credential": "ATTY",
+    "city": "BELLAIRE",
+    "state": "TX",
+    "firm": "Wright Abshire, Attorneys, PC",
+    "firm_bucket": "local_firm",
+    "domain_clean": "wrightabshire.com",
+    "asset_page": {
+      "headline": "MOLLY, here's what your BELLAIRE practice is leaving on the table",
+      "subheadline": "A practice analysis for Enrolled Agents who want more qualified clients",
+      "client_gap_analysis": [
+        "No searchable directory listing — taxpayers can't find you",
+        "No online intake workflow — prospects drop off before engaging",
+        "No automated client matching — you wait for referrals instead of earning leads"
+      ],
+      "new_client_value": "$15,000-$90,000/yr from 5 additional clients",
+      "tier_comparison": {
+        "active": {
+          "price": "$79/mo",
+          "value": "Directory listing + 2 transcript tokens + 5 game tokens"
+        },
+        "featured": {
+          "price": "$199/mo",
+          "value": "Sponsored placement + 5 transcript tokens + 15 game tokens"
+        },
+        "premier": {
+          "price": "$399/mo",
+          "value": "Placement on 3 platforms + 10 transcript + 40 game tokens"
+        }
+      },
+      "ttmp_crosssell": {
+        "pitch": "Not ready for a membership? Try transcript automation first.",
+        "url": "https://transcript.taxmonitor.pro/pricing",
+        "price": "10 analyses for $19 — no commitment"
+      },
+      "cta_pricing_url": "https://virtuallaunch.pro/pricing",
+      "cta_directory_url": "https://taxmonitor.pro/directory",
+      "cta_booking_url": "https://cal.com/vlp/discovery"
+    },
+    "email_1": {
+      "subject": "MOLLY — taxpayers in BELLAIRE are searching for help you're not showing up for",
+      "body": "MOLLY,\n\nTaxpayers in BELLAIRE search online for tax help every day. Most never find you because you're not in the places they're looking.\n\nThe Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — enrolled agents with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.\n\nHere's a quick practice analysis I put together for your BELLAIRE practice:\nhttps://virtuallaunch.pro/asset/molly-abshire-bellaire-tx\n\nAnd if you just want to try the transcript tool first, no membership needed:\nhttps://transcript.taxmonitor.pro/pricing\n10 analyses for $19 — takes 30 seconds per transcript.\n\nSee all membership tiers here:\nhttps://virtuallaunch.pro/pricing\n\n—\nJamie L Williams\nVirtual Launch Pro\nvirtuallaunch.pro"
+    },
+    "email_2": {
+      "subject": "Your practice analysis is ready, MOLLY — $15,000-$90,000 on the table",
       "timing": "3 days after Email 1",
       "note": "References prior email + asset page, leads with asset page URL, includes pricing + TTMP cross-sell CTAs"
     }

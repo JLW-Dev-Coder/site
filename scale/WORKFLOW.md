@@ -31,6 +31,7 @@ This workflow removes the friction between "I have prospects" and "they received
 | VLP pricing | Conversion page | https://virtuallaunch.pro/pricing |
 | TMP directory | Value prop page | https://taxmonitor.pro/directory |
 | TTMP pricing | Cross-sell page | https://transcript.taxmonitor.pro/pricing |
+| Merge script | Local script | `C:\Users\eimaj\virtuallaunch.pro\scale\scripts\merge-intake.js` |
 | Batch generator | Local script | `C:\Users\eimaj\virtuallaunch.pro\scale\generate-vlp-batch.js` |
 | R2 push script | Local script | `C:\Users\eimaj\virtuallaunch.pro\scale\push-vlp-asset-pages.js` |
 | Prospect CSV folder | Local folder | `C:\Users\eimaj\virtuallaunch.pro\scale\prospects\` |
@@ -376,37 +377,50 @@ Produce a clean CSV of 30-50 tax professional prospects with verified email addr
 ### Objective
 Transform the prospect CSV into personalized email copy and asset page data. This phase removes the manual work of writing individual emails.
 
-### Task 2.1 — Run the batch generator
+### Task 2.1 — Merge intake and generate batch
 
-**Purpose:** Produce Hunter.io-ready CSV and R2-ready asset page JSON from the prospect list.
+**Purpose:** Merge new prospects into the master CSV, then generate personalized emails and asset pages.
 
-**Action:** Run the generator script.
-
-**Inputs required:**
-- File: `scale/prospects/new-prospects.csv` (from Phase 1)
-- Preconditions: CSV has required columns, no empty emails
+**Action:** Run merge script first, then batch generator.
 
 **Steps:**
-```bash
-cd C:\Users\eimaj\virtuallaunch.pro
-node scale/generate-vlp-batch.js scale/prospects/new-prospects.csv
-```
+
+**Merge:**
+1. Open Claude Code in the VLP repo
+2. Run:
+   ```
+   node scale/scripts/merge-intake.js
+   ```
+3. Verify output: rows appended, duplicates skipped, master total
+
+**Generate:**
+4. Run:
+   ```
+   node scale/generate-vlp-batch.js
+   ```
+5. Verify output:
+   - "Prospects processed: N"
+   - `scale/hunter/vlp-email1-{date}.csv` exists
+   - `scale/batches/vlp-batch-{date}.json` exists
 
 **Validation:**
-- [ ] Script reports "Prospects processed: N" (N > 0)
-- [ ] `scale/hunter/vlp-email1-{date}.csv` exists
-- [ ] `scale/batches/vlp-batch-{date}.json` exists
-- [ ] Spot-check 3 rows in Hunter CSV: no "undefined", signature present, links correct
-- [ ] Source CSV has `vlp_email_1_prepared_at` timestamps
+- [ ] Merge script ran without errors
+- [ ] No duplicate emails in master CSV
+- [ ] Batch generator processed N prospects (N > 0)
+- [ ] Hunter CSV: spot-check 3 rows — no "undefined", signature present, links correct
+- [ ] Master CSV has `vlp_email_1_prepared_at` timestamps on processed rows
+- [ ] `new-prospects.csv` truncated to headers only (ready for next intake)
+- [ ] Lockfile `.batch-in-progress` does not exist (generator cleaned up)
 
 **Outputs:**
-- Hunter CSV for email sending
-- Batch JSON for asset pages
-- Updated source CSV with tracking timestamps
+- Updated `scale/prospects/vlp-master.csv` with timestamps
+- `scale/hunter/vlp-email1-{date}.csv` for Hunter.io
+- `scale/batches/vlp-batch-{date}.json` for asset pages
+- Archived intake at `scale/prospects/archive/intake-{timestamp}.csv`
 
-**Failure mode if skipped:** No emails to send.
+**Failure mode if skipped:** Generator reads stale data, re-contacts already-emailed prospects.
 
-**Next:** Phase 3
+**Next:** Phase 3 (push asset pages to R2)
 
 ---
 
@@ -612,6 +626,9 @@ For full TTMP-specific details, see the TTMP WORKFLOW.md stub at:
 | `scale/batches/vlp-batch-{date}.json` | Asset page data | Generator (Phase 2) |
 | `scale/hunter/vlp-email1-{date}.csv` | Hunter.io import file | Generator (Phase 2) |
 | `scale/push-vlp-asset-pages.js` | R2 push script | Repo Claude (one-time) |
+| `scale/scripts/merge-intake.js` | Merge intake → master CSV | Repo Claude (one-time) |
 | `scale/generate-vlp-batch.js` | Batch generator | Repo Claude (one-time) |
+| `scale/prospects/vlp-master.csv` | Master prospect list (gitignored) | Merge script |
+| `scale/prospects/archive/` | Archived intake files (gitignored) | Merge script |
 | `scale/SCHEDULE.md` | Master action plan | This is your entry point |
 | `scale/WORKFLOW.md` | This file | Operational detail |

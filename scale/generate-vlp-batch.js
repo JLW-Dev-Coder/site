@@ -3,9 +3,12 @@
 /**
  * VLP SCALE Batch Generator
  *
- * Usage: node scale/generate-vlp-batch.js path/to/prospects.csv
+ * Usage:
+ *   node scale/generate-vlp-batch.js                         (reads vlp-master.csv)
+ *   node scale/generate-vlp-batch.js path/to/prospects.csv   (explicit override)
  *
- * Implements SKILL.md sections 4-6 exactly.
+ * Creates a lockfile at scale/prospects/.batch-in-progress during execution.
+ * Writes vlp_email_1_prepared_at timestamps back to the source CSV.
  * Generates batch JSON and Hunter.io CSV from prospect CSV.
  */
 
@@ -248,18 +251,27 @@ function formatCSVValue(value) {
 
 async function main() {
   const args = process.argv.slice(2);
+  const DEFAULT_MASTER = path.join(__dirname, 'prospects', 'vlp-master.csv');
+  const LOCKFILE = path.join(__dirname, 'prospects', '.batch-in-progress');
 
-  if (args.length !== 1) {
-    console.error('Usage: node scale/generate-vlp-batch.js path/to/prospects.csv');
-    process.exit(1);
-  }
-
-  const csvPath = args[0];
+  const csvPath = args[0] || DEFAULT_MASTER;
 
   if (!fs.existsSync(csvPath)) {
     console.error(`Error: File ${csvPath} does not exist`);
     process.exit(1);
   }
+
+  // Create lockfile
+  fs.writeFileSync(LOCKFILE, JSON.stringify({ started_at: new Date().toISOString(), pid: process.pid }));
+  console.log('Lockfile created: scale/prospects/.batch-in-progress');
+
+  // Ensure lockfile is removed on exit
+  const removeLock = () => {
+    try { fs.unlinkSync(LOCKFILE); } catch (_) {}
+  };
+  process.on('exit', removeLock);
+  process.on('SIGINT', () => { removeLock(); process.exit(1); });
+  process.on('SIGTERM', () => { removeLock(); process.exit(1); });
 
   console.log(`Reading prospect CSV: ${csvPath}`);
 
