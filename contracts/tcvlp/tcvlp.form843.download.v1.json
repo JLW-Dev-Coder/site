@@ -1,0 +1,61 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH", "D1"],
+    "governs": "TCVLP Form 843 PDF download — serves filled PDF from R2",
+    "path": "/contracts/tcvlp/tcvlp.form843.download.v1.json",
+    "source": "Tax Claim VLP",
+    "title": "TCVLP — Form 843 — Download Filled PDF",
+    "usedOnPages": [
+      "{slug}.taxclaim.virtuallaunch.pro",
+      "Form 843 download"
+    ],
+    "validation": {
+      "enumStrict": false,
+      "normalizeCheckboxToBoolean": false,
+      "rejectUnknownValues": false,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tcvlp/forms/843/:submission_id/download",
+    "method": "GET",
+    "receiptKeyPattern": "",
+    "receiptSource": "",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "",
+    "eventIdFrom": "",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "deduped": null,
+    "error": {
+      "ok": false,
+      "error": "NOT_FOUND",
+      "message": "Form 843 submission not found"
+    },
+    "success": "Binary PDF response with Content-Type: application/pdf"
+  },
+  "schema": {
+    "name": "tcvlp_form843_download",
+    "version": 1
+  }
+}

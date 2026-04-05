@@ -107,6 +107,23 @@
       "addedDate": "2026-03-30"
     },
     {
+      "id": "tcvlp.form843.download.v1",
+      "path": "/contracts/tcvlp/tcvlp.form843.download.v1.json",
+      "endpoint": "/v1/tcvlp/forms/843/:submission_id/download",
+      "method": "GET",
+      "status": "active",
+      "category": "read",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "",
+      "receiptKeyPattern": "",
+      "receiptSource": "",
+      "usedOnPages": ["{slug}.taxclaim.virtuallaunch.pro", "Form 843 download"],
+      "writes": [],
+      "version": "1",
+      "addedDate": "2026-04-04"
+    },
+    {
       "id": "tcvlp.form843.submit.v1",
       "path": "/contracts/tcvlp/tcvlp.form843.submit.v1.json",
       "endpoint": "/v1/tcvlp/forms/843/submit",

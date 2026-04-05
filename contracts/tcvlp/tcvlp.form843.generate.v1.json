@@ -84,6 +84,46 @@
       },
       "transcript_used": {
         "type": "boolean"
+      },
+      "ssn_ein": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "spouse_name": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "spouse_ssn": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "address": {
+        "type": "string",
+        "maxLength": 200
+      },
+      "apt_suite": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "city": {
+        "type": "string",
+        "maxLength": 100
+      },
+      "zip_code": {
+        "type": "string",
+        "maxLength": 10
+      },
+      "ein": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "phone": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "irc_section": {
+        "type": "string",
+        "maxLength": 20
       }
     },
     "required": [
@@ -111,6 +151,8 @@
       "ok": true,
       "submission_id": "{submission_id}",
       "mailing_address": "{mailing_address}",
+      "pdf_url": "/v1/tcvlp/forms/843/{submission_id}/download",
+      "pdf_generated": true,
       "preparation_guide": "{preparation_guide}"
     }
   },

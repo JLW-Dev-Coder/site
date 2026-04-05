@@ -1,3 +1,6 @@
+import { PDFDocument } from 'pdf-lib';
+import { FORM_843_BASE64 } from './form843-template.js';
+
 /**
  * Virtual Launch Pro — Cloudflare Worker
  * API surface: api.virtuallaunch.pro
@@ -10063,7 +10066,12 @@ TTMP Support Team
         return json({ ok: false, error: 'INVALID_JSON' }, 400, request);
       }
 
-      const { pro_id, taxpayer_name, taxpayer_email, tax_year, penalty_type, penalty_amount, state, transcript_used } = body;
+      const {
+        pro_id, taxpayer_name, taxpayer_email, tax_year, penalty_type, penalty_amount,
+        state, transcript_used,
+        ssn_ein, spouse_name, spouse_ssn, address, apt_suite, city, zip_code,
+        ein, phone, irc_section
+      } = body;
 
       if (!pro_id || !taxpayer_name || !tax_year || !penalty_type || !state) {
         return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['pro_id', 'taxpayer_name', 'tax_year', 'penalty_type', 'state'] }, 400, request);
@@ -10135,10 +10143,83 @@ TTMP Support Team
           [submission_id, pro_id, taxpayer_name, taxpayer_email, tax_year, penalty_type, penalty_amount, state.toUpperCase(), mailing_address, transcript_used ? 1 : 0, 'draft', timestamp, timestamp]
         );
 
+        // --- PDF Generation via pdf-lib ---
+        const pdfBytes = Uint8Array.from(atob(FORM_843_BASE64), c => c.charCodeAt(0));
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+        const form = pdfDoc.getForm();
+
+        // Helper to safely set text fields
+        const setField = (name, value) => {
+          if (!value) return;
+          try { form.getTextField(name).setText(String(value)); } catch { /* field not found */ }
+        };
+        const checkBox = (name) => {
+          try { form.getCheckBox(name).check(); } catch { /* field not found */ }
+        };
+
+        // Top checkbox: "Abatement or refund of a penalty or addition to tax due to reasonable cause"
+        checkBox('topmostSubform[0].Page1[0].c1_1[6]');
+
+        // Taxpayer info
+        setField('topmostSubform[0].Page1[0].f1_1[0]', taxpayer_name);
+        setField('topmostSubform[0].Page1[0].f1_2[0]', ssn_ein);
+        setField('topmostSubform[0].Page1[0].f1_3[0]', spouse_name);
+        setField('topmostSubform[0].Page1[0].f1_4[0]', spouse_ssn);
+        setField('topmostSubform[0].Page1[0].f1_5[0]', address);
+        setField('topmostSubform[0].Page1[0].f1_6[0]', apt_suite);
+        setField('topmostSubform[0].Page1[0].f1_7[0]', city);
+        setField('topmostSubform[0].Page1[0].f1_8[0]', state.toUpperCase());
+        setField('topmostSubform[0].Page1[0].f1_9[0]', zip_code);
+        setField('topmostSubform[0].Page1[0].f1_10[0]', ein);
+        setField('topmostSubform[0].Page1[0].f1_15[0]', phone);
+
+        // Line 1: Tax period
+        setField('topmostSubform[0].Page1[0].f1_16[0]', `01/01/${tax_year}`);
+        setField('topmostSubform[0].Page1[0].f1_17[0]', `12/31/${tax_year}`);
+
+        // Line 2: Amount
+        if (penalty_amount) {
+          setField('topmostSubform[0].Page1[0].f1_18[0]', String(penalty_amount));
+        }
+
+        // Line 4e: Income tax checkbox
+        checkBox('topmostSubform[0].Page1[0].c1_5[0]');
+
+        // Line 5i: 1040 checkbox
+        checkBox('topmostSubform[0].Page2[0].c2_8[0]');
+
+        // Line 6: IRC section
+        const ircSectionValue = irc_section || '6651';
+        setField('topmostSubform[0].Page2[0].f2_2[0]', ircSectionValue);
+
+        // Line 7c: Reasonable cause
+        checkBox('topmostSubform[0].Page2[0].c2_15[2]');
+
+        // Line 8: Explanation
+        const explanation = `Claim for refund of ${penalty_type} penalty assessed for tax year ${tax_year}. `
+          + `Per Kwong v. United States, No. 22-1993T (Fed. Cl. 2023), the U.S. Court of Federal Claims held that the IRS exceeded its authority in assessing certain penalties between January 20, 2020 and July 10, 2023. `
+          + `Taxpayer requests abatement and refund of $${penalty_amount || '[amount]'} in penalties assessed during this period. `
+          + `This claim is timely filed before the July 10, 2026 deadline established by the court.`;
+        setField('topmostSubform[0].Page2[0].ExplainWhy[0].f2_3[0]', explanation);
+
+        // Flatten form fields so they can't be edited
+        form.flatten();
+
+        const filledPdf = await pdfDoc.save();
+
+        // Store filled PDF in R2 for download
+        await env.R2_VIRTUAL_LAUNCH.put(
+          `tcvlp/forms/843/${submission_id}.pdf`,
+          filledPdf,
+          { httpMetadata: { contentType: 'application/pdf' } }
+        );
+
         return json({
           ok: true,
           submission_id,
           mailing_address,
+          pdf_url: `/v1/tcvlp/forms/843/${submission_id}/download`,
+          pdf_generated: true,
           preparation_guide: {
             taxpayer_name,
             tax_year,
@@ -10208,6 +10289,53 @@ TTMP Support Team
         console.error('TCVLP Form 843 submission error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to submit Form 843' }, 500, request);
       }
+    },
+  },
+
+  // GET /v1/tcvlp/forms/843/:submission_id/download
+  {
+    method: 'GET', pattern: '/v1/tcvlp/forms/843/:submission_id/download',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { error, session } = await requireSession(request, env);
+      if (error) return error;
+
+      const { submission_id } = params;
+      if (!submission_id) {
+        return json({ ok: false, error: 'MISSING_SUBMISSION_ID' }, 400, request);
+      }
+
+      // Verify the session account owns this submission (no IDOR)
+      const submission = await env.DB.prepare(
+        'SELECT submission_id, taxpayer_name, pro_id FROM tcvlp_form843_submissions WHERE submission_id = ?'
+      ).bind(submission_id).first();
+
+      if (!submission) {
+        return json({ ok: false, error: 'NOT_FOUND', message: 'Form 843 submission not found' }, 404, request);
+      }
+
+      // Check that the pro's account matches the session account
+      const pro = await env.DB.prepare(
+        'SELECT account_id FROM tcvlp_pros WHERE pro_id = ?'
+      ).bind(submission.pro_id).first();
+
+      if (!pro || pro.account_id !== session.account_id) {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'You do not have access to this form' }, 403, request);
+      }
+
+      // Read PDF from R2
+      const pdfObject = await env.R2_VIRTUAL_LAUNCH.get(`tcvlp/forms/843/${submission_id}.pdf`);
+      if (!pdfObject) {
+        return json({ ok: false, error: 'PDF_NOT_FOUND', message: 'PDF has not been generated for this submission' }, 404, request);
+      }
+
+      const safeName = (submission.taxpayer_name || 'taxpayer').replace(/[^a-zA-Z0-9 -]/g, '').replace(/\s+/g, '-');
+      return new Response(pdfObject.body, {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="Form-843-${safeName}.pdf"`,
+          'Cache-Control': 'private, no-cache',
+        },
+      });
     },
   },
 
