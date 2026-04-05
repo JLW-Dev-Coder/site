@@ -146,62 +146,69 @@ function generateSlug(firstName, lastName, city, state, existingSlugs = new Set(
 }
 
 function generateAssetPage(prospect, credentialConfig) {
-  const { First_NAME, BUS_ADDR_CITY, BUS_ST_CODE, firm_bucket, DBA, PROFESSION } = prospect;
+  const { First_NAME, LAST_NAME, BUS_ADDR_CITY, BUS_ST_CODE, PROFESSION } = prospect;
 
   const firstName = normalizeFirstName(First_NAME);
+  const fullName = normalizeFullName(First_NAME, LAST_NAME);
   const city = normalizeCity(BUS_ADDR_CITY);
   const state = normalizeState(BUS_ST_CODE);
-  const credentialLabel = normalizeCredentialLabel(PROFESSION);
+  const credLabel = normalizeCredentialLabel(PROFESSION);
 
   return {
-    headline: `${firstName}, your ${city} practice could be reaching more clients`,
-    subheadline: `We analyzed your online visibility and found opportunities worth ${credentialConfig.annual_value} per year in new client revenue.`,
-    credential_label: credentialLabel,
-    revenue_range: credentialConfig.annual_value,
-    problem_cards: [
+    headline: `${firstName}, how much is your ${city} practice leaving on the table?`,
+    subheadline: `Answer three quick questions. We'll show you the revenue gap — and how to close it.`,
+    credential_line: `${credLabel} · ${city}, ${state}`,
+    calculator: {
+      enabled: true,
+      fields: [
+        { id: 'newClients', label: 'How many new clients could you take on per month?', type: 'range', min: 1, max: 20, default: 5 },
+        { id: 'engValue', label: 'Average value per new client engagement', type: 'range', min: 200, max: 5000, default: 1500, step: 100 }
+      ],
+      result_template: `That's what {newClients} new clients per month at \${engValue} each could add to your practice — if they could find you.`
+    },
+    qualifying_questions: [
       {
-        title: 'Directory visibility',
-        body: `Taxpayers search online for tax help in ${city}. Without a directory listing, they find your competitors instead.`
+        text: 'A structured client workflow for intake through case completion',
+        detail: 'Stop losing prospects between first contact and engagement. Our intake flow handles agreement, payment, and onboarding automatically.'
       },
       {
-        title: 'Client intake',
-        body: `When a prospect does find you, there's no online way to start working together. They call, get voicemail, and move on.`
+        text: 'More online visibility beyond word-of-mouth referrals',
+        detail: 'Get placed in front of taxpayers actively searching for help through our directory, ecosystem placements, and partner platforms.'
       },
       {
-        title: 'Practice tools',
-        body: `Every transcript you read manually is 20 minutes you could spend on billable work. Automation changes that math.`
+        text: 'Faster transcript analysis so your team can handle more volume',
+        detail: 'Every VLP membership includes transcript automation tokens. Turn a 20-minute manual review into a 30-second report.'
       }
     ],
-    value_section: {
-      heading: `What this means for ${firstName}'s practice`,
-      revenue_range: credentialConfig.annual_value,
-      body: `Based on ${credentialLabel.toLowerCase()} billing rates, adding 5 clients through directory visibility could mean ${credentialConfig.annual_value} in annual revenue. That's before accounting for time saved on transcript automation.`
+    tiers: [
+      { name: 'Active', price: '$79/mo', pitch: 'Get listed in the directory. Start receiving inquiries from taxpayers in your area.', recommended: false },
+      { name: 'Featured', price: '$199/mo', pitch: 'Sponsored placement puts you ahead. Priority matching to incoming taxpayer inquiries.', recommended: true },
+      { name: 'Premier', price: '$399/mo', pitch: 'Maximum visibility across three platforms. Early case access. Priority everything.', recommended: false }
+    ],
+    crosssell: {
+      heading: 'Just want to try the transcript tool?',
+      body: 'No membership needed. Analyze 10 IRS transcripts for $19. See how much time it saves before you commit to anything.',
+      url: 'https://transcript.taxmonitor.pro/pricing',
+      button_text: 'Try transcript automation'
     },
-    tier_comparison: {
-      active: {
-        price: "$79/mo",
-        pitch: "Get listed. Get found. Start receiving client inquiries.",
-        includes: "Directory listing, 2 transcript analyses/mo, 5 game tokens/mo"
-      },
-      featured: {
-        price: "$199/mo",
-        pitch: "Stand out. Sponsored placement puts you ahead of other listings.",
-        includes: "Everything in Active + sponsored placement, 5 transcript analyses/mo, 15 game tokens/mo"
-      },
-      premier: {
-        price: "$399/mo",
-        pitch: "Maximum visibility across three platforms. Priority everything.",
-        includes: "Everything in Featured + placement on TMP + TTMP + TTTMP, 10 transcript analyses/mo, 40 game tokens/mo"
-      }
+    about: {
+      heading: 'About Virtual Launch Pro',
+      subheading: 'The practice growth hub built for tax professionals.',
+      paragraphs: [
+        'Virtual Launch Pro connects tax professionals with the clients, tools, and visibility they need to grow. One membership gives you a searchable listing in the Tax Monitor Pro directory, automated IRS transcript analysis through Transcript Tax Monitor Pro, interactive tax education tools, and a structured client intake workflow — from first inquiry through case completion.',
+        'Instead of cobbling together separate tools for visibility, client management, and transcript work, VLP puts them under one account with one token wallet. Your membership tier determines how visible you are and how many tools you can use each month.'
+      ],
+      stats: [
+        { value: '750,000+', label: 'U.S. tax professionals' },
+        { value: '8', label: 'Connected platforms' },
+        { value: '$79', label: 'Starting monthly' }
+      ]
     },
-    ttmp_crosssell: {
-      heading: "Just want to try the transcript tool?",
-      body: "No membership needed. Analyze 10 IRS transcripts for $19. See how much time it saves before you commit to anything.",
-      url: "https://transcript.taxmonitor.pro/pricing",
-      cta: "Try transcript automation"
+    ctas: {
+      primary: { text: 'See all membership tiers', url: 'https://virtuallaunch.pro/pricing' },
+      secondary: { text: 'Browse the professional directory', url: 'https://taxmonitor.pro/directory' }
     },
-    cta_pricing_url: "https://virtuallaunch.pro/pricing",
-    cta_directory_url: "https://taxmonitor.pro/directory"
+    footer: `Prepared for ${fullName} · ${city}, ${state} · virtuallaunch.pro`
   };
 }
 
