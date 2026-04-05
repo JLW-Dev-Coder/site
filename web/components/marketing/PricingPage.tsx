@@ -26,16 +26,16 @@ const DEFAULT_PLANS: Record<string, PlanData> = {
     yearly:  { billingObject: 'price_1TBjsM9ROeyeXOqeAPefMFfM', checkoutHref: '#', planKey: 'vlp_free', platformFee: '0', price: '0', suffix: '/yr', taxGameTokens: '0', transcriptTokens: '0' },
   },
   starter: {
-    monthly: { billingObject: 'price_1T9APS9ROeyeXOqeOWjA4sq3', checkoutHref: '#', planKey: 'vlp_starter_monthly', platformFee: '12', price: '79', suffix: '/mo', taxGameTokens: '30', transcriptTokens: '30' },
-    yearly:  { billingObject: 'price_1TBjy19ROeyeXOqeyzbwP3hW', checkoutHref: '#', planKey: 'vlp_starter_yearly', platformFee: '12', price: '790', suffix: '/yr', taxGameTokens: '360', transcriptTokens: '360' },
+    monthly: { billingObject: 'price_1T9APS9ROeyeXOqeOWjA4sq3', checkoutHref: '#', planKey: 'vlp_starter', platformFee: '12', price: '79', suffix: '/mo', taxGameTokens: '5', transcriptTokens: '2' },
+    yearly:  { billingObject: 'price_1TBjy19ROeyeXOqeyzbwP3hW', checkoutHref: '#', planKey: 'vlp_starter', platformFee: '12', price: '790', suffix: '/yr', taxGameTokens: '5', transcriptTokens: '2' },
   },
   scale: {
-    monthly: { billingObject: 'price_1T9AUi9ROeyeXOqeqyzsSOYV', checkoutHref: '#', planKey: 'vlp_scale_monthly', platformFee: '12', price: '199', suffix: '/mo', taxGameTokens: '120', transcriptTokens: '100' },
-    yearly:  { billingObject: 'price_1TBk0K9ROeyeXOqeC3sHQqFN', checkoutHref: '#', planKey: 'vlp_scale_yearly', platformFee: '12', price: '1990', suffix: '/yr', taxGameTokens: '1440', transcriptTokens: '1200' },
+    monthly: { billingObject: 'price_1T9AUi9ROeyeXOqeqyzsSOYV', checkoutHref: '#', planKey: 'vlp_scale', platformFee: '12', price: '199', suffix: '/mo', taxGameTokens: '15', transcriptTokens: '5' },
+    yearly:  { billingObject: 'price_1TBk0K9ROeyeXOqeC3sHQqFN', checkoutHref: '#', planKey: 'vlp_scale', platformFee: '12', price: '1990', suffix: '/yr', taxGameTokens: '15', transcriptTokens: '5' },
   },
   advanced: {
-    monthly: { billingObject: 'price_1T9AXX9ROeyeXOqef7Ja1Iig', checkoutHref: '#', planKey: 'vlp_advanced_monthly', platformFee: '12', price: '399', suffix: '/mo', taxGameTokens: '300', transcriptTokens: '250' },
-    yearly:  { billingObject: 'price_1TBk1G9ROeyeXOqeBQcj749T', checkoutHref: '#', planKey: 'vlp_advanced_yearly', platformFee: '12', price: '3990', suffix: '/yr', taxGameTokens: '3600', transcriptTokens: '3000' },
+    monthly: { billingObject: 'price_1T9AXX9ROeyeXOqef7Ja1Iig', checkoutHref: '#', planKey: 'vlp_advanced', platformFee: '12', price: '399', suffix: '/mo', taxGameTokens: '40', transcriptTokens: '10' },
+    yearly:  { billingObject: 'price_1TBk1G9ROeyeXOqeBQcj749T', checkoutHref: '#', planKey: 'vlp_advanced', platformFee: '12', price: '3990', suffix: '/yr', taxGameTokens: '40', transcriptTokens: '10' },
   },
 }
 
@@ -94,17 +94,17 @@ function mergeRemote(payload: any, plans: Record<string, PlanData>): Record<stri
 }
 
 const planFeatures: Record<PlanKey, string[]> = {
-  free:     ['Account Infrastructure', 'Booking & Calendar Integration', 'Profile Management', 'Support & Platform Access', 'Usage & Reports'],
-  starter:  ['Access to taxpayer service pool', 'Network directory listing', 'Tax tool game token access', 'Transcript token access'],
-  scale:    ['Featured network listing', 'Priority taxpayer pool access', 'Tax tool game token access', 'Transcript token access'],
-  advanced: ['Early taxpayer case access', 'Tax tool game token access', 'Top-tier network promotion', 'Transcript token access'],
+  free:     ['Account management', 'Calendar/scheduling', 'Profile management', 'Support tickets', 'Token balance', 'Tool usage history'],
+  starter:  ['Everything in Listed', 'Directory profile', 'Pro↔taxpayer messaging', 'Taxpayer service pool access', '2 transcript + 5 game tokens monthly'],
+  scale:    ['Everything in Active', 'Sponsored placement on TMP', 'Priority pool access', 'Featured network listing', '5 transcript + 15 game tokens monthly'],
+  advanced: ['Everything in Featured', 'Sponsored placement on TMP + TTMP + TTTMP', 'Early case access', 'Top-tier network promotion', '10 transcript + 40 game tokens monthly'],
 }
 
 const planMeta: Record<PlanKey, { label: string; badge: string; featured: boolean; body: string }> = {
-  free:     { label: 'Free',     badge: 'Start here',        featured: false, body: 'For tax professionals getting started, exploring the platform, and joining the network before stepping into paid membership.' },
-  starter:  { label: 'Starter',  badge: 'Best for solo pros', featured: false, body: 'For solo tax professionals who need taxpayer service pool access, a directory listing, and core token tools.' },
-  scale:    { label: 'Scale',    badge: 'Most popular',      featured: true,  body: 'For active tax professionals who want featured network placement, priority pool access, and full token capacity.' },
-  advanced: { label: 'Advanced', badge: 'For high volume',   featured: false, body: 'For high-volume practices that need top-tier network promotion, early case access, and maximum token throughput.' },
+  free:     { label: 'Listed',   badge: 'Start here',        featured: false, body: 'For tax professionals getting started, exploring the platform, and joining the network before stepping into paid membership.' },
+  starter:  { label: 'Active',   badge: 'Best for solo pros', featured: false, body: 'For solo tax professionals who need taxpayer service pool access, a directory listing, and core token tools.' },
+  scale:    { label: 'Featured', badge: 'Most popular',      featured: true,  body: 'For active tax professionals who want featured network placement, priority pool access, and full token capacity.' },
+  advanced: { label: 'Premier',  badge: 'For high volume',   featured: false, body: 'For high-volume practices that need top-tier network promotion, early case access, and maximum token throughput.' },
 }
 
 export default function PricingPage() {
@@ -118,7 +118,7 @@ export default function PricingPage() {
     setLoadingPlan(data.planKey)
     setPlanErrors((prev) => ({ ...prev, [data.planKey]: '' }))
     try {
-      const res = await fetch('https://api.virtuallaunch.pro/v1/checkout/session', {
+      const res = await fetch('https://api.virtuallaunch.pro/v1/checkout/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -164,7 +164,7 @@ export default function PricingPage() {
           </h1>
 
           <p className="mx-auto mb-12 max-w-3xl text-xl leading-relaxed text-slate-400 md:text-2xl">
-            Choose Free, Starter, Scale, or Advanced. Pricing, tokens, and plan keys stay aligned to the live billing structure.
+            Choose Listed, Active, Featured, or Premier. Pricing, tokens, and plan keys stay aligned to the live billing structure.
           </p>
 
           <div className="flex flex-col justify-center gap-4 sm:flex-row">
@@ -269,7 +269,7 @@ export default function PricingPage() {
             <p className="text-xs font-semibold tracking-widest text-orange-400">COMPARISON</p>
             <h2 className="mt-4 text-4xl font-extrabold md:text-5xl">What each membership includes</h2>
             <p className="mx-auto mt-5 max-w-2xl text-base text-white/70">
-              Compare transcript capacity, tax tool token access, and member visibility across each tier.
+              Compare monthly token allocations, platform fees, and internal plan details across each tier.
             </p>
           </div>
 
@@ -293,8 +293,8 @@ export default function PricingPage() {
               <tbody>
                 {[
                   { label: 'Monthly cost', fn: (d: PlanCycle) => `$${d.price}` },
-                  { label: 'Transcript tokens', fn: (d: PlanCycle) => d.transcriptTokens },
-                  { label: 'Tax tool game tokens', fn: (d: PlanCycle) => d.taxGameTokens },
+                  { label: 'Monthly transcript tokens', fn: (d: PlanCycle) => d.transcriptTokens },
+                  { label: 'Monthly game tokens', fn: (d: PlanCycle) => d.taxGameTokens },
                   { label: 'Platform fee', fn: (d: PlanCycle) => `${d.platformFee}%` },
                   { label: 'Plan key', fn: (d: PlanCycle) => d.planKey },
                   { label: 'Billing object', fn: (d: PlanCycle) => d.billingObject },

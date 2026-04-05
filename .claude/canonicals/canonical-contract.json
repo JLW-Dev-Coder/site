@@ -1,0 +1,15 @@
+# canonical-contract.json
+
+Required top-level sections (all 7 must be present):
+- auth: required, trustClientIdentityFields, type
+- contract: authority, governs, path, source, title, usedOnPages, validation, version
+- delivery: endpoint, method, receiptKeyPattern, receiptSource, signature
+- effects: dedupeKey, eventIdFrom, writeOrder, writes
+- payload: additionalProperties, properties, required, type
+- response: deduped, error, success
+- schema: name, version
+
+Optional sections: clickupProjection, emailProjection, notificationProjection, notes
+
+Naming: contracts/{platform}/{platform}.{domain}.{action}.v{n}.json
+Write order: receiptAppend → canonicalUpsert (never deviate)

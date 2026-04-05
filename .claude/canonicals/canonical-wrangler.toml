@@ -1,0 +1,17 @@
+# canonical-wrangler.toml
+
+Standard Cloudflare Worker configuration template.
+
+## Required sections
+- name, main, compatibility_date
+- routes (pattern + zone_name)
+- observability (enabled, logs)
+- r2_buckets (binding, bucket_name)
+- vars: App, Auth, Billing, Calendar, Cloudflare, Messaging, Organization, Security, Storage
+- Secrets listed as comments (set via wrangler secret put)
+
+## Rules
+- Never commit secret values
+- All secrets via wrangler secret put
+- Non-secret vars in [vars] section
+- One route pattern per platform Worker

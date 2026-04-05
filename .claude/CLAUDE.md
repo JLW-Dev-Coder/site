@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-03
+Last updated: 2026-04-04
 
 ---
 
@@ -102,11 +102,20 @@ Track legacy Worker retirement here. Update as work completes.
 - R2 + D1 storage pattern
 - 6 contracts in vlp-registry.json
 
-**Phase 4 (next): Token purchase flow wired to membership gating**
+**Phase 4: VLP Membership Subscription Renewals — COMPLETE (2026-04-04)**
+
+**Phase 6: VLP Pricing Page Update — COMPLETE (2026-04-04)**
+- Updated pricing page with correct customer-facing tier names (Listed/Active/Featured/Premier)
+- Fixed token allocations to match CLAUDE.md section 19 (2+/5+/10+ transcript, 5+/15+/40+ game)
+- Corrected plan keys to remove billing interval suffix (vlp_starter, vlp_scale, vlp_advanced)
+- Updated feature descriptions to match specification
+- Fixed checkout endpoint to use `/v1/checkout/sessions`
+- Created checkout success page at `/checkout/success`
+- Verified build passes
 
 **Upcoming:**
-- Phase 5: TMP + DVLP + GVLP membership tiers
-- Phase 6: WLVLP marketplace
+- Phase 7: TMP + DVLP + GVLP membership tiers  
+- Phase 8: WLVLP marketplace
 
 ---
 
@@ -443,7 +452,33 @@ Secrets are managed via `wrangler secret put` — never committed to the repo.
 
 ---
 
-## 19. Phased Build Plan
+## 19. VLP Membership Tier Mapping
+
+Customer-facing tier names differ from internal plan keys and Stripe product names.
+Do not rename Stripe products — active subscriptions exist.
+
+| Customer tier | Price | Internal plan_key | Stripe product name | Stripe product ID |
+|--------------|-------|-------------------|--------------------|--------------------|
+| Listed | $0/mo | vlp_free | (none) | (none) |
+| Active | $79/mo | vlp_starter | VLP Starter | prod_U7PDtTKvnjGuxE |
+| Featured | $199/mo | vlp_scale | VLP Scale | prod_U7PJAioATefEi7 |
+| Premier | $399/mo | vlp_advanced | VLP Advanced | prod_U7PM0qbFA2hFeM |
+
+Monthly token allocations (added to balance on each renewal):
+
+| Plan key | Transcript tokens | Game tokens |
+|----------|------------------|-------------|
+| vlp_free | 0 | 0 |
+| vlp_starter | 2 | 5 |
+| vlp_scale | 5 | 15 |
+| vlp_advanced | 10 | 40 |
+
+Note: vlp_pro price IDs in wrangler.toml point to the same Stripe product as vlp_scale.
+Both plan keys should grant identical token amounts.
+
+---
+
+## 20. Phased Build Plan
 
 ### Phase 1 — TTTMP: Usable Tools (foundation)
 - IRS form autofill (2848, 8821)
@@ -471,9 +506,36 @@ Secrets are managed via `wrangler secret put` — never committed to the repo.
 - Cloudflare zone resolution and analytics for all 8 platform domains
 - Requires CF_API_TOKEN secret for analytics functionality
 
-### Phase 5 — Token purchase flow wired to membership gating (next)
+### Phase 5 — VLP Membership Subscription Renewals — COMPLETE (2026-04-04)
+- Fixed token grant amounts to correct monthly allocations
+- Added VLP subscription renewal handler in Stripe webhook  
+- Token accumulation on renewals (not reset)
+- Preserves token balances on subscription cancellation
+- Added tier mapping documentation
 
-### Phase 5 — TMP + DVLP + GVLP (membership tiers)
+### Phase 4A — VLP SCALE Batch Generator — COMPLETE (2026-04-05)
+- Created directory structure: scale/prospects/, scale/batches/, scale/hunter/
+- Added SKILL.md with full VLP SCALE specification (11 sections)
+- Built generate-vlp-batch.js implementing selection logic, slug generation, asset page creation
+- Email personalization by credential (EA/CPA/JD) and firm_bucket (solo_brand/local_firm/national_firm)
+- Hunter.io CSV export with RFC-4180 compliance for cold email delivery
+- Source CSV tracking with vlp_email_1_prepared_at timestamps
+- Created comprehensive SCALE.md documentation (14 sections)
+- Added scale/prospects/ to .gitignore (contains real emails)
+
+### Phase 4B — VLP Asset Page Route — COMPLETE (2026-04-04)
+- Created dynamic asset page at web/app/(marketing)/asset/[slug]/page.tsx
+- Fetches prospect data from GET /v1/scale/asset/:slug (Worker route already existed at line 11379)
+- R2 key pattern: vlp-scale/asset-pages/{slug}.json
+- Page sections: hero, client gap analysis, value estimate, tier comparison, TTMP cross-sell, footer CTAs
+- 404 fallback links to /pricing
+- Created scale/push-vlp-asset-pages.js for R2 upload (--exec mode or print commands)
+- Follows STYLE.md: Tailwind + CSS custom properties, dark theme, brand-orange accents
+- Build passes, route confirmed at /asset/[slug]
+
+### Phase 6 — Token purchase flow wired to membership gating (next)
+
+### Phase 7 — TMP + DVLP + GVLP (membership tiers)
 - Tax pro directory (TMP) — taxpayer intake + matching
 - Developer marketplace (DVLP) — Free + $2.99 intro tier
 - Gamified subscriptions (GVLP) — $9/$19/$39/mo
@@ -482,3 +544,37 @@ Secrets are managed via `wrangler secret put` — never committed to the repo.
 - Canva site exports served as static content under `/sites/[slug]/`
 - Next.js is the system layer — do NOT convert Canva exports to React
 - Voting/bidding calls private Worker only at mutation point — no PII in responses
+
+---
+
+## VLP SCALE Pipeline
+
+### Directory structure
+scale/
+├── prospects/    ← source CSVs (gitignored)
+├── batches/      ← generated JSON batches (committed)
+├── hunter/       ← Hunter.io import CSVs (committed)
+└── generate-vlp-batch.js
+
+### Daily batch generation
+1. Run: node scale/generate-vlp-batch.js scale/prospects/{source}.csv
+2. Push asset pages to R2: node scale/push-vlp-asset-pages.js scale/batches/vlp-batch-{date}.json --exec
+3. Upload scale/hunter/vlp-email1-{date}.csv to Hunter.io
+4. Hunter.io sends Email 1
+5. After 3 days: generate Email 2 batch, upload to Hunter.io
+
+### Sending via Hunter.io (not VLP Worker)
+VLP SCALE uses Hunter.io for email delivery, not the VLP Worker cron.
+Import the generated CSV into Hunter Sequences.
+Hunter handles sending, tracking, and follow-ups.
+
+---
+
+## Post-Task Requirements
+
+After completing any task:
+1. Stage all changes: git add -A
+2. Commit with a descriptive message: git commit -m "[Phase X] description of changes"
+3. Report the commit hash in the task report
+
+Never leave uncommitted changes. Every task ends with a clean working tree.

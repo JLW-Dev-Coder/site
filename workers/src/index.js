@@ -811,12 +811,13 @@ function getPriceId(planKey, billingInterval, env) {
 
 function getTokenGrant(planKey) {
   const grants = {
-    vlp_free:     { taxGameTokens: 0,     transcriptTokens: 0 },
-    vlp_starter:  { taxGameTokens: 10000, transcriptTokens: 25000 },
-    vlp_advanced: { taxGameTokens: 25000, transcriptTokens: 75000 },
-    vlp_scale:    { taxGameTokens: 50000, transcriptTokens: 150000 },
+    vlp_free:     { transcriptTokens: 0,  taxGameTokens: 0 },
+    vlp_starter:  { transcriptTokens: 2,  taxGameTokens: 5 },
+    vlp_pro:      { transcriptTokens: 5,  taxGameTokens: 15 },
+    vlp_advanced: { transcriptTokens: 10, taxGameTokens: 40 },
+    vlp_scale:    { transcriptTokens: 5,  taxGameTokens: 15 },
   };
-  return grants[planKey] ?? { taxGameTokens: 0, transcriptTokens: 0 };
+  return grants[planKey] ?? { transcriptTokens: 0, taxGameTokens: 0 };
 }
 
 async function calPost(path, body, accessToken) {
@@ -9532,6 +9533,7 @@ TTMP Support Team
           const subscription_id = invoice.subscription;
 
           if (subscription_id) {
+            // Handle GVLP renewals
             const operator = await env.DB.prepare(
               "SELECT * FROM gvlp_operators WHERE stripe_subscription_id = ?"
             ).bind(subscription_id).first();
@@ -9546,6 +9548,62 @@ TTMP Support Team
                   [tokenDifference, timestamp, timestamp, operator.operator_id]
                 );
               }
+            }
+
+            // Handle VLP renewals
+            const subscription = await stripeGet(`/subscriptions/${subscription_id}`, env);
+            const plan_key = subscription?.metadata?.plan_key;
+            const account_id = subscription?.metadata?.account_id;
+
+            if (plan_key && plan_key.startsWith('vlp_') && account_id) {
+              const monthlyAllocation = getTokenGrant(plan_key);
+
+              // Read current token balance from R2
+              let currentBalance = { transcriptTokens: 0, taxGameTokens: 0 };
+              try {
+                const existingTokens = await r2Get(env.R2_VIRTUAL_LAUNCH, `tokens/${account_id}.json`);
+                if (existingTokens) {
+                  currentBalance = existingTokens;
+                }
+              } catch (e) {
+                // Token file doesn't exist yet, start with zero balance
+              }
+
+              // Add monthly allocation to existing balance (tokens accumulate)
+              const newBalance = {
+                account_id,
+                transcript_tokens: (currentBalance.transcript_tokens || 0) + monthlyAllocation.transcriptTokens,
+                tax_game_tokens: (currentBalance.tax_game_tokens || 0) + monthlyAllocation.taxGameTokens,
+                updated_at: timestamp
+              };
+
+              // Write receipt to R2
+              const receiptKey = `receipts/vlp/renewal/${account_id}-${timestamp}.json`;
+              await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, {
+                event_type: 'vlp_renewal',
+                account_id,
+                plan_key,
+                subscription_id,
+                invoice_id: invoice.id,
+                tokens_granted: monthlyAllocation,
+                tokens_before: currentBalance,
+                tokens_after: newBalance,
+                timestamp
+              });
+
+              // Write updated balance to R2 (canonical)
+              await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/${account_id}.json`, newBalance);
+
+              // Update D1 projection to match
+              await d1Run(env.DB,
+                `INSERT INTO tokens (account_id, transcript_tokens, tax_game_tokens, updated_at)
+                 VALUES (?, ?, ?, ?)
+                 ON CONFLICT(account_id) DO UPDATE SET
+                 transcript_tokens = excluded.transcript_tokens,
+                 tax_game_tokens = excluded.tax_game_tokens,
+                 updated_at = excluded.updated_at`,
+                [account_id, newBalance.transcript_tokens, newBalance.tax_game_tokens, timestamp]
+              );
             }
           }
         } else if (event.type === 'customer.subscription.updated') {

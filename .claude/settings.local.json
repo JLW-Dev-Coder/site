@@ -2,33 +2,49 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(node .claude/*.js *)",
-      "Bash(node scripts/*.mjs *)",
-      "Read(/tmp/**)"
+      "Bash(npm run:*)",
+      "Bash(node:*)",
+      "Bash(npx:*)",
+      "Bash(mkdir:*)",
+      "Bash(copy:*)",
+      "Bash(move:*)",
+      "Bash(dir:*)",
+      "Bash(tree:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(cat:*)",
+      "Bash(type:*)",
+      "Bash(echo:*)",
+      "Bash(ls:*)",
+      "Bash(head:*)",
+      "Bash(tail:*)",
+      "Bash(wc:*)",
+      "Read(**)"
     ]
   },
-  "model": "claude-sonnet-4-20250514",
   "autoApprove": [
     "Write",
     "Edit",
     "Create"
   ],
   "autoApprovePatterns": [
-    "content/resources/**/*.json",
-    "components/**/*.tsx",
-    "lib/**/*.ts",
-    "app/**/*.tsx",
-    "app/**/*.ts",
-    "contracts/**/*.json",
-    "workers/src/index.js",
-    ".claude/CLAUDE.md",
-    ".claude/MIGRATION.md",
-    ".claude/PHASE.md"
+    ".claude/**",
+    "**/*.md",
+    "**/*.json",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.css",
+    "**/*.html",
+    "**/*.js",
+    "**/*.mjs"
   ],
   "deny": [
     "Bash(rm -rf *)",
+    "Bash(del /s *)",
     "Bash(curl *)",
-    "Bash(wget *)"
+    "Bash(wget *)",
+    "Bash(wrangler deploy *)",
+    "Bash(wrangler publish *)"
   ],
   "maxTurns": 30
 }

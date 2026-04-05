@@ -1,0 +1,17 @@
+# canonical-contract-registry.json
+
+Required fields per entry:
+- authRequired (boolean)
+- category (form / read-model / webhook)
+- dedupeKey (string)
+- endpoint (absolute URL)
+- id (lowercase snake_case)
+- method (GET / POST / PATCH / PUT / DELETE)
+- path (repo path to contract file)
+- receiptKeyPattern (string)
+- receiptSource (string)
+- signatureRequired (boolean)
+- status (active / deprecated / draft)
+- usedOnPages (array of strings)
+- version (integer, minimum 1)
+- writes (array of collection names)
