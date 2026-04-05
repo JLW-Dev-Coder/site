@@ -25,17 +25,17 @@ Reference files (only open these when this plan tells you to):
 
 Deploy in this exact order. VLP Worker first because everything depends on it.
 
-- [ ] Deploy VLP Worker: `cd C:\Users\eimaj\virtuallaunch.pro && wrangler deploy`
-- [ ] Deploy VLP Frontend: `cd C:\Users\eimaj\virtuallaunch.pro\web && npm run pages:build` then deploy via Cloudflare Pages
-- [ ] Deploy TTMP: `cd C:\Users\eimaj\transcript.taxmonitor.pro && npm run deploy`
-- [ ] Deploy TMP: `cd C:\Users\eimaj\taxmonitor.pro && npm run deploy`
-- [ ] Deploy TTTMP: `cd C:\Users\eimaj\taxtools.taxmonitor.pro && npm run deploy`
-- [ ] Deploy DVLP: `cd C:\Users\eimaj\developers.virtuallaunch.pro && npm run deploy`
-- [ ] Deploy GVLP: `cd C:\Users\eimaj\games.virtuallaunch.pro && npm run deploy`
-- [ ] Deploy TCVLP: Upload files via Cloudflare Pages dashboard
-- [ ] Deploy WLVLP: `cd C:\Users\eimaj\websitelotto.virtuallaunch.pro && npm run deploy`
+- [x] Deploy VLP Worker: wrangler deploy — Success, v2e4b3934
+- [x] Deploy VLP Frontend: Cloudflare Pages git integration (auto-deployed)
+- [x] Deploy TTMP: npm run deploy — Success, 497 pages
+- [x] Deploy TMP: Cloudflare Pages git integration — Success, commit fbc3f76
+- [x] Deploy TTTMP: npm run deploy — Success, 27 pages
+- [x] Deploy DVLP: wrangler pages deploy — Success, 47 files
+- [x] Deploy GVLP: wrangler pages deploy — Success, 133 files
+- [x] Deploy TCVLP: wrangler pages deploy — Success (migrating to Next.js)
+- [x] Deploy WLVLP: wrangler pages deploy — Success, 505 files
 
-Date completed: _______________
+Date completed: 2026-04-05
 
 ---
 
