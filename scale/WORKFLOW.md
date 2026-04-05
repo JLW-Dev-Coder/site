@@ -92,6 +92,8 @@ Notes:
 
 ## Phase 0 — Source Data from BigQuery (one-time setup)
 
+**Status:** COMPLETE (2026-04-01)
+
 ### Objective
 Extract the IRS FOIA raw dataset into a working Google Sheet. This only runs once per BigQuery export. If the active Google Sheet still has unprocessed rows, skip to Phase 1.
 
@@ -158,6 +160,8 @@ Extract the IRS FOIA raw dataset into a working Google Sheet. This only runs onc
 ---
 
 ## Phase 1 — Source Prospects via Clay
+
+**Status:** COMPLETE (2026-04-05) — VLP batch: 33 prospects sourced. TTMP batch: 293 prospects sourced.
 
 ### Objective
 Produce a clean CSV of 30-50 tax professional prospects with verified email addresses, ready for the batch generator. This phase removes the risk of sending to invalid emails or contacting prospects already in the TTMP pipeline.
@@ -376,6 +380,8 @@ Produce a clean CSV of 30-50 tax professional prospects with verified email addr
 
 ## Phase 2 — Generate Batch
 
+**Status:** COMPLETE (2026-04-05) — 33 VLP prospects processed. Batch: `vlp-batch-2026-04-05.json`. Hunter CSV: `vlp-email1-2026-04-05.csv`.
+
 ### Objective
 Transform the prospect CSV into personalized email copy and asset page data. This phase removes the manual work of writing individual emails.
 
@@ -428,6 +434,8 @@ Transform the prospect CSV into personalized email copy and asset page data. Thi
 
 ## Phase 3 — Push Asset Pages to R2
 
+**Status:** COMPLETE (2026-04-05) — 33 asset pages pushed to R2.
+
 ### Objective
 Make personalized asset pages live at `virtuallaunch.pro/asset/{slug}` so prospects can see their practice analysis when they click the email link.
 
@@ -454,6 +462,8 @@ node scale/push-vlp-asset-pages.js scale/batches/vlp-batch-{date}.json --exec --
 ---
 
 ## Phase 4 — Import to Hunter.io and Send
+
+**Status:** COMPLETE (2026-04-05) — Sequence launched. 33 leads imported, verified, sending 15/day starting 2026-04-06.
 
 ### Objective
 
@@ -676,6 +686,8 @@ virtuallaunch.pro
 
 ## Phase 5 — Monitor Results
 
+**Status:** NOT STARTED — First emails send 2026-04-06. Begin monitoring 2026-04-07.
+
 ### Task 5.1 — Check open rates (Day 2)
 
 **Purpose:** Verify emails are being delivered and opened.
@@ -754,6 +766,8 @@ This section applies to TTMP delivery only. VLP uses Hunter.io which has its own
 
 ## Phase 6 — Daily Monitoring
 
+**Status:** NOT STARTED — Begins 2026-04-07 when first emails are delivered.
+
 ### Objective
 Catch problems early and respond to engaged prospects. Takes 15 minutes each morning.
 
@@ -776,6 +790,8 @@ Catch problems early and respond to engaged prospects. Takes 15 minutes each mor
 ---
 
 ## Phase 7 — Weekly Review
+
+**Status:** NOT STARTED — First review scheduled for 2026-04-11 (Friday).
 
 ### Objective
 Assess campaign performance and pipeline health. Adjust sending and sourcing.
@@ -825,9 +841,19 @@ node scale/scripts/merge-intake.js
 node scale/generate-batch.js scale/prospects/{master-csv-filename}.csv
 ```
 
-**Step 3 — Upload to Hunter.io:**
-Create a separate Hunter campaign: "TTMP SCALE — Batch {date}"
-Import: `scale/gmail/email1/{date}-batch.csv`
+**Step 3 — Push to R2 (5 scripts):**
+```bash
+node scale/push-email1-queue.js scale/gmail/email1/{date}-{n}-batch.csv
+node scale/push-asset-pages.js scale/batches/scale-batch-{date}-{n}.json
+node scale/push-batch-history.js scale/batches/scale-batch-{date}-{n}.json
+node scale/push-master-csv.js
+node scale/push-prospect-index.js scale/batches/scale-batch-{date}-{n}.json
+```
+
+The Worker cron picks up the email1 queue at 14:00 UTC daily. See [Worker Cron Reference](#worker-cron-reference) for sending limits.
+
+**Step 4 — Verify delivery (next day):**
+Check R2 queue for sent timestamps. Check inbox for bounces and replies.
 
 For full TTMP-specific details, see the TTMP WORKFLOW.md stub at:
 `C:\Users\eimaj\transcript.taxmonitor.pro\WORKFLOW.md`
