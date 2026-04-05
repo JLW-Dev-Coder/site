@@ -19,7 +19,10 @@
       "Bash(head:*)",
       "Bash(tail:*)",
       "Bash(wc:*)",
-      "Read(**)"
+      "Read(**)",
+      "WebFetch(domain:virtuallaunch.pro)",
+      "WebFetch(domain:api.virtuallaunch.pro)",
+      "Bash(wrangler r2:*)"
     ]
   },
   "autoApprove": [

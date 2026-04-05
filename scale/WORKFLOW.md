@@ -6,6 +6,28 @@ Last updated: 2026-04-05
 
 ---
 
+## Table of Contents
+
+- [Phase 0 — Source Data from BigQuery](#phase-0--source-data-from-bigquery-one-time-setup)
+- [Phase 1 — Source Prospects via Clay](#phase-1--source-prospects-via-clay)
+  - [Task 1.1 — Select next 50 rows](#task-11--select-next-50-rows-from-foia-sheet)
+  - [Task 1.2 — Export batch to CSV](#task-12--export-batch-to-csv)
+  - [Task 1.3 — Enrich VLP batch in Clay](#task-13--enrich-vlp-batch-in-clay)
+  - [Task 1.4 — Return VLP emails and export](#task-14--return-vlp-emails-to-google-sheet-and-export)
+  - [Task 1.5 — Select next 50 for TTMP](#task-15--select-next-50-rows-for-ttmp-batch)
+  - [Task 1.6 — Export TTMP batch to CSV](#task-16--export-ttmp-batch-to-csv)
+  - [Task 1.7 — Enrich TTMP batch in Clay](#task-17--enrich-ttmp-batch-in-clay)
+  - [Task 1.8 — Return TTMP emails and export](#task-18--return-ttmp-emails-to-google-sheet-and-export)
+- [Phase 2 — Generate Batch](#phase-2--generate-batch)
+- [Phase 3 — Push Asset Pages to R2](#phase-3--push-asset-pages-to-r2)
+- [Phase 4 — Import to Hunter.io and Send](#phase-4--import-to-hunterio-and-send)
+- [Phase 5 — Daily Monitoring](#phase-5--daily-monitoring)
+- [Phase 6 — Weekly Review](#phase-6--weekly-review)
+- [Batch Cadence](#batch-cadence)
+- [File Reference](#file-reference)
+
+---
+
 ## Objective
 
 Run the VLP SCALE cold email campaign. Source tax professional prospects via Clay, generate personalized outreach via the batch generator, send via Hunter.io, monitor results, and convert to VLP membership sales ($79-$399/mo) and TTMP token pack cross-sells ($19-$129).
@@ -63,28 +85,6 @@ Notes:
 - `FULL_NAME` is required by Clay for Work Email enrichment. The batch generator ignores it.
 - `clay_workbook_ref` is for recordkeeping and dedup across batches.
 - Tracking columns (`vlp_email_1_prepared_at`, `vlp_email_2_prepared_at`) are added by the batch generator. Never add these manually.
-
----
-
-## Table of Contents
-
-- [Phase 0 — Source Data from BigQuery](#phase-0--source-data-from-bigquery-one-time-setup)
-- [Phase 1 — Source Prospects via Clay](#phase-1--source-prospects-via-clay)
-  - [Task 1.1 — Select next 50 rows](#task-11--select-next-50-rows-from-foia-sheet)
-  - [Task 1.2 — Export batch to CSV](#task-12--export-batch-to-csv)
-  - [Task 1.3 — Enrich VLP batch in Clay](#task-13--enrich-vlp-batch-in-clay)
-  - [Task 1.4 — Return VLP emails and export](#task-14--return-vlp-emails-to-google-sheet-and-export)
-  - [Task 1.5 — Select next 50 for TTMP](#task-15--select-next-50-rows-for-ttmp-batch)
-  - [Task 1.6 — Export TTMP batch to CSV](#task-16--export-ttmp-batch-to-csv)
-  - [Task 1.7 — Enrich TTMP batch in Clay](#task-17--enrich-ttmp-batch-in-clay)
-  - [Task 1.8 — Return TTMP emails and export](#task-18--return-ttmp-emails-to-google-sheet-and-export)
-- [Phase 2 — Generate Batch](#phase-2--generate-batch)
-- [Phase 3 — Push Asset Pages to R2](#phase-3--push-asset-pages-to-r2)
-- [Phase 4 — Import to Hunter.io and Send](#phase-4--import-to-hunterio-and-send)
-- [Phase 5 — Daily Monitoring](#phase-5--daily-monitoring)
-- [Phase 6 — Weekly Review](#phase-6--weekly-review)
-- [Batch Cadence](#batch-cadence)
-- [File Reference](#file-reference)
 
 ---
 
