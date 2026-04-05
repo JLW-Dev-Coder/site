@@ -21,8 +21,9 @@ Last updated: 2026-04-05
 - [Phase 2 — Generate Batch](#phase-2--generate-batch)
 - [Phase 3 — Push Asset Pages to R2](#phase-3--push-asset-pages-to-r2)
 - [Phase 4 — Import to Hunter.io and Send](#phase-4--import-to-hunterio-and-send)
-- [Phase 5 — Daily Monitoring](#phase-5--daily-monitoring)
-- [Phase 6 — Weekly Review](#phase-6--weekly-review)
+- [Phase 5 — Monitor Results](#phase-5--monitor-results)
+- [Phase 6 — Daily Monitoring](#phase-6--daily-monitoring)
+- [Phase 7 — Weekly Review](#phase-7--weekly-review)
 - [Batch Cadence](#batch-cadence)
 - [File Reference](#file-reference)
 
@@ -454,93 +455,266 @@ node scale/push-vlp-asset-pages.js scale/batches/vlp-batch-{date}.json --exec --
 ## Phase 4 — Import to Hunter.io and Send
 
 ### Objective
-Get the personalized emails into Hunter.io and start the campaign sending.
 
-### Task 4.1 — Import CSV to Hunter
+Import the Hunter CSV into a Hunter.io sequence, build the email template with merge fields, verify deliverability, and launch the campaign.
 
-**Purpose:** Upload the generated email data to Hunter's sending platform.
+### Task 4.1 — Create the sequence
 
-**Inputs required:**
-- Access: Hunter.io (logged in)
-- File: `scale/hunter/vlp-email1-{date}.csv`
+**Purpose:** Set up the Hunter.io sequence that will send the emails on a schedule.
 
 **Steps:**
 1. Open https://hunter.io/dashboard
-2. Go to Campaigns → your active campaign (or create new: "VLP SCALE — Batch {date}")
-3. Click Recipients → Import from CSV
-4. Upload `scale/hunter/vlp-email1-{date}.csv`
-5. Map columns:
-   - `email` → Email
-   - `first_name` → First name
-   - `last_name` → Last name
-   - `company` → Company
-   - `subject` → Subject
-   - `body` → Email body
-6. Click Import
-
-**Validation:**
-- [ ] Hunter shows correct recipient count
-- [ ] Preview 2-3 emails — subject personalized, body correct, links present
+2. Go to **Sequences** (left sidebar) → **+ New Sequence**
+3. Name it: `IRS FOIA Batch {YYYY_MMDD_###}` (### = running prospect total)
 
 **Next:** Task 4.2
 
 ---
 
-### Task 4.2 — Send test email
+### Task 4.2 — Import the Hunter CSV
 
-**Purpose:** Verify the email looks right in a real inbox before sending to prospects.
+**Purpose:** Upload prospect data with individual merge fields for personalized emails.
 
 **Steps:**
-1. Add your own email address as a test recipient
-2. Send just that one email
-3. Check your inbox
+1. Inside the sequence, click **Import leads** (or Audience → Import)
+2. Upload: `scale/hunter/vlp-email1-{date}.csv`
+3. Verify the upload shows: **10 columns, N rows** (should match your batch size, e.g., 33)
+   - If rows are inflated (e.g., 462 instead of 33), the CSV has multiline fields — the body column must use `<br>` or the individual merge field approach must be used instead
+4. Click **Next** → Map columns screen
 
-**Validation:**
-- [ ] Email arrived in inbox (not spam)
-- [ ] Subject line personalized
-- [ ] Asset page link clickable and works
-- [ ] Pricing link works
-- [ ] TTMP cross-sell link works
-- [ ] Signature shows Jamie L Williams
+**Column mapping:**
 
-**Failure mode if skipped:** Broken links or formatting go to real prospects. No undo.
+| CSV column | Hunter attribute | Type |
+|-----------|-----------------|------|
+| email | Email address | Built-in |
+| first_name | First name | Built-in |
+| last_name | Last name | Built-in |
+| company | Company | Built-in |
+| subject | subject | Custom — create via "Create a new attribute" |
+| city | City | Built-in |
+| credential_label | credential_label | Custom — create |
+| firm_display | firm_display | Custom — create |
+| asset_url | asset_url | Custom — create |
+| slug | slug | Custom — create (optional, for reference only) |
+
+5. Confirm: **10 of 10 columns mapped**
+6. Click **Next** → Configure screen
 
 **Next:** Task 4.3
 
 ---
 
-### Task 4.3 — Launch campaign
+### Task 4.3 — Configure import settings
 
-**Purpose:** Start sending to real prospects.
+**Purpose:** Verify emails and organize leads into a trackable list.
 
 **Steps:**
-1. Remove your test email from recipients
-2. Verify sending settings: 15/day (week 1), Mon-Fri, 9am-5pm
-3. Click Start Campaign
+1. **Enrichment:**
+   - Business details: leave ON (free)
+   - Find missing emails: leave unchecked (every row has an email)
+   - Verify existing emails: **CHECK this** — uses ~0.5 credits per email, worth it to catch bad addresses before sending
+2. **Options:**
+   - Check "Add leads to a specific list"
+   - Create a new list: `IRS FOIA Batch {YYYY_MMDD_###}`
+   - Add to folder: `IRS FOIA Batches` (create on first batch)
+3. Click **Start import**
+4. Wait for verification to complete
+5. Review results:
+   - Valid: should be 85%+ (good)
+   - Accept all: acceptable, usually fine
+   - Invalid: remove these leads before sending
+
+**Credit usage:** ~17 credits per 33 leads. Free plan gives 50 credits/month.
 
 **Validation:**
-- [ ] Campaign status shows "Active" or "Sending"
-- [ ] Daily limit set correctly per warmup schedule
+- [ ] Import shows N leads imported
+- [ ] Verification complete — no invalid emails (or invalids removed)
+- [ ] Leads visible in the list under IRS FOIA Batches folder
 
-**Warmup schedule:**
-
-| Week | Daily limit | Notes |
-|------|------------|-------|
-| 1 | 15 | Watch for bounces > 5% |
-| 2 | 25 | Check open rates > 15% |
-| 3 | 40 | Monitor spam complaints |
-| 4+ | 50-100 | Only if bounce < 3%, no complaints |
-
-**Next:** Phase 5 (start the day after first send)
+**Next:** Task 4.4
 
 ---
 
-## Phase 5 — Daily Monitoring
+### Task 4.4 — Build the email template
+
+**Purpose:** Create a personalized email using Hunter's merge fields. Do NOT put the entire email body in a single CSV column — Hunter's plain text editor renders `<br>` tags literally.
+
+**Critical: use individual merge fields, not a single body column.**
+
+**Steps:**
+1. Go to the sequence → **Content** tab
+2. Make sure **A/B test this email** is OFF
+3. **Subject line:** Click the send icon or "Insert attribute" → select `subject` → Fallback: `Your practice could be reaching more clients`
+4. **Body:** Type the template below directly into Hunter's editor. For each merge field, click "Insert attribute", select the field, and set the fallback value.
+
+**Template to type into Hunter:**
+
+```
+Hello {{first_name}},
+
+Taxpayers in {{city}} search online for tax help every day. Most never find you because you're not in the places they're looking.
+
+The Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — {{credential_label}} with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.
+
+Here's a quick practice analysis I put together for {{firm_display}}:
+{{asset_url}}
+
+And if you just want to try the transcript tool first, no membership needed:
+https://transcript.taxmonitor.pro/pricing
+10 analyses for $19 — takes 30 seconds per transcript.
+
+See all membership tiers here:
+https://virtuallaunch.pro/pricing
+
+—
+Jamie L Williams
+Virtual Launch Pro
+virtuallaunch.pro
+```
+
+**Fallback values for each merge field:**
+
+| Attribute | Fallback |
+|-----------|----------|
+| first_name | there |
+| city | your area |
+| credential_label | tax professionals |
+| firm_display | your practice |
+| asset_url | https://virtuallaunch.pro/pricing |
+| subject | Your practice could be reaching more clients |
+
+5. Click **Preview** tab — click through 3-4 leads to confirm personalization works:
+   - [ ] Names are correct (not fallback values)
+   - [ ] Cities are correct
+   - [ ] Credential labels match (CPAs, Enrolled Agents, etc.)
+   - [ ] Asset URLs have correct slugs
+   - [ ] Line breaks render properly (no `<br>` tags visible)
+
+**Spam score note:** Hunter's spam checker may flag the template as "Spammy" because it sees the merge field placeholder syntax (e.g., `{{first_name:"there"}}`) as filler text. This is a false positive — the rendered email with real prospect data is clean. Ignore this warning if the Preview tab shows professional, personalized content.
+
+**Next:** Task 4.5
+
+---
+
+### Task 4.5 — Send test email
+
+**Purpose:** Verify the email arrives with proper formatting before sending to real prospects.
+
+**Steps:**
+1. Go to **Content** tab
+2. Click the send/paper plane icon next to the subject line
+3. Enter a personal email address (not your sending address) — e.g., a Gmail or AOL address
+4. Click **Send test email**
+5. Check inbox (and spam folder) for the test
+
+**What to verify:**
+- [ ] Email arrived (check spam if not in inbox)
+- [ ] Line breaks render correctly (no `<br>` tags)
+- [ ] Links are clickable
+- [ ] Sender shows as Jamie Williams / jamie.williams@virtuallaunch.pro
+- [ ] Unsubscribe link present at bottom
+- [ ] No broken merge fields visible
+
+**Note:** Test emails use fallback values, not personalized data. AOL and Gmail may flag test emails as spam — this is normal for cold email from a new sender. Business domain recipients (CPA firms) have less aggressive spam filtering.
+
+**Next:** Task 4.6
+
+---
+
+### Task 4.6 — Configure sending settings
+
+**Purpose:** Set timezone, tracking, and sending schedule.
+
+**Steps:**
+1. Go to **Settings** tab
+2. If timezone warning appears: click "set your time zone" → select **(GMT-08:00) Pacific Time (US & Canada)**
+3. **Tracking:**
+   - Track email opens: ON
+   - Track link clicks: OFF (paid feature — enable when upgraded)
+4. **Sending window:**
+   - Days: Monday through Friday (Saturday and Sunday unchecked)
+   - Hours: 9:00 AM to 5:00 PM
+5. **Sending limit:** Leave at 15/day for week 1 warmup
+   - Week 2: increase to 25/day
+   - Week 3: increase to 40/day
+   - Week 4+: 50/day
+6. **Unsubscribe:** Leave ON with default text
+7. **BCC:** Leave OFF
+8. Click **Save schedule** and **Save settings**
+
+**Next:** Task 4.7
+
+---
+
+### Task 4.7 — Launch the sequence
+
+**Purpose:** Start sending emails on the configured schedule.
+
+**Steps:**
+1. Click **Launch sequence** (orange button, top right)
+2. Confirm the launch dialog shows:
+   - Sent from: jamie.williams@virtuallaunch.pro
+   - Sent to: N recipients
+   - Up to 15 emails sent per day
+   - Starts tomorrow at 09:00 am
+3. Click **Launch sequence** to confirm
+
+**Validation:**
+- [ ] Sequence status shows "Active" or "Running"
+- [ ] First batch scheduled for next business day at 9:00 AM Pacific
+
+**Outputs:**
+- Active Hunter.io sequence sending 15 emails/day
+- All 33 prospects will receive email within 3 business days
+
+**Failure mode if skipped:** No emails go out. Pipeline stalls.
+
+**Next:** Phase 5 (Monitor results)
+
+---
+
+## Phase 5 — Monitor Results
+
+### Task 5.1 — Check open rates (Day 2)
+
+**Purpose:** Verify emails are being delivered and opened.
+
+**Steps:**
+1. Open Hunter.io → Sequences → your active sequence
+2. Check the dashboard for:
+   - Emails sent
+   - Open rate (target: 30%+ is good for cold email)
+   - Bounces (should be 0 with verified emails)
+   - Unsubscribes
+3. If open rate is below 15%: review subject lines, check if emails are landing in spam
+4. If bounces occur: remove those leads and investigate the email source
+
+**Repeat:** Check daily for the first week, then weekly.
+
+**Next:** Task 5.2
+
+---
+
+### Task 5.2 — Handle replies
+
+**Purpose:** Respond to any prospects who reply to the email.
+
+**Steps:**
+1. Check jamie.williams@virtuallaunch.pro inbox for replies
+2. Positive replies (interested, questions): respond within 2 hours, offer a discovery call via https://cal.com/vlp/ttmp-discovery
+3. Negative replies (not interested): respond politely, thank them, remove from future batches
+4. Out of office: note and follow up when they return
+
+**Next:** Phase 6 (next batch cycle — return to Phase 1)
+
+---
+
+## Phase 6 — Daily Monitoring
 
 ### Objective
 Catch problems early and respond to engaged prospects. Takes 15 minutes each morning.
 
-### Task 5.1 — Morning check
+### Task 6.1 — Morning check
 
 **Purpose:** Stay on top of campaign health and respond to interest.
 
@@ -554,16 +728,16 @@ Catch problems early and respond to engaged prospects. Takes 15 minutes each mor
 - [ ] Any replies responded to within 24 hours
 - [ ] Any Stripe activity logged
 
-**Next:** Repeat daily. Phase 6 on Fridays.
+**Next:** Repeat daily. Phase 7 on Fridays.
 
 ---
 
-## Phase 6 — Weekly Review
+## Phase 7 — Weekly Review
 
 ### Objective
 Assess campaign performance and pipeline health. Adjust sending and sourcing.
 
-### Task 6.1 — Friday review
+### Task 7.1 — Friday review
 
 **Steps:**
 1. Log metrics: sent, opened, clicked, replied, converted
