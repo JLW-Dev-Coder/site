@@ -19,6 +19,7 @@ const { execSync } = require('child_process');
 
 const args = process.argv.slice(2);
 const execMode = args.includes('--exec');
+const remoteMode = args.includes('--remote');
 const batchFile = args.find(a => !a.startsWith('--'));
 
 if (!batchFile) {
@@ -26,6 +27,7 @@ if (!batchFile) {
   console.error('');
   console.error('Options:');
   console.error('  --exec    Execute wrangler commands directly (default: print commands)');
+  console.error('  --remote  Target production R2 (pass --remote to wrangler)');
   process.exit(1);
 }
 
@@ -51,6 +53,7 @@ if (execMode && !fs.existsSync(tmpDir)) {
 let pushed = 0;
 let skipped = 0;
 let errors = 0;
+const remoteFlag = remoteMode ? ' --remote' : '';
 
 for (const prospect of batch) {
   const { slug, asset_page } = prospect;
@@ -69,7 +72,7 @@ for (const prospect of batch) {
     try {
       fs.writeFileSync(tmpFile, payload, 'utf-8');
       execSync(
-        `wrangler r2 object put virtuallaunch-pro/${r2Key} --file "${tmpFile}"`,
+        `wrangler r2 object put virtuallaunch-pro/${r2Key} --file "${tmpFile}"${remoteFlag}`,
         { stdio: 'inherit' }
       );
       pushed++;
@@ -84,7 +87,7 @@ for (const prospect of batch) {
     const tmpFile = path.join(tmpDir, `${slug}.json`);
     console.log(`# ${prospect.name} (${slug})`);
     console.log(`echo '${payload.replace(/'/g, "'\\''")}' > "${tmpFile}"`);
-    console.log(`wrangler r2 object put virtuallaunch-pro/${r2Key} --file "${tmpFile}"`);
+    console.log(`wrangler r2 object put virtuallaunch-pro/${r2Key} --file "${tmpFile}"${remoteFlag}`);
     console.log(`del "${tmpFile}" 2>/dev/null; rm -f "${tmpFile}" 2>/dev/null`);
     console.log('');
     pushed++;
