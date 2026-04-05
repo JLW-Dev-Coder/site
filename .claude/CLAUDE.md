@@ -85,10 +85,10 @@ Track legacy Worker retirement here. Update as work completes.
 | TTMP | ✅ Yes | ✅ Complete (24/24) | ✅ Complete | ✅ Deleted |
 | TTTMP | ✅ Yes | ✅ Complete (13/13) | ✅ Complete | ✅ Deleted |
 | TMP | ✅ Yes | ✅ Complete | ✅ Complete | ✅ Deleted |
-| DVLP | Repo not found | ✅ Complete (30 routes) | Unknown | Unknown |
-| GVLP | ✅ Yes (workers/src/) | ✅ Complete (9 routes) | ❌ Not yet | ❌ No |
-| TCVLP | ✅ Yes (workers/src/) | ✅ Complete (8 routes) | ❌ Not yet | ❌ No |
-| WLVLP | ✅ Yes (worker/) | ✅ Complete (13 routes) | ❌ Not yet | ❌ No |
+| DVLP | Unknown | ✅ 30 routes in VLP | Unknown | Unknown |
+| GVLP | ✅ Yes (empty) | ✅ 9 routes | ✅ Complete | ✅ Deleted |
+| TCVLP | ✅ Yes (234 lines) | ✅ 8 routes | 🔄 In progress | 🔄 In progress |
+| WLVLP | ❌ No | ✅ 13 routes | ✅ Complete | N/A (never had one) |
 
 ---
 
