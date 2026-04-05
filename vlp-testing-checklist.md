@@ -1,64 +1,158 @@
-# VLP Manual Testing Checklist
+# VLP SCALE — Manual Testing Checklist
 
-**Date:** 2026-04-04  
-**Site:** https://virtuallaunch.pro  
-**Worker API:** https://api.virtuallaunch.pro
+Phase 5: Test full workflow end to end
+Date: _______________
+Tester: Jamie L Williams
 
-## 8a — SCALE Command Center (must be logged in as admin)
-- [X] Navigate to `https://virtuallaunch.pro/scale`
-- [X] Page loads with "SCALE Command Center" title
-- [X] Last fetched timestamp shows in subtitle
-- [X] Pipeline Overview: 4 cards visible (Total Prospects, Eligible, Exhausted, Days Remaining)
-- [X] Pipeline cards show real numbers from R2 data (or zeros if no data pushed yet)
-- [X] Color coding works on Eligible card (green >100, yellow 50-100, red <50)
-- [X] Color coding works on Days Remaining card (red <7, yellow 7-14, green >14)
-- [X] Send Queue: Email 1 and Email 2 queue cards visible
-- [X] Queue cards show counts and mini tables (or empty state if no queue data)
-- [X] Batch History: table visible with column headers
-- [X] If no batches pushed to R2 yet, shows "No batches generated yet"
-- [X] Response Tracking: Bookings and Purchases cards visible
-- [X] Bookings card shows created/cancelled/rescheduled/paid/no_show counts
-- [X] Purchases card shows count and revenue (or "No SCALE-attributed purchases yet")
-- [X] Site Analytics: 8 mini cards visible in grid
-- [X] Each card shows a domain name
-- [ ] Cards with data show page views, unique visitors, bandwidth — FAIL (all show "Unavailable")
-- [ ] Cards that failed show "Unavailable"
-- [ ] Click Refresh button — spinner appears, data reloads
-- [ ] After refresh, timestamp updates
-- [ ] Resize browser to 768px — cards reflow to 2 per row
-- [ ] Resize browser to 375px — cards stack to 1 per row, tables scroll horizontally
+---
 
-## 8b — SCALE sidebar navigation
-- [X] In the VLP app sidebar, "SCALE" link is visible with lightning icon
-- [X] Click it — navigates to `/scale`
+## Test 1 — Batch generator
 
-## 8c — Cal.com webhook (live test)
-- [ ] Open `https://cal.com/vlp/ttmp-discovery?slug=test-webhook-jamie-sd-ca` in a new tab
-- [ ] Book a test appointment using your own email
-- [ ] Wait 30 seconds
-- [ ] Refresh the SCALE Command Center
-- [ ] Check Bookings card — "created" count should increment by 1
-- [ ] Cancel the test booking in Cal.com
-- [ ] Wait 30 seconds, refresh SCALE dashboard
-- [ ] "cancelled" count should increment by 1
+Command: `node scale/generate-vlp-batch.js scale/prospects/{source}.csv`
 
-## 8d — Stripe attribution (live test)
-- [ ] Navigate to TTMP pricing page
-- [ ] Purchase a 10-token pack using an email address that exists in your prospect index
-- [ ] After successful payment, wait 60 seconds
-- [ ] Refresh the SCALE Command Center
-- [ ] Check Purchases card — count should increment, revenue should increase by $19
-- [ ] If the email doesn't match any prospect in the index, the purchase won't appear in SCALE tracking — that's correct behavior
+- [ ] Script runs without errors
+- [ ] Output reports "Prospects processed: X"
+- [ ] Batch JSON exists at scale/batches/vlp-batch-{date}.json
+- [ ] Hunter CSV exists at scale/hunter/vlp-email1-{date}.csv
+- [ ] Open Hunter CSV in text editor — all rows have valid email addresses
+- [ ] No row contains "undefined" anywhere
+- [ ] Every email body contains "Jamie L Williams" signature
+- [ ] Subject lines are personalized (name + firm or city)
+- [ ] Source CSV has vlp_email_1_prepared_at timestamps on processed rows
+- [ ] No prospect already in TTMP pipeline was included (email_1_prepared_at was empty for all)
 
-## 8e — Analytics verification
-- [ ] On the SCALE Command Center, check that analytics cards load (may take a few seconds)
-- [ ] Verify at least `transcript.taxmonitor.pro` and `virtuallaunch.pro` show data
-- [ ] If any domain shows "Unavailable," note which one — may indicate the zone isn't in your Cloudflare account or the API token doesn't have access to that zone
+Prospects processed: _____
+File paths confirmed: _____
 
-## 8f — Existing VLP flows (regression check)
-- [ ] Log in to VLP dashboard — dashboard loads normally
-- [ ] Navigate to Account — settings page loads
-- [ ] Navigate to Support — support page loads, existing tickets visible
-- [ ] Submit a test support ticket — confirm it appears
-- [ ] Log out — confirm redirect to homepage
-- [ ] Attempt to access `/dashboard` while logged out — redirected to login
+---
+
+## Test 2 — Push asset pages to R2
+
+Command: `node scale/push-vlp-asset-pages.js scale/batches/vlp-batch-{date}.json --exec`
+
+- [ ] Script reports number of pages pushed
+- [ ] No errors during push
+- [ ] Verify at least one page exists in R2: `wrangler r2 object get virtuallaunch-pro/vlp-scale/asset-pages/{slug}.json`
+
+Pages pushed: _____
+
+---
+
+## Test 3 — Asset page loads in browser
+
+URL: `https://virtuallaunch.pro/asset/{slug}`
+
+- [ ] Page loads (not 404)
+- [ ] Headline shows prospect's name and city
+- [ ] Subheadline shows correct credential label
+- [ ] Gap analysis section shows 3 items
+- [ ] Value estimate section shows dollar range
+- [ ] Tier comparison shows Active ($79) / Featured ($199) / Premier ($399)
+- [ ] Featured tier is highlighted as recommended
+- [ ] "See all membership tiers" links to virtuallaunch.pro/pricing — link works
+- [ ] TTMP cross-sell section appears with "10 analyses for $19"
+- [ ] TTMP link goes to transcript.taxmonitor.pro/pricing — link works
+- [ ] Directory link goes to taxmonitor.pro/directory — link works
+- [ ] Page renders correctly on mobile (375px width)
+
+Slug tested: _____
+Screenshot taken: [ ] yes [ ] no
+
+---
+
+## Test 4 — Pricing page
+
+URL: `https://virtuallaunch.pro/pricing`
+
+- [ ] Page loads
+- [ ] Listed (Free) tier shows: $0, no tokens, basic features
+- [ ] Active tier shows: $79/mo, 2 transcript + 5 game tokens
+- [ ] Featured tier shows: $199/mo, 5 transcript + 15 game tokens
+- [ ] Premier tier shows: $399/mo, 10 transcript + 40 game tokens
+- [ ] Monthly/yearly toggle works (if present)
+- [ ] Click "Subscribe" on Active tier → redirects to Stripe Checkout
+- [ ] Stripe shows correct amount ($79.00)
+- [ ] Cancel out of Stripe → returns to VLP site
+- [ ] Page renders correctly on mobile
+
+---
+
+## Test 5 — TMP directory
+
+URL: `https://taxmonitor.pro/directory`
+
+- [ ] Page loads with sample profiles visible
+- [ ] Count: 12 profiles displayed
+- [ ] Specialty filter: select "Enrolled Agent" → shows 4 profiles
+- [ ] Specialty filter: select "CPA" → shows 5 profiles
+- [ ] City filter: type a city → results narrow
+- [ ] Clear All → all 12 profiles return
+- [ ] Click a profile card → full profile page loads
+- [ ] Profile page shows: hero, credentials, bio, services, reviews
+- [ ] Profile page has booking/contact CTAs
+- [ ] Back to Directory link works
+- [ ] Page renders correctly on mobile
+
+---
+
+## Test 6 — Hunter.io import
+
+- [ ] Hunter.io account created
+- [ ] Gmail connected to Hunter
+- [ ] New sequence created
+- [ ] Upload scale/hunter/vlp-email1-{date}.csv
+- [ ] Hunter parses all columns: email, first_name, last_name, company, subject, body
+- [ ] Preview an email in Hunter — body looks correct with line breaks
+- [ ] No formatting issues in preview
+
+---
+
+## Test 7 — Send test email to self
+
+- [ ] Add a row to Hunter sequence with YOUR email address
+- [ ] Send single test email
+- [ ] Email arrives in inbox (not spam)
+- [ ] Subject line is personalized
+- [ ] Body has proper line breaks and formatting
+- [ ] Asset page link is clickable and works
+- [ ] Pricing page link works
+- [ ] TTMP link works
+- [ ] Signature shows Jamie L Williams
+
+---
+
+## Test 8 — Checkout success (optional but recommended)
+
+- [ ] Complete a real Stripe Checkout in test mode
+- [ ] Redirect to /checkout/success
+- [ ] Success page shows welcome message
+- [ ] Check Stripe dashboard — subscription created
+- [ ] Check R2 — membership record exists
+- [ ] Check D1 — token balance shows correct allocation
+
+---
+
+## Results Summary
+
+| Test | Pass | Fail | Notes |
+|------|------|------|-------|
+| 1. Batch generator | | | |
+| 2. R2 push | | | |
+| 3. Asset page | | | |
+| 4. Pricing page | | | |
+| 5. TMP directory | | | |
+| 6. Hunter import | | | |
+| 7. Self-test email | | | |
+| 8. Checkout | | | |
+
+## Decision
+
+- [ ] ALL TESTS PASS — ready to send first real batch
+- [ ] FIXES NEEDED — list issues below
+
+Issues found:
+1. _______________
+2. _______________
+3. _______________
+
+## First send date: _______________
