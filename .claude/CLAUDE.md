@@ -85,7 +85,7 @@ Track legacy Worker retirement here. Update as work completes.
 | TTMP | ✅ Yes | ✅ Complete (24/24) | ✅ Complete | ✅ Deleted |
 | TTTMP | ✅ Yes | ✅ Complete (13/13) | ✅ Complete | ✅ Deleted |
 | TMP | ✅ Yes | ✅ Complete | ✅ Complete | ✅ Deleted |
-| DVLP | Unknown | ✅ 30 routes in VLP | Unknown | Unknown |
+| DVLP | ✅ Yes (deleted) | ✅ 30 routes in VLP | ✅ Complete (Next.js 15) | ✅ Deleted |
 | GVLP | ✅ Yes (empty) | ✅ 9 routes | ✅ Complete | ✅ Deleted |
 | TCVLP | ✅ Yes (234 lines) | ✅ 8 routes | 🔄 In progress | 🔄 In progress |
 | WLVLP | ❌ No | ✅ 13 routes | ✅ Complete | N/A (never had one) |
