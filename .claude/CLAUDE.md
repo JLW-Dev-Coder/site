@@ -85,37 +85,27 @@ Track legacy Worker retirement here. Update as work completes.
 | TTMP | ✅ Yes | ✅ Complete (24/24) | ✅ Complete | ✅ Deleted |
 | TTTMP | ✅ Yes | ✅ Complete (13/13) | ✅ Complete | ✅ Deleted |
 | TMP | ✅ Yes | ✅ Complete | ✅ Complete | ✅ Deleted |
-| DVLP | Unknown | Unknown | Unknown | Unknown |
-| GVLP | Unknown | Unknown | Unknown | Unknown |
-| TCVLP | Unknown | Unknown | Unknown | Unknown |
-| WLVLP | Unknown | Unknown | Unknown | Unknown |
+| DVLP | Repo not found | ✅ Complete (30 routes) | Unknown | Unknown |
+| GVLP | ✅ Yes (workers/src/) | ✅ Complete (9 routes) | ❌ Not yet | ❌ No |
+| TCVLP | ✅ Yes (workers/src/) | ✅ Complete (8 routes) | ❌ Not yet | ❌ No |
+| WLVLP | ✅ Yes (worker/) | ✅ Complete (13 routes) | ❌ Not yet | ❌ No |
 
 ---
 
 ## 7. Current Build Phase
 
-**Phase 3: Affiliate Program — COMPLETE (2026-03-30)**
-- Referral code generation at account creation
-- 6 affiliate routes in VLP Worker
-- Stripe Connect Express integration
-- Commission tracking on invoice payment
-- R2 + D1 storage pattern
-- 6 contracts in vlp-registry.json
-
-**Phase 4: VLP Membership Subscription Renewals — COMPLETE (2026-04-04)**
-
-**Phase 6: VLP Pricing Page Update — COMPLETE (2026-04-04)**
-- Updated pricing page with correct customer-facing tier names (Listed/Active/Featured/Premier)
-- Fixed token allocations to match CLAUDE.md section 19 (2+/5+/10+ transcript, 5+/15+/40+ game)
-- Corrected plan keys to remove billing interval suffix (vlp_starter, vlp_scale, vlp_advanced)
-- Updated feature descriptions to match specification
-- Fixed checkout endpoint to use `/v1/checkout/sessions`
-- Created checkout success page at `/checkout/success`
-- Verified build passes
-
-**Upcoming:**
-- Phase 7: TMP + DVLP + GVLP membership tiers  
-- Phase 8: WLVLP marketplace
+| Phase | Name | Status | Completed |
+|-------|------|--------|-----------|
+| 1 | TTTMP Tools Foundation | complete | 2026-03-29 |
+| 2 | TTMP Transcript Dashboard | complete | — |
+| 3 | Affiliate Program (Stripe Connect Express) | complete | 2026-03-30 |
+| 4 | VLP Membership Subscription Renewals | complete | 2026-04-04 |
+| 5 | VLP Pricing Page Update | complete | 2026-04-04 |
+| 6 | VLP SCALE Batch Generator + Email Copy | complete | 2026-04-05 |
+| 7 | VLP Asset Page Route + R2 Push | complete | 2026-04-05 |
+| 8 | Test Full Workflow End to End | not started | — |
+| 9 | TMP + DVLP + GVLP Membership Tiers | not started | — |
+| 10 | WLVLP Marketplace | not started | — |
 
 ---
 
@@ -480,67 +470,59 @@ Both plan keys should grant identical token amounts.
 
 ## 20. Phased Build Plan
 
-### Phase 1 — TTTMP: Usable Tools (foundation)
+### Phase 1 — TTTMP: Usable Tools (foundation) — COMPLETE (2026-03-29)
 - IRS form autofill (2848, 8821)
 - Basic transcript parser
 - Token deduction on use
 - `/api/tools/*` Worker endpoints backed by TTTMP contracts
 
-### Phase 2 — TTMP: Transcript Dashboard (productization)
+### Phase 2 — TTMP: Transcript Dashboard (productization) — COMPLETE
 - Transcript job submission + result history
 - Monitoring dashboard
 - Token balance display
 
-### Phase 3 — VLP: Membership Gating (monetization) — COMPLETE
+### Phase 3 — Affiliate Program (Stripe Connect Express) — COMPLETE (2026-03-30)
 - Auth flows wired to tool access gating
 - Token purchase via Stripe
 - Membership tier enforcement on tool access
 - Affiliate program (6 routes, Stripe Connect Express)
 
-### Phase 4 — SCALE Operator Dashboard Expansion — COMPLETE (2026-04-03)
-- Expanded GET /v1/scale/dashboard with additional R2 reads (batch history, prospects CSV, responses)
-- Added CSV parsing for pipeline statistics (total/eligible/exhausted prospects)
-- Enhanced Cal.com webhook with SCALE attribution tracking to vlp-scale/responses/{slug}/bookings/
-- Extended Stripe webhook with SCALE attribution tracking to vlp-scale/responses/{slug}/purchases/
-- Added GET /v1/scale/analytics route with Cloudflare Analytics API integration
-- Cloudflare zone resolution and analytics for all 8 platform domains
-- Requires CF_API_TOKEN secret for analytics functionality
-
-### Phase 5 — VLP Membership Subscription Renewals — COMPLETE (2026-04-04)
+### Phase 4 — VLP Membership Subscription Renewals — COMPLETE (2026-04-04)
 - Fixed token grant amounts to correct monthly allocations
-- Added VLP subscription renewal handler in Stripe webhook  
+- Added VLP subscription renewal handler in Stripe webhook
 - Token accumulation on renewals (not reset)
 - Preserves token balances on subscription cancellation
 - Added tier mapping documentation
+- SCALE Operator Dashboard expansion (analytics, CSV parsing, Cal.com/Stripe attribution)
 
-### Phase 4A — VLP SCALE Batch Generator — COMPLETE (2026-04-05)
+### Phase 5 — VLP Pricing Page Update — COMPLETE (2026-04-04)
+- Updated pricing page with correct customer-facing tier names (Listed/Active/Featured/Premier)
+- Fixed token allocations to match section 19
+- Corrected plan keys to remove billing interval suffix
+- Fixed checkout endpoint to use `/v1/checkout/sessions`
+- Created checkout success page at `/checkout/success`
+
+### Phase 6 — VLP SCALE Batch Generator + Email Copy — COMPLETE (2026-04-05)
 - Created directory structure: scale/prospects/, scale/batches/, scale/hunter/
-- Added SKILL.md with full VLP SCALE specification (11 sections)
 - Built generate-vlp-batch.js implementing selection logic, slug generation, asset page creation
-- Email personalization by credential (EA/CPA/JD) and firm_bucket (solo_brand/local_firm/national_firm)
-- Hunter.io CSV export with RFC-4180 compliance for cold email delivery
+- Email personalization by credential (EA/CPA/JD) and firm_bucket
+- Hunter.io CSV export with RFC-4180 compliance
 - Source CSV tracking with vlp_email_1_prepared_at timestamps
-- Created comprehensive SCALE.md documentation (14 sections)
-- Added scale/prospects/ to .gitignore (contains real emails)
 
-### Phase 4B — VLP Asset Page Route — COMPLETE (2026-04-04)
-- Created dynamic asset page at web/app/(marketing)/asset/[slug]/page.tsx
-- Fetches prospect data from GET /v1/scale/asset/:slug (Worker route already existed at line 11379)
+### Phase 7 — VLP Asset Page Route + R2 Push — COMPLETE (2026-04-05)
+- Dynamic asset page at web/app/(marketing)/asset/[slug]/page.tsx
+- Fetches prospect data from GET /v1/scale/asset/:slug
 - R2 key pattern: vlp-scale/asset-pages/{slug}.json
-- Page sections: hero, client gap analysis, value estimate, tier comparison, TTMP cross-sell, footer CTAs
-- 404 fallback links to /pricing
-- Created scale/push-vlp-asset-pages.js for R2 upload (--exec mode or print commands)
-- Follows STYLE.md: Tailwind + CSS custom properties, dark theme, brand-orange accents
-- Build passes, route confirmed at /asset/[slug]
+- Created scale/push-vlp-asset-pages.js for R2 upload
 
-### Phase 6 — Token purchase flow wired to membership gating (next)
+### Phase 8 — Test Full Workflow End to End (next)
 
-### Phase 7 — TMP + DVLP + GVLP (membership tiers)
+### Phase 9 — TMP + DVLP + GVLP Membership Tiers
 - Tax pro directory (TMP) — taxpayer intake + matching
 - Developer marketplace (DVLP) — Free + $2.99 intro tier
 - Gamified subscriptions (GVLP) — $9/$19/$39/mo
 
-### Phase 6 — WLVLP + Distribution (marketplace)
+### Phase 10 — WLVLP Marketplace
 - Canva site exports served as static content under `/sites/[slug]/`
 - Next.js is the system layer — do NOT convert Canva exports to React
 - Voting/bidding calls private Worker only at mutation point — no PII in responses
