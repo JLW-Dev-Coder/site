@@ -172,7 +172,7 @@ function generateAssetPage(prospect, credentialConfig) {
     calculator: {
       enabled: true,
       fields: [
-        { id: 'newClients', label: 'How many new clients could you take on per month?', type: 'range', min: 1, max: 20, default: 5 },
+        { id: 'newClients', label: 'How many new clients could you take on per month?', type: 'range', min: 1, max: 250, default: 5 },
         { id: 'engValue', label: 'Average value per new client engagement', type: 'range', min: 200, max: 5000, default: 1500, step: 100 }
       ],
       result_template: `That's what {newClients} new clients per month at \${engValue} each could add to your practice — if they could find you.`
