@@ -849,10 +849,10 @@ async function verifyCalSignature(rawBody, signatureHeader, secret) {
   return expected === signatureHeader;
 }
 
-function makeSessionCookie(sessionId, env) {
+function makeSessionCookie(sessionId, env, domainOverride) {
   const ttl = parseInt(env.SESSION_TTL_SECONDS ?? '86400', 10);
   const expires = new Date(Date.now() + ttl * 1000).toUTCString();
-  const domain = env.COOKIE_DOMAIN ?? '.virtuallaunch.pro';
+  const domain = domainOverride ?? env.COOKIE_DOMAIN ?? '.virtuallaunch.pro';
   return [
     `vlp_session=${sessionId}`,
     `Domain=${domain}`,
@@ -864,16 +864,22 @@ function makeSessionCookie(sessionId, env) {
   ].join('; ');
 }
 
-function jsonWithCookie(body, sessionId, env, status = 200, request) {
+function jsonWithCookie(body, sessionId, env, status = 200, request, domainOverride) {
   const corsHeaders = getCorsHeaders(request);
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'Content-Type': 'application/json',
       ...corsHeaders,
-      'Set-Cookie': makeSessionCookie(sessionId, env),
+      'Set-Cookie': makeSessionCookie(sessionId, env, domainOverride),
     },
   });
+}
+
+function cookieDomainForUrl(url) {
+  const hostname = typeof url === 'string' ? new URL(url).hostname : url.hostname;
+  if (hostname === 'taxmonitor.pro' || hostname.endsWith('.taxmonitor.pro')) return '.taxmonitor.pro';
+  return null; // use default (.virtuallaunch.pro)
 }
 
 function redirectWithCookie(url, sessionId, env, request) {
@@ -882,7 +888,7 @@ function redirectWithCookie(url, sessionId, env, request) {
     status: 302,
     headers: {
       'Location': url,
-      'Set-Cookie': makeSessionCookie(sessionId, env),
+      'Set-Cookie': makeSessionCookie(sessionId, env, cookieDomainForUrl(url)),
       ...corsHeaders,
     },
   });
@@ -1414,8 +1420,11 @@ const ROUTES = [
         } catch {}
 
         const redirectUrl = new URL(redirectTarget)
-        const isExternalDomain = !redirectUrl.hostname.endsWith('.virtuallaunch.pro') &&
-                                  redirectUrl.hostname !== 'virtuallaunch.pro'
+        const isSameSite = redirectUrl.hostname === 'virtuallaunch.pro' ||
+                           redirectUrl.hostname.endsWith('.virtuallaunch.pro') ||
+                           redirectUrl.hostname === 'taxmonitor.pro' ||
+                           redirectUrl.hostname.endsWith('.taxmonitor.pro')
+        const isExternalDomain = !isSameSite
 
         if (isExternalDomain) {
           const handoffToken = crypto.randomUUID()
@@ -1524,8 +1533,11 @@ const ROUTES = [
 
         // Check if redirect is to external domain
         const redirectUrl = new URL(redirectUri);
-        const isExternalDomain = !redirectUrl.hostname.endsWith('.virtuallaunch.pro') &&
-                                 redirectUrl.hostname !== 'virtuallaunch.pro';
+        const isSameSite = redirectUrl.hostname === 'virtuallaunch.pro' ||
+                           redirectUrl.hostname.endsWith('.virtuallaunch.pro') ||
+                           redirectUrl.hostname === 'taxmonitor.pro' ||
+                           redirectUrl.hostname.endsWith('.taxmonitor.pro');
+        const isExternalDomain = !isSameSite;
 
         if (isExternalDomain) {
           // Generate one-time handoff token for cross-domain auth
@@ -1575,13 +1587,14 @@ const ROUTES = [
           'UPDATE handoff_tokens SET used = 1 WHERE token = ?'
         ).bind(token).run();
 
-        // Return session info — client will store this
-        return json({
+        // Return session info with cookie
+        const exchangeDomain = row.redirect_uri ? cookieDomainForUrl(row.redirect_uri) : null;
+        return jsonWithCookie({
           ok: true,
           sessionId: row.session_id,
           email: row.email,
           redirectUri: row.redirect_uri,
-        }, 200, request);
+        }, row.session_id, env, 200, request, exchangeDomain);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Handoff exchange failed' }, 500, request);
       }
