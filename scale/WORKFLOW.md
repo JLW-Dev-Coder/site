@@ -714,7 +714,7 @@ virtuallaunch.pro
 
 **Steps:**
 1. Check jamie.williams@virtuallaunch.pro inbox for replies
-2. Positive replies (interested, questions): respond within 2 hours, offer a discovery call via https://cal.com/vlp/ttmp-discovery
+2. Positive replies (interested, questions): respond within 2 hours, offer a discovery call via https://cal.com/tax-monitor-pro/ttmp-discovery
 3. Negative replies (not interested): respond politely, thank them, remove from future batches
 4. Out of office: note and follow up when they return
 

@@ -118,7 +118,7 @@ export default function PricingPage() {
     setLoadingPlan(data.planKey)
     setPlanErrors((prev) => ({ ...prev, [data.planKey]: '' }))
     try {
-      const res = await fetch('https://api.virtuallaunch.pro/v1/checkout/sessions', {
+      const res = await fetch('https://api.virtuallaunch.pro/v1/checkout/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

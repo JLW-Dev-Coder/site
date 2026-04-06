@@ -169,7 +169,7 @@ virtuallaunch.pro
   },
   "cta_pricing_url": "https://virtuallaunch.pro/pricing",
   "cta_directory_url": "https://taxmonitor.pro/directory", 
-  "cta_booking_url": "https://cal.com/vlp/discovery"
+  "cta_booking_url": "https://cal.com/tax-monitor-pro/discovery"
 }
 ```
 
