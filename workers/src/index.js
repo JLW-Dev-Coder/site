@@ -1367,7 +1367,7 @@ const ROUTES = [
       url.searchParams.set('scope', 'openid email profile')
       url.searchParams.set('state', state)
 
-      return json({ authorizationUrl: url.toString() }, 200, request)
+      return new Response(null, { status: 302, headers: { 'Location': url.toString() } })
     },
   },
 
@@ -1598,7 +1598,7 @@ const ROUTES = [
       url.searchParams.set('response_type', 'code');
       url.searchParams.set('scope', 'openid email profile');
       url.searchParams.set('state', state);
-      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() }, 200, _request);
+      return new Response(null, { status: 302, headers: { 'Location': url.toString() } })
     },
   },
 
@@ -1644,7 +1644,7 @@ const ROUTES = [
   {
     method: 'GET', pattern: '/v1/auth/sso/saml/start',
     handler: async (_method, _pattern, _params, _request, env) => {
-      return json({ ok: true, status: 'redirect_required', authorizationUrl: env.SSO_SAML_IDP_SSO_URL }, 200, _request);
+      return new Response(null, { status: 302, headers: { 'Location': env.SSO_SAML_IDP_SSO_URL } });
     },
   },
 
