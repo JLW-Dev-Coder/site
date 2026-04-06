@@ -114,6 +114,7 @@ import { FORM_843_BASE64 } from './form843-template.js';
 
 const ALLOWED_ORIGINS = [
   'https://virtuallaunch.pro',
+  'https://api.taxmonitor.pro',
   'https://taxmonitor.pro',
   'https://transcript.taxmonitor.pro',
   'https://taxtools.taxmonitor.pro',
@@ -1365,10 +1366,22 @@ const ROUTES = [
       const reqUrl = new URL(request.url)
       const returnTo = reqUrl.searchParams.get('return_to') || 'https://virtuallaunch.pro/dashboard'
 
+      // Determine OAuth client + redirect URI based on target domain
+      const isTaxMonitor = returnTo.includes('taxmonitor.pro')
+      const googleClientId = isTaxMonitor
+        ? '1042806598248-ugakuq39veaq2vafgtvkue2m1g0to2su.apps.googleusercontent.com'
+        : env.GOOGLE_CLIENT_ID
+      const googleClientSecret = isTaxMonitor
+        ? env.GOOGLE_CLIENT_SECRET_TMP
+        : env.GOOGLE_CLIENT_SECRET
+      const googleRedirectUri = isTaxMonitor
+        ? 'https://api.taxmonitor.pro/v1/auth/google/callback'
+        : env.GOOGLE_REDIRECT_URI
+
       const state = encodeURIComponent(returnTo)
       const url = new URL('https://accounts.google.com/o/oauth2/v2/auth')
-      url.searchParams.set('client_id', env.GOOGLE_CLIENT_ID)
-      url.searchParams.set('redirect_uri', env.GOOGLE_REDIRECT_URI)
+      url.searchParams.set('client_id', googleClientId)
+      url.searchParams.set('redirect_uri', googleRedirectUri)
       url.searchParams.set('response_type', 'code')
       url.searchParams.set('scope', 'openid email profile')
       url.searchParams.set('state', state)
@@ -1387,59 +1400,54 @@ const ROUTES = [
         return json({ ok: false, error: 'BAD_REQUEST', message: 'code and state required' }, 400, request);
       }
       try {
+        // Decode the return_to URL from state
+        let redirectTarget = 'https://virtuallaunch.pro/dashboard'
+        try {
+          const decoded = decodeURIComponent(state)
+          if (decoded.startsWith('https://')) redirectTarget = decoded
+        } catch {}
+
+        // Determine OAuth client + redirect URI based on target domain (must match start handler)
+        const isTaxMonitor = redirectTarget.includes('taxmonitor.pro')
+        const googleClientId = isTaxMonitor
+          ? '1042806598248-ugakuq39veaq2vafgtvkue2m1g0to2su.apps.googleusercontent.com'
+          : env.GOOGLE_CLIENT_ID
+        const googleClientSecret = isTaxMonitor
+          ? env.GOOGLE_CLIENT_SECRET_TMP
+          : env.GOOGLE_CLIENT_SECRET
+        const googleRedirectUri = isTaxMonitor
+          ? 'https://api.taxmonitor.pro/v1/auth/google/callback'
+          : env.GOOGLE_REDIRECT_URI
+
+        // Exchange code for token
         const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: new URLSearchParams({
             code,
-            client_id: env.GOOGLE_CLIENT_ID,
-            client_secret: env.GOOGLE_CLIENT_SECRET,
-            redirect_uri: env.GOOGLE_REDIRECT_URI,
+            client_id: googleClientId,
+            client_secret: googleClientSecret,
+            redirect_uri: googleRedirectUri,
             grant_type: 'authorization_code',
           }),
         });
         if (!tokenRes.ok) return json({ ok: false, error: 'OAUTH_ERROR', message: 'Token exchange failed' }, 502, request);
         const { access_token } = await tokenRes.json();
 
+        // Get user info
         const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${access_token}` },
         });
         if (!userRes.ok) return json({ ok: false, error: 'OAUTH_ERROR', message: 'Failed to fetch user info' }, 502, request);
         const user = await userRes.json();
 
+        // Create/update account and session
         const { accountId } = await upsertAccount(user.email, user.given_name ?? '', user.family_name ?? '', env);
         const { sessionId } = await createSession(accountId, user.email, env);
 
-        const returnTo = state || ''
-
-        // Decode returnTo from state if it's a URL
-        let redirectTarget = 'https://virtuallaunch.pro/dashboard'
-        try {
-          const decoded = decodeURIComponent(returnTo)
-          if (decoded.startsWith('https://')) redirectTarget = decoded
-        } catch {}
-
-        const redirectUrl = new URL(redirectTarget)
-        const isSameSite = redirectUrl.hostname === 'virtuallaunch.pro' ||
-                           redirectUrl.hostname.endsWith('.virtuallaunch.pro') ||
-                           redirectUrl.hostname === 'taxmonitor.pro' ||
-                           redirectUrl.hostname.endsWith('.taxmonitor.pro')
-        const isExternalDomain = !isSameSite
-
-        if (isExternalDomain) {
-          const handoffToken = crypto.randomUUID()
-          const expiresAt = Math.floor(Date.now() / 1000) + 60
-
-          await env.DB.prepare(
-            'INSERT INTO handoff_tokens (token, session_id, email, redirect_uri, expires_at) VALUES (?, ?, ?, ?, ?)'
-          ).bind(handoffToken, sessionId, user.email, redirectTarget, expiresAt).run()
-
-          const callbackUrl = new URL('/auth/callback', redirectUrl.origin)
-          callbackUrl.searchParams.set('token', handoffToken)
-
-          return Response.redirect(callbackUrl.toString(), 302)
-        }
-
+        // Always redirect with cookie — domain is determined by cookieDomainForUrl()
+        // api.taxmonitor.pro can set .taxmonitor.pro cookies (same domain family)
+        // api.virtuallaunch.pro can set .virtuallaunch.pro cookies (same domain family)
         return redirectWithCookie(redirectTarget, sessionId, env, request)
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Google callback failed' }, 500, request);
