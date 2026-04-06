@@ -1,7 +1,7 @@
 # VLP SCALE — Manual Testing Checklist
 
 Phase 5: Test full workflow end to end
-Date: _______________
+Date: _____Sun, 4/5/2026 (Started)__________
 Tester: Jamie L Williams
 
 ---
@@ -10,19 +10,19 @@ Tester: Jamie L Williams
 
 Command: `node scale/generate-vlp-batch.js scale/prospects/{source}.csv`
 
-- [ ] Script runs without errors
-- [ ] Output reports "Prospects processed: X"
-- [ ] Batch JSON exists at scale/batches/vlp-batch-{date}.json
-- [ ] Hunter CSV exists at scale/hunter/vlp-email1-{date}.csv
-- [ ] Open Hunter CSV in text editor — all rows have valid email addresses
-- [ ] No row contains "undefined" anywhere
-- [ ] Every email body contains "Jamie L Williams" signature
-- [ ] Subject lines are personalized (name + firm or city)
-- [ ] Source CSV has vlp_email_1_prepared_at timestamps on processed rows
-- [ ] No prospect already in TTMP pipeline was included (email_1_prepared_at was empty for all)
+- [X] Script runs without errors
+- [X] Output reports "Prospects processed: X"
+- [X] Batch JSON exists at scale/batches/vlp-batch-{date}.json
+- [X] Hunter CSV exists at scale/hunter/vlp-email1-{date}.csv
+- [X] Open Hunter CSV in text editor — all rows have valid email addresses
+- [X] No row contains "undefined" anywhere
+- [X] Every email body contains "Jamie L Williams" signature
+- [X] Subject lines are personalized (name + firm or city)
+- [X] Source CSV has vlp_email_1_prepared_at timestamps on processed rows
+- [X] No prospect already in TTMP pipeline was included (email_1_prepared_at was empty for all)
 
-Prospects processed: _____
-File paths confirmed: _____
+Prospects processed: __See file___
+File paths confirmed: __Sun, 4/5/2026___
 
 ---
 
@@ -30,11 +30,11 @@ File paths confirmed: _____
 
 Command: `node scale/push-vlp-asset-pages.js scale/batches/vlp-batch-{date}.json --exec`
 
-- [ ] Script reports number of pages pushed
-- [ ] No errors during push
-- [ ] Verify at least one page exists in R2: `wrangler r2 object get virtuallaunch-pro/vlp-scale/asset-pages/{slug}.json`
+- [X] Script reports number of pages pushed
+- [X] No errors during push
+- [X] Verify at least one page exists in R2: `wrangler r2 object get virtuallaunch-pro/vlp-scale/asset-pages/{slug}.json`
 
-Pages pushed: _____
+Pages pushed: __Sun, 4/5/2026___
 
 ---
 
@@ -42,21 +42,21 @@ Pages pushed: _____
 
 URL: `https://virtuallaunch.pro/asset/{slug}`
 
-- [ ] Page loads (not 404)
-- [ ] Headline shows prospect's name and city
-- [ ] Subheadline shows correct credential label
-- [ ] Gap analysis section shows 3 items
-- [ ] Value estimate section shows dollar range
-- [ ] Tier comparison shows Active ($79) / Featured ($199) / Premier ($399)
-- [ ] Featured tier is highlighted as recommended
-- [ ] "See all membership tiers" links to virtuallaunch.pro/pricing — link works
-- [ ] TTMP cross-sell section appears with "10 analyses for $19"
-- [ ] TTMP link goes to transcript.taxmonitor.pro/pricing — link works
-- [ ] Directory link goes to taxmonitor.pro/directory — link works
-- [ ] Page renders correctly on mobile (375px width)
+- [X] Page loads (not 404)
+- [X] Headline shows prospect's name and city
+- [X] Subheadline shows correct credential label
+- [X] Gap analysis section shows 3 items
+- [X] Value estimate section shows dollar range
+- [X] Tier comparison shows Active ($79) / Featured ($199) / Premier ($399)
+- [X] Featured tier is highlighted as recommended
+- [X] "See all membership tiers" links to virtuallaunch.pro/pricing — link works
+- [X] TTMP cross-sell section appears with "10 analyses for $19"
+- [X] TTMP link goes to transcript.taxmonitor.pro/pricing — link works
+- [X] Directory link goes to taxmonitor.pro/directory — link works
+- [X] Page renders correctly on mobile (375px width)
 
-Slug tested: _____
-Screenshot taken: [ ] yes [ ] no
+Slug tested: __Mon, 4/6/2026___
+Screenshot taken: [ ] yes [X] no
 
 ---
 
@@ -64,16 +64,16 @@ Screenshot taken: [ ] yes [ ] no
 
 URL: `https://virtuallaunch.pro/pricing`
 
-- [ ] Page loads
-- [ ] Listed (Free) tier shows: $0, no tokens, basic features
-- [ ] Active tier shows: $79/mo, 2 transcript + 5 game tokens
-- [ ] Featured tier shows: $199/mo, 5 transcript + 15 game tokens
-- [ ] Premier tier shows: $399/mo, 10 transcript + 40 game tokens
-- [ ] Monthly/yearly toggle works (if present)
-- [ ] Click "Subscribe" on Active tier → redirects to Stripe Checkout
-- [ ] Stripe shows correct amount ($79.00)
-- [ ] Cancel out of Stripe → returns to VLP site
-- [ ] Page renders correctly on mobile
+- [X] Page loads
+- [X] Listed (Free) tier shows: $0, no tokens, basic features
+- [X] Active tier shows: $79/mo, 2 transcript + 5 game tokens
+- [X] Featured tier shows: $199/mo, 5 transcript + 15 game tokens
+- [X] Premier tier shows: $399/mo, 10 transcript + 40 game tokens
+- [X] Monthly/yearly toggle works (if present)
+- [X] Click "Subscribe" on Active tier → redirects to Stripe Checkout
+- [X] Stripe shows correct amount ($79.00)
+- [X] Cancel out of Stripe → returns to VLP site
+- [X] Page renders correctly on mobile
 
 ---
 
@@ -81,43 +81,43 @@ URL: `https://virtuallaunch.pro/pricing`
 
 URL: `https://taxmonitor.pro/directory`
 
-- [ ] Page loads with sample profiles visible
-- [ ] Count: 12 profiles displayed
-- [ ] Specialty filter: select "Enrolled Agent" → shows 4 profiles
-- [ ] Specialty filter: select "CPA" → shows 5 profiles
-- [ ] City filter: type a city → results narrow
-- [ ] Clear All → all 12 profiles return
-- [ ] Click a profile card → full profile page loads
-- [ ] Profile page shows: hero, credentials, bio, services, reviews
-- [ ] Profile page has booking/contact CTAs
-- [ ] Back to Directory link works
-- [ ] Page renders correctly on mobile
+- [X] Page loads with sample profiles visible
+- [X] Count: 12 profiles displayed
+- [X] Specialty filter: select "Enrolled Agent" → shows 4 profiles
+- [X] Specialty filter: select "CPA" → shows 5 profiles
+- [X] City filter: type a city → results narrow
+- [X] Clear All → all 12 profiles return
+- [X] Click a profile card → full profile page loads
+- [X] Profile page shows: hero, credentials, bio, services, reviews
+- [X] Profile page has booking/contact CTAs
+- [X] Back to Directory link works
+- [X] Page renders correctly on mobile
 
 ---
 
 ## Test 6 — Hunter.io import
 
-- [ ] Hunter.io account created
-- [ ] Gmail connected to Hunter
-- [ ] New sequence created
-- [ ] Upload scale/hunter/vlp-email1-{date}.csv
-- [ ] Hunter parses all columns: email, first_name, last_name, company, subject, body
-- [ ] Preview an email in Hunter — body looks correct with line breaks
-- [ ] No formatting issues in preview
+- [X] Hunter.io account created
+- [X] Gmail connected to Hunter
+- [X] New sequence created
+- [X] Upload scale/hunter/vlp-email1-{date}.csv
+- [X] Hunter parses all columns: email, first_name, last_name, company, subject, body
+- [X] Preview an email in Hunter — body looks correct with line breaks
+- [X] No formatting issues in preview
 
 ---
 
 ## Test 7 — Send test email to self
 
-- [ ] Add a row to Hunter sequence with YOUR email address
-- [ ] Send single test email
-- [ ] Email arrives in inbox (not spam)
-- [ ] Subject line is personalized
-- [ ] Body has proper line breaks and formatting
-- [ ] Asset page link is clickable and works
-- [ ] Pricing page link works
-- [ ] TTMP link works
-- [ ] Signature shows Jamie L Williams
+- [X] Add a row to Hunter sequence with YOUR email address
+- [X] Send single test email
+- [X] Email arrives in inbox (not spam)
+- [X] Subject line is personalized
+- [X] Body has proper line breaks and formatting
+- [X] Asset page link is clickable and works
+- [X] Pricing page link works
+- [X] TTMP link works
+- [X] Signature shows Jamie L Williams
 
 ---
 
@@ -155,4 +155,4 @@ Issues found:
 2. _______________
 3. _______________
 
-## First send date: _______________
+## First send date: _______Mon, 4/6/2026 (Hunter.io)________
