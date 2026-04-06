@@ -25,7 +25,9 @@
       "Bash(wrangler r2:*)",
       "Read(//c/Users/eimaj/virtuallaunch.pro/NR>1 && $1 ~ /**)",
       "Read(//c/Users/eimaj/virtuallaunch.pro/**)",
-      "Bash(awk 'END{print NR}' scale/hunter/vlp-email1-2026-04-05.csv)"
+      "Bash(awk 'END{print NR}' scale/hunter/vlp-email1-2026-04-05.csv)",
+      "Bash(curl -s -I \"https://api.virtuallaunch.pro/v1/auth/google/start?return_to=https%3A%2F%2Ftranscript.taxmonitor.pro%2Fapp%2Fdashboard%2F\")",
+      "Bash(curl -s -D - -o /dev/null \"https://api.virtuallaunch.pro/v1/auth/google/start?return_to=https%3A%2F%2Ftranscript.taxmonitor.pro%2Fapp%2Fdashboard%2F\")"
     ]
   },
   "autoApprove": [
