@@ -40,21 +40,11 @@ export default function SignInForm() {
     }
   }
 
-  async function handleGoogle() {
+  function handleGoogle() {
     setError(null)
     setLoading(true)
-    try {
-      const res = await fetch(`${API_URL}/v1/auth/google/start`)
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data?.message ?? 'Failed to start Google sign-in.')
-      }
-      const data = await res.json()
-      window.location.href = data.authorizationUrl
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
-      setLoading(false)
-    }
+    const returnTo = encodeURIComponent(`${window.location.origin}/dashboard`)
+    window.location.href = `${API_URL}/v1/auth/google/start?return_to=${returnTo}`
   }
 
   return (
