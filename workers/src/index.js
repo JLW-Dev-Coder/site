@@ -10727,7 +10727,7 @@ TTMP Support Team
         return json({
           ok: true,
           templates
-        });
+        }, 200, request);
       } catch (e) {
         console.error('WLVLP templates list error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
@@ -10766,7 +10766,7 @@ TTMP Support Team
           template,
           highest_bid: highestBid?.highest_bid || null,
           bid_history: bidHistoryResult.results || []
-        });
+        }, 200, request);
       } catch (e) {
         console.error('WLVLP template get error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
@@ -10810,7 +10810,7 @@ TTMP Support Team
         return json({
           ok: true,
           vote_count: template?.vote_count || 0
-        });
+        }, 200, request);
       } catch (e) {
         console.error('WLVLP vote error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
@@ -10903,7 +10903,7 @@ TTMP Support Team
           bid_id,
           auction_ends_at: auctionEndsAt,
           current_high_bid: amount
-        });
+        }, 200, request);
       } catch (e) {
         console.error('WLVLP bid error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
@@ -10931,7 +10931,7 @@ TTMP Support Team
         return json({
           ok: true,
           bids
-        });
+        }, 200, request);
       } catch (e) {
         console.error('WLVLP bids list error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
@@ -11038,7 +11038,7 @@ TTMP Support Team
         return json({
           ok: true,
           ticket_id
-        });
+        }, 200, request);
       } catch (e) {
         console.error('WLVLP scratch create error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
@@ -11107,7 +11107,7 @@ TTMP Support Team
           ok: true,
           prize_type: prize.prize_type,
           prize_value: prize.prize_value
-        });
+        }, 200, request);
       } catch (e) {
         console.error('WLVLP scratch reveal error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
@@ -11160,7 +11160,7 @@ TTMP Support Team
           template,
           config,
           scratch_tickets: scratchTicketsResult.results || []
-        });
+        }, 200, request);
       } catch (e) {
         console.error('WLVLP buyer get error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
@@ -11257,7 +11257,7 @@ TTMP Support Team
         return json({
           ok: true,
           logo_url: logoUrl
-        });
+        }, 200, request);
       } catch (e) {
         console.error('WLVLP logo upload error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
