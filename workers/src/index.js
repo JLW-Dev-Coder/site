@@ -767,11 +767,12 @@ function flattenStripeParams(params, prefix = '') {
   return result;
 }
 
-async function stripePost(path, params, env) {
+async function stripePost(path, params, env, secretKey) {
+  const key = secretKey || env.STRIPE_SECRET_KEY;
   const res = await fetch(`https://api.stripe.com/v1${path}`, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+      'Authorization': `Bearer ${key}`,
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: new URLSearchParams(flattenStripeParams(params)),
@@ -10970,6 +10971,15 @@ TTMP Support Team
           return json({ ok: false, error: 'PRICE_NOT_CONFIGURED' }, 503, request);
         }
 
+        // WLVLP price IDs live in the Virtual Launch Pro Stripe account.
+        // STRIPE_SECRET_KEY belongs to the TaxMonitor Pro account, so we
+        // must use STRIPE_SECRET_KEY_VLP for any WLVLP/VLP-account prices.
+        const vlpSecretKey = env.STRIPE_SECRET_KEY_VLP;
+        if (!vlpSecretKey) {
+          console.error('WLVLP checkout: STRIPE_SECRET_KEY_VLP secret is not set');
+          return json({ ok: false, error: 'STRIPE_NOT_CONFIGURED' }, 503, request);
+        }
+
         const customerEmail = sessionEmail || (typeof bodyEmail === 'string' ? bodyEmail.trim() : '') || null;
 
         const sessionPayload = {
@@ -10990,7 +11000,7 @@ TTMP Support Team
           sessionPayload.customer_email = customerEmail;
         }
 
-        const checkout_session = await stripePost('/checkout/sessions', sessionPayload, env);
+        const checkout_session = await stripePost('/checkout/sessions', sessionPayload, env, vlpSecretKey);
 
         return json({ ok: true, session_url: checkout_session.url }, 200, request);
       } catch (e) {
