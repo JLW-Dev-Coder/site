@@ -2873,6 +2873,93 @@ const ROUTES = [
               }
             }
 
+            // Handle WLVLP site purchase
+            if (platform === 'wlvlp' && obj.metadata?.slug) {
+              try {
+                const slug = obj.metadata.slug;
+                const tier = obj.metadata.tier;
+
+                // Reconcile anonymous checkout: look up or create account by Stripe email
+                let wlvlpAccountId = account_id;
+                if (!wlvlpAccountId || wlvlpAccountId === 'anonymous') {
+                  const stripeEmail = obj.customer_details?.email || obj.customer_email || null;
+                  if (!stripeEmail) {
+                    console.error('WLVLP anonymous checkout missing Stripe email; cannot reconcile', obj.id);
+                    break;
+                  }
+                  const emailLower = stripeEmail.toLowerCase();
+                  const existing = await env.DB.prepare(
+                    'SELECT account_id FROM accounts WHERE email = ?'
+                  ).bind(emailLower).first();
+                  if (existing?.account_id) {
+                    wlvlpAccountId = existing.account_id;
+                  } else {
+                    wlvlpAccountId = `ACCT_${crypto.randomUUID()}`;
+                    await d1Run(env.DB,
+                      `INSERT INTO accounts (account_id, email, first_name, last_name, platform, role, status, created_at)
+                       VALUES (?, ?, '', '', 'wlvlp', 'member', 'active', ?)
+                       ON CONFLICT(email) DO NOTHING`,
+                      [wlvlpAccountId, emailLower, now]
+                    );
+                    const row = await env.DB.prepare(
+                      'SELECT account_id FROM accounts WHERE email = ?'
+                    ).bind(emailLower).first();
+                    if (row?.account_id) wlvlpAccountId = row.account_id;
+                    await r2Put(env.R2_VIRTUAL_LAUNCH, `accounts_vlp/VLP_ACCT_${wlvlpAccountId}.json`, {
+                      accountId: wlvlpAccountId, email: emailLower, firstName: '', lastName: '',
+                      platform: 'wlvlp', role: 'member', status: 'active', createdAt: now, updatedAt: now,
+                    });
+                  }
+                  console.log(`WLVLP anonymous checkout reconciled to account ${wlvlpAccountId} via ${emailLower}`);
+                }
+
+                const purchasedAt = now;
+                const hostingExpiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+
+                // Receipt to R2
+                await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/wlvlp/purchase/${slug}.json`, {
+                  event_type: 'wlvlp_purchase_completed',
+                  account_id: wlvlpAccountId,
+                  slug,
+                  tier,
+                  stripe_customer_id: obj.customer,
+                  stripe_session_id: obj.id,
+                  amount_paid: obj.amount_total,
+                  purchased_at: purchasedAt
+                });
+
+                // Canonical site instance to R2
+                await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/sites/${slug}.json`, {
+                  owner: wlvlpAccountId,
+                  slug,
+                  tier,
+                  status: 'active',
+                  purchased_at: purchasedAt,
+                  hosting_expires_at: hostingExpiresAt
+                });
+
+                // D1 projection — update template + purchase record (best-effort)
+                try {
+                  await env.DB.prepare(
+                    "UPDATE wlvlp_templates SET status = 'sold', current_owner_id = ?, updated_at = ? WHERE slug = ?"
+                  ).bind(wlvlpAccountId, purchasedAt, slug).run();
+                } catch (_) {}
+
+                try {
+                  const purchaseId = `PUR_${crypto.randomUUID()}`;
+                  await env.DB.prepare(
+                    `INSERT INTO wlvlp_purchases
+                     (purchase_id, account_id, slug, acquisition_type, monthly_price, stripe_customer_id, stripe_subscription_id, status, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
+                  ).bind(purchaseId, wlvlpAccountId, slug, tier, Math.round((obj.amount_total || 0) / 100), obj.customer, obj.subscription || null, purchasedAt, purchasedAt).run();
+                } catch (_) {}
+
+                console.log(`WLVLP purchase activated: ${wlvlpAccountId} -> ${slug} (${tier})`);
+              } catch (e) {
+                console.error('WLVLP purchase activation error:', e);
+              }
+            }
+
             if (membership_id) {
               const existingMem = await env.R2_VIRTUAL_LAUNCH.get(`memberships/${membership_id}.json`);
               const memRecord = existingMem ? await existingMem.json() : {};
@@ -10853,88 +10940,62 @@ TTMP Support Team
   },
 
   // POST /v1/wlvlp/checkout
+  // Allows anonymous checkout: { slug, tier, email? }
+  // tier: "standard" | "premium"
   {
     method: 'POST', pattern: '/v1/wlvlp/checkout',
     handler: async (_method, _pattern, _params, request, env) => {
-      const { session, error } = await requireSession(request, env);
-      if (error) return error;
-
-      const body = await parseBody(request);
-      if (!body || !body.slug || !body.acquisition_type) {
-        return json({ ok: false, error: 'MISSING_REQUIRED_FIELDS', required: ['slug', 'acquisition_type'] }, 400, request);
-      }
-
-      const { slug, acquisition_type } = body;
-
-      if (!['buy_now', 'auction_win'].includes(acquisition_type)) {
-        return json({ ok: false, error: 'INVALID_ACQUISITION_TYPE' }, 400, request);
-      }
+      // Optional session — anonymous buyers allowed
+      const session = await getSessionFromRequest(request, env);
+      const accountId = session?.account_id || null;
+      const sessionEmail = session?.email || null;
 
       try {
-        // Get template details
-        const template = await env.DB.prepare(
-          "SELECT * FROM wlvlp_templates WHERE slug = ?"
-        ).bind(slug).first();
+        const body = await request.json();
+        const { slug, tier, email: bodyEmail } = body || {};
 
-        if (!template) {
-          return json({ ok: false, error: 'TEMPLATE_NOT_FOUND' }, 404, request);
+        if (!slug || typeof slug !== 'string') {
+          return json({ ok: false, error: 'MISSING_SLUG' }, 400, request);
+        }
+        if (!tier || !['standard', 'premium'].includes(tier)) {
+          return json({ ok: false, error: 'INVALID_TIER', message: 'tier must be "standard" or "premium"' }, 400, request);
         }
 
-        let monthlyPrice;
-        if (acquisition_type === 'buy_now') {
-          if (template.status !== 'available') {
-            return json({ ok: false, error: 'TEMPLATE_NOT_AVAILABLE' }, 400, request);
+        const WLVLP_PRICE_MAP = {
+          standard: env.STRIPE_PRICE_WLVLP_STANDARD,
+          premium:  env.STRIPE_PRICE_WLVLP_PREMIUM,
+        };
+        const stripe_price_id = WLVLP_PRICE_MAP[tier];
+        if (!stripe_price_id) {
+          return json({ ok: false, error: 'PRICE_NOT_CONFIGURED' }, 503, request);
+        }
+
+        const customerEmail = sessionEmail || (typeof bodyEmail === 'string' ? bodyEmail.trim() : '') || null;
+
+        const sessionPayload = {
+          mode: 'payment',
+          line_items: [{ price: stripe_price_id, quantity: 1 }],
+          success_url: 'https://websitelotto.virtuallaunch.pro/purchase-success?session_id={CHECKOUT_SESSION_ID}',
+          cancel_url: `https://websitelotto.virtuallaunch.pro/sites/${slug}`,
+          client_reference_id: accountId || 'anonymous',
+          metadata: {
+            platform: 'wlvlp',
+            slug,
+            tier,
+            account_id: accountId || 'anonymous'
           }
-          monthlyPrice = template.buy_now_price;
-        } else if (acquisition_type === 'auction_win') {
-          // Verify this account won the auction
-          const highestBid = await env.DB.prepare(
-            "SELECT account_id, amount FROM wlvlp_bids WHERE slug = ? AND status = 'active' ORDER BY amount DESC LIMIT 1"
-          ).bind(slug).first();
+        };
 
-          if (!highestBid || highestBid.account_id !== session.account_id) {
-            return json({ ok: false, error: 'NOT_AUCTION_WINNER' }, 403, request);
-          }
-          monthlyPrice = highestBid.amount;
+        if (customerEmail) {
+          sessionPayload.customer_email = customerEmail;
         }
 
-        // Create Stripe Checkout Session
-        const stripeSession = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: new URLSearchParams({
-            mode: 'subscription',
-            'line_items[0][price_data][currency]': 'usd',
-            'line_items[0][price_data][unit_amount]': (monthlyPrice * 100).toString(),
-            'line_items[0][price_data][product_data][name]': `${template.title} - Website Template`,
-            'line_items[0][price_data][recurring][interval]': 'month',
-            'line_items[0][quantity]': '1',
-            success_url: `https://websitelotto.virtuallaunch.pro/success?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `https://websitelotto.virtuallaunch.pro/templates/${slug}`,
-            'metadata[platform]': 'wlvlp',
-            'metadata[slug]': slug,
-            'metadata[account_id]': session.account_id,
-            'metadata[acquisition_type]': acquisition_type
-          }),
-        });
+        const checkout_session = await stripePost('/checkout/sessions', sessionPayload, env);
 
-        if (!stripeSession.ok) {
-          console.error('Stripe session creation failed:', await stripeSession.text());
-          return json({ ok: false, error: 'PAYMENT_SETUP_FAILED' }, 500, request);
-        }
-
-        const sessionData = await stripeSession.json();
-
-        return json({
-          ok: true,
-          session_url: sessionData.url
-        });
+        return json({ ok: true, session_url: checkout_session.url }, 200, request);
       } catch (e) {
-        console.error('WLVLP checkout error:', e);
-        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
+        console.error('WLVLP checkout error:', e?.message, e?.stack);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500, request);
       }
     },
   },
