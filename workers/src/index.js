@@ -9992,6 +9992,37 @@ TTMP Support Team
           const subscription_id = invoice.subscription;
 
           if (subscription_id) {
+            // Handle WLVLP hosting renewals: extend hosting_expires_at by 1 month
+            // each time the buyer's $14/$49 monthly subscription pays.
+            const wlvlpPurchase = await env.DB.prepare(
+              "SELECT * FROM wlvlp_purchases WHERE stripe_subscription_id = ? AND status = 'active'"
+            ).bind(subscription_id).first();
+
+            if (wlvlpPurchase) {
+              const base = wlvlpPurchase.hosting_expires_at && new Date(wlvlpPurchase.hosting_expires_at) > new Date()
+                ? new Date(wlvlpPurchase.hosting_expires_at)
+                : new Date();
+              const renewed = new Date(base);
+              renewed.setMonth(renewed.getMonth() + 1);
+              const renewedIso = renewed.toISOString();
+
+              await env.DB.prepare(
+                "UPDATE wlvlp_purchases SET hosting_expires_at = ?, updated_at = ? WHERE purchase_id = ?"
+              ).bind(renewedIso, timestamp, wlvlpPurchase.purchase_id).run();
+
+              await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/hosting-renewal/${wlvlpPurchase.slug}-${timestamp}.json`, {
+                event_type: 'wlvlp_hosting_renewed',
+                account_id: wlvlpPurchase.account_id,
+                slug: wlvlpPurchase.slug,
+                purchase_id: wlvlpPurchase.purchase_id,
+                subscription_id,
+                invoice_id: invoice.id,
+                hosting_expires_at_before: wlvlpPurchase.hosting_expires_at,
+                hosting_expires_at_after: renewedIso,
+                timestamp,
+              });
+            }
+
             // Handle GVLP renewals
             const operator = await env.DB.prepare(
               "SELECT * FROM gvlp_operators WHERE stripe_subscription_id = ?"
@@ -11468,6 +11499,112 @@ TTMP Support Team
     },
   },
 
+  // POST /v1/wlvlp/sites/:slug/domain
+  // Records a custom-domain connection request for a WLVLP site.
+  // DNS verification + Cloudflare for SaaS hostname provisioning is manual for now.
+  {
+    method: 'POST', pattern: '/v1/wlvlp/sites/:slug/domain',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { slug } = params;
+      const body = await parseBody(request);
+      const rawDomain = (body?.domain || '').toString().trim().toLowerCase();
+
+      // Basic format check: no protocol, no path, valid hostname with TLD.
+      const domainRegex = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.[a-z0-9-]{1,63})+$/;
+      if (!rawDomain || rawDomain.length > 253 || !domainRegex.test(rawDomain) ||
+          rawDomain.includes('/') || rawDomain.includes(':') || rawDomain.includes(' ')) {
+        return json({ ok: false, error: 'INVALID_DOMAIN' }, 400, request);
+      }
+
+      try {
+        // Verify ownership: session account must own this slug.
+        const purchase = await env.DB.prepare(
+          "SELECT purchase_id FROM wlvlp_purchases WHERE account_id = ? AND slug = ? AND status = 'active'"
+        ).bind(session.account_id, slug).first();
+
+        if (!purchase) {
+          return json({ ok: false, error: 'UNAUTHORIZED' }, 403, request);
+        }
+
+        const timestamp = new Date().toISOString();
+
+        // Update R2 canonical site record (merge with existing).
+        const siteKey = `wlvlp/sites/${slug}.json`;
+        let siteRecord = {};
+        const existingSite = await r2Get(env.R2_VIRTUAL_LAUNCH, siteKey);
+        if (existingSite) {
+          try {
+            siteRecord = typeof existingSite === 'string' ? JSON.parse(existingSite) : existingSite;
+          } catch {}
+        }
+        siteRecord.slug = slug;
+        siteRecord.custom_domain = rawDomain;
+        siteRecord.custom_domain_status = 'pending_dns';
+        siteRecord.custom_domain_requested_at = timestamp;
+        siteRecord.updated_at = timestamp;
+        await r2Put(env.R2_VIRTUAL_LAUNCH, siteKey, siteRecord);
+
+        // Write receipt for audit trail.
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/domain/${slug}-${timestamp}.json`, {
+          event_type: 'wlvlp_custom_domain_requested',
+          account_id: session.account_id,
+          slug,
+          domain: rawDomain,
+          timestamp,
+        });
+
+        // Update D1 projection.
+        await env.DB.prepare(
+          "UPDATE wlvlp_purchases SET custom_domain = ?, updated_at = ? WHERE account_id = ? AND slug = ? AND status = 'active'"
+        ).bind(rawDomain, timestamp, session.account_id, slug).run();
+
+        return json({
+          ok: true,
+          domain: rawDomain,
+          instructions: `Add a CNAME record pointing ${rawDomain} to sites.virtuallaunch.pro. We'll verify and activate within 24 hours.`,
+        }, 200, request);
+      } catch (e) {
+        console.error('WLVLP custom domain error:', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/sites/expiring
+  // Admin-only. Returns active WLVLP sites whose hosting expires within 30 days.
+  // Powers operator dashboard + reminder emails.
+  {
+    method: 'GET', pattern: '/v1/wlvlp/sites/expiring',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const account = await env.DB.prepare(
+        "SELECT role FROM accounts WHERE account_id = ?"
+      ).bind(session.account_id).first();
+      if (!account || account.role !== 'admin') {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'Admin access required' }, 403, request);
+      }
+
+      try {
+        const result = await env.DB.prepare(
+          `SELECT * FROM wlvlp_purchases
+           WHERE status = 'active'
+             AND hosting_expires_at IS NOT NULL
+             AND hosting_expires_at < datetime('now', '+30 days')
+           ORDER BY hosting_expires_at ASC`
+        ).all();
+        return json({ ok: true, sites: result.results || [] }, 200, request);
+      } catch (e) {
+        console.error('WLVLP expiring sites error:', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
+      }
+    },
+  },
+
   // POST /v1/wlvlp/upload-logo
   {
     method: 'POST', pattern: '/v1/wlvlp/upload-logo',
@@ -12499,6 +12636,97 @@ export default {
         await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${errorEventId}.json`, errorReceipt);
       } catch (receiptError) {
         console.error('Failed to write WLVLP auction settlement error receipt:', receiptError);
+      }
+    }
+
+    // WLVLP Hosting Renewal Check Cron
+    // Runs daily. Writes a 30-day reminder notification once per site, and
+    // marks sites as expired when hosting_expires_at has passed without a
+    // renewal extending the date (active subscriptions auto-extend via the
+    // invoice.payment_succeeded webhook handler).
+    try {
+      const eventId = `EVT_${crypto.randomUUID()}`;
+      const timestamp = new Date().toISOString();
+      const nowIso = new Date().toISOString();
+
+      let remindersWritten = 0;
+      let sitesExpired = 0;
+
+      // 1. 30-day reminders: active sites whose hosting expires within 30 days.
+      const expiringResult = await env.DB.prepare(
+        `SELECT * FROM wlvlp_purchases
+         WHERE status = 'active'
+           AND hosting_expires_at IS NOT NULL
+           AND hosting_expires_at < datetime('now', '+30 days')
+           AND hosting_expires_at > datetime('now')`
+      ).all();
+      const expiringSites = expiringResult.results || [];
+
+      for (const site of expiringSites) {
+        const reminderKey = `wlvlp/notifications/hosting-reminder-${site.slug}.json`;
+        const existing = await env.R2_VIRTUAL_LAUNCH.get(reminderKey);
+        if (existing) continue; // already reminded
+        await r2Put(env.R2_VIRTUAL_LAUNCH, reminderKey, {
+          type: 'wlvlp_hosting_expiring_soon',
+          purchase_id: site.purchase_id,
+          account_id: site.account_id,
+          slug: site.slug,
+          tier: site.tier,
+          hosting_expires_at: site.hosting_expires_at,
+          created_at: timestamp,
+        });
+        remindersWritten++;
+      }
+
+      // 2. Expire sites whose hosting has lapsed.
+      const expiredResult = await env.DB.prepare(
+        `SELECT * FROM wlvlp_purchases
+         WHERE status = 'active'
+           AND hosting_expires_at IS NOT NULL
+           AND hosting_expires_at < ?`
+      ).bind(nowIso).all();
+      const expiredSites = expiredResult.results || [];
+
+      for (const site of expiredSites) {
+        await env.DB.prepare(
+          "UPDATE wlvlp_purchases SET status = 'expired', updated_at = ? WHERE purchase_id = ?"
+        ).bind(timestamp, site.purchase_id).run();
+
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/hosting-expired/${site.slug}-${timestamp}.json`, {
+          event_type: 'wlvlp_hosting_expired',
+          purchase_id: site.purchase_id,
+          account_id: site.account_id,
+          slug: site.slug,
+          hosting_expires_at: site.hosting_expires_at,
+          timestamp,
+        });
+        sitesExpired++;
+      }
+
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/hosting-check/${timestamp}.json`, {
+        eventId,
+        timestamp,
+        type: 'wlvlp-hosting-check-cron',
+        stats: {
+          reminders_written: remindersWritten,
+          sites_expired: sitesExpired,
+          expiring_found: expiringSites.length,
+        },
+      });
+
+      console.log(`WLVLP hosting check completed: ${remindersWritten} reminders, ${sitesExpired} expired`);
+    } catch (e) {
+      console.error('WLVLP hosting check cron failed:', e);
+      const errorEventId = `EVT_${crypto.randomUUID()}`;
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/hosting-check/${errorEventId}-error.json`, {
+          eventId: errorEventId,
+          timestamp: new Date().toISOString(),
+          type: 'wlvlp-hosting-check-cron-error',
+          error: e.message,
+        });
+      } catch (receiptError) {
+        console.error('Failed to write WLVLP hosting check error receipt:', receiptError);
       }
     }
 
