@@ -11371,6 +11371,103 @@ TTMP Support Team
     },
   },
 
+  // PATCH /v1/wlvlp/sites/:slug/data
+  {
+    method: 'PATCH', pattern: '/v1/wlvlp/sites/:slug/data',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { slug } = params;
+      const body = await parseBody(request);
+      if (!body || typeof body.fields !== 'object' || body.fields === null) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD' }, 400, request);
+      }
+
+      try {
+        // Verify ownership: session account must own this slug
+        const purchase = await env.DB.prepare(
+          "SELECT purchase_id FROM wlvlp_purchases WHERE account_id = ? AND slug = ? AND status = 'active'"
+        ).bind(session.account_id, slug).first();
+
+        if (!purchase) {
+          return json({ ok: false, error: 'UNAUTHORIZED' }, 403, request);
+        }
+
+        const customizationsKey = `wlvlp/sites/${slug}/customizations.json`;
+
+        // Merge with existing customizations so partial updates don't wipe other fields
+        let existingFields = {};
+        const existing = await r2Get(env.R2_VIRTUAL_LAUNCH, customizationsKey);
+        if (existing) {
+          try {
+            const parsed = JSON.parse(existing);
+            if (parsed && typeof parsed.fields === 'object' && parsed.fields !== null) {
+              existingFields = parsed.fields;
+            }
+          } catch {}
+        }
+
+        const mergedFields = { ...existingFields, ...body.fields };
+        const timestamp = new Date().toISOString();
+
+        await r2Put(env.R2_VIRTUAL_LAUNCH, customizationsKey, {
+          slug,
+          account_id: session.account_id,
+          fields: mergedFields,
+          updated_at: timestamp,
+        });
+
+        return json({ ok: true }, 200, request);
+      } catch (e) {
+        console.error('WLVLP site data patch error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/sites/:slug/data
+  {
+    method: 'GET', pattern: '/v1/wlvlp/sites/:slug/data',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { slug } = params;
+
+      try {
+        // Verify ownership: session account must own this slug
+        const purchase = await env.DB.prepare(
+          "SELECT purchase_id FROM wlvlp_purchases WHERE account_id = ? AND slug = ? AND status = 'active'"
+        ).bind(session.account_id, slug).first();
+
+        if (!purchase) {
+          return json({ ok: false, error: 'UNAUTHORIZED' }, 403, request);
+        }
+
+        const customizationsKey = `wlvlp/sites/${slug}/customizations.json`;
+        const existing = await r2Get(env.R2_VIRTUAL_LAUNCH, customizationsKey);
+
+        if (!existing) {
+          return json({ ok: true, fields: {} }, 200, request);
+        }
+
+        let fields = {};
+        try {
+          const parsed = JSON.parse(existing);
+          if (parsed && typeof parsed.fields === 'object' && parsed.fields !== null) {
+            fields = parsed.fields;
+          }
+        } catch {}
+
+        return json({ ok: true, fields }, 200, request);
+      } catch (e) {
+        console.error('WLVLP site data get error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
+      }
+    },
+  },
+
   // POST /v1/wlvlp/upload-logo
   {
     method: 'POST', pattern: '/v1/wlvlp/upload-logo',
