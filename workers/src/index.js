@@ -2794,14 +2794,49 @@ const ROUTES = [
             }
 
             // Handle TMP membership activation
-            if (platform === 'tmp' && account_id && plan_key) {
+            if (platform === 'tmp' && plan_key) {
               try {
+                // Reconcile anonymous checkout: look up or create account by Stripe email
+                let tmpAccountId = account_id;
+                if (!tmpAccountId || tmpAccountId === 'anonymous') {
+                  const stripeEmail = obj.customer_details?.email || obj.customer_email || null;
+                  if (!stripeEmail) {
+                    console.error('TMP anonymous checkout missing Stripe email; cannot reconcile', obj.id);
+                    break;
+                  }
+                  const emailLower = stripeEmail.toLowerCase();
+                  const existing = await env.DB.prepare(
+                    'SELECT account_id FROM accounts WHERE email = ?'
+                  ).bind(emailLower).first();
+                  if (existing?.account_id) {
+                    tmpAccountId = existing.account_id;
+                  } else {
+                    tmpAccountId = `ACCT_${crypto.randomUUID()}`;
+                    await d1Run(env.DB,
+                      `INSERT INTO accounts (account_id, email, first_name, last_name, platform, role, status, created_at)
+                       VALUES (?, ?, '', '', 'tmp', 'member', 'active', ?)
+                       ON CONFLICT(email) DO NOTHING`,
+                      [tmpAccountId, emailLower, now]
+                    );
+                    // Re-read in case ON CONFLICT raced
+                    const row = await env.DB.prepare(
+                      'SELECT account_id FROM accounts WHERE email = ?'
+                    ).bind(emailLower).first();
+                    if (row?.account_id) tmpAccountId = row.account_id;
+                    await r2Put(env.R2_VIRTUAL_LAUNCH, `accounts_vlp/VLP_ACCT_${tmpAccountId}.json`, {
+                      accountId: tmpAccountId, email: emailLower, firstName: '', lastName: '',
+                      platform: 'tmp', role: 'member', status: 'active', createdAt: now, updatedAt: now,
+                    });
+                  }
+                  console.log(`TMP anonymous checkout reconciled to account ${tmpAccountId} via ${emailLower}`);
+                }
+
                 const membershipId = `MEM_${crypto.randomUUID()}`;
 
                 // Write receipt to R2
-                await r2Put(env.R2_VIRTUAL_LAUNCH, `tmp/receipts/memberships/${account_id}/${now}.json`, {
+                await r2Put(env.R2_VIRTUAL_LAUNCH, `tmp/receipts/memberships/${tmpAccountId}/${now}.json`, {
                   event_type: 'membership_activated',
-                  account_id,
+                  account_id: tmpAccountId,
                   plan_key,
                   membership_id: membershipId,
                   stripe_customer_id: obj.customer,
@@ -2812,9 +2847,9 @@ const ROUTES = [
                 });
 
                 // Write canonical to R2
-                await r2Put(env.R2_VIRTUAL_LAUNCH, `tmp/memberships/${account_id}.json`, {
+                await r2Put(env.R2_VIRTUAL_LAUNCH, `tmp/memberships/${tmpAccountId}.json`, {
                   membership_id: membershipId,
-                  account_id,
+                  account_id: tmpAccountId,
                   plan_key,
                   status: 'active',
                   stripe_customer_id: obj.customer,
@@ -2829,10 +2864,10 @@ const ROUTES = [
                   `INSERT OR REPLACE INTO memberships
                    (membership_id, account_id, plan_key, status, stripe_customer_id, stripe_subscription_id, created_at, updated_at)
                    VALUES (?, ?, ?, 'active', ?, ?, ?, ?)`,
-                  [membershipId, account_id, plan_key, obj.customer, obj.subscription, now, now]
+                  [membershipId, tmpAccountId, plan_key, obj.customer, obj.subscription, now, now]
                 );
 
-                console.log(`TMP membership activated: ${account_id} -> ${plan_key}`);
+                console.log(`TMP membership activated: ${tmpAccountId} -> ${plan_key}`);
               } catch (e) {
                 console.error('TMP membership activation error:', e);
               }
@@ -7385,15 +7420,19 @@ TTMP Support Team
   },
 
   // POST /v1/tmp/memberships/checkout
+  // Allows anonymous checkout: if no session, Stripe collects email and webhook
+  // creates/looks up the account on completion (reconciled by client_reference_id).
   {
     method: 'POST', pattern: '/v1/tmp/memberships/checkout',
     handler: async (_method, _pattern, _params, request, env) => {
-      const { session, error } = await requireSession(request, env);
-      if (error) return error;
+      // Try to get session, but don't require it (anonymous checkout allowed)
+      const session = await getSessionFromRequest(request, env);
+      const accountId = session?.account_id || null;
+      const sessionEmail = session?.email || null;
 
       try {
         const body = await request.json();
-        const { plan_key, addon_mfj } = body;
+        const { plan_key, addon_mfj, email: bodyEmail } = body;
 
         // Validate plan_key
         const validPlans = [
@@ -7427,18 +7466,25 @@ TTMP Support Team
         }
 
         // Create Stripe checkout session
+        const customerEmail = sessionEmail || (typeof bodyEmail === 'string' ? bodyEmail.trim() : '') || null;
         const sessionData = {
           mode: plan_key === 'tmp_snapshot' ? 'payment' : 'subscription',
           line_items: [{ price: stripe_price_id, quantity: 1 }],
           success_url: 'https://virtuallaunch.pro/checkout/success?session_id={CHECKOUT_SESSION_ID}',
           cancel_url: 'https://virtuallaunch.pro/pricing',
+          client_reference_id: accountId || 'anonymous',
           metadata: {
             platform: 'tmp',
             plan_key,
-            account_id: session.account_id,
+            account_id: accountId || 'anonymous',
             addon_mfj: addon_mfj ? 'true' : 'false'
           }
         };
+
+        // Pass email if we have one; otherwise let Stripe Checkout collect it.
+        if (customerEmail) {
+          sessionData.customer_email = customerEmail;
+        }
 
         // Add MFJ addon if requested
         if (addon_mfj && env.STRIPE_PRICE_TMP_MFJ) {
