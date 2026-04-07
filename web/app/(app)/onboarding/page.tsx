@@ -323,6 +323,14 @@ function Step4({ form, set }: { form: FormData; set: (k: keyof FormData, v: unkn
   )
 }
 
+function normalizePhone(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 10)
+  if (digits.length === 0) return ''
+  if (digits.length <= 3) return `(${digits}`
+  if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+}
+
 function Step5({ form, set, calProConnected, calConnecting, onCalConnect }: {
   form: FormData
   set: (k: keyof FormData, v: unknown) => void
@@ -350,7 +358,13 @@ function Step5({ form, set, calProConnected, calConnecting, onCalConnect }: {
           </div>
           <div>
             <Label>Phone</Label>
-            <Input value={form.phone} onChange={(v) => set('phone', v)} placeholder="+1 (555) 000-0000" />
+            <input
+              className="w-full rounded-xl border border-slate-800/60 bg-slate-900/60 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-orange-500/60 focus:outline-none"
+              value={form.phone}
+              onChange={(e) => set('phone', e.target.value)}
+              onBlur={(e) => set('phone', normalizePhone(e.target.value))}
+              placeholder="(555) 000-0000"
+            />
           </div>
         </div>
         <div>
@@ -619,6 +633,8 @@ function ProfilePreview({ form }: { form: FormData }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
+const PROFILE_COMPLETED_KEY = 'vlp_profile_completed'
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
@@ -627,6 +643,7 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null)
   const [calProConnected, setCalProConnected] = useState(false)
   const [calConnecting, setCalConnecting] = useState(false)
+  const [isFirstSignin, setIsFirstSignin] = useState(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -634,6 +651,12 @@ export default function OnboardingPage() {
       setCalProConnected(true)
       window.history.replaceState({}, '', '/onboarding')
     }
+    const stepParam = parseInt(params.get('step') || '', 10)
+    if (!Number.isNaN(stepParam) && stepParam >= 0 && stepParam <= 5) {
+      setStep(stepParam)
+    }
+    // First signin = no profile-completed flag in localStorage
+    setIsFirstSignin(!localStorage.getItem(PROFILE_COMPLETED_KEY))
   }, [])
 
   const set = (key: keyof FormData, value: unknown) => {
@@ -662,18 +685,33 @@ export default function OnboardingPage() {
     setSaving(true)
     setError(null)
     try {
+      // Required fields gate — must match backend POST /v1/profiles
+      const displayName = form.fullName.trim()
+      if (!displayName) {
+        setError('Full name is required.')
+        setStep(0)
+        setSaving(false)
+        return
+      }
+      // Derive a deterministic professionalId from the display name
+      const slug = displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+      const professionalId = `pro-${slug}-${Math.random().toString(36).slice(2, 8)}`
+
       const res = await fetch('https://api.virtuallaunch.pro/v1/profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, professionalId, displayName }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
         setError((data as { message?: string }).message || 'Save failed. Please try again.')
         return
       }
-      router.push('/dashboard')
+      const data = await res.json().catch(() => ({})) as { profile?: { professionalId?: string } }
+      const savedId = data.profile?.professionalId || professionalId
+      localStorage.setItem(PROFILE_COMPLETED_KEY, '1')
+      router.push(`/directory?profile=${encodeURIComponent(savedId)}`)
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -684,20 +722,28 @@ export default function OnboardingPage() {
   // On mobile show preview only on step 6; on lg+ always show
   const showPreviewColumn = step === 5
 
+  const wrapperClass = isFirstSignin
+    ? 'fixed inset-0 z-50 overflow-y-auto bg-slate-950 px-6 py-8'
+    : ''
+  const innerClass = isFirstSignin ? 'mx-auto max-w-6xl' : 'mx-auto max-w-6xl py-8'
+
   return (
-    <div className="mx-auto max-w-6xl py-8">
+    <div className={wrapperClass}>
+    <div className={innerClass}>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-white">Directory Profile</h1>
           <p className="mt-1 text-sm text-slate-400">Build your public Tax Monitor network profile.</p>
         </div>
-        <button
-          type="button"
-          onClick={skip}
-          className="rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm text-slate-400 hover:text-white transition"
-        >
-          Skip for now
-        </button>
+        {isFirstSignin && (
+          <button
+            type="button"
+            onClick={skip}
+            className="rounded-lg border border-slate-700 bg-slate-900/60 px-4 py-2 text-sm text-slate-400 hover:text-white transition"
+          >
+            Skip
+          </button>
+        )}
       </div>
 
       <StepIndicator current={step} total={6} />
@@ -770,6 +816,7 @@ export default function OnboardingPage() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   )
 }

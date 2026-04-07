@@ -2,15 +2,24 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 
 const STORAGE_KEY = 'vlp_onboarding_prompt_dismissed'
+const PROFILE_COMPLETED_KEY = 'vlp_profile_completed'
 
 export default function OnboardingPrompt() {
+  const router = useRouter()
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
+    // If required profile fields (professionalId, displayName) are missing,
+    // redirect back to the onboarding step that collects them (step 0).
+    if (!localStorage.getItem(PROFILE_COMPLETED_KEY)) {
+      router.replace('/onboarding?step=0')
+      return
+    }
     if (!localStorage.getItem(STORAGE_KEY)) setVisible(true)
-  }, [])
+  }, [router])
 
   function dismiss() {
     localStorage.setItem(STORAGE_KEY, '1')
