@@ -2949,9 +2949,9 @@ const ROUTES = [
                   const purchaseId = `PUR_${crypto.randomUUID()}`;
                   await env.DB.prepare(
                     `INSERT INTO wlvlp_purchases
-                     (purchase_id, account_id, slug, acquisition_type, monthly_price, stripe_customer_id, stripe_subscription_id, status, created_at, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`
-                  ).bind(purchaseId, wlvlpAccountId, slug, tier, Math.round((obj.amount_total || 0) / 100), obj.customer, obj.subscription || null, purchasedAt, purchasedAt).run();
+                     (purchase_id, account_id, slug, acquisition_type, monthly_price, stripe_customer_id, stripe_subscription_id, status, created_at, updated_at, tier, purchased_at, hosting_expires_at, stripe_session_id)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)`
+                  ).bind(purchaseId, wlvlpAccountId, slug, tier, Math.round((obj.amount_total || 0) / 100), obj.customer, obj.subscription || null, purchasedAt, purchasedAt, tier, purchasedAt, hostingExpiresAt, obj.id).run();
                 } catch (_) {}
 
                 console.log(`WLVLP purchase activated: ${wlvlpAccountId} -> ${slug} (${tier})`);
@@ -11164,6 +11164,31 @@ TTMP Support Team
       } catch (e) {
         console.error('WLVLP buyer get error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/sites/by-account/:account_id
+  {
+    method: 'GET', pattern: '/v1/wlvlp/sites/by-account/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { account_id } = params;
+      if (account_id !== session.account_id) {
+        return json({ ok: false, error: 'UNAUTHORIZED' }, 403, request);
+      }
+
+      try {
+        const result = await env.DB.prepare(
+          "SELECT * FROM wlvlp_purchases WHERE account_id = ? ORDER BY purchased_at DESC"
+        ).bind(account_id).all();
+        return json({ ok: true, sites: result.results || [] }, 200, request);
+      } catch (e) {
+        // Table missing or column missing — return empty list gracefully
+        console.error('WLVLP sites by-account error:', e?.message);
+        return json({ ok: true, sites: [] }, 200, request);
       }
     },
   },
