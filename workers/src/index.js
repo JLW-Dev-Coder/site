@@ -8199,7 +8199,7 @@ TTMP Support Team
     handler: async (_method, _pattern, params, request, env) => {
       try {
         const body = await parseBody(request);
-        const { full_name, email, skills, experience_years, hourly_rate, availability } = body;
+        const { full_name, email, skills, experience_years, hourly_rate, availability, skill_levels } = body;
 
         if (!full_name || !email) {
           return json({ ok: false, error: 'INVALID_REQUEST', message: 'full_name and email required' }, 400, request);
@@ -8229,6 +8229,7 @@ TTMP Support Team
           experience_years: experience_years || null,
           hourly_rate: hourly_rate || null,
           availability: availability || null,
+          skill_levels: skill_levels && typeof skill_levels === 'object' ? skill_levels : null,
           publish_profile: 0,
           status: 'pending',
           plan: 'free',

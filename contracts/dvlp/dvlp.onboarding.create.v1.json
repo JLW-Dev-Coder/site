@@ -74,6 +74,13 @@
       "availability": {
         "type": "string",
         "enum": ["full-time", "part-time", "contract", "freelance"]
+      },
+      "skill_levels": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string",
+          "enum": ["Junior", "Mid", "Senior"]
+        }
       }
     },
     "required": [
