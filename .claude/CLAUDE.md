@@ -554,11 +554,14 @@ Hunter handles sending, tracking, and follow-ups.
 
 ---
 
-## Post-Task Requirements
+## Post-Task Rules (mandatory after every task)
 
-After completing any task:
-1. Stage all changes: git add -A
-2. Commit with a descriptive message: git commit -m "[Phase X] description of changes"
-3. Report the commit hash in the task report
-
-Never leave uncommitted changes. Every task ends with a clean working tree.
+1. **Commit:** After completing any task, commit all changed files with a descriptive message. Never leave work uncommitted.
+2. **Push:** After committing, run `git push origin main` unless explicitly told not to.
+3. **Deploy (if applicable):**
+   - VLP Worker changes: run `wrangler deploy` after push
+   - VLP frontend changes: push triggers Cloudflare Pages automatically
+   - TMP frontend changes: push triggers Cloudflare Pages automatically
+   - TTMP changes: run `wrangler deploy` after push (OpenNext Worker, not Pages)
+   - Other platforms: push triggers Cloudflare Pages automatically unless noted
+4. **Report:** After commit+push+deploy, report the commit hash, deploy version (if applicable), and any errors.
