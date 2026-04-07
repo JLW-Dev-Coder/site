@@ -7495,6 +7495,7 @@ TTMP Support Team
 
         return json({ ok: true, session_url: checkout_session.url }, 200, request);
       } catch (e) {
+        console.error('TMP checkout error:', e?.message, e?.stack);
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500, request);
       }
     },
