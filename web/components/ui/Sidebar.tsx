@@ -4,6 +4,11 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import SignOutButton from '@/components/auth/SignOutButton'
 
+const OPERATOR_EMAILS = [
+  'jamie.williams@virtuallaunch.pro',
+  'hello@virtuallaunch.pro',
+]
+
 const NAV_ITEMS = [
   {
     label: 'Dashboard',
@@ -106,8 +111,10 @@ const NAV_ITEMS = [
   },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
   const pathname = usePathname()
+  const isOperator = OPERATOR_EMAILS.includes((userEmail || '').toLowerCase())
+  const navItems = NAV_ITEMS.filter((item) => item.href !== '/scale' || isOperator)
 
   return (
     <aside className="flex w-60 flex-col border-r border-slate-800/60 bg-slate-950">
@@ -124,7 +131,7 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (
             <Link

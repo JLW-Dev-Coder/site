@@ -4540,6 +4540,123 @@ const ROUTES = [
   },
 
   {
+    method: 'GET', pattern: '/v1/admin/support/tickets',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      try {
+        const result = await env.DB.prepare(
+          `SELECT t.ticket_id, t.account_id, t.subject, t.message, t.priority, t.status,
+                  t.created_at, t.updated_at, a.email, a.platform
+             FROM support_tickets t
+             LEFT JOIN accounts a ON a.account_id = t.account_id
+            ORDER BY t.created_at DESC
+            LIMIT 100`
+        ).all()
+        return json({ ok: true, tickets: result.results || [] }, 200, request)
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 500, request)
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/admin/stats',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      try {
+        // Total accounts
+        const accountsRow = await env.DB.prepare(
+          `SELECT COUNT(*) AS total FROM accounts`
+        ).first()
+
+        // Active memberships grouped by plan_key
+        const memRows = await env.DB.prepare(
+          `SELECT plan_key, COUNT(*) AS count
+             FROM memberships
+            WHERE status = 'active'
+            GROUP BY plan_key`
+        ).all()
+
+        // Token totals from D1 projection (R2 is authoritative but D1 mirrors it)
+        const tokenRow = await env.DB.prepare(
+          `SELECT
+              COALESCE(SUM(transcript_tokens), 0) AS transcript_total,
+              COALESCE(SUM(tax_game_tokens), 0)   AS tax_game_total,
+              COUNT(*)                             AS holder_count
+            FROM tokens`
+        ).first()
+
+        // Recent transactions — pulled from R2 receipts/billing/ prefix
+        const recentTransactions = []
+        try {
+          const listResult = await env.R2_VIRTUAL_LAUNCH.list({
+            prefix: 'receipts/billing/',
+            limit: 100,
+          })
+          // Sort by uploaded desc and take 20
+          const sorted = (listResult.objects || [])
+            .slice()
+            .sort((a, b) => new Date(b.uploaded).getTime() - new Date(a.uploaded).getTime())
+            .slice(0, 20)
+          const items = await Promise.all(sorted.map(async (obj) => {
+            try {
+              const r = await env.R2_VIRTUAL_LAUNCH.get(obj.key)
+              if (!r) return null
+              const data = await r.json()
+              return {
+                key: obj.key,
+                uploaded: obj.uploaded,
+                event_type: data.eventType || data.type || null,
+                account_id: data.accountId || data.account_id || null,
+                amount: data.amount || data.amount_total || null,
+                currency: data.currency || null,
+              }
+            } catch { return null }
+          }))
+          recentTransactions.push(...items.filter(Boolean))
+        } catch (e) {
+          // R2 list failure shouldn't break stats
+        }
+
+        const membershipsByTier = {}
+        for (const row of (memRows.results || [])) {
+          membershipsByTier[row.plan_key] = row.count
+        }
+
+        return json({
+          ok: true,
+          stats: {
+            total_accounts: accountsRow?.total || 0,
+            memberships_by_tier: membershipsByTier,
+            tokens: {
+              transcript_total: tokenRow?.transcript_total || 0,
+              tax_game_total: tokenRow?.tax_game_total || 0,
+              holder_count: tokenRow?.holder_count || 0,
+            },
+            recent_transactions: recentTransactions,
+          },
+        }, 200, request)
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 500, request)
+      }
+    },
+  },
+
+  {
     method: 'GET', pattern: '/v1/scale/dashboard',
     handler: async (_method, _pattern, _params, request, env) => {
       const { session, error } = await requireSession(request, env)
