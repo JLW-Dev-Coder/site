@@ -6307,7 +6307,7 @@ const ROUTES = [
           ok: true,
           reports,
           cursor: nextCursor
-        });
+        }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch reports' }, 500, request);
       }
@@ -7427,8 +7427,6 @@ TTMP Support Team
         }
 
         // Create Stripe checkout session
-        const stripe = new Stripe(env.STRIPE_SECRET_KEY);
-
         const sessionData = {
           mode: plan_key === 'tmp_snapshot' ? 'payment' : 'subscription',
           line_items: [{ price: stripe_price_id, quantity: 1 }],
@@ -7447,7 +7445,7 @@ TTMP Support Team
           sessionData.line_items.push({ price: env.STRIPE_PRICE_TMP_MFJ, quantity: 1 });
         }
 
-        const checkout_session = await stripe.checkout.sessions.create(sessionData);
+        const checkout_session = await stripePost('/checkout/sessions', sessionData, env);
 
         return json({ ok: true, session_url: checkout_session.url }, 200, request);
       } catch (e) {
