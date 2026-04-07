@@ -134,6 +134,8 @@ Track legacy Worker retirement here. Update as work completes.
 /contracts/registries/          → Per-platform registries
 /wrangler.toml                  → Worker config, bindings, non-secret env vars
 
+| `.claude/OAUTH.md` | Google OAuth architecture — client selection, cookie domains, auth flow |
+
 ### Repo Locations
 
 | Repo | Local Path |
