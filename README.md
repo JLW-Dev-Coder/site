@@ -1,5 +1,5 @@
 # README.md — Virtual Launch Pro (VLP)
-Last updated: 2026-04-03
+Last updated: 2026-04-07
 
 **Repo:** virtuallaunch.pro
 **Worker API:** api.virtuallaunch.pro
@@ -161,11 +161,26 @@ Secrets managed via `wrangler secret put` — never committed to the repo.
 
 ## 9. Current Phase
 
-**Phase 3 — Affiliate Program: COMPLETE (2026-03-30)**
+**Phase 7 — VLP Asset Page Route + R2 Push: COMPLETE (2026-04-05)**
 
-**Phase 4 — Token purchase flow wired to membership gating (next)**
+**Phase 10 — WLVLP Marketplace: in progress** — operational with 13 backend routes, 210+ templates, one-time purchase + recurring hosting model. See CLAUDE.md section 21.
 
 See CLAUDE.md section 7 for full phase plan.
+
+---
+
+## 9a. WLVLP Operational Notes
+
+WLVLP is live and operational. Key facts:
+
+- **Routes** live in `workers/src/index.js` (13 routes — checkout, site editor, custom domain, hosting renewal, expiration sweep, by-account list, etc.)
+- **Pricing:** $249 Standard / $399 Premium one-time, plus $14/mo Standard or $49/mo Premium Hosting
+- **Stripe:** charges flow through `STRIPE_SECRET_KEY_VLP` and webhooks verify with `STRIPE_WEBHOOK_SECRET_VLP` (NOT the TMP keys)
+- **D1 tables:** `wlvlp_purchases`, `wlvlp_templates`
+- **R2 keys:** `wlvlp/sites/{slug}.json`, `wlvlp/sites/{slug}/customizations.json`, `wlvlp/notifications/`
+- **Cron:** daily hosting expiration sweep at 10:00 UTC
+- **Catalog:** 210+ Canva templates across 11 categories
+- **Public surfaces must contain zero PII** — see CLAUDE.md section 15
 
 ---
 

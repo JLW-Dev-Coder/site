@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-04
+Last updated: 2026-04-07
 
 ---
 
@@ -105,7 +105,7 @@ Track legacy Worker retirement here. Update as work completes.
 | 7 | VLP Asset Page Route + R2 Push | complete | 2026-04-05 |
 | 8 | Test Full Workflow End to End | not started | — |
 | 9 | TMP + DVLP + GVLP Membership Tiers | not started | — |
-| 10 | WLVLP Marketplace | not started | — |
+| 10 | WLVLP Marketplace | in progress | — |
 
 ---
 
@@ -524,10 +524,75 @@ Both plan keys should grant identical token amounts.
 - Developer marketplace (DVLP) — Free + $2.99 intro tier
 - Gamified subscriptions (GVLP) — $9/$19/$39/mo
 
-### Phase 10 — WLVLP Marketplace
+### Phase 10 — WLVLP Marketplace (in progress)
 - Canva site exports served as static content under `/sites/[slug]/`
 - Next.js is the system layer — do NOT convert Canva exports to React
 - Voting/bidding calls private Worker only at mutation point — no PII in responses
+- See section 21 for operational reference (routes, pricing, infrastructure)
+
+---
+
+## 21. WLVLP Operational Reference
+
+WLVLP is operational and live. All backend routes live in `workers/src/index.js`. WLVLP never had its own Worker.
+
+### Routes
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST  | `/v1/wlvlp/checkout` | Create Stripe Checkout session for site purchase or hosting |
+| PATCH | `/v1/wlvlp/sites/:slug/data` | Site editor — owner-only mutation of site customizations |
+| GET   | `/v1/wlvlp/sites/by-account/:account_id` | List all sites owned by an account |
+| POST  | `/v1/wlvlp/sites/:slug/domain` | Connect a custom domain to a purchased site |
+| GET   | `/v1/wlvlp/sites/expiring` | Cron-facing endpoint listing sites with hosting expiring soon |
+| POST  | `/v1/wlvlp/sites/:slug/renew` | Renew hosting subscription for a site |
+
+Plus existing read routes for the marketplace catalog, voting, bidding, and scratch tickets.
+
+### Pricing model (one-time + recurring hosting)
+
+| SKU | Type | Price |
+|-----|------|-------|
+| Standard site | One-time | $249 |
+| Premium site | One-time | $399 |
+| Hosting (Standard) | Monthly recurring | $14/mo |
+| Premium Hosting | Monthly recurring | $49/mo |
+
+Acquisition methods: Buy Now ($249/$399), Auction (min $29 bid), Scratch to Win.
+
+### Dual Stripe accounts
+
+WLVLP, VLP, GVLP, and TTTMP charges flow through the **VLP Stripe account**. TMP (and the legacy TMP family) flows through the **TMP Stripe account**. Two key pairs exist on the Worker:
+
+| Family | Secret key env var | Webhook secret env var |
+|--------|--------------------|------------------------|
+| TMP | `STRIPE_SECRET_KEY` | `STRIPE_WEBHOOK_SECRET` |
+| VLP / WLVLP / GVLP / TTTMP | `STRIPE_SECRET_KEY_VLP` | `STRIPE_WEBHOOK_SECRET_VLP` |
+
+When adding a new Stripe API call for any VLP-family product, use `STRIPE_SECRET_KEY_VLP`. Never cross-wire keys — TMP webhooks will fail signature verification against the VLP secret and vice versa.
+
+### D1 tables
+
+- `wlvlp_purchases` — projection of completed site purchases (account_id, slug, sku, stripe_session_id, hosting_status, hosting_renews_at)
+- `wlvlp_templates` — projection of the published template catalog (slug, category, tier, status)
+
+R2 remains authoritative for both.
+
+### R2 keys
+
+| Key pattern | Contents |
+|-------------|----------|
+| `wlvlp/sites/{slug}.json` | Canonical site record (template ref, ownership, hosting state) |
+| `wlvlp/sites/{slug}/customizations.json` | Owner-edited site data from the editor |
+| `wlvlp/notifications/...` | Outbound notification queue (purchase confirmations, renewal reminders) |
+
+### Cron
+
+A daily cron at **10:00 UTC** sweeps `/v1/wlvlp/sites/expiring` and queues hosting renewal reminders / lapse notifications.
+
+### PII rule
+
+Public marketplace surfaces (catalog, voting, bidding, scratch) must contain zero PII. Owner-only routes (editor, by-account list, domain connect, renew) require a valid `vlp_session` cookie with ownership of the slug.
 
 ---
 

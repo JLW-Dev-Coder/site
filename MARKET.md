@@ -1,5 +1,5 @@
 markdown# MARKET.md — VLP Ecosystem
-Last updated: 2026-04-03
+Last updated: 2026-04-07
 
 This file is the canonical source for product descriptions, taglines, and
 positioning across all 8 platforms. When writing marketing copy in any
@@ -137,12 +137,28 @@ documents in platform repos.
 ### Website Lotto VLP (WLVLP)
 **Domain:** websitelotto.virtuallaunch.pro
 **Tagline:** Win a professional website
-**One-liner:** A marketplace of Canva-built professional websites available to claim via subscription, auction, or buy-now — with community voting to surface the best designs.
-**Value prop:** Get a professionally designed website for your practice without paying agency prices. Vote for your favorites, bid on auctions, or buy now.
-**Audience:** Small business owners and tax professionals who need a professional website
+**One-liner:** A marketplace of 210+ Canva-built professional websites you can buy outright, win at auction, or scratch to claim — with built-in editing, custom domain connection, and managed hosting.
+**Value prop:** Get a professionally designed website for your business without paying agency prices. Buy it now, bid on it, or scratch to win — then edit, connect your domain, and let us host it.
+**Audience:** Small business owners, tax professionals, and side-hustlers who need a professional website without hiring a designer
 **Brand color:** Pink `#ec4899`
-**Acquisition methods:** Monthly subscription ($99/mo), auction bidding (min $29), buy-now
-**Key features:** Live site preview via iframe, vote system, bid history, countdown timers
+
+**Catalog:** 210+ Canva-designed templates across 11 categories: Tax and Finance, Legal, Services, Real Estate and Home, Tech and Digital, Beauty and Fashion, Entertainment, Food and Beverage, Sports and Fitness, Travel and Adventure, Lifestyle and Hobby.
+
+**Pricing (one-time purchase + recurring hosting):**
+
+| SKU | Type | Price |
+|-----|------|-------|
+| Standard site | One-time | $249 |
+| Premium site | One-time | $399 |
+| Hosting (Standard) | Monthly | $14/mo |
+| Premium Hosting | Monthly | $49/mo |
+
+**Acquisition methods:**
+- **Buy Now** — $249 (Standard) or $399 (Premium)
+- **Auction** — bid against other buyers, $29 minimum bid
+- **Scratch to Win** — claim a site for free if your scratch ticket hits
+
+**Key features:** Built-in site editor, custom domain connection, hosting renewal lifecycle, community voting, auction bidding, scratch tickets.
 
 ---
 
