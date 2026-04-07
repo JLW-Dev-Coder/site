@@ -782,9 +782,10 @@ async function stripePost(path, params, env, secretKey) {
   return data;
 }
 
-async function stripeGet(path, env) {
+async function stripeGet(path, env, secretKey) {
+  const key = secretKey || env.STRIPE_SECRET_KEY;
   const res = await fetch(`https://api.stripe.com/v1${path}`, {
-    headers: { 'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}` },
+    headers: { 'Authorization': `Bearer ${key}` },
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data?.error?.message ?? `Stripe error ${res.status}`);
@@ -2624,6 +2625,13 @@ const ROUTES = [
       const now = new Date().toISOString();
 
       try {
+        // VLP plan price IDs live in the Virtual Launch Pro Stripe account.
+        // Must use STRIPE_SECRET_KEY_VLP (not the TMP-account STRIPE_SECRET_KEY).
+        const vlpSecretKey = env.STRIPE_SECRET_KEY_VLP;
+        if (!vlpSecretKey) {
+          return json({ ok: false, error: 'STRIPE_NOT_CONFIGURED', message: 'STRIPE_SECRET_KEY_VLP is not set' }, 503, request);
+        }
+
         const sessionPayload = {
           mode: 'subscription',
           line_items: [{ price: billingObject, quantity: 1 }],
@@ -2634,7 +2642,7 @@ const ROUTES = [
         };
         if (email) sessionPayload.customer_email = email;
 
-        const stripeSession = await stripePost('/checkout/sessions', sessionPayload, env);
+        const stripeSession = await stripePost('/checkout/sessions', sessionPayload, env, vlpSecretKey);
 
         await r2Put(env.R2_VIRTUAL_LAUNCH, `memberships/${membershipId}.json`, {
           membershipId, accountId: null, planKey, billingInterval,
@@ -2672,6 +2680,11 @@ const ROUTES = [
         return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid planKey or billingInterval' }, 400, request);
       }
       try {
+        // VLP plan prices live in the Virtual Launch Pro Stripe account.
+        const vlpSecretKey = env.STRIPE_SECRET_KEY_VLP;
+        if (!vlpSecretKey) {
+          return json({ ok: false, error: 'STRIPE_NOT_CONFIGURED', message: 'STRIPE_SECRET_KEY_VLP is not set' }, 503, request);
+        }
         const membershipId = `MEM_${crypto.randomUUID()}`;
         const session = await stripePost('/checkout/sessions', {
           mode: 'subscription',
@@ -2679,7 +2692,7 @@ const ROUTES = [
           success_url: successUrl,
           cancel_url: cancelUrl,
           metadata: { account_id: accountId, membership_id: membershipId, plan_key: planKey, billing_interval: billingInterval },
-        }, env);
+        }, env, vlpSecretKey);
         const checkoutSessionId = session.id;
         const now = new Date().toISOString();
 
@@ -2708,7 +2721,8 @@ const ROUTES = [
       const sessionId = url.searchParams.get('sessionId');
       if (!sessionId) return json({ ok: false, error: 'BAD_REQUEST', message: 'sessionId required' }, 400, request);
       try {
-        const session = await stripeGet(`/checkout/sessions/${sessionId}`, env);
+        // VLP checkout sessions are created on the VLP Stripe account.
+        const session = await stripeGet(`/checkout/sessions/${sessionId}`, env, env.STRIPE_SECRET_KEY_VLP);
         return json({
           ok: true,
           status: session.status,
@@ -2748,17 +2762,36 @@ const ROUTES = [
         return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
       }
 
-      // Verify HMAC-SHA256 signature
+      // Verify HMAC-SHA256 signature.
+      // VLP routes webhooks from BOTH the TaxMonitor Pro account (TMP plans)
+      // and the Virtual Launch Pro account (VLP plans, WLVLP, GVLP, TTTMP/TTMP
+      // token packages, affiliates) to this same endpoint, so we accept either
+      // signing secret.
       try {
         const enc = new TextEncoder();
-        const key = await crypto.subtle.importKey(
-          'raw', enc.encode(env.STRIPE_WEBHOOK_SECRET),
-          { name: 'HMAC', hash: 'SHA-256' },
-          false, ['sign']
-        );
-        const sigBuf = await crypto.subtle.sign('HMAC', key, enc.encode(`${timestamp}.${rawBody}`));
-        const expectedHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
-        const isValid = signatures.some(s => s === expectedHex);
+        const candidateSecrets = [
+          env.STRIPE_WEBHOOK_SECRET,
+          env.STRIPE_WEBHOOK_SECRET_VLP,
+        ].filter(Boolean);
+
+        if (candidateSecrets.length === 0) {
+          return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
+        }
+
+        let isValid = false;
+        for (const secret of candidateSecrets) {
+          const key = await crypto.subtle.importKey(
+            'raw', enc.encode(secret),
+            { name: 'HMAC', hash: 'SHA-256' },
+            false, ['sign']
+          );
+          const sigBuf = await crypto.subtle.sign('HMAC', key, enc.encode(`${timestamp}.${rawBody}`));
+          const expectedHex = Array.from(new Uint8Array(sigBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+          if (signatures.some(s => s === expectedHex)) {
+            isValid = true;
+            break;
+          }
+        }
         if (!isValid) return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
       } catch {
         return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
@@ -3007,9 +3040,10 @@ const ROUTES = [
                 if (obj.line_items?.data?.[0]?.price?.id) {
                   price_id = obj.line_items.data[0].price.id;
                 } else {
-                  // Fallback: lookup price from session
+                  // Fallback: lookup price from session.
+                  // Token purchase price IDs (TTMP/TTTMP) live in the VLP Stripe account.
                   const sessionDetails = await fetch(`https://api.stripe.com/v1/checkout/sessions/${obj.id}?expand[]=line_items`, {
-                    headers: { 'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}` }
+                    headers: { 'Authorization': `Bearer ${env.STRIPE_SECRET_KEY_VLP || env.STRIPE_SECRET_KEY}` }
                   });
                   if (sessionDetails.ok) {
                     const session = await sessionDetails.json();
@@ -4227,11 +4261,16 @@ const ROUTES = [
       }
 
       try {
+        // TTMP/TTTMP token package prices live in the VLP Stripe account.
+        const vlpSecretKey = env.STRIPE_SECRET_KEY_VLP;
+        if (!vlpSecretKey) {
+          return json({ ok: false, error: 'STRIPE_NOT_CONFIGURED', message: 'STRIPE_SECRET_KEY_VLP is not set' }, 503, request);
+        }
         // Create Stripe Checkout session for one-time payment
         const checkoutSession = await fetch('https://api.stripe.com/v1/checkout/sessions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Authorization': `Bearer ${vlpSecretKey}`,
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: new URLSearchParams({
@@ -6911,10 +6950,11 @@ TTMP Support Team
     method: 'GET', pattern: '/v1/pricing/transcripts',
     handler: async (_method, _pattern, _params, request, env) => {
       try {
-        // Get current Stripe prices for TTMP token packages
+        // TTMP token package prices live in the VLP Stripe account.
+        const vlpSecretKey = env.STRIPE_SECRET_KEY_VLP || env.STRIPE_SECRET_KEY;
         const stripeResponse = await fetch('https://api.stripe.com/v1/prices?active=true&type=one_time', {
           headers: {
-            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Authorization': `Bearer ${vlpSecretKey}`,
             'Content-Type': 'application/x-www-form-urlencoded'
           }
         });
@@ -7152,7 +7192,8 @@ TTMP Support Team
           }
         };
 
-        const checkoutSession = await stripePost('/checkout/sessions', checkoutParams, env);
+        // TTTMP token package prices live in the VLP Stripe account.
+        const checkoutSession = await stripePost('/checkout/sessions', checkoutParams, env, env.STRIPE_SECRET_KEY_VLP);
 
         // Store order in R2
         const orderData = {
@@ -7194,8 +7235,8 @@ TTMP Support Team
       }
 
       try {
-        // Get Stripe session status
-        const stripeSession = await stripeGet(`/checkout/sessions/${sessionId}`, env);
+        // Get Stripe session status (TTTMP sessions are on the VLP Stripe account)
+        const stripeSession = await stripeGet(`/checkout/sessions/${sessionId}`, env, env.STRIPE_SECRET_KEY_VLP);
         if (stripeSession.metadata?.account_id !== session.account_id) {
           return json({ ok: false, error: 'NOT_FOUND', message: 'Session not found' }, 404, request);
         }
@@ -9788,10 +9829,15 @@ TTMP Support Team
           }
         };
 
+        // GVLP subscription prices live in the VLP Stripe account.
+        const vlpSecretKey = env.STRIPE_SECRET_KEY_VLP;
+        if (!vlpSecretKey) {
+          return json({ ok: false, error: 'STRIPE_NOT_CONFIGURED', message: 'STRIPE_SECRET_KEY_VLP is not set' }, 503, request);
+        }
         const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Authorization': `Bearer ${vlpSecretKey}`,
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: new URLSearchParams(sessionData),
@@ -9821,20 +9867,33 @@ TTMP Support Team
         const body = await request.text();
         const sig = request.headers.get('stripe-signature');
 
-        // Verify webhook signature
-        const key = await crypto.subtle.importKey(
-          'raw',
-          new TextEncoder().encode(env.STRIPE_WEBHOOK_SECRET),
-          { name: 'HMAC', hash: 'SHA-256' },
-          false,
-          ['sign']
-        );
+        // Verify webhook signature.
+        // GVLP checkouts run on the VLP Stripe account, so accept either signing
+        // secret to support both accounts during the migration window.
+        const candidateSecrets = [
+          env.STRIPE_WEBHOOK_SECRET_VLP,
+          env.STRIPE_WEBHOOK_SECRET,
+        ].filter(Boolean);
 
-        const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
-        const expectedSig = Array.from(new Uint8Array(signature))
-          .map(b => b.toString(16).padStart(2, '0')).join('');
+        let isValid = false;
+        for (const secret of candidateSecrets) {
+          const key = await crypto.subtle.importKey(
+            'raw',
+            new TextEncoder().encode(secret),
+            { name: 'HMAC', hash: 'SHA-256' },
+            false,
+            ['sign']
+          );
+          const signature = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
+          const expectedSig = Array.from(new Uint8Array(signature))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
+          if (sig && sig.includes(expectedSig)) {
+            isValid = true;
+            break;
+          }
+        }
 
-        if (!sig || !sig.includes(expectedSig)) {
+        if (!isValid) {
           return json({ ok: false, error: 'INVALID_SIGNATURE' }, 400, request);
         }
 
@@ -11439,11 +11498,12 @@ TTMP Support Team
       }
 
       try {
-        // Exchange code for Connect account ID
+        // The VLP affiliate program (Stripe Connect Express) is configured on the
+        // Virtual Launch Pro Stripe account, not the TaxMonitor Pro account.
         const tokenResponse = await fetch('https://connect.stripe.com/oauth/token', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY_VLP || env.STRIPE_SECRET_KEY}`,
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: `grant_type=authorization_code&code=${code}`,
@@ -11600,11 +11660,12 @@ TTMP Support Team
         const amount = affiliateRow.balance_pending;
         const now = new Date().toISOString();
 
-        // Create Stripe Transfer
+        // Create Stripe Transfer on the VLP Stripe account (where the affiliate
+        // Connect Express accounts live).
         const transferResponse = await fetch('https://api.stripe.com/v1/transfers', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+            'Authorization': `Bearer ${env.STRIPE_SECRET_KEY_VLP || env.STRIPE_SECRET_KEY}`,
             'Content-Type': 'application/x-www-form-urlencoded',
           },
           body: `amount=${amount}&currency=usd&destination=${affiliateRow.stripe_connect_account_id}`,
@@ -12153,11 +12214,12 @@ export default {
           ).bind(template.slug).first();
 
           if (highestBid) {
-            // Winner found - create Stripe Checkout Session for auction winner
+            // Winner found - create Stripe Checkout Session for auction winner.
+            // WLVLP products are sold via the VLP Stripe account.
             const stripeSession = await fetch('https://api.stripe.com/v1/checkout/sessions', {
               method: 'POST',
               headers: {
-                'Authorization': `Bearer ${env.STRIPE_SECRET_KEY}`,
+                'Authorization': `Bearer ${env.STRIPE_SECRET_KEY_VLP || env.STRIPE_SECRET_KEY}`,
                 'Content-Type': 'application/x-www-form-urlencoded',
               },
               body: new URLSearchParams({
