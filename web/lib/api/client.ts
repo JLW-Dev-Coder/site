@@ -376,22 +376,22 @@ export async function getAffiliate(accountId: string): Promise<AffiliateData> {
   const token = await getSessionToken()
   if (!token) throw new Error('No session token')
 
-  const result = await apiFetch<AffiliateData>(`/v1/affiliates/${accountId}`, {
+  const result = await apiFetch<{ ok: boolean; affiliate: AffiliateData }>(`/v1/affiliates/${accountId}`, {
     headers: getAuthHeaders(token),
   })
   if (!result.ok) throw new Error(result.error.message)
-  return result.data
+  return result.data.affiliate
 }
 
 export async function getAffiliateEvents(accountId: string): Promise<AffiliateEvent[]> {
   const token = await getSessionToken()
   if (!token) throw new Error('No session token')
 
-  const result = await apiFetch<AffiliateEvent[]>(`/v1/affiliates/${accountId}/events`, {
+  const result = await apiFetch<{ ok: boolean; events: AffiliateEvent[] }>(`/v1/affiliates/${accountId}/events`, {
     headers: getAuthHeaders(token),
   })
   if (!result.ok) throw new Error(result.error.message)
-  return result.data
+  return result.data.events ?? []
 }
 
 export async function startAffiliateOnboarding(): Promise<AffiliateOnboardingResponse> {

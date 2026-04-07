@@ -4171,22 +4171,86 @@ const ROUTES = [
         const url = new URL(request.url);
         const limitParam = parseInt(url.searchParams.get('limit') ?? '50', 10);
         const limit = Math.min(isNaN(limitParam) ? 50 : limitParam, 100);
-        const tokenEvents = new Set(['TOKENS_PURCHASED', 'SUBSCRIPTION_CREATED', 'SUBSCRIPTION_UPDATED']);
-        const listResult = await env.R2_VIRTUAL_LAUNCH.list({ prefix: 'receipts/billing/' });
-        const results = await Promise.all(
-          listResult.objects.slice(0, 50).map(async (obj) => {
-            try {
-              const item = await env.R2_VIRTUAL_LAUNCH.get(obj.key);
-              if (!item) return null;
-              const data = await item.json();
-              return data.accountId === params.account_id && tokenEvents.has(data.event) ? data : null;
-            } catch { return null; }
-          })
-        );
-        const usage = results
-          .filter(Boolean)
-          .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
+        const accountId = params.account_id;
+
+        // Scan multiple receipt prefixes that touch the user's token balance:
+        //   receipts/billing/        — purchases / subscription credits
+        //   receipts/ttmp/consume/   — transcript token consumption
+        //   receipts/ttmp/credit/    — manual credits
+        //   receipts/tttmp/          — tax-game tool consumption
+        const prefixes = [
+          'receipts/billing/',
+          'receipts/ttmp/consume/',
+          'receipts/ttmp/credit/',
+          'receipts/tttmp/',
+        ];
+        const billingTokenEvents = new Set(['TOKENS_PURCHASED', 'SUBSCRIPTION_CREATED', 'SUBSCRIPTION_UPDATED', 'SUBSCRIPTION_RENEWED']);
+
+        const collected = [];
+        for (const prefix of prefixes) {
+          const listResult = await env.R2_VIRTUAL_LAUNCH.list({ prefix, limit: 200 });
+          const items = await Promise.all(
+            (listResult.objects || []).map(async (obj) => {
+              try {
+                const item = await env.R2_VIRTUAL_LAUNCH.get(obj.key);
+                if (!item) return null;
+                const data = await item.json();
+                const ownerId = data.account_id ?? data.accountId;
+                if (ownerId !== accountId) return null;
+
+                // Normalize into TokenUsageEntry shape
+                if (prefix === 'receipts/billing/') {
+                  if (!billingTokenEvents.has(data.event)) return null;
+                  return {
+                    eventId: data.event_id ?? data.eventId ?? obj.key,
+                    accountId,
+                    tokenType: 'transcript',
+                    amount: data.transcript_tokens ?? data.tokens ?? 0,
+                    action: (data.event || 'tokens_credited').toLowerCase(),
+                    createdAt: data.created_at ?? data.createdAt ?? obj.uploaded?.toISOString?.() ?? '',
+                  };
+                }
+                if (prefix === 'receipts/ttmp/consume/') {
+                  return {
+                    eventId: data.request_id ?? obj.key,
+                    accountId,
+                    tokenType: 'transcript',
+                    amount: data.amount ?? 1,
+                    action: data.action ?? 'token_consume',
+                    createdAt: data.created_at ?? '',
+                  };
+                }
+                if (prefix === 'receipts/ttmp/credit/') {
+                  return {
+                    eventId: data.request_id ?? obj.key,
+                    accountId,
+                    tokenType: 'transcript',
+                    amount: data.amount ?? 0,
+                    action: data.action ?? 'token_credit',
+                    createdAt: data.created_at ?? '',
+                  };
+                }
+                if (prefix === 'receipts/tttmp/') {
+                  return {
+                    eventId: data.event_id ?? data.eventId ?? obj.key,
+                    accountId,
+                    tokenType: 'tax_game',
+                    amount: data.tokens_debited ?? data.amount ?? 1,
+                    action: data.action ?? data.tool ?? 'tool_use',
+                    createdAt: data.created_at ?? data.createdAt ?? '',
+                  };
+                }
+                return null;
+              } catch { return null; }
+            })
+          );
+          for (const it of items) if (it) collected.push(it);
+        }
+
+        const usage = collected
+          .sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''))
           .slice(0, limit);
+
         return json({ ok: true, usage }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch token usage' }, 500, request);
@@ -11178,9 +11242,29 @@ TTMP Support Team
       }
 
       try {
-        const affiliateRow = await env.DB.prepare('SELECT * FROM affiliates WHERE account_id = ?').bind(params.account_id).first();
+        let affiliateRow = await env.DB.prepare('SELECT * FROM affiliates WHERE account_id = ?').bind(params.account_id).first();
         if (!affiliateRow) {
-          return json({ ok: false, error: 'NOT_FOUND' }, 404, request);
+          // Auto-create affiliate row for legacy accounts that pre-date the affiliate program
+          const referralCode = Array.from(crypto.getRandomValues(new Uint8Array(6)))
+            .map(b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32])
+            .join('');
+          const now = new Date().toISOString();
+          await d1Run(env.DB,
+            'INSERT OR IGNORE INTO affiliates (account_id, referral_code, created_at) VALUES (?, ?, ?)',
+            [params.account_id, referralCode, now]
+          );
+          await r2Put(env.R2_VIRTUAL_LAUNCH, `affiliates/${params.account_id}.json`, {
+            account_id: params.account_id,
+            referral_code: referralCode,
+            connect_status: 'pending',
+            balance_pending: 0,
+            balance_paid: 0,
+            created_at: now
+          });
+          affiliateRow = await env.DB.prepare('SELECT * FROM affiliates WHERE account_id = ?').bind(params.account_id).first();
+          if (!affiliateRow) {
+            return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create affiliate row' }, 500, request);
+          }
         }
 
         // Count referred accounts
