@@ -1,327 +1,290 @@
-# VLP SCALE — Membership Outreach System
-
-**Target:** Tax professionals (EA/CPA/Attorney) seeking client leads
-**Channel:** Cold email via Hunter.io  
-**Goal:** VLP membership conversions (Active $79/mo, Featured $199/mo, Premier $399/mo)
-**Sender:** Jamie L Williams — never placeholder
+# SCALE.md — VLP Global Client Acquisition System
+**System:** Virtual Launch Pro (VLP) ecosystem
+**Product focus:** TTMP (highest ROI) → WLVLP → VLP → TMP → TTTMP → TCVLP → GVLP → DVLP
+**Last updated:** 2026-04-07
 
 ---
 
-## 1. Overview
+## 1. Objective
 
-VLP SCALE generates personalized outreach packages from FOIA/NAEA prospect lists, targeting tax professionals who want more qualified clients. The system creates asset pages and Hunter.io-compatible email sequences focused on practice growth through directory listings and transcript automation.
+Build a repeatable system where:
+- Analytics track every touchpoint from email send to Stripe payment
+- Magnets deliver immediate value with personalization
+- Outreach produces real case studies, reviews, and testimonials
+- Tech stack stays free or lowest cost ($125/mo total)
+- Workflow requires the least manual effort from operator (JLW)
 
----
-
-## 2. Pipeline Architecture
-
-```
-Prospect CSV → Batch Generator → Asset Pages + Hunter CSV → Email Delivery → Conversions
-```
-
-### Components
-- **Batch Generator:** `scale/generate-vlp-batch.js` (Node.js script)
-- **Asset Pages:** Personalized practice analysis pages at `virtuallaunch.pro/asset/{slug}`
-- **Hunter.io:** Email delivery, tracking, and sequences
-- **VLP Worker:** Asset page serving and conversion tracking
+**Revenue targets:**
+- Breakeven: $125/mo (stack cost) = 7 TTMP token packs at $19 or 1 WLVLP template at $249
+- Month 1 target: $500 (proof of concept)
+- Month 3 target: $5,000/mo (pipeline compounding)
+- Month 12 target: $10,000+/mo (SEO + email + referral combined)
 
 ---
 
-## 3. Target Audience
+## 2. Tech Stack
 
-Tax professionals from FOIA/NAEA lists with valid email addresses who are NOT already in TTMP pipeline to avoid double-contacting during Phase 1.
+### Data layer ($5/mo)
+| Tool | Plan | Cost | Purpose |
+|------|------|------|---------|
+| Cloudflare | Workers Paid | $5/mo | Workers, R2, KV, D1 — all 8 platforms |
+| GitHub | Free | $0 | Repos, CI/CD via Cloudflare Pages |
+| Stripe | Free | $0 | Payments — TMP Stripe + VLP Stripe accounts |
+| Clay | Free | $0 | 100 credits/mo, prospect enrichment, Claygent |
 
-### Credentials
-- **EA (Enrolled Agents):** $100-300/hr, 50-200 clients/yr, $15,000-$90,000 value from 5 new clients
-- **CPA (Certified Public Accountants):** $150-400/hr, 100-500 clients/yr, $22,500-$120,000 value from 5 new clients  
-- **JD/Attorney:** $200-500/hr, 30-100 clients/yr, $18,000-$150,000 value from 5 new clients
+### Outreach layer ($0/mo)
+| Tool | Plan | Cost | Purpose |
+|------|------|------|---------|
+| Brevo | Free | $0 | Cold outreach email sequences |
+| Resend | Free | $0 | Transactional email delivery |
+| Cal.com | Free | $0 | Booking links for discovery + demo calls |
+| Google Meet | Free | $0 | Video calls |
+| Gmail | Free | $0 | API for transactional sends |
+| Facebook | Free | $0 | Manual outreach — comments, DMs |
+| LinkedIn | Free | $0 | Manual outreach — comments, DMs |
+| Hunter | Free | $0 | Email verification |
 
-### Firm Types
-- **solo_brand:** Independent practitioners with DBA
-- **local_firm:** Regional/city-based practices  
-- **national_firm:** Large multi-location firms
+### Execution layer ($120/mo)
+| Tool | Plan | Cost | Purpose |
+|------|------|------|---------|
+| Claude | Max | $100/mo | Batch asset generation, platform dev, prompt authorship |
+| ChatGPT | Plus | $20/mo | Supplementary generation, Canva site creation |
 
----
-
-## 4. Selection Criteria
-
-### Required Fields
-- email_found: valid email address
-- email_status: not "invalid"
-- First_NAME, LAST_NAME: prospect identification
-- BUS_ADDR_CITY, BUS_ST_CODE: location targeting
-- PROFESSION: EA/CPA/JD credential verification
-- firm_bucket: personalization routing
-
-### Exclusion Filters
-- vlp_email_1_prepared_at is not empty (already contacted for VLP)
-- email_1_prepared_at is not empty (avoid TTMP double-contact in Phase 1)
-- email_found empty, "undefined", or NaN
-- email_status = "invalid"
-
-### Batch Size
-**Phase 1:** 50 prospects per batch  
-**Phase 2:** Scale based on Phase 1 results (target 100-200/batch)
+**Total: $125/mo**
 
 ---
 
-## 5. Prospect Sourcing
+## 3. Pipeline
 
-Same FOIA/NAEA list as TTMP but with VLP-specific filtering:
-
-### Source CSV Columns
-| Column | Type | Purpose |
-|--------|------|---------|
-| First_NAME | string | Email personalization |
-| LAST_NAME | string | Slug generation |
-| DBA | string | Solo practice branding |
-| BUS_ADDR_CITY | string | Location targeting |
-| BUS_ST_CODE | string | State abbreviation |
-| PROFESSION | string | Credential-based messaging |
-| domain_clean | string | Sort order for batching |
-| email_found | string | Delivery target |
-| email_status | string | Validity filter |
-| firm_bucket | string | Message personalization |
-
-### Tracking Columns
-- **vlp_email_1_prepared_at:** VLP Phase 1 timestamp
-- **vlp_email_2_prepared_at:** VLP follow-up timestamp
-- **email_1_prepared_at:** TTMP pipeline timestamp (exclusion filter)
+| Step | Owner | Action | Output |
+|------|-------|--------|--------|
+| 1. Source | JLW | Scrub public data — NAEA, state boards, FOIA lists, LinkedIn, Google Maps | CSV/JSON prospect file |
+| 2. Enrich | Clay + Claude | Validate emails, assign firm buckets, generate slugs | Enriched prospect records |
+| 3. Generate | Claude | Process uploaded file — produce asset page data + email copy per prospect | JSON batch file |
+| 4. Store | JLW / Worker | Push JSON to R2 — asset pages live at platform-specific routes | Asset pages served by VLP Worker |
+| 5. Send | Brevo (cold) / Resend (transactional) | Deliver Email 1 with CTA linking to asset page | Tracked sends |
+| 6. Track | VLP Worker | Log asset page views, CTA clicks, form submissions | D1 analytics |
+| 7. Follow up | Brevo | Email 2 after 2-3 day delay | Tracked sends |
+| 8. Close | JLW | Take booked calls on Google Meet, demo product, close sale | Stripe payment |
 
 ---
 
-## 6. Email Sequences
+## 4. Prospect Sourcing
 
-### Email 1: Practice Analysis Introduction
+### Primary source
+IRS FOIA sorted list — 66,000+ rows of U.S. tax professionals (CPAs, EAs, tax attorneys).
+File: `scale/prospects/IRS_FOIA_SORTED_-_results-20260401-195853.csv`
 
-**Timing:** Immediate (Hunter.io batch import)
+### Secondary sources
+- NAEA public directory (Enrolled Agents)
+- State CPA society member lists
+- LinkedIn title filters ("Enrolled Agent", "CPA", "Tax Attorney")
+- Google Maps scraping (local service businesses — for WLVLP)
 
-**Subject Lines by firm_bucket:**
-- **solo_brand:** "{First} — {PROFESSION}s running {DBA} are invisible to taxpayers searching online"
-- **local_firm:** "{First} — taxpayers in {City} are searching for help you're not showing up for"
-- **national_firm:** "{First} — your next 5 clients are searching online right now"
+### CSV schema
+See platform-specific SCALE.md files for column definitions. All platforms share the same source CSV with platform-specific tracking columns appended.
 
-**Body Template:**
-```
-{First},
-
-Taxpayers in {City} search online for tax help every day. Most never find you because you're not in the places they're looking.
-
-The Tax Monitor Pro network puts your profile in front of taxpayers who need exactly what you offer — {credential_label} with experience in general tax preparation. Listings start at $79/mo and include transcript automation tokens so your practice gets more efficient at the same time.
-
-Here's a quick practice analysis I put together for {firm_or_city_practice}:
-https://virtuallaunch.pro/asset/{slug}
-
-And if you just want to try the transcript tool first, no membership needed:
-https://transcript.taxmonitor.pro/pricing
-10 analyses for $19 — takes 30 seconds per transcript.
-
-See all membership tiers here:
-https://virtuallaunch.pro/pricing
-
-—
-Jamie L Williams
-Virtual Launch Pro
-virtuallaunch.pro
-```
-
-### Email 2: Follow-up with Value Focus
-
-**Timing:** 3 days after Email 1  
-**Subject:** "Your practice analysis is ready, {First} — {new_client_value} on the table"
-
-**Strategy:**
-- Reference prior email and asset page
-- Lead with asset page URL  
-- Emphasize annual value from 5 new clients
-- Include pricing + TTMP cross-sell CTAs
-- Maintain direct, problem-focused tone
+### Selection logic (per platform, per batch)
+1. Filter: email_found not empty, not "undefined", not NaN
+2. Filter: email_status not "invalid"
+3. Filter: platform-specific `email_1_prepared_at` is empty
+4. Sort: ascending by domain_clean (nulls last)
+5. Select: first 50 eligible records (process all if fewer remain)
 
 ---
 
-## 7. Asset Pages
+## 5. Email Sequences
 
-### URL Pattern
-`https://virtuallaunch.pro/asset/{slug}`
+### Engine 1 — Email (volume)
 
-**Slug Format:** `{first}-{last}-{city}-{state}` (lowercase, hyphens, deduplicated)
+**Email 1 — Offer value**
+- Personalized subject line referencing credential, city, or firm
+- Body: pain point → free tool or asset offer → CTA
+- CTA: "See your [asset type]" → platform-specific asset page
+- Worker logs CTA click
 
-### Data Schema
-```json
-{
-  "headline": "{First}, here's what your {City/DBA} practice is leaving on the table",
-  "subheadline": "A practice analysis for {credential_label} who want more qualified clients",
-  "client_gap_analysis": [
-    "No searchable directory listing — taxpayers can't find you",
-    "No online intake workflow — prospects drop off before engaging", 
-    "No automated client matching — you wait for referrals instead of earning leads"
-  ],
-  "new_client_value": "$15,000-$90,000/yr from 5 additional clients",
-  "tier_comparison": {
-    "active": { "price": "$79/mo", "value": "Directory listing + 2 transcript tokens + 5 game tokens" },
-    "featured": { "price": "$199/mo", "value": "Sponsored placement + 5 transcript tokens + 15 game tokens" },
-    "premier": { "price": "$399/mo", "value": "Placement on 3 platforms + 10 transcript + 40 game tokens" }
-  },
-  "ttmp_crosssell": {
-    "pitch": "Not ready for a membership? Try transcript automation first.",
-    "url": "https://transcript.taxmonitor.pro/pricing",
-    "price": "10 analyses for $19 — no commitment"
-  },
-  "cta_pricing_url": "https://virtuallaunch.pro/pricing",
-  "cta_directory_url": "https://taxmonitor.pro/directory", 
-  "cta_booking_url": "https://cal.com/tax-monitor-pro/discovery"
-}
-```
+**Email 2 — Present asset (2-3 days after Email 1)**
+- References prior email
+- Leads with asset page URL
+- CTAs: asset page + Cal.com booking
 
-### CTAs (Call to Actions)
-1. **Primary:** VLP membership tiers at /pricing
-2. **Secondary:** TMP directory listing preview at taxmonitor.pro/directory
-3. **Alternative:** TTMP transcript tool trial 
-4. **Discovery:** Cal.com booking for personal consultation
+**Email 3 — Final follow-up (5-7 days after Email 2)**
+- Short, direct
+- Single CTA: booking link
+- Last touch — no further emails unless prospect engages
+
+### Engine 2 — FB / LinkedIn (conversations)
+
+**Comment 1:** Like or reply to a pain-point post (IRS frustrations, website complaints, tax season burnout)
+**DM 1:** If they respond — discover pain points
+**DM 2:** If they respond — qualify tool match
+**DM 3:** If qualified — request email → add to next CSV batch → enters email flow
+
+### Engine 3 — Bookings (closing)
+
+**Booking 1 — Discovery:** Discover pain, qualify tool match, schedule demo if qualified
+**Booking 2 — Demo:** Live product demo, walk through first purchase, close sale
 
 ---
 
-## 8. Personalization Rules
+## 6. Asset Pages
 
-### By Credential
-- **EA:** Focus on efficiency, competitive rates, IRS representation
-- **CPA:** Emphasize expertise breadth, premium positioning, business clients
-- **JD/Attorney:** Highlight specialized knowledge, complex cases, high-value clients
+Each platform generates its own asset page type. All served by VLP Worker from R2.
 
-### By Firm Bucket  
-- **solo_brand:** DBA recognition, personal brand building, direct taxpayer connection
-- **local_firm:** Geographic market share, community presence, local SEO
-- **national_firm:** Lead generation, systematic growth, multi-location efficiency
+| Platform | Asset type | URL pattern | R2 key pattern |
+|----------|-----------|-------------|----------------|
+| TTMP | Practice analysis | /asset/{slug} | vlp-scale/asset-pages/{slug}.json |
+| WLVLP | Conversion leak report | /report/{slug} | vlp-scale/wlvlp-reports/{slug}.json |
+| TMP | Service match report | /match/{slug} | vlp-scale/tmp-reports/{slug}.json |
+| Others | TBD | TBD | TBD |
 
-### Value Proposition Matching
-- **Active ($79/mo):** Basic directory listing, transcript automation introduction
-- **Featured ($199/mo):** Sponsored placement, moderate token allocation  
-- **Premier ($399/mo):** Multi-platform presence, maximum token benefits
-
----
-
-## 9. Output Files
-
-### Batch JSON
-**Path:** `scale/batches/vlp-batch-{YYYY-MM-DD}.json`
-
-**Contains:** Complete asset page data, email content, prospect metadata for VLP Worker serving
-
-### Hunter.io CSV  
-**Path:** `scale/hunter/vlp-email1-{YYYY-MM-DD}.csv`
-
-**Format:** RFC-4180 compliant with columns: `email,first_name,last_name,company,subject,body`
-
-**Requirements:**
-- Body field properly quoted for multi-line content
-- Jamie L Williams signature in every email
-- No emoji or exclamation marks
-- Company field defaults to "{First} {Last} Tax Services" if DBA missing
+### Asset page CTAs (all platforms)
+1. "Add this to my practice" / "See my upgraded site" → pricing page
+2. "Let's talk" → Cal.com booking
+3. "Learn more" → platform marketing page
 
 ---
 
-## 10. Delivery Pipeline
+## 7. Personalization Rules
 
-### Hunter.io Integration  
-VLP SCALE uses Hunter.io for email delivery (not VLP Worker cron).
+### By credential (TTMP)
+| Credential | Hrs/week | Hrs/year | Revenue opportunity |
+|------------|----------|----------|---------------------|
+| EA | 6.7 | 348 | $34,800-$104,400/yr |
+| CPA | 5.0 | 260 | $39,000-$104,000/yr |
+| JD/Attorney | 3.3 | 174 | $34,800-$87,000/yr |
 
-**Process:**
-1. Generate batch via `node scale/generate-vlp-batch.js`
-2. Import `scale/hunter/vlp-email1-{date}.csv` to Hunter Sequences
-3. Hunter handles sending, tracking, bounces, and unsubscribes
-4. VLP Worker tracks asset page views and conversions
+### By firm bucket (all platforms)
+- **solo_brand:** Reference DBA name, personal tone
+- **local_firm:** Reference city, local practice context
+- **national_firm:** Reference scale, staff consistency
 
-**Advantages:**
-- Professional sending reputation
-- Automatic bounce handling  
-- CAN-SPAM compliance
-- Click and open tracking
-- Unsubscribe management
-
-### Not VLP Worker Responsibility
-- Email delivery (Hunter.io handles)
-- Bounce processing (Hunter.io handles)
-- Unsubscribe compliance (Hunter.io handles)
-- Sender reputation management (Hunter.io handles)
+### Slug convention
+`{first}-{last}-{city}-{state}` — lowercase, hyphens, strip titles. Dedup: append -2, -3 on collision.
 
 ---
 
-## 11. Analytics
+## 8. Output Files
 
-### Hunter.io Metrics
-- **Open rates:** Email subject line performance
-- **Click rates:** Asset page interest level  
-- **Reply rates:** Direct engagement and interest
-- **Bounce rates:** List quality validation
+Each batch run produces (per platform):
 
-### VLP Worker Metrics  
-- **Asset page views:** `/asset/{slug}` endpoint analytics
-- **CTA clicks:** Pricing page, directory, booking conversions
-- **Membership signups:** Stripe webhook attribution
-- **TTMP cross-sell:** Transcript tool conversions
+1. **JSON batch** — `scale/batches/{platform}-batch-{YYYY-MM-DD}.json` — full prospect + asset + email data
+2. **Sending CSV** — `scale/{platform}/email1/{YYYY-MM-DD}-batch.csv` — columns: `email, first_name, subject, body`
+3. **Updated source CSV** — tracking column stamped with ISO timestamp
 
-### Attribution Tracking
-- **Source:** VLP SCALE campaign
-- **Medium:** Email  
-- **Campaign:** vlp-batch-{date}
-- **Content:** {slug} for per-prospect tracking
+All sending CSVs are RFC-4180 compliant. Jamie L Williams in every signature — never a placeholder.
 
 ---
 
-## 12. Tone Rules
+## 9. Delivery Pipeline
 
-### Writing Style  
-- **Direct:** Lead with the problem, not the solution
-- **Specific:** Use exact numbers ($79/mo, 5 new clients, 30 seconds)
-- **Professional:** No emoji, no exclamation marks, formal business tone
-- **Problem-first:** Identify pain before presenting solution
-- **Action-oriented:** Every sentence should drive toward the CTA
+This system prepares sending queues. Delivery depends on platform:
 
-### Terminology Standards
-- Use "practice analysis" — never "audit"
-- Use "taxpayers" — not "clients" or "customers" 
-- Use "directory listing" — not "profile" or "page"
-- Use "transcript automation" — not "transcript processing"
+| Channel | Tool | Trigger |
+|---------|------|---------|
+| Cold outreach | Brevo | Manual import of sending CSV or API push |
+| Transactional | Resend | VLP Worker triggers on events (purchase confirm, asset ready) |
+| Asset pages | VLP Worker | Serves from R2 on request |
 
-### Signature Consistency
-Always: "Jamie L Williams, Virtual Launch Pro, virtuallaunch.pro"
-Never: placeholders, variables, or alternative names
+### Push commands (run after each batch)
+Platform-specific — see each platform's SCALE.md for exact commands.
 
 ---
 
-## 13. Growth Plan
+## 10. Analytics
 
-### Phase 1: Validation (Current)
-- **Batch Size:** 50 prospects
-- **Target:** Non-TTMP prospects only
-- **Focus:** Conversion rate optimization
-- **Timeline:** 2-4 weeks testing
+### Email (Brevo + Resend)
+Sends, opens, CTA clicks, bounces, unsubscribes, complaints, inbound replies
 
-### Phase 2: Scale Based on Results  
-- **Batch Size:** 100-200 prospects (based on Phase 1 performance)
-- **Target:** Include TTMP prospects with different messaging
-- **Focus:** Volume optimization
-- **Timeline:** Post-validation expansion
+### Engagement (VLP Worker)
+Asset page views per slug, CTA clicks per slug (which CTA), landing page views
 
-### Success Metrics
-- **Email Performance:** >20% open rate, >3% click rate
-- **Asset Page Conversion:** >2% pricing page visits  
-- **Membership Conversion:** >0.5% signup rate from asset page traffic
-- **TTMP Cross-sell:** >1% trial conversion rate
+### Bookings (Cal.com)
+Bookings created, cancellations, reschedules, attended calls
+
+### Sales (Stripe)
+Payment succeeded, product/tier purchased, revenue per prospect (slug → account → purchase)
+
+### Proof (VLP Worker)
+Review form submissions, testimonial form submissions (text + optional video)
+
+---
+
+## 11. Tone Rules
+
+Applies to all outreach across all platforms. No exceptions.
+
+| Rule | Detail |
+|------|--------|
+| Direct | No fluff. State the benefit in the first sentence. |
+| Professional but accessible | Written for tax professionals and business owners. Assume intelligence. |
+| Specific | Use real numbers — hours saved, revenue recovered, token counts, prices. |
+| Problem-first | Lead with the pain point, follow with the solution. |
+| No emoji | Professional audience. None in email body, subject, or asset pages. |
+| No exclamation marks | Calm confidence, not hype. |
+
+---
+
+## 12. Growth Plan
+
+### Week 1 (4/4 - 4/11): Deploy and send
+- All 8 repos deployed and functioning
+- All repos interconnected via CTAs
+- Email workflows built in priority order: TTMP → WLVLP → VLP → TMP → TTTMP → TCVLP → GVLP → DVLP
+- WLVLP: upload new sites to lotto workflow operational
+- Daily operator completes global workflow
+
+### Week 2 (4/11 - 4/18): Social + booking scripts
+- All repos with FB / LinkedIn workflows
+  - Comment 1 script created and logged in repo
+  - DM 1-3 scripts created and logged in repo
+- All repos with booking workflows
+  - Booking 1 script created, logged, practiced
+  - Booking 2 script created, logged, practiced
+- Daily operator completes global workflow
+
+### Week 3 (4/18 - 4/25): Quality + next scale
+- All repos: pages and flows hyper-quality tested
+- All repos: review for next scale opportunity
+- Daily operator completes global workflow
+
+### Month 2-3: Scale and prove
+- Scale to 100+ prospects per batch per platform
+- Document first case studies from converted customers
+- Build review/testimonial collection forms
+- A/B test Email 2 delay timing (2 vs 5 vs 7 days)
+
+### Month 4-6: Compound
+- Publish case studies, reference in email copy
+- Scale to 200+ prospects per batch
+- Programmatic SEO pages live (WLVLP niche landing pages, TTMP code pages already exist)
+- WLVLP: before/after generator live as public magnet
+- WLVLP: instant personalization ("enter your business name → see your site") live
+- Target: monthly revenue exceeds $125 stack cost consistently
+
+---
+
+## 13. Platform Priority (by ROI)
+
+| Priority | Platform | Why first |
+|----------|----------|-----------|
+| 1 | TTMP | Highest need, lowest friction, $19 entry, 750K+ reachable audience |
+| 2 | WLVLP | $249-399 per sale, 66K prospects with website URLs, Conversion Leak Report as magnet |
+| 3 | VLP | Hub — every platform sale flows through VLP account + tokens |
+| 4 | TMP | Taxpayer memberships, $9-39/mo recurring |
+| 5 | TTTMP | Tax games + form tools, $9-39 token packs, cross-sell from TTMP |
+| 6 | TCVLP | Form 843 generator, $10/mo, niche audience |
+| 7 | GVLP | Gamified subscriptions, $9-39/mo, B2B2C model |
+| 8 | DVLP | Developer marketplace, $2.99 intro tier, smallest audience overlap |
 
 ---
 
 ## 14. Non-Goals
 
-### What VLP SCALE Does NOT Do
-- **No booked calls required:** Self-serve conversion through pricing page
-- **No sales team follow-up:** Automated nurture through email sequences  
-- **No phone outreach:** Email-only channel
-- **No custom proposals:** Standard tier messaging only
-- **No negotiated pricing:** Fixed membership rates only
-
-### Integration Boundaries
-- **Email delivery:** Hunter.io responsibility  
-- **Asset page serving:** VLP Worker responsibility
-- **Conversion tracking:** Split between Hunter.io (email) and VLP Worker (web)
-- **Payment processing:** Stripe via VLP Worker (existing flow)
+SCALE does not:
+- Send email directly (Brevo and Resend handle delivery)
+- Build backend routes (those belong in VLP Worker)
+- Modify prospect source CSVs beyond appending tracking columns
+- Store PII in public-facing responses
+- Contact any prospect more than once per email sequence step
+- Operate without owner (JLW) sign-off on copy, routes, or batch sends
