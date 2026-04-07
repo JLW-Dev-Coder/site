@@ -64,13 +64,14 @@ export default function SupportPage() {
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
 
-  // New ticket modal state
-  const [showModal, setShowModal] = useState(false)
+  // New ticket inline form state
+  const [composing, setComposing] = useState(false)
   const [newSubject, setNewSubject] = useState('')
   const [newPriority, setNewPriority] = useState<Priority>('normal')
   const [newMessage, setNewMessage] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [createSuccess, setCreateSuccess] = useState(false)
 
   useEffect(() => {
     async function init() {
@@ -132,11 +133,15 @@ export default function SupportPage() {
         setCreateError((data as { message?: string }).message || 'Failed to create ticket.')
         return
       }
-      setShowModal(false)
       setNewSubject('')
       setNewPriority('normal')
       setNewMessage('')
+      setCreateSuccess(true)
       await loadTickets(accountId)
+      setTimeout(() => {
+        setCreateSuccess(false)
+        setComposing(false)
+      }, 1500)
     } catch {
       setCreateError('Network error. Please try again.')
     } finally {
@@ -187,7 +192,7 @@ export default function SupportPage() {
         <div className="flex-1" />
         <button
           type="button"
-          onClick={() => setShowModal(true)}
+          onClick={() => { setComposing(true); setSelected(null); setCreateError(null); setCreateSuccess(false) }}
           className="mt-2 w-full rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-2 text-sm font-bold text-slate-950 hover:from-orange-400 hover:to-amber-400 transition"
         >
           New Ticket
@@ -215,7 +220,7 @@ export default function SupportPage() {
               <button
                 key={t.ticket_id}
                 type="button"
-                onClick={() => setSelected(t)}
+                onClick={() => { setSelected(t); setComposing(false) }}
                 className={`w-full text-left px-4 py-3.5 transition hover:bg-slate-900/60 ${
                   selected?.ticket_id === t.ticket_id ? 'bg-slate-800/60' : ''
                 }`}
@@ -241,11 +246,78 @@ export default function SupportPage() {
         </div>
       </div>
 
-      {/* Right column — ticket detail */}
+      {/* Right column — ticket detail or new-ticket form */}
       <div className="w-80 shrink-0 flex flex-col">
-        {!selected ? (
+        {composing ? (
+          <>
+            <div className="border-b border-slate-800/60 px-5 py-4">
+              <h2 className="text-sm font-bold text-white">New Support Ticket</h2>
+              <p className="mt-1 text-xs text-slate-500">Send us a message and we&apos;ll get back to you.</p>
+            </div>
+            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Subject</label>
+                <input
+                  type="text"
+                  value={newSubject}
+                  onChange={(e) => setNewSubject(e.target.value)}
+                  placeholder="Briefly describe your issue"
+                  className="w-full rounded-xl border border-slate-800/60 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-orange-500/60 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Priority</label>
+                <div className="flex gap-2">
+                  {PRIORITY_OPTIONS.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setNewPriority(p)}
+                      className={`flex-1 rounded-xl py-2 text-xs font-semibold capitalize transition ${
+                        newPriority === p
+                          ? 'bg-orange-500 text-slate-950'
+                          : 'border border-slate-700 bg-slate-800/60 text-slate-300 hover:border-orange-500/40'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Message</label>
+                <textarea
+                  rows={6}
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Describe your issue in detail…"
+                  className="w-full rounded-xl border border-slate-800/60 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-orange-500/60 focus:outline-none resize-none"
+                />
+              </div>
+              {createError && <p className="text-xs text-red-400">{createError}</p>}
+              {createSuccess && <p className="text-xs text-emerald-400">Ticket submitted. We&apos;ll respond shortly.</p>}
+            </div>
+            <div className="border-t border-slate-800/60 px-4 py-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setComposing(false); setCreateError(null); setCreateSuccess(false) }}
+                className="flex-1 rounded-xl border border-slate-700 bg-slate-900/60 py-2 text-sm font-semibold text-slate-300 hover:text-white transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={creating || !newSubject.trim() || !newMessage.trim()}
+                className="flex-1 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-2 text-sm font-bold text-slate-950 hover:from-orange-400 hover:to-amber-400 transition disabled:opacity-60"
+              >
+                {creating ? 'Sending…' : 'Send'}
+              </button>
+            </div>
+          </>
+        ) : !selected ? (
           <div className="flex flex-1 items-center justify-center p-8 text-center">
-            <p className="text-sm text-slate-500">Select a ticket to view the conversation.</p>
+            <p className="text-sm text-slate-500">Select a ticket to view the conversation, or click <span className="text-slate-300 font-semibold">New Ticket</span> to start one.</p>
           </div>
         ) : (
           <>
@@ -313,73 +385,6 @@ export default function SupportPage() {
         )}
       </div>
 
-      {/* New ticket modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-2xl border border-slate-800/60 bg-slate-900 p-6 shadow-2xl">
-            <h2 className="mb-4 text-base font-bold text-white">New Support Ticket</h2>
-            <div className="space-y-4">
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Subject</label>
-                <input
-                  type="text"
-                  value={newSubject}
-                  onChange={(e) => setNewSubject(e.target.value)}
-                  placeholder="Briefly describe your issue"
-                  className="w-full rounded-xl border border-slate-800/60 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-orange-500/60 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Priority</label>
-                <div className="flex gap-2">
-                  {PRIORITY_OPTIONS.map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => setNewPriority(p)}
-                      className={`flex-1 rounded-xl py-2 text-xs font-semibold capitalize transition ${
-                        newPriority === p
-                          ? 'bg-orange-500 text-slate-950'
-                          : 'border border-slate-700 bg-slate-800/60 text-slate-300 hover:border-orange-500/40'
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-400">Message</label>
-                <textarea
-                  rows={4}
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Describe your issue in detail…"
-                  className="w-full rounded-xl border border-slate-800/60 bg-slate-950/60 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-orange-500/60 focus:outline-none resize-none"
-                />
-              </div>
-              {createError && <p className="text-xs text-red-400">{createError}</p>}
-              <div className="flex gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => { setShowModal(false); setCreateError(null) }}
-                  className="flex-1 rounded-xl border border-slate-700 bg-slate-900/60 py-2.5 text-sm font-semibold text-slate-300 hover:text-white transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={handleCreate}
-                  disabled={creating || !newSubject.trim() || !newMessage.trim()}
-                  className="flex-1 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 py-2.5 text-sm font-bold text-slate-950 hover:from-orange-400 hover:to-amber-400 transition disabled:opacity-60"
-                >
-                  {creating ? 'Creating…' : 'Create Ticket'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

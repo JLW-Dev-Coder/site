@@ -24,7 +24,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: 'Profile Setup',
+    label: 'Directory Profile',
     href: '/onboarding',
     icon: (
       <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24" aria-hidden>
@@ -60,7 +60,7 @@ const NAV_ITEMS = [
     ),
   },
   {
-    label: 'Receipts',
+    label: 'Payments',
     href: '/receipts',
     icon: (
       <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24" aria-hidden>

@@ -688,7 +688,7 @@ export default function OnboardingPage() {
     <div className="mx-auto max-w-6xl py-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-white">Profile Setup</h1>
+          <h1 className="text-2xl font-semibold text-white">Directory Profile</h1>
           <p className="mt-1 text-sm text-slate-400">Build your public Tax Monitor network profile.</p>
         </div>
         <button

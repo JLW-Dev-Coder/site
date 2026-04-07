@@ -3,7 +3,7 @@ import Card from '@/components/ui/Card'
 import { getReceiptsByAccount } from '@/lib/api/client'
 import { getSession } from '@/lib/auth/session'
 
-export const metadata: Metadata = { title: 'Receipts' }
+export const metadata: Metadata = { title: 'Payments' }
 
 function formatAmount(amount: number, currency: string) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency.toUpperCase() }).format(
@@ -18,7 +18,7 @@ export default async function ReceiptsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-white">Receipts</h1>
+        <h1 className="text-2xl font-semibold text-white">Payments</h1>
         <p className="mt-1 text-sm text-slate-400">Your billing history and downloadable invoices.</p>
       </div>
 
