@@ -7449,7 +7449,7 @@ TTMP Support Team
 
         const checkout_session = await stripe.checkout.sessions.create(sessionData);
 
-        return json({ ok: true, session_url: checkout_session.url });
+        return json({ ok: true, session_url: checkout_session.url }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500, request);
       }
@@ -7471,7 +7471,7 @@ TTMP Support Team
         ).bind(accountId).first();
 
         if (!membership) {
-          return json({ ok: true, membership: null });
+          return json({ ok: true, membership: null }, 200, request);
         }
 
         return json({
@@ -7481,7 +7481,7 @@ TTMP Support Team
             status: membership.status,
             created_at: membership.created_at
           }
-        });
+        }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch membership' }, 500, request);
       }
@@ -7527,7 +7527,7 @@ TTMP Support Team
             status: membership.status,
             created_at: membership.created_at
           }
-        });
+        }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch dashboard' }, 500, request);
       }
@@ -7605,7 +7605,7 @@ TTMP Support Team
             in_app_enabled: 1,
             sms_enabled: 0
           };
-          return json({ ok: true, preferences: defaults });
+          return json({ ok: true, preferences: defaults }, 200, request);
         }
 
         return json({
@@ -7618,7 +7618,7 @@ TTMP Support Team
             in_app_enabled: row.in_app_enabled,
             sms_enabled: row.sms_enabled
           }
-        });
+        }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to get preferences' }, 500, request);
       }
