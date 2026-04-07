@@ -2989,6 +2989,67 @@ const ROUTES = [
                 } catch (_) {}
 
                 console.log(`WLVLP purchase activated: ${wlvlpAccountId} -> ${slug} (${tier})`);
+
+                // Post-purchase email notification (queue + immediate send)
+                try {
+                  const buyerEmail = obj.customer_details?.email || obj.customer_email || null;
+                  const siteName = slug
+                    .split('-')
+                    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ');
+                  const priceDollars = ((obj.amount_total || 0) / 100).toFixed(2);
+                  const notifTimestamp = Date.now();
+
+                  // 1) Queue notification in R2 (fallback / audit trail)
+                  const notification = {
+                    type: 'purchase_confirmation',
+                    to: buyerEmail,
+                    slug,
+                    tier,
+                    price: priceDollars,
+                    site_name: siteName,
+                    hosting_expires_at: hostingExpiresAt,
+                    created_at: purchasedAt
+                  };
+                  await r2Put(
+                    env.R2_VIRTUAL_LAUNCH,
+                    `wlvlp/notifications/purchase-${slug}-${notifTimestamp}.json`,
+                    notification
+                  );
+
+                  // 2) Immediate Gmail send via existing integration
+                  if (buyerEmail) {
+                    try {
+                      const subject = `Your Website Lotto purchase: ${siteName}`;
+                      const body = [
+                        `Hi,`,
+                        ``,
+                        `Thanks for your purchase on Website Lotto VLP.`,
+                        ``,
+                        `Site: ${siteName}`,
+                        `Tier: ${tier}`,
+                        `Amount: $${priceDollars}`,
+                        `Hosting active until: ${hostingExpiresAt}`,
+                        ``,
+                        `You can view your site here:`,
+                        `https://websitelotto.virtuallaunch.pro/sites/${slug}/`,
+                        ``,
+                        `Manage your purchases at:`,
+                        `https://websitelotto.virtuallaunch.pro/dashboard`,
+                        ``,
+                        `— Virtual Launch Pro`
+                      ].join('\n');
+                      await sendGmailMessage(env, buyerEmail, subject, body);
+                      console.log(`WLVLP purchase email sent to ${buyerEmail} for ${slug}`);
+                    } catch (mailErr) {
+                      console.error('WLVLP purchase email send failed:', mailErr?.message || mailErr);
+                    }
+                  } else {
+                    console.warn(`WLVLP purchase ${slug}: no buyer email; notification queued only`);
+                  }
+                } catch (notifErr) {
+                  console.error('WLVLP purchase notification error:', notifErr);
+                }
               } catch (e) {
                 console.error('WLVLP purchase activation error:', e);
               }
