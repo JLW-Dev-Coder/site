@@ -645,6 +645,23 @@ manual Clay enrichment loop in the SCALE workflow.
 
 ---
 
+## TTMP Email Send Pipeline
+
+Drip-style 6-email TTMP outreach driven by the Worker, fed by pattern-generated
+addresses (`first.last@domain`) — no Reoon validation in the unvalidated branch.
+
+- **Queue R2 key:** `vlp-scale/ttmp-send-queue/email1-pending.json`
+- **Archive R2 key:** `vlp-scale/ttmp-send-queue/sent-{YYYY-MM-DD}.json`
+- **Worker entrypoint:** `handleTtmpEmailSend(env)` in `workers/src/index.js`
+- **Cron:** 14:00 UTC daily (alongside `handleWlvlpEmailSend`)
+- **Manual trigger:** `POST /internal/test-ttmp-send` with `X-Internal-Key: $INTERNAL_TEST_KEY`
+- **Schedule (compressed 10-day cadence):** Email 1 = Day 0, Email 2 = +2, Email 3 = +4, Email 4 = +6, Email 5 = +8, Email 6 = +10
+- **Send delays:** 45-90s between Email 1 sends; 30-60s between follow-ups
+- **Templates:** stored inline on each queue record (`subject`, `body`, `email_2_subject`, `email_2_body`, … `email_6_subject`, `email_6_body`). The Worker does not own template strings — they are baked in by `scale/build-ttmp-batch.js` so copy changes do not require a Worker deploy.
+- **Batch builder:** `scale/build-ttmp-batch.js` (filters `vlp-scale/foia-leads/foia-master.json` for unenriched CPA/EA/ATTY records with non-freemail domains, sorts by LAST_NAME, takes 50)
+- **Master mutation on enqueue:** sets `email_found`, `email_status = "pattern_unvalidated"`, `ttmp_email_1_prepared_at` on each selected lead
+- **Status field on queue records:** `pending` → `email_1_sent` → `email_2_sent` → … → `email_6_sent`. Failures set `email_{n}_failed` and copy `last_error`. Records with all 6 emails sent move to the daily archive object.
+
 ## Deploy Policy
 
 Unless explicitly told otherwise, every task that modifies Worker source

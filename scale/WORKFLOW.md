@@ -4,6 +4,35 @@ Repo: C:\Users\eimaj\virtuallaunch.pro\scale\WORKFLOW.md
 Owner: Jamie L Williams
 Last updated: 2026-04-08
 
+## TTMP Send Pipeline (pattern-unvalidated)
+
+Independent of the Hunter.io VLP send rail. The Worker now drives a 6-email
+TTMP drip directly via Gmail using pattern-generated `first.last@domain`
+addresses (no Reoon).
+
+- **Builder:** `node scale/build-ttmp-batch.js` — selects 50 unenriched
+  CPA/EA/ATTY records from `vlp-scale/foia-leads/foia-master.json`, generates
+  email addresses, builds the queue with all 6 emails inline, mutates the
+  master in place (`email_found`, `email_status = "pattern_unvalidated"`,
+  `ttmp_email_1_prepared_at`).
+- **Queue R2 key:** `vlp-scale/ttmp-send-queue/email1-pending.json`
+- **Archive R2 key:** `vlp-scale/ttmp-send-queue/sent-{YYYY-MM-DD}.json`
+- **Send handler:** `handleTtmpEmailSend(env)` in `workers/src/index.js`
+- **Cron:** 14:00 UTC daily (alongside `handleWlvlpEmailSend`)
+- **Manual trigger:** `POST https://api.virtuallaunch.pro/internal/test-ttmp-send`
+  with header `X-Internal-Key: $INTERNAL_TEST_KEY`
+- **Compressed cadence:** Email 1 = Day 0, Email 2 = +2, Email 3 = +4,
+  Email 4 = +6, Email 5 = +8, Email 6 = +10
+- **Per-send delays:** 45-90s for Email 1, 30-60s for Emails 2-6
+- **Status field on records:** `pending` → `email_1_sent` → … → `email_6_sent`;
+  failures set `email_{n}_failed` and copy `last_error`
+- **Upload back to R2:**
+  ```
+  wrangler r2 object put virtuallaunch-pro/vlp-scale/ttmp-send-queue/email1-pending.json --file scale/ttmp-email1-pending.json --content-type application/json --remote
+  wrangler r2 object put virtuallaunch-pro/vlp-scale/foia-leads/foia-master.json --file scale/foia-master.updated.json --content-type application/json --remote
+  ```
+
+
 > **2026-04-08 — Enrichment is now automated.** Clay-based manual enrichment
 > (Phase 1 Tasks 1.1–1.8) has been replaced by the Worker enrichment pipeline.
 > The VLP Worker reads `vlp-scale/foia-leads/foia-master.json` (NDJSON) from

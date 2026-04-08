@@ -8,3 +8,8 @@ node_modules/
 scale/prospects/*.csv
 scale/prospects/archive/
 scale/prospects/.batch-in-progress
+
+# SCALE local working files (contain real emails — never committed)
+scale/foia-master.json
+scale/foia-master.updated.json
+scale/ttmp-email1-pending.json

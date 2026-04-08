@@ -13480,6 +13480,132 @@ async function handleWlvlpEmailSend(env) {
 }
 
 // ---------------------------------------------------------------------------
+// TTMP Email Send (called from 14:00 UTC cron and /internal/test-ttmp-send)
+//
+// Queue R2 key:    vlp-scale/ttmp-send-queue/email1-pending.json
+// Archive key:     vlp-scale/ttmp-send-queue/sent-{date}.json
+//
+// Records carry all 6 emails inline as { subject, body } for email_1
+// (subject/body) and email_2..email_6 (subject/body suffixed). Each record
+// also carries email_{n}_scheduled_for as YYYY-MM-DD. The handler walks
+// emails 1..6 in order, sending any whose scheduled_for is today or earlier
+// and whose previous email has been sent.
+// ---------------------------------------------------------------------------
+
+async function handleTtmpEmailSend(env) {
+  const timestamp = new Date().toISOString();
+  const today = timestamp.slice(0, 10);
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  const queueKey = 'vlp-scale/ttmp-send-queue/email1-pending.json';
+  const sentCounts = { email_1: 0, email_2: 0, email_3: 0, email_4: 0, email_5: 0, email_6: 0 };
+  const errors = [];
+
+  let queue;
+  try {
+    const obj = await env.R2_VIRTUAL_LAUNCH.get(queueKey);
+    if (!obj) {
+      console.log('TTMP email send: no queue file');
+      return { ...sentCounts, queue_size: 0 };
+    }
+    queue = await obj.json();
+  } catch (e) {
+    console.error('TTMP email send: failed to read queue:', e);
+    return { ...sentCounts, error: 'queue_read_failed' };
+  }
+
+  if (!Array.isArray(queue) || queue.length === 0) {
+    console.log('TTMP email send: queue empty');
+    return { ...sentCounts, queue_size: 0 };
+  }
+
+  // Email 1: send to all records where status is "pending" and email_1_sent_at not set
+  for (const record of queue) {
+    if (record.email_1_sent_at) continue;
+    if (record.status && record.status !== 'pending' && record.status !== 'email_1_failed') continue;
+    try {
+      const delayMs = 45000 + Math.random() * 45000;
+      await delay(delayMs);
+      await sendGmailMessage(env, record.email, record.subject, record.body);
+      record.email_1_sent_at = new Date().toISOString();
+      record.status = 'email_1_sent';
+      sentCounts.email_1++;
+    } catch (e) {
+      console.error(`TTMP email 1 send failed for ${record.slug}/${record.email}:`, e.message);
+      record.status = 'email_1_failed';
+      record.last_error = e.message;
+      errors.push({ slug: record.slug, email: record.email, step: 'email_1', error: e.message });
+    }
+  }
+
+  // Emails 2..6 — staged: each requires the previous one sent and its scheduled date <= today
+  const stages = [
+    { n: 2, prevSent: 'email_1_sent_at', sentAt: 'email_2_sent_at', sched: 'email_2_scheduled_for', subjK: 'email_2_subject', bodyK: 'email_2_body', okStatus: 'email_2_sent', failStatus: 'email_2_failed', countKey: 'email_2' },
+    { n: 3, prevSent: 'email_2_sent_at', sentAt: 'email_3_sent_at', sched: 'email_3_scheduled_for', subjK: 'email_3_subject', bodyK: 'email_3_body', okStatus: 'email_3_sent', failStatus: 'email_3_failed', countKey: 'email_3' },
+    { n: 4, prevSent: 'email_3_sent_at', sentAt: 'email_4_sent_at', sched: 'email_4_scheduled_for', subjK: 'email_4_subject', bodyK: 'email_4_body', okStatus: 'email_4_sent', failStatus: 'email_4_failed', countKey: 'email_4' },
+    { n: 5, prevSent: 'email_4_sent_at', sentAt: 'email_5_sent_at', sched: 'email_5_scheduled_for', subjK: 'email_5_subject', bodyK: 'email_5_body', okStatus: 'email_5_sent', failStatus: 'email_5_failed', countKey: 'email_5' },
+    { n: 6, prevSent: 'email_5_sent_at', sentAt: 'email_6_sent_at', sched: 'email_6_scheduled_for', subjK: 'email_6_subject', bodyK: 'email_6_body', okStatus: 'email_6_sent', failStatus: 'email_6_failed', countKey: 'email_6' },
+  ];
+
+  for (const stage of stages) {
+    const todo = queue.filter(r =>
+      r[stage.prevSent] &&
+      !r[stage.sentAt] &&
+      r[stage.sched] &&
+      r[stage.sched] <= today &&
+      r[stage.subjK] &&
+      r[stage.bodyK]
+    );
+    for (const record of todo) {
+      try {
+        const delayMs = 30000 + Math.random() * 30000;
+        await delay(delayMs);
+        await sendGmailMessage(env, record.email, record[stage.subjK], record[stage.bodyK]);
+        record[stage.sentAt] = new Date().toISOString();
+        record.status = stage.okStatus;
+        sentCounts[stage.countKey]++;
+      } catch (e) {
+        console.error(`TTMP email ${stage.n} send failed for ${record.slug}/${record.email}:`, e.message);
+        record.status = stage.failStatus;
+        record.last_error = e.message;
+        errors.push({ slug: record.slug, email: record.email, step: `email_${stage.n}`, error: e.message });
+      }
+    }
+  }
+
+  // Archive fully-completed records (all 6 emails sent)
+  const completed = queue.filter(r => r.email_6_sent_at);
+  const stillPending = queue.filter(r => !r.email_6_sent_at);
+
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      queueKey,
+      JSON.stringify(stillPending),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+    if (completed.length > 0) {
+      const archiveKey = `vlp-scale/ttmp-send-queue/sent-${today}.json`;
+      let existingArchive = [];
+      try {
+        const a = await env.R2_VIRTUAL_LAUNCH.get(archiveKey);
+        if (a) existingArchive = await a.json();
+        if (!Array.isArray(existingArchive)) existingArchive = [];
+      } catch {}
+      await env.R2_VIRTUAL_LAUNCH.put(
+        archiveKey,
+        JSON.stringify(existingArchive.concat(completed)),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    }
+  } catch (e) {
+    console.error('TTMP email send: failed to write back queue:', e);
+  }
+
+  console.log(`TTMP email send: ${JSON.stringify(sentCounts)} (queue size ${queue.length}, errors ${errors.length})`);
+  return { ...sentCounts, queue_size: queue.length, completed: completed.length, errors };
+}
+
+// ---------------------------------------------------------------------------
 // WLVLP Subdomain Site Handler
 // ---------------------------------------------------------------------------
 
@@ -13986,6 +14112,30 @@ export default {
       });
     }
 
+    // Internal manual trigger for the TTMP email send pipeline.
+    // Protected by INTERNAL_TEST_KEY secret.
+    if (pathname === '/internal/test-ttmp-send' && method === 'POST') {
+      const providedKey = request.headers.get('X-Internal-Key') || '';
+      if (!env.INTERNAL_TEST_KEY || providedKey !== env.INTERNAL_TEST_KEY) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      }
+      try {
+        const stats = await handleTtmpEmailSend(env);
+        return new Response(JSON.stringify(stats, null, 2), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: String(e && e.message || e) }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      }
+    }
+
     // Internal manual trigger for the enrichment pipeline (kept for ad-hoc testing).
     // Protected by INTERNAL_TEST_KEY secret.
     if (pathname === '/internal/test-enrichment' && method === 'POST') {
@@ -14405,6 +14555,16 @@ export default {
         console.log('WLVLP email send cron:', JSON.stringify(stats));
       } catch (e) {
         console.error('WLVLP email send cron failed:', e);
+      }
+    }
+
+    // TTMP Email Send Cron (runs alongside WLVLP at 14:00 UTC)
+    if (event && event.cron === '0 14 * * *') {
+      try {
+        const stats = await handleTtmpEmailSend(env);
+        console.log('TTMP email send cron:', JSON.stringify(stats));
+      } catch (e) {
+        console.error('TTMP email send cron failed:', e);
       }
     }
 
