@@ -10865,6 +10865,256 @@ TTMP Support Team
     },
   },
 
+  // POST /v1/wlvlp/site-requests
+  // Public submission from WLVLP SCALE asset pages. Writes receipt + canonical
+  // request JSON to R2, then kicks off async site generation via Anthropic API
+  // using ctx.waitUntil so the response returns immediately.
+  {
+    method: 'POST', pattern: '/v1/wlvlp/site-requests',
+    handler: async (_method, _pattern, _params, request, env, ctx) => {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ ok: false, error: 'invalid_json' }, 400, request);
+      }
+
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'invalid_payload' }, 400, request);
+      }
+
+      const rawSlug = typeof body.slug === 'string' ? body.slug : '';
+      const slug = rawSlug.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 200);
+      if (!slug) {
+        return json({ ok: false, error: 'invalid_slug' }, 400, request);
+      }
+
+      // Required field checks
+      if (typeof body.firm_name !== 'string' || !body.firm_name.trim()) {
+        return json({ ok: false, error: 'invalid_payload', field: 'firm_name' }, 400, request);
+      }
+      if (!Array.isArray(body.services) || body.services.length === 0) {
+        return json({ ok: false, error: 'invalid_payload', field: 'services' }, 400, request);
+      }
+      if (typeof body.target_clients !== 'string' || !body.target_clients.trim()) {
+        return json({ ok: false, error: 'invalid_payload', field: 'target_clients' }, 400, request);
+      }
+
+      // Whitelist properties (additionalProperties: false)
+      const allowedKeys = [
+        'slug', 'firm_name', 'credential', 'city', 'state', 'services',
+        'target_clients', 'color_scheme', 'logo_url', 'phone', 'email',
+        'website_url', 'additional_notes',
+      ];
+      const clean = {};
+      for (const k of allowedKeys) {
+        if (body[k] !== undefined) clean[k] = body[k];
+      }
+      clean.slug = slug;
+
+      const canonicalKey = `vlp-scale/wlvlp-site-requests/${slug}.json`;
+      const receiptKey = `receipts/wlvlp/site-requests/${slug}.json`;
+      const htmlKey = `vlp-scale/wlvlp-custom-sites/${slug}.html`;
+
+      try {
+        // Idempotency check
+        const existing = await env.R2_VIRTUAL_LAUNCH.get(canonicalKey);
+        if (existing) {
+          return json({ ok: true, status: 'already_submitted', slug }, 200, request);
+        }
+
+        const submittedAt = new Date().toISOString();
+        const record = {
+          ...clean,
+          status: 'pending',
+          submitted_at: submittedAt,
+        };
+
+        // Write receipt (immutable)
+        await env.R2_VIRTUAL_LAUNCH.put(receiptKey, JSON.stringify({
+          slug,
+          payload: clean,
+          submitted_at: submittedAt,
+        }), { httpMetadata: { contentType: 'application/json' } });
+
+        // Write canonical request
+        await env.R2_VIRTUAL_LAUNCH.put(canonicalKey, JSON.stringify(record), {
+          httpMetadata: { contentType: 'application/json' },
+        });
+
+        // Kick off async site generation
+        const generate = async () => {
+          try {
+            if (!env.ANTHROPIC_API_KEY) {
+              throw new Error('ANTHROPIC_API_KEY not set');
+            }
+
+            const servicesStr = Array.isArray(clean.services) ? clean.services.join(', ') : '';
+            const prompt = `You are a professional web designer. Generate a complete, single-file HTML website homepage for the following business. The site must be modern, mobile-responsive, and production-ready. Use inline CSS (no external stylesheets). Include Google Fonts. No JavaScript required unless for a mobile menu toggle.
+
+Business details:
+- Firm name: ${clean.firm_name}
+- Credential: ${clean.credential || 'not provided'}
+- City, State: ${clean.city || ''}, ${clean.state || ''}
+- Services offered: ${servicesStr}
+- Target clients: ${clean.target_clients}
+- Color scheme preference: ${clean.color_scheme || 'professional blue and white'}
+- Phone: ${clean.phone || 'not provided'}
+- Email: ${clean.email || 'not provided'}
+
+Requirements:
+1. Hero section with firm name, tagline addressing target clients, and a prominent "Book a Consultation" CTA button
+2. Services section with cards for each service
+3. About/credentials section highlighting the ${clean.credential || 'professional'} designation
+4. Trust section with placeholder for reviews/testimonials
+5. Contact section with phone, email, and a simple contact form (form action can be "#")
+6. Footer with firm name, address (${clean.city || ''}, ${clean.state || ''}), and links
+7. Professional, clean design. No stock photos. Use CSS gradients and shapes for visual interest.
+8. Mobile responsive (hamburger menu, stacked sections on mobile)
+9. Full valid HTML5 document with DOCTYPE, head, meta viewport, title
+
+Output ONLY the HTML. No markdown, no explanation, no code fences.`;
+
+            const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': env.ANTHROPIC_API_KEY,
+                'anthropic-version': '2023-06-01',
+              },
+              body: JSON.stringify({
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 8000,
+                messages: [{ role: 'user', content: prompt }],
+              }),
+            });
+
+            if (!apiRes.ok) {
+              const errText = await apiRes.text();
+              throw new Error(`Anthropic API ${apiRes.status}: ${errText}`);
+            }
+
+            const apiJson = await apiRes.json();
+            const html = (apiJson.content || [])
+              .filter((c) => c.type === 'text')
+              .map((c) => c.text)
+              .join('');
+
+            if (!html || !html.trim()) {
+              throw new Error('empty_generation');
+            }
+
+            await env.R2_VIRTUAL_LAUNCH.put(htmlKey, html, {
+              httpMetadata: { contentType: 'text/html; charset=utf-8' },
+            });
+
+            const updated = {
+              ...record,
+              status: 'generated',
+              generated_at: new Date().toISOString(),
+            };
+            await env.R2_VIRTUAL_LAUNCH.put(canonicalKey, JSON.stringify(updated), {
+              httpMetadata: { contentType: 'application/json' },
+            });
+          } catch (err) {
+            console.error('WLVLP site generation failed:', slug, err);
+            try {
+              const failed = {
+                ...record,
+                status: 'generation_failed',
+                error: String(err && err.message ? err.message : err),
+                failed_at: new Date().toISOString(),
+              };
+              await env.R2_VIRTUAL_LAUNCH.put(canonicalKey, JSON.stringify(failed), {
+                httpMetadata: { contentType: 'application/json' },
+              });
+            } catch (e2) {
+              console.error('WLVLP failed to write failure status:', e2);
+            }
+          }
+        };
+
+        if (ctx && typeof ctx.waitUntil === 'function') {
+          ctx.waitUntil(generate());
+        } else {
+          // Fallback if no ctx (should not happen in prod)
+          generate();
+        }
+
+        return json({ ok: true, status: 'submitted', slug }, 200, request);
+      } catch (e) {
+        console.error('WLVLP site request submit error:', e);
+        return json({ ok: false, error: 'internal_error' }, 500, request);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/site-requests/:slug
+  // Returns current status of a site request (pending | generated | generation_failed).
+  {
+    method: 'GET', pattern: '/v1/wlvlp/site-requests/:slug',
+    handler: async (_method, _pattern, params, request, env) => {
+      const slug = (params.slug || '').toLowerCase();
+      if (!/^[a-z0-9-]{1,200}$/.test(slug)) {
+        return json({ ok: false, error: 'not_found' }, 404, request);
+      }
+      try {
+        const obj = await env.R2_VIRTUAL_LAUNCH.get(`vlp-scale/wlvlp-site-requests/${slug}.json`);
+        if (!obj) {
+          return json({ ok: false, error: 'not_found' }, 404, request);
+        }
+        const data = await obj.json();
+        return json({
+          ok: true,
+          status: data.status || 'pending',
+          generated_at: data.generated_at || null,
+          submitted_at: data.submitted_at || null,
+        }, 200, request);
+      } catch (e) {
+        console.error('WLVLP site request get error:', e);
+        return json({ ok: false, error: 'not_found' }, 404, request);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/custom-sites/:slug
+  // Serves the Anthropic-generated HTML for a custom site request.
+  {
+    method: 'GET', pattern: '/v1/wlvlp/custom-sites/:slug',
+    handler: async (_method, _pattern, params, request, env) => {
+      const slug = (params.slug || '').toLowerCase();
+      if (!/^[a-z0-9-]{1,200}$/.test(slug)) {
+        return new Response('Not Found', {
+          status: 404,
+          headers: { 'Content-Type': 'text/plain', ...getCorsHeaders(request) },
+        });
+      }
+      try {
+        const obj = await env.R2_VIRTUAL_LAUNCH.get(`vlp-scale/wlvlp-custom-sites/${slug}.html`);
+        if (!obj) {
+          return new Response('Not Found', {
+            status: 404,
+            headers: { 'Content-Type': 'text/plain', ...getCorsHeaders(request) },
+          });
+        }
+        return new Response(obj.body, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=300',
+            ...getCorsHeaders(request),
+          },
+        });
+      } catch (e) {
+        console.error('WLVLP custom site read error:', e);
+        return new Response('Not Found', {
+          status: 404,
+          headers: { 'Content-Type': 'text/plain', ...getCorsHeaders(request) },
+        });
+      }
+    },
+  },
+
   // GET /v1/wlvlp/templates
   {
     method: 'GET', pattern: '/v1/wlvlp/templates',

@@ -1,0 +1,52 @@
+{
+  "auth": { "required": false, "trustClientIdentityFields": false, "type": "none" },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Public submission of a custom site request from a WLVLP SCALE asset page; triggers async site generation via Anthropic API",
+    "path": "/contracts/wlvlp/wlvlp.site-requests.submit.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "WLVLP Site Request Submit",
+    "usedOnPages": ["websitelotto.virtuallaunch.pro/asset/*"],
+    "validation": { "enumStrict": false, "rejectUnknownValues": true, "requireJsonContentType": true },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/site-requests",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/wlvlp/site-requests/{slug}.json",
+    "receiptSource": "wlvlp_site_requests",
+    "signature": { "header": null, "required": false, "secretEnvVar": null }
+  },
+  "effects": {
+    "dedupeKey": "slug",
+    "eventIdFrom": "slug",
+    "writeOrder": ["receipt", "canonical"],
+    "writes": ["wlvlp_site_requests"]
+  },
+  "payload": {
+    "type": "object",
+    "required": ["slug", "firm_name", "services", "target_clients"],
+    "properties": {
+      "slug": { "type": "string", "minLength": 1 },
+      "firm_name": { "type": "string", "minLength": 1 },
+      "credential": { "type": "string" },
+      "city": { "type": "string" },
+      "state": { "type": "string" },
+      "services": { "type": "array", "items": { "type": "string" } },
+      "target_clients": { "type": "string" },
+      "color_scheme": { "type": "string" },
+      "logo_url": { "type": "string" },
+      "phone": { "type": "string" },
+      "email": { "type": "string" },
+      "website_url": { "type": "string" },
+      "additional_notes": { "type": "string" }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "success": { "ok": true, "status": "submitted", "slug": "{slug}" },
+    "deduped": { "ok": true, "status": "already_submitted" },
+    "error": { "ok": false, "error": "invalid_payload" }
+  },
+  "schema": { "name": "wlvlp_site_requests_submit", "version": 1 }
+}
