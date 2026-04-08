@@ -13605,10 +13605,15 @@ async function enrichmentMxLookup(env, domain) {
 }
 
 async function enrichmentReoonVerify(env, email, debugSink) {
-  const url = `https://emailverifier.reoon.com/api/v1/verify?email=${encodeURIComponent(email)}&key=${env.REOON_API_KEY}&mode=quick`;
+  const url = `https://emailverifier.reoon.com/api/v1/verify?email=${encodeURIComponent(email)}&key=${env.REOON_API_KEY}&mode=power`;
   try {
     const res = await fetch(url);
     if (!res.ok) {
+      if (res.status === 403) {
+        console.error('Reoon API returned 403 — likely out of credits');
+      } else {
+        console.error(`Reoon API returned non-200 status: ${res.status}`);
+      }
       if (debugSink && debugSink.length < 20) {
         debugSink.push({
           email_tested: email,
@@ -13617,7 +13622,7 @@ async function enrichmentReoonVerify(env, email, debugSink) {
           reoon_full_response: null
         });
       }
-      return null;
+      return { kind: 'api_error', http_code: res.status };
     }
     const data = await res.json();
     const status = data && typeof data.status === 'string' ? data.status : null;
@@ -13629,7 +13634,7 @@ async function enrichmentReoonVerify(env, email, debugSink) {
         reoon_full_response: data
       });
     }
-    return status;
+    return { kind: 'ok', status };
   } catch (e) {
     if (debugSink && debugSink.length < 20) {
       debugSink.push({
@@ -13639,13 +13644,31 @@ async function enrichmentReoonVerify(env, email, debugSink) {
         reoon_full_response: null
       });
     }
-    return null;
+    return { kind: 'network_error' };
   }
 }
 
-// Reoon "valid" and "safe" both indicate deliverable mailboxes.
+// Reoon power mode: "safe" = deliverable inbox, "valid" kept for backward compat.
 function enrichmentIsAcceptedStatus(status) {
   return status === 'valid' || status === 'safe';
+}
+
+// "catch_all" is deliverable but cannot confirm a specific mailbox.
+function enrichmentIsCatchAllStatus(status) {
+  return status === 'catch_all';
+}
+
+async function enrichmentReoonBalance(env) {
+  try {
+    const res = await fetch(
+      `https://emailverifier.reoon.com/api/v1/get_credits/?key=${env.REOON_API_KEY}`
+    );
+    if (!res.ok) return { ok: false, http_code: res.status };
+    const data = await res.json();
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: String(e && e.message || e) };
+  }
 }
 
 async function enrichmentBudgetGet(env, dateKey) {
@@ -13682,9 +13705,19 @@ async function handleEnrichmentBatch(env) {
     emails_no_valid_pattern: 0,
     reoon_credits_used: 0,
     reoon_budget_remaining: ENRICHMENT_DAILY_BUDGET,
+    reoon_balance_at_start: null,
     records_remaining_unenriched: 0,
     stopped_reason: 'completed'
   };
+
+  // One-time balance check so the daily log shows starting credits
+  try {
+    const bal = await enrichmentReoonBalance(env);
+    stats.reoon_balance_at_start = bal;
+    console.log('Enrichment: Reoon balance at start:', JSON.stringify(bal));
+  } catch (e) {
+    console.error('Enrichment: balance check failed:', e);
+  }
 
   let records;
   try {
@@ -13772,11 +13805,20 @@ async function handleEnrichmentBatch(env) {
         }
         const rand = Math.floor(1000 + Math.random() * 9000);
         const probe = `zzztest8742${rand}@${domain}`;
-        const status = await enrichmentReoonVerify(env, probe, reoonDebugLog);
-        creditsUsed = await enrichmentBudgetIncrement(env, dateKey);
-        stats.reoon_credits_used++;
+        const result = await enrichmentReoonVerify(env, probe, reoonDebugLog);
+        if (result.kind === 'api_error') {
+          stats.stopped_reason = 'reoon_api_error';
+          stats.reoon_api_error_code = result.http_code;
+          console.log(`Enrichment: Reoon API error ${result.http_code} (catch-all check), stopping`);
+          break outer;
+        }
+        if (result.kind === 'ok') {
+          creditsUsed = await enrichmentBudgetIncrement(env, dateKey);
+          stats.reoon_credits_used++;
+        }
         await new Promise(r => setTimeout(r, ENRICHMENT_REOON_DELAY_MS));
-        const isCatchAll = enrichmentIsAcceptedStatus(status);
+        const status = result.kind === 'ok' ? result.status : null;
+        const isCatchAll = enrichmentIsCatchAllStatus(status) || enrichmentIsAcceptedStatus(status);
         await env.ENRICHMENT_KV.put(catchAllKey, isCatchAll ? 'true' : 'false', { expirationTtl: ENRICHMENT_KV_TTL });
         domainState.catchAll = isCatchAll;
         if (isCatchAll) stats.domains_catch_all++;
@@ -13817,13 +13859,28 @@ async function handleEnrichmentBatch(env) {
         break outer;
       }
       const candidate = enrichmentBuildPattern(p, first, last, domain);
-      const status = await enrichmentReoonVerify(env, candidate, reoonDebugLog);
-      creditsUsed = await enrichmentBudgetIncrement(env, dateKey);
-      stats.reoon_credits_used++;
+      const result = await enrichmentReoonVerify(env, candidate, reoonDebugLog);
+      if (result.kind === 'api_error') {
+        stats.stopped_reason = 'reoon_api_error';
+        stats.reoon_api_error_code = result.http_code;
+        console.log(`Enrichment: Reoon API error ${result.http_code} (pattern validation), stopping`);
+        break outer;
+      }
+      if (result.kind === 'ok') {
+        creditsUsed = await enrichmentBudgetIncrement(env, dateKey);
+        stats.reoon_credits_used++;
+      }
       await new Promise(r => setTimeout(r, ENRICHMENT_REOON_DELAY_MS));
+      const status = result.kind === 'ok' ? result.status : null;
       if (enrichmentIsAcceptedStatus(status)) {
         rec.email_found = candidate;
         rec.email_status = 'valid';
+        winningIdx = p;
+        break;
+      }
+      if (enrichmentIsCatchAllStatus(status)) {
+        rec.email_found = candidate;
+        rec.email_status = 'catch_all';
         winningIdx = p;
         break;
       }
