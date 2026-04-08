@@ -13604,16 +13604,48 @@ async function enrichmentMxLookup(env, domain) {
   }
 }
 
-async function enrichmentReoonVerify(env, email) {
+async function enrichmentReoonVerify(env, email, debugSink) {
   const url = `https://emailverifier.reoon.com/api/v1/verify?email=${encodeURIComponent(email)}&key=${env.REOON_API_KEY}&mode=quick`;
   try {
     const res = await fetch(url);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      if (debugSink && debugSink.length < 20) {
+        debugSink.push({
+          email_tested: email,
+          domain: email.split('@')[1] || '',
+          reoon_status: `http_${res.status}`,
+          reoon_full_response: null
+        });
+      }
+      return null;
+    }
     const data = await res.json();
-    return data && typeof data.status === 'string' ? data.status : null;
-  } catch {
+    const status = data && typeof data.status === 'string' ? data.status : null;
+    if (debugSink && debugSink.length < 20) {
+      debugSink.push({
+        email_tested: email,
+        domain: email.split('@')[1] || '',
+        reoon_status: status || 'unknown',
+        reoon_full_response: data
+      });
+    }
+    return status;
+  } catch (e) {
+    if (debugSink && debugSink.length < 20) {
+      debugSink.push({
+        email_tested: email,
+        domain: email.split('@')[1] || '',
+        reoon_status: `exception:${String(e && e.message || e)}`,
+        reoon_full_response: null
+      });
+    }
     return null;
   }
+}
+
+// Reoon "valid" and "safe" both indicate deliverable mailboxes.
+function enrichmentIsAcceptedStatus(status) {
+  return status === 'valid' || status === 'safe';
 }
 
 async function enrichmentBudgetGet(env, dateKey) {
@@ -13680,6 +13712,7 @@ async function handleEnrichmentBatch(env) {
   stats.reoon_budget_remaining = Math.max(0, ENRICHMENT_DAILY_BUDGET - creditsUsed);
 
   const processedDomains = new Map(); // domain -> { mxOk, catchAll, patternIdx }
+  const reoonDebugLog = []; // captures first 20 Reoon responses for diagnostics
 
   outer: for (let i = 0; i < records.length; i++) {
     const rec = records[i];
@@ -13739,11 +13772,11 @@ async function handleEnrichmentBatch(env) {
         }
         const rand = Math.floor(1000 + Math.random() * 9000);
         const probe = `zzztest8742${rand}@${domain}`;
-        const status = await enrichmentReoonVerify(env, probe);
+        const status = await enrichmentReoonVerify(env, probe, reoonDebugLog);
         creditsUsed = await enrichmentBudgetIncrement(env, dateKey);
         stats.reoon_credits_used++;
         await new Promise(r => setTimeout(r, ENRICHMENT_REOON_DELAY_MS));
-        const isCatchAll = status === 'valid';
+        const isCatchAll = enrichmentIsAcceptedStatus(status);
         await env.ENRICHMENT_KV.put(catchAllKey, isCatchAll ? 'true' : 'false', { expirationTtl: ENRICHMENT_KV_TTL });
         domainState.catchAll = isCatchAll;
         if (isCatchAll) stats.domains_catch_all++;
@@ -13784,11 +13817,11 @@ async function handleEnrichmentBatch(env) {
         break outer;
       }
       const candidate = enrichmentBuildPattern(p, first, last, domain);
-      const status = await enrichmentReoonVerify(env, candidate);
+      const status = await enrichmentReoonVerify(env, candidate, reoonDebugLog);
       creditsUsed = await enrichmentBudgetIncrement(env, dateKey);
       stats.reoon_credits_used++;
       await new Promise(r => setTimeout(r, ENRICHMENT_REOON_DELAY_MS));
-      if (status === 'valid') {
+      if (enrichmentIsAcceptedStatus(status)) {
         rec.email_found = candidate;
         rec.email_status = 'valid';
         winningIdx = p;
@@ -13839,6 +13872,19 @@ async function handleEnrichmentBatch(env) {
     );
   } catch (e) {
     console.error('Enrichment: failed to write log:', e);
+  }
+
+  // Reoon diagnostic debug log (first 20 calls of this run)
+  try {
+    if (reoonDebugLog.length > 0) {
+      await r2Put(
+        env.R2_VIRTUAL_LAUNCH,
+        `vlp-scale/enrichment-logs/reoon-debug-${dateKey}.json`,
+        reoonDebugLog
+      );
+    }
+  } catch (e) {
+    console.error('Enrichment: failed to write reoon debug log:', e);
   }
 
   console.log('Enrichment run complete:', JSON.stringify(stats));
