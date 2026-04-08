@@ -10867,11 +10867,11 @@ TTMP Support Team
 
   // POST /v1/wlvlp/site-requests
   // Public submission from WLVLP SCALE asset pages. Writes receipt + canonical
-  // request JSON to R2, then kicks off async site generation via Anthropic API
-  // using ctx.waitUntil so the response returns immediately.
+  // request JSON to R2 with status: "pending". A daily cron at 06:00 UTC
+  // (handleWlvlpSiteGeneration) processes pending requests by template-fill.
   {
     method: 'POST', pattern: '/v1/wlvlp/site-requests',
-    handler: async (_method, _pattern, _params, request, env, ctx) => {
+    handler: async (_method, _pattern, _params, request, env) => {
       let body;
       try {
         body = await request.json();
@@ -10914,7 +10914,6 @@ TTMP Support Team
 
       const canonicalKey = `vlp-scale/wlvlp-site-requests/${slug}.json`;
       const receiptKey = `receipts/wlvlp/site-requests/${slug}.json`;
-      const htmlKey = `vlp-scale/wlvlp-custom-sites/${slug}.html`;
 
       try {
         // Idempotency check
@@ -10937,114 +10936,37 @@ TTMP Support Team
           submitted_at: submittedAt,
         }), { httpMetadata: { contentType: 'application/json' } });
 
-        // Write canonical request
+        // Write canonical request — cron will pick this up at 06:00 UTC
         await env.R2_VIRTUAL_LAUNCH.put(canonicalKey, JSON.stringify(record), {
           httpMetadata: { contentType: 'application/json' },
         });
-
-        // Kick off async site generation
-        const generate = async () => {
-          try {
-            if (!env.ANTHROPIC_API_KEY) {
-              throw new Error('ANTHROPIC_API_KEY not set');
-            }
-
-            const servicesStr = Array.isArray(clean.services) ? clean.services.join(', ') : '';
-            const prompt = `You are a professional web designer. Generate a complete, single-file HTML website homepage for the following business. The site must be modern, mobile-responsive, and production-ready. Use inline CSS (no external stylesheets). Include Google Fonts. No JavaScript required unless for a mobile menu toggle.
-
-Business details:
-- Firm name: ${clean.firm_name}
-- Credential: ${clean.credential || 'not provided'}
-- City, State: ${clean.city || ''}, ${clean.state || ''}
-- Services offered: ${servicesStr}
-- Target clients: ${clean.target_clients}
-- Color scheme preference: ${clean.color_scheme || 'professional blue and white'}
-- Phone: ${clean.phone || 'not provided'}
-- Email: ${clean.email || 'not provided'}
-
-Requirements:
-1. Hero section with firm name, tagline addressing target clients, and a prominent "Book a Consultation" CTA button
-2. Services section with cards for each service
-3. About/credentials section highlighting the ${clean.credential || 'professional'} designation
-4. Trust section with placeholder for reviews/testimonials
-5. Contact section with phone, email, and a simple contact form (form action can be "#")
-6. Footer with firm name, address (${clean.city || ''}, ${clean.state || ''}), and links
-7. Professional, clean design. No stock photos. Use CSS gradients and shapes for visual interest.
-8. Mobile responsive (hamburger menu, stacked sections on mobile)
-9. Full valid HTML5 document with DOCTYPE, head, meta viewport, title
-
-Output ONLY the HTML. No markdown, no explanation, no code fences.`;
-
-            const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': env.ANTHROPIC_API_KEY,
-                'anthropic-version': '2023-06-01',
-              },
-              body: JSON.stringify({
-                model: 'claude-sonnet-4-20250514',
-                max_tokens: 8000,
-                messages: [{ role: 'user', content: prompt }],
-              }),
-            });
-
-            if (!apiRes.ok) {
-              const errText = await apiRes.text();
-              throw new Error(`Anthropic API ${apiRes.status}: ${errText}`);
-            }
-
-            const apiJson = await apiRes.json();
-            const html = (apiJson.content || [])
-              .filter((c) => c.type === 'text')
-              .map((c) => c.text)
-              .join('');
-
-            if (!html || !html.trim()) {
-              throw new Error('empty_generation');
-            }
-
-            await env.R2_VIRTUAL_LAUNCH.put(htmlKey, html, {
-              httpMetadata: { contentType: 'text/html; charset=utf-8' },
-            });
-
-            const updated = {
-              ...record,
-              status: 'generated',
-              generated_at: new Date().toISOString(),
-            };
-            await env.R2_VIRTUAL_LAUNCH.put(canonicalKey, JSON.stringify(updated), {
-              httpMetadata: { contentType: 'application/json' },
-            });
-          } catch (err) {
-            console.error('WLVLP site generation failed:', slug, err);
-            try {
-              const failed = {
-                ...record,
-                status: 'generation_failed',
-                error: String(err && err.message ? err.message : err),
-                failed_at: new Date().toISOString(),
-              };
-              await env.R2_VIRTUAL_LAUNCH.put(canonicalKey, JSON.stringify(failed), {
-                httpMetadata: { contentType: 'application/json' },
-              });
-            } catch (e2) {
-              console.error('WLVLP failed to write failure status:', e2);
-            }
-          }
-        };
-
-        if (ctx && typeof ctx.waitUntil === 'function') {
-          ctx.waitUntil(generate());
-        } else {
-          // Fallback if no ctx (should not happen in prod)
-          generate();
-        }
 
         return json({ ok: true, status: 'submitted', slug }, 200, request);
       } catch (e) {
         console.error('WLVLP site request submit error:', e);
         return json({ ok: false, error: 'internal_error' }, 500, request);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/admin/trigger-site-gen
+  // Temporary admin route for manually triggering the WLVLP site generation
+  // cron job. Useful for end-to-end testing without waiting for 06:00 UTC.
+  {
+    method: 'GET', pattern: '/v1/wlvlp/admin/trigger-site-gen',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro'];
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
+      }
+      try {
+        const stats = await handleWlvlpSiteGeneration(env);
+        return json({ ok: true, ...stats }, 200, request);
+      } catch (e) {
+        console.error('WLVLP admin trigger-site-gen error:', e);
+        return json({ ok: false, error: 'internal_error', message: String(e?.message || e) }, 500, request);
       }
     },
   },
@@ -12570,6 +12492,231 @@ function route(method, pathname) {
 }
 
 // ---------------------------------------------------------------------------
+// WLVLP Site Request: Template-Fill Generation
+// ---------------------------------------------------------------------------
+// Replaces the prior Anthropic-API generation flow. Templates live in R2 at
+// vlp-scale/wlvlp-templates/{slug}.html (uploaded via scale/upload-wlvlp-templates.mjs).
+// A cron at 06:00 UTC sweeps pending site-requests, fills the matching
+// template with questionnaire data, and writes the customized HTML to
+// vlp-scale/wlvlp-custom-sites/{slug}.html.
+
+const WLVLP_TEMPLATE_MAP = {
+  CPA:     'clear-ledger-bookkeeping',
+  EA:      'tax-preparation-now',
+  ATTY:    'tax-attorney-services',
+  DEFAULT: 'tax-command-advisory',
+};
+
+const WLVLP_COLOR_SCHEMES = {
+  'Professional Blue': '#1d4ed8',
+  'Modern Teal':       '#0d9488',
+  'Classic Navy':      '#1e3a5f',
+  'Warm Charcoal':     '#374151',
+};
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Apply find-and-replace customizations to a template HTML string using
+// questionnaire fields. Returns the modified HTML.
+function fillTemplate(templateHtml, requestData) {
+  let html = templateHtml;
+  const data = requestData || {};
+  const firmName     = (data.firm_name || '').trim();
+  const credential   = (data.credential || 'Tax Professional').trim();
+  const city         = (data.city || '').trim();
+  const state        = (data.state || '').trim();
+  const phone        = (data.phone || '').trim();
+  const email        = (data.email || '').trim();
+  const services     = Array.isArray(data.services) ? data.services : [];
+  const servicesStr  = services.join(', ');
+  const colorScheme  = (data.color_scheme || '').trim();
+  const logoUrl      = (data.logo_url || '').trim();
+  const locationStr  = [city, state].filter(Boolean).join(', ');
+
+  // 1) <title> tag
+  if (firmName) {
+    const titleText = locationStr
+      ? `${firmName} — ${credential} in ${locationStr}`
+      : `${firmName} — ${credential}`;
+    html = html.replace(/<title>[\s\S]*?<\/title>/i, `<title>${escapeHtml(titleText)}</title>`);
+  }
+
+  // 2) <meta name="description">
+  if (firmName) {
+    const descText = `${firmName} provides ${servicesStr || 'professional services'}${locationStr ? ` in ${locationStr}` : ''}. Book a consultation today.`;
+    html = html.replace(
+      /<meta\s+name=["']description["']\s+content=["'][^"']*["']\s*\/?>/i,
+      `<meta name="description" content="${escapeHtml(descText)}">`
+    );
+  }
+
+  // 3) First <h1> text content → firm_name
+  if (firmName) {
+    let replacedH1 = false;
+    html = html.replace(/(<h1\b[^>]*>)([\s\S]*?)(<\/h1>)/i, (m, open, _inner, close) => {
+      if (replacedH1) return m;
+      replacedH1 = true;
+      return `${open}${escapeHtml(firmName)}${close}`;
+    });
+  }
+
+  // 4) Phone numbers — replace any (xxx) xxx-xxxx or xxx-xxx-xxxx in visible text
+  if (phone) {
+    html = html.replace(/\(\d{3}\)\s*\d{3}-\d{4}/g, escapeHtml(phone));
+    html = html.replace(/\b\d{3}-\d{3}-\d{4}\b/g, escapeHtml(phone));
+  }
+
+  // 5) Email addresses in visible text
+  if (email) {
+    html = html.replace(
+      /(>[^<]*?)([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/g,
+      (_m, prefix) => `${prefix}${escapeHtml(email)}`
+    );
+  }
+
+  // 6) CTA text — common buttons → "Book a Consultation"
+  const ctaPatterns = [
+    /\bBook Now\b/gi,
+    /\bGet Started\b/gi,
+    /\bContact Us\b/gi,
+    /\bStart Filing Now\b/gi,
+    /\bSchedule a Call\b/gi,
+    /\bRequest a Quote\b/gi,
+  ];
+  for (const re of ctaPatterns) {
+    html = html.replace(re, 'Book a Consultation');
+  }
+
+  // 7) Color scheme — replace primary accent color in <style> blocks
+  if (colorScheme) {
+    let primary = WLVLP_COLOR_SCHEMES[colorScheme] || null;
+    if (!primary && /^#?[0-9a-fA-F]{6}$/.test(colorScheme)) {
+      primary = colorScheme.startsWith('#') ? colorScheme : `#${colorScheme}`;
+    }
+    if (primary) {
+      html = html.replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gi, (m, css) => {
+        const hexes = css.match(/#[0-9a-fA-F]{6}\b/g) || [];
+        if (hexes.length === 0) return m;
+        const counts = {};
+        for (const h of hexes) counts[h.toLowerCase()] = (counts[h.toLowerCase()] || 0) + 1;
+        let topHex = null;
+        let topCount = 0;
+        for (const [h, c] of Object.entries(counts)) {
+          if (c > topCount) { topHex = h; topCount = c; }
+        }
+        if (!topHex) return m;
+        const newCss = css.replace(new RegExp(escapeRegex(topHex), 'gi'), primary);
+        return m.replace(css, newCss);
+      });
+    }
+  }
+
+  // 8) Logo: first <img> in header/nav area
+  if (logoUrl) {
+    const headerMatch = html.match(/<(?:header|nav)\b[\s\S]*?<\/(?:header|nav)>/i);
+    if (headerMatch) {
+      const headerHtml = headerMatch[0];
+      const newHeaderHtml = headerHtml.replace(
+        /(<img\b[^>]*?\bsrc=)["'][^"']*["']/i,
+        `$1"${escapeHtml(logoUrl)}"`
+      );
+      if (newHeaderHtml !== headerHtml) {
+        html = html.replace(headerHtml, newHeaderHtml);
+      }
+    }
+  }
+
+  return html;
+}
+
+// Process all pending wlvlp-site-requests in R2: fill the matching template
+// with questionnaire data and write the customized HTML. Idempotent — only
+// touches requests with status === 'pending'.
+async function handleWlvlpSiteGeneration(env) {
+  const requestsPrefix = 'vlp-scale/wlvlp-site-requests/';
+  let cursor = undefined;
+  let generated = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  while (true) {
+    const listRes = await env.R2_VIRTUAL_LAUNCH.list({ prefix: requestsPrefix, cursor });
+    for (const obj of listRes.objects) {
+      if (!obj.key.endsWith('.json')) { skipped++; continue; }
+      try {
+        const reqObj = await env.R2_VIRTUAL_LAUNCH.get(obj.key);
+        if (!reqObj) { skipped++; continue; }
+        const requestData = await reqObj.json();
+        if (!requestData || requestData.status !== 'pending') { skipped++; continue; }
+
+        const slug = requestData.slug;
+        if (!slug) { skipped++; continue; }
+
+        const credential = (requestData.credential || '').toUpperCase();
+        const templateSlug =
+          WLVLP_TEMPLATE_MAP[credential] || WLVLP_TEMPLATE_MAP.DEFAULT;
+        const templateKey = `vlp-scale/wlvlp-templates/${templateSlug}.html`;
+        const templateObj = await env.R2_VIRTUAL_LAUNCH.get(templateKey);
+
+        if (!templateObj) {
+          const failedRecord = {
+            ...requestData,
+            status: 'generation_failed',
+            error: 'template_not_found',
+            template_attempted: templateSlug,
+            failed_at: new Date().toISOString(),
+          };
+          await env.R2_VIRTUAL_LAUNCH.put(obj.key, JSON.stringify(failedRecord), {
+            httpMetadata: { contentType: 'application/json' },
+          });
+          failed++;
+          continue;
+        }
+
+        const templateHtml = await templateObj.text();
+        const customHtml = fillTemplate(templateHtml, requestData);
+
+        const customKey = `vlp-scale/wlvlp-custom-sites/${slug}.html`;
+        await env.R2_VIRTUAL_LAUNCH.put(customKey, customHtml, {
+          httpMetadata: { contentType: 'text/html; charset=utf-8' },
+        });
+
+        const updated = {
+          ...requestData,
+          status: 'generated',
+          generated_at: new Date().toISOString(),
+          template_used: templateSlug,
+        };
+        await env.R2_VIRTUAL_LAUNCH.put(obj.key, JSON.stringify(updated), {
+          httpMetadata: { contentType: 'application/json' },
+        });
+        console.log(`Generated custom site: ${slug} using ${templateSlug}`);
+        generated++;
+      } catch (e) {
+        console.error('WLVLP site generation: failed to process', obj.key, e);
+        failed++;
+      }
+    }
+    if (!listRes.truncated) break;
+    cursor = listRes.cursor;
+  }
+
+  console.log(`WLVLP site generation complete: ${generated} generated, ${skipped} skipped, ${failed} failed`);
+  return { generated, skipped, failed };
+}
+
+// ---------------------------------------------------------------------------
 // WLVLP Subdomain Site Handler
 // ---------------------------------------------------------------------------
 
@@ -12676,6 +12823,17 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
+    // WLVLP Site Generation Cron — only runs on the 06:00 UTC trigger.
+    // Sweeps pending vlp-scale/wlvlp-site-requests/* and fills templates.
+    if (event && event.cron === '0 6 * * *') {
+      try {
+        await handleWlvlpSiteGeneration(env);
+      } catch (e) {
+        console.error('WLVLP site generation cron failed:', e);
+      }
+      return;
+    }
+
     // DVLP Job Matching Cron
     try {
       const eventId = `EVT_${crypto.randomUUID()}`;
