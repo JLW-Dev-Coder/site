@@ -10,8 +10,8 @@ Last updated: 2026-04-05
 
 - [Phase 0 — Source Data from BigQuery](#phase-0--source-data-from-bigquery-one-time-setup)
 - [Phase 1 — Source Prospects via Clay](#phase-1--source-prospects-via-clay)
-  - [Task 1.1 — Select next 50 rows](#task-11--select-next-50-rows-from-foia-sheet)
-  - [Task 1.2 — Export batch to CSV](#task-12--export-batch-to-csv)
+  - [Task 1.1 — Select next 50 rows for VLP](#task-11--select-next-50-rows-from-foia-sheet)
+  - [Task 1.2 — Export VLP batch to CSV](#task-12--export-batch-to-csv)
   - [Task 1.3 — Enrich VLP batch in Clay](#task-13--enrich-vlp-batch-in-clay)
   - [Task 1.4 — Return VLP emails and export](#task-14--return-vlp-emails-to-google-sheet-and-export)
   - [Task 1.5 — Select next 50 for TTMP](#task-15--select-next-50-rows-for-ttmp-batch)
@@ -394,6 +394,7 @@ Transform the prospect CSV into personalized email copy and asset page data. Thi
 **Steps:**
 
 **Merge:**
+
 1. Open Claude Code in the VLP repo
 2. Run:
    ```
@@ -402,6 +403,7 @@ Transform the prospect CSV into personalized email copy and asset page data. Thi
 3. Verify output: rows appended, duplicates skipped, master total
 
 **Generate:**
+
 4. Run:
    ```
    node scale/generate-vlp-batch.js
@@ -873,5 +875,4 @@ For full TTMP-specific details, see the TTMP WORKFLOW.md stub at:
 | `scale/generate-vlp-batch.js` | Batch generator | Repo Claude (one-time) |
 | `scale/prospects/vlp-master.csv` | Master prospect list (gitignored) | Merge script |
 | `scale/prospects/archive/` | Archived intake files (gitignored) | Merge script |
-| `scale/SCHEDULE.md` | Master action plan | This is your entry point |
 | `scale/WORKFLOW.md` | This file | Operational detail |
