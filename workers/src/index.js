@@ -13883,6 +13883,30 @@ export default {
       });
     }
 
+    // Internal manual trigger for the enrichment pipeline (kept for ad-hoc testing).
+    // Protected by INTERNAL_TEST_KEY secret.
+    if (pathname === '/internal/test-enrichment' && method === 'POST') {
+      const providedKey = request.headers.get('X-Internal-Key') || '';
+      if (!env.INTERNAL_TEST_KEY || providedKey !== env.INTERNAL_TEST_KEY) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      }
+      try {
+        const stats = await handleEnrichmentBatch(env);
+        return new Response(JSON.stringify(stats, null, 2), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: String(e && e.message || e) }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      }
+    }
+
     const result = route(method, pathname);
 
     if (!result.matched) {
