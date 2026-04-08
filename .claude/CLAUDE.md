@@ -645,6 +645,21 @@ manual Clay enrichment loop in the SCALE workflow.
 
 ---
 
+## Deploy Policy
+
+Unless explicitly told otherwise, every task that modifies Worker source
+code (workers/src/index.js) or wrangler.toml must end with:
+
+1. git add + commit (descriptive message)
+2. git push origin
+3. wrangler deploy
+
+Do not wait for permission to deploy. If the prompt included code changes,
+deploy is implied. If a task should NOT deploy (e.g., WIP or experimental),
+the prompt will say "do not deploy".
+
+---
+
 ## Post-Task Rules (mandatory after every task)
 
 1. **Commit:** After completing any task, commit all changed files with a descriptive message. Never leave work uncommitted.
