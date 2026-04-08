@@ -4271,11 +4271,158 @@ const ROUTES = [
             accountId: params.account_id,
             taxGameTokens: balance.taxGameTokens,
             transcriptTokens: balance.transcriptTokens,
+            tax_game_tokens: balance.taxGameTokens,
+            transcript_tokens: balance.transcriptTokens,
             updatedAt: balance.updatedAt,
           }
         }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch token balance' }, 500, request);
+      }
+    },
+  },
+
+  // -------------------------------------------------------------------------
+  // TTTMP arcade — global token spend + play access check
+  // Contracts: contracts/tttmp/tttmp.tokens.spend.v1.json
+  //            contracts/tttmp/tttmp.games.access.v1.json
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'POST', pattern: '/v1/tokens/spend',
+    handler: async (_method, _pattern, _params, request, env) => {
+      // 1. Validate session
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      // 2. Parse and validate body against contract schema
+      const body = await parseBody(request);
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'validation_failed', message: 'JSON body required' }, 400, request);
+      }
+      const { amount, idempotencyKey, reason, slug } = body;
+      if (!Number.isInteger(amount) || amount < 1) {
+        return json({ ok: false, error: 'validation_failed', message: 'amount must be integer >= 1' }, 400, request);
+      }
+      if (typeof idempotencyKey !== 'string' || idempotencyKey.length < 1) {
+        return json({ ok: false, error: 'validation_failed', message: 'idempotencyKey required' }, 400, request);
+      }
+      if (reason !== 'arcade_play') {
+        return json({ ok: false, error: 'validation_failed', message: 'reason must be "arcade_play"' }, 400, request);
+      }
+      if (typeof slug !== 'string' || slug.length < 1) {
+        return json({ ok: false, error: 'validation_failed', message: 'slug required' }, 400, request);
+      }
+      // Guard against path traversal in R2 keys
+      if (!/^[a-z0-9][a-z0-9_-]{0,127}$/i.test(slug) || !/^[A-Za-z0-9_-]{1,128}$/.test(idempotencyKey)) {
+        return json({ ok: false, error: 'validation_failed', message: 'invalid slug or idempotencyKey format' }, 400, request);
+      }
+
+      const receiptKey = `receipts/tttmp/tokens-spend/${idempotencyKey}.json`;
+
+      try {
+        // 3. Idempotency check — if receipt exists, return deduped response
+        const existingReceipt = await r2Get(env.R2_VIRTUAL_LAUNCH, receiptKey);
+        if (existingReceipt) {
+          try {
+            const parsed = JSON.parse(existingReceipt);
+            // Only honor dedupe for the same account (prevent key reuse across users)
+            if (parsed.account_id === session.account_id) {
+              return json({ ok: true, deduped: true, grantId: parsed.grantId }, 200, request);
+            }
+            return json({ ok: false, error: 'validation_failed', message: 'idempotencyKey in use' }, 409, request);
+          } catch {
+            // Corrupt receipt — fall through and re-write
+          }
+        }
+
+        // 4. Read current token balance from R2
+        const balance = await getCurrentTokenBalance(env, session.account_id);
+
+        // 5. Insufficient balance check
+        if (balance.taxGameTokens < amount) {
+          return json({ ok: false, error: 'insufficient_balance' }, 402, request);
+        }
+
+        // 6. Generate grant ID
+        const grantId = `GRANT_${crypto.randomUUID()}`;
+        const nowIso = new Date().toISOString();
+
+        // 7. Write receipt to R2 (step 1 of write pipeline: receiptAppend)
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, {
+          account_id: session.account_id,
+          slug,
+          amount,
+          grantId,
+          reason,
+          created_at: nowIso,
+        });
+
+        // 8. Write play grant to R2 (canonicalUpsert — overwrites any prior grant for this slug)
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `game-grants/${session.account_id}/${slug}.json`, {
+          grantId,
+          slug,
+          account_id: session.account_id,
+          created_at: nowIso,
+          session_based: true,
+        });
+
+        // 9. Update token balance in R2
+        const newTaxGame = balance.taxGameTokens - amount;
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `tokens/${session.account_id}.json`, {
+          account_id: session.account_id,
+          tax_game_tokens: newTaxGame,
+          transcript_tokens: balance.transcriptTokens,
+          updated_at: nowIso,
+        });
+
+        // 10. Update D1 projection
+        try {
+          await d1Run(env.DB,
+            `INSERT INTO tokens (account_id, tax_game_tokens, transcript_tokens, updated_at)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(account_id) DO UPDATE SET tax_game_tokens = ?, updated_at = ?`,
+            [session.account_id, newTaxGame, balance.transcriptTokens, nowIso, newTaxGame, nowIso]
+          );
+        } catch (e) {
+          console.error('D1 tokens projection update failed:', e);
+          // R2 is canonical — do not fail the request
+        }
+
+        // 11. Return success
+        return json({ ok: true, grantId, slug }, 200, request);
+      } catch (e) {
+        console.error('/v1/tokens/spend error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to spend tokens' }, 500, request);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/games/access',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const url = new URL(request.url);
+      const slug = url.searchParams.get('slug');
+      if (!slug || !/^[a-z0-9][a-z0-9_-]{0,127}$/i.test(slug)) {
+        return json({ ok: false, error: 'validation_failed', message: 'slug required' }, 400, request);
+      }
+
+      try {
+        const grantRaw = await r2Get(env.R2_VIRTUAL_LAUNCH, `game-grants/${session.account_id}/${slug}.json`);
+        if (!grantRaw) {
+          return json({ ok: true, allowed: false }, 200, request);
+        }
+        const grant = JSON.parse(grantRaw);
+        if (grant.session_based === true && grant.grantId) {
+          return json({ ok: true, allowed: true, grantId: grant.grantId }, 200, request);
+        }
+        return json({ ok: true, allowed: false }, 200, request);
+      } catch (e) {
+        console.error('/v1/games/access error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check game access' }, 500, request);
       }
     },
   },

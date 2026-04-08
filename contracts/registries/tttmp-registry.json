@@ -338,6 +338,45 @@
       "version": "1.0",
       "writes": [],
       "addedDate": "2026-03-29"
+    },
+    {
+      "id": "tttmp.tokens.spend.v1",
+      "path": "/contracts/tttmp/tttmp.tokens.spend.v1.json",
+      "endpoint": "/v1/tokens/spend",
+      "method": "POST",
+      "status": "active",
+      "category": "tool",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "{idempotencyKey}",
+      "receiptSource": "R2_VIRTUAL_LAUNCH",
+      "receiptKeyPattern": "receipts/tttmp/tokens-spend/{idempotencyKey}.json",
+      "usedOnPages": ["/games/[slug]/play"],
+      "version": "1.0",
+      "writes": [
+        {"target": "R2", "key": "receipts/tttmp/tokens-spend/{idempotencyKey}.json"},
+        {"target": "R2", "key": "game-grants/{account_id}/{slug}.json"},
+        {"target": "R2", "key": "tokens/{account_id}.json"},
+        {"target": "D1", "table": "tokens"}
+      ],
+      "addedDate": "2026-04-07"
+    },
+    {
+      "id": "tttmp.games.access.v1",
+      "path": "/contracts/tttmp/tttmp.games.access.v1.json",
+      "endpoint": "/v1/games/access",
+      "method": "GET",
+      "status": "active",
+      "category": "tool",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "N/A",
+      "receiptSource": "N/A",
+      "receiptKeyPattern": "N/A",
+      "usedOnPages": ["/games/[slug]/play"],
+      "version": "1.0",
+      "writes": [],
+      "addedDate": "2026-04-07"
     }
   ]
 }

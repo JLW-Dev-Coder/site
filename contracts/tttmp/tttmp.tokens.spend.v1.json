@@ -1,0 +1,58 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP arcade token spend — deducts tax_game_tokens and issues a per-slug session-based play grant",
+    "path": "/contracts/tttmp/tttmp.tokens.spend.v1.json",
+    "source": "tttmp",
+    "title": "TTTMP Tokens: Spend Game Token for Arcade Play",
+    "usedOnPages": ["/games/[slug]/play"],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tokens/spend",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/tttmp/tokens-spend/{idempotencyKey}.json",
+    "receiptSource": "tttmp_tokens_spend",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.idempotencyKey",
+    "eventIdFrom": "payload.idempotencyKey",
+    "writeOrder": ["receiptAppend", "canonicalUpsert"],
+    "writes": ["tokens", "game-grants"]
+  },
+  "payload": {
+    "type": "object",
+    "required": ["amount", "idempotencyKey", "reason", "slug"],
+    "properties": {
+      "amount": { "type": "integer", "minimum": 1 },
+      "idempotencyKey": { "type": "string", "minLength": 1 },
+      "reason": { "type": "string", "enum": ["arcade_play"] },
+      "slug": { "type": "string", "minLength": 1 }
+    },
+    "additionalProperties": false
+  },
+  "response": {
+    "success": { "ok": true, "grantId": "{generated}", "slug": "{payload.slug}" },
+    "deduped": { "ok": true, "deduped": true, "grantId": "{existing}" },
+    "error": { "ok": false, "error": "insufficient_balance | validation_failed | unauthorized" }
+  },
+  "schema": {
+    "name": "tttmp_tokens_spend",
+    "version": 1
+  }
+}

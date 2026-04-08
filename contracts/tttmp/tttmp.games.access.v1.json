@@ -1,0 +1,53 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "TTTMP arcade play access verification — checks if the current session has an active play grant for the given slug",
+    "path": "/contracts/tttmp/tttmp.games.access.v1.json",
+    "source": "tttmp",
+    "title": "TTTMP Games: Verify Arcade Play Access",
+    "usedOnPages": ["/games/[slug]/play"],
+    "validation": {
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/games/access",
+    "method": "GET",
+    "receiptKeyPattern": "",
+    "receiptSource": "tttmp_games_access",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "",
+    "eventIdFrom": "",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": [],
+    "properties": {
+      "slug": { "type": "string" }
+    }
+  },
+  "response": {
+    "success": { "ok": true, "allowed": true, "grantId": "{found}" },
+    "deduped": { "ok": true, "allowed": false },
+    "error": { "ok": false, "error": "unauthorized" }
+  },
+  "schema": {
+    "name": "tttmp_games_access",
+    "version": 1
+  }
+}
