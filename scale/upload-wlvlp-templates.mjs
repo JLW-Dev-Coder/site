@@ -50,21 +50,15 @@ for (const slug of slugs) {
   const r2Key = `vlp-scale/wlvlp-templates/${slug}.html`;
   console.log(`Uploading ${slug} (${size} bytes) → r2://virtuallaunch-pro/${r2Key}`);
 
-  const res = spawnSync(
-    'wrangler',
-    [
-      'r2',
-      'object',
-      'put',
-      `virtuallaunch-pro/${r2Key}`,
-      '--file',
-      previewPath,
-      '--content-type',
-      'text/html; charset=utf-8',
-      '--remote',
-    ],
-    { stdio: 'inherit', shell: true }
-  );
+  // On Windows shell:true, all args must be one string with proper quoting.
+  const cmd = [
+    'wrangler r2 object put',
+    `"virtuallaunch-pro/${r2Key}"`,
+    `--file "${previewPath}"`,
+    '--content-type "text/html; charset=utf-8"',
+    '--remote',
+  ].join(' ');
+  const res = spawnSync(cmd, { stdio: 'inherit', shell: true });
 
   if (res.status === 0) {
     results.push({ slug, ok: true, size, key: r2Key });
