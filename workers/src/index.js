@@ -10971,6 +10971,59 @@ TTMP Support Team
     },
   },
 
+  // POST /v1/wlvlp/admin/upload-prospects
+  // Admin-only route for uploading the WLVLP SCALE prospect list to R2.
+  // Replaces the prior manual CSV upload + Claude-based batch generation step.
+  // Body: { prospects: [...] }  → writes to vlp-scale/wlvlp-prospects/active.json
+  {
+    method: 'POST', pattern: '/v1/wlvlp/admin/upload-prospects',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro'];
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
+      }
+      let body;
+      try { body = await request.json(); } catch { return json({ ok: false, error: 'invalid_json' }, 400, request); }
+      if (!body || !Array.isArray(body.prospects)) {
+        return json({ ok: false, error: 'invalid_payload', message: 'prospects array required' }, 400, request);
+      }
+      try {
+        await env.R2_VIRTUAL_LAUNCH.put(
+          'vlp-scale/wlvlp-prospects/active.json',
+          JSON.stringify(body.prospects),
+          { httpMetadata: { contentType: 'application/json' } }
+        );
+        return json({ ok: true, count: body.prospects.length }, 200, request);
+      } catch (e) {
+        console.error('WLVLP upload-prospects error:', e);
+        return json({ ok: false, error: 'internal_error', message: String(e?.message || e) }, 500, request);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/admin/trigger-batch-gen
+  // Admin-only manual trigger for the WLVLP batch generation cron.
+  {
+    method: 'GET', pattern: '/v1/wlvlp/admin/trigger-batch-gen',
+    handler: async (_method, _pattern, _params, request, env, ctx) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro'];
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
+      }
+      try {
+        const stats = await handleWlvlpBatchGeneration(env, ctx);
+        return json({ ok: true, ...stats }, 200, request);
+      } catch (e) {
+        console.error('WLVLP admin trigger-batch-gen error:', e);
+        return json({ ok: false, error: 'internal_error', message: String(e?.message || e) }, 500, request);
+      }
+    },
+  },
+
   // GET /v1/wlvlp/site-requests/:slug
   // Returns current status of a site request (pending | generated | generation_failed).
   {
@@ -12717,6 +12770,706 @@ async function handleWlvlpSiteGeneration(env) {
 }
 
 // ---------------------------------------------------------------------------
+// WLVLP SCALE Batch Generation (ported from scale/generate-batch.mjs)
+// ---------------------------------------------------------------------------
+// Runs as a cron at 12:00 UTC. Reads the active prospect list from R2,
+// applies SCALE selection logic, crawls each prospect's website, builds a
+// Conversion Leak Report, generates personalized Email 1 / Email 2 copy,
+// and writes:
+//   - vlp-scale/wlvlp-asset-pages/{slug}.json   (per-prospect asset page)
+//   - vlp-scale/wlvlp-send-queue/email1-pending.json  (send queue)
+//   - vlp-scale/wlvlp-batches/batch-{YYYY-MM-DD}.json (batch record)
+//   - vlp-scale/wlvlp-prospects/active.json (updated w/ prepared timestamps)
+//
+// Zero Claude/Anthropic usage — deterministic selection + crawl + template.
+
+const WLVLP_TITLE_RE = /\b(dr|mr|mrs|ms|jr|sr|ii|iii|iv|esq|cpa|ea|jd|atty|attorney)\.?\b/gi;
+
+function wlvlpSlugify(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(WLVLP_TITLE_RE, ' ')
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\s/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function wlvlpTitleCase(s) {
+  return String(s || '').toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function wlvlpIsEmpty(v) {
+  if (v == null) return true;
+  const s = String(v).trim().toLowerCase();
+  return s === '' || s === 'undefined' || s === 'nan' || s === 'null';
+}
+
+function wlvlpNormalizeCredential(profession) {
+  const p = String(profession || '').toUpperCase().trim();
+  if (p.includes('CPA')) return 'CPA';
+  if (p === 'EA' || p.includes('ENROLLED')) return 'EA';
+  if (p.includes('ATTY') || p.includes('ATTORNEY') || p === 'JD' || p.includes('LAWYER')) return 'ATTY';
+  return 'Unknown';
+}
+
+const WLVLP_TEMPLATE_BY_CRED = {
+  CPA:     { slug: 'accounting-firm-modern',   label: 'CPA' },
+  EA:      { slug: 'tax-professional-clean',   label: 'EA' },
+  ATTY:    { slug: 'law-firm-professional',    label: 'tax attorney' },
+  Unknown: { slug: 'tax-professional-clean',   label: 'tax professional' },
+};
+
+const WLVLP_TRAFFIC_BY_CRED = { CPA: 500, EA: 300, ATTY: 400, Unknown: 300 };
+const WLVLP_VALUE_BY_CRED   = { CPA: 2500, EA: 1500, ATTY: 3500, Unknown: 1500 };
+
+async function wlvlpCrawlSite(domainClean) {
+  const fallback = {
+    has_above_fold_cta: false,
+    has_phone_visible: false,
+    has_intake_form: false,
+    form_field_count: 0,
+    has_reviews_or_testimonials: false,
+    has_credentials_visible: false,
+    headline_text: 'Not available',
+    meta_description: '',
+    page_title: '',
+    fetch_ok: false,
+    status: 0,
+    elapsed_ms: 0,
+  };
+  if (!domainClean) return fallback;
+
+  const url = `https://${domainClean}`;
+  const start = Date.now();
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 10000);
+  let res, html;
+  try {
+    res = await fetch(url, {
+      signal: ac.signal,
+      redirect: 'follow',
+      headers: {
+        'user-agent': 'Mozilla/5.0 (compatible; WLVLP-ConversionAudit/1.0; +https://websitelotto.virtuallaunch.pro)',
+        'accept': 'text/html,application/xhtml+xml',
+      },
+    });
+    html = await res.text();
+  } catch (e) {
+    clearTimeout(timer);
+    const elapsed = Date.now() - start;
+    console.log(`WLVLP crawl ${domainClean}: ERR ${e.name || 'fetch'} (${elapsed}ms)`);
+    return { ...fallback, elapsed_ms: elapsed };
+  }
+  clearTimeout(timer);
+  const elapsed = Date.now() - start;
+  console.log(`WLVLP crawl ${domainClean}: ${res.status} (${elapsed}ms)`);
+
+  if (!res.ok || !html) {
+    return { ...fallback, fetch_ok: false, status: res.status, elapsed_ms: elapsed };
+  }
+
+  const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  const body = bodyMatch ? bodyMatch[1] : html;
+  const first2k = body.slice(0, 2000);
+  const first3k = body.slice(0, 3000);
+
+  const ACTION = /(book|call|schedule|consult|contact|get started|free)/i;
+  const ctaCandidates = first2k.match(/<(a|button)[^>]*>([\s\S]*?)<\/\1>/gi) || [];
+  let has_above_fold_cta = false;
+  for (const c of ctaCandidates) {
+    const text = c.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    if (ACTION.test(text)) { has_above_fold_cta = true; break; }
+  }
+
+  const PHONE = /(\(\d{3}\)\s*\d{3}[-.\s]?\d{4}|\b\d{3}[-.\s]\d{3}[-.\s]\d{4}\b|\b\d{10}\b)/;
+  const has_phone_visible = PHONE.test(first3k.replace(/<[^>]+>/g, ' '));
+
+  const formMatches = body.match(/<form[\s\S]*?<\/form>/gi) || [];
+  const has_intake_form = formMatches.length > 0;
+  let form_field_count = 0;
+  for (const f of formMatches) {
+    const inputs = (f.match(/<input\b[^>]*>/gi) || []).filter(t => !/type=["']?(hidden|submit|button|image|reset)["']?/i.test(t));
+    const textareas = f.match(/<textarea\b/gi) || [];
+    const selects = f.match(/<select\b/gi) || [];
+    form_field_count += inputs.length + textareas.length + selects.length;
+  }
+
+  const REVIEW_RE = /(review|testimonial|client says|stars|rating)/i;
+  const has_reviews_or_testimonials = REVIEW_RE.test(body);
+
+  const CRED_RE = /(\bCPA\b|\bEA\b|Enrolled Agent|\bJD\b|Attorney|licensed|certified|member of)/i;
+  const has_credentials_visible = CRED_RE.test(body);
+
+  function firstTagText(tag) {
+    const m = body.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
+    if (!m) return '';
+    return m[1].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  const headline_text = firstTagText('h1') || firstTagText('h2') || 'Not available';
+
+  const metaMatch = html.match(/<meta[^>]+name=["']description["'][^>]*content=["']([^"']*)["']/i)
+    || html.match(/<meta[^>]+content=["']([^"']*)["'][^>]*name=["']description["']/i);
+  const meta_description = metaMatch ? metaMatch[1].trim() : '';
+
+  const titleMatch = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  const page_title = titleMatch ? titleMatch[1].replace(/\s+/g, ' ').trim() : '';
+
+  return {
+    has_above_fold_cta,
+    has_phone_visible,
+    has_intake_form,
+    form_field_count,
+    has_reviews_or_testimonials,
+    has_credentials_visible,
+    headline_text,
+    meta_description,
+    page_title,
+    fetch_ok: true,
+    status: res.status,
+    elapsed_ms: elapsed,
+  };
+}
+
+function wlvlpIsGenericHeadline(h) {
+  if (!h || h === 'Not available') return true;
+  const s = h.toLowerCase();
+  const hasTax = /\btax\b/.test(s);
+  const hasGeneric = /(services?|help|solutions?)/.test(s);
+  const hasSpecific = /(\$|\d|irs|penalt|audit|refund|resolv|reduc|save|recover|file|return)/i.test(s);
+  return hasTax && hasGeneric && !hasSpecific;
+}
+
+function wlvlpCalculateScore(c) {
+  let score = 100;
+  if (!c.has_above_fold_cta) score -= 25;
+  if (!c.has_intake_form) score -= 15;
+  if (c.form_field_count > 6) score -= 10;
+  if (!c.has_reviews_or_testimonials) score -= 15;
+  if (!c.has_credentials_visible) score -= 10;
+  if (wlvlpIsGenericHeadline(c.headline_text)) score -= 15;
+  if (!c.has_phone_visible) score -= 10;
+  return Math.max(10, score);
+}
+
+function wlvlpIdentifyLeaks(c) {
+  const leaks = [];
+  if (!c.has_above_fold_cta) {
+    leaks.push({
+      title: 'No above-the-fold call to action',
+      description: 'Visitors land and scroll without a clear next step. High-intent traffic should see a booking or consult CTA immediately.',
+    });
+  }
+  if (!c.has_intake_form || c.form_field_count > 6) {
+    leaks.push({
+      title: 'Intake path creates friction',
+      description: 'Long or vague forms cause drop-off. A shorter, clearer path captures more qualified leads without looking cheap.',
+    });
+  }
+  if (wlvlpIsGenericHeadline(c.headline_text)) {
+    leaks.push({
+      title: 'Weak first-impression positioning',
+      description: 'If the headline does not state who you help and what outcome you create, visitors hesitate. That hesitation becomes lost calls.',
+    });
+  }
+  if (!c.has_reviews_or_testimonials || !c.has_credentials_visible) {
+    leaks.push({
+      title: 'Trust signals underperforming',
+      description: 'Credentials, reviews, and results are not doing enough work. Strong visual trust markers turn uncertain visitors into booked consultations.',
+    });
+  }
+  return leaks;
+}
+
+function wlvlpEstimateConversionRate(score) {
+  if (score >= 70) return 2.8;
+  if (score >= 40) return 1.8;
+  return 1.2;
+}
+
+function wlvlpUpgradedHeadline(credential) {
+  switch (credential) {
+    case 'EA':   return 'Resolve IRS issues faster — without the back-and-forth.';
+    case 'CPA':  return 'Tax strategy that saves you money — not just files your return.';
+    case 'ATTY': return 'Tax disputes resolved. Penalties reduced. Your case, handled.';
+    default:     return 'Stop losing clients to a website that does not convert.';
+  }
+}
+
+function wlvlpUpgradedDescription(prospect) {
+  const { credential, City } = prospect;
+  const where = City ? ` in ${City}` : '';
+  switch (credential) {
+    case 'EA':   return `Enrolled agent representation${where}. Free 15-minute consult — see if we can help before you commit.`;
+    case 'CPA':  return `Tax planning and accounting${where} for owner-operators who want their numbers working harder.`;
+    case 'ATTY': return `Tax controversy and IRS defense${where}. Confidential consultation, clear next steps.`;
+    default:     return `Book a free consultation${where} and find out exactly what is costing you clients.`;
+  }
+}
+
+function wlvlpBuildLeakReport(prospect, crawl) {
+  const score = wlvlpCalculateScore(crawl);
+  const leaks = wlvlpIdentifyLeaks(crawl);
+  const credential = prospect.credential;
+  const visitors_month = WLVLP_TRAFFIC_BY_CRED[credential] || 300;
+  const avg_client_value = WLVLP_VALUE_BY_CRED[credential] || 1500;
+  const current_rate = wlvlpEstimateConversionRate(score);
+
+  const current_problems = [];
+  if (wlvlpIsGenericHeadline(crawl.headline_text)) current_problems.push('Generic headline');
+  if (!crawl.has_above_fold_cta) current_problems.push('Weak CTA');
+  if (!crawl.has_intake_form || crawl.form_field_count > 6) current_problems.push('Friction-heavy intake');
+  if (!crawl.has_reviews_or_testimonials) current_problems.push('No social proof');
+  if (current_problems.length === 0) current_problems.push('Generic headline', 'Weak CTA');
+
+  return {
+    score,
+    leaks,
+    metrics: {
+      visitors_month,
+      current_rate,
+      optimized_rate: 3.6,
+      avg_client_value,
+      close_rate: 40,
+    },
+    before_after: {
+      current_headline: crawl.headline_text || 'Generic tax services headline',
+      current_problems,
+      upgraded_headline: wlvlpUpgradedHeadline(credential),
+      upgraded_description: wlvlpUpgradedDescription(prospect),
+      upgraded_chips: ['Book a consultation', 'See services'],
+    },
+    crawl_meta: {
+      fetched: crawl.fetch_ok,
+      status: crawl.status,
+      elapsed_ms: crawl.elapsed_ms,
+      page_title: crawl.page_title,
+      meta_description: crawl.meta_description,
+    },
+  };
+}
+
+function wlvlpDeriveLeadEconomics(report) {
+  const { visitors_month, current_rate, optimized_rate, avg_client_value, close_rate } = report.metrics;
+  const currentLeads = visitors_month * (current_rate / 100);
+  const optimizedLeads = visitors_month * (optimized_rate / 100);
+  const lostLeads = Math.max(0, optimizedLeads - currentLeads);
+  const lostLeadsMonth = Math.round(lostLeads);
+  const lostClientsYear = lostLeads * 12 * (close_rate / 100);
+  const revenueLostYear = Math.round(lostClientsYear * avg_client_value);
+  return { lost_leads_month: lostLeadsMonth, revenue_lost_year: revenueLostYear };
+}
+
+function wlvlpFormatMoney(n) {
+  if (n >= 1000) {
+    const k = n / 1000;
+    return `$${k.toFixed(k < 10 ? 1 : 0).replace(/\.0$/, '')}k`;
+  }
+  return `$${n}`;
+}
+
+function wlvlpGetField(obj, keys) {
+  for (const k of keys) {
+    if (obj[k] != null && String(obj[k]).trim() !== '') return obj[k];
+  }
+  return '';
+}
+
+async function handleWlvlpBatchGeneration(env, ctx) {
+  const startedAt = new Date().toISOString();
+  const today = startedAt.slice(0, 10);
+
+  // 1. Load prospect list from R2
+  const prospectsKey = 'vlp-scale/wlvlp-prospects/active.json';
+  const prospectsObj = await env.R2_VIRTUAL_LAUNCH.get(prospectsKey);
+  if (!prospectsObj) {
+    console.log('WLVLP batch: no prospect list at', prospectsKey);
+    return { ok: false, reason: 'no_prospect_list', processed: 0 };
+  }
+
+  let prospects;
+  try {
+    prospects = await prospectsObj.json();
+  } catch (e) {
+    console.error('WLVLP batch: failed to parse active.json', e);
+    return { ok: false, reason: 'invalid_json', processed: 0 };
+  }
+  if (!Array.isArray(prospects)) {
+    return { ok: false, reason: 'not_array', processed: 0 };
+  }
+
+  // 2. Selection
+  const eligibleRaw = prospects
+    .map((p, i) => ({ p, i }))
+    .filter(({ p }) => !wlvlpIsEmpty(wlvlpGetField(p, ['email_found'])))
+    .filter(({ p }) => String(wlvlpGetField(p, ['email_status']) || '').trim().toLowerCase() !== 'invalid')
+    .filter(({ p }) => wlvlpIsEmpty(p.wlvlp_email_1_prepared_at));
+
+  const seenEmails = new Set();
+  const deduped = [];
+  let dupCount = 0;
+  for (const item of eligibleRaw) {
+    const email = String(wlvlpGetField(item.p, ['email_found'])).trim().toLowerCase();
+    if (seenEmails.has(email)) { dupCount++; continue; }
+    seenEmails.add(email);
+    deduped.push(item);
+  }
+
+  deduped.sort((a, b) => {
+    const da = String(wlvlpGetField(a.p, ['domain_clean']) || '').trim().toLowerCase();
+    const db = String(wlvlpGetField(b.p, ['domain_clean']) || '').trim().toLowerCase();
+    if (!da && !db) return 0;
+    if (!da) return 1;
+    if (!db) return -1;
+    return da.localeCompare(db);
+  });
+
+  // Cap at 25 to stay under Worker wall-time limits (50 * 2s delays = 100s).
+  const BATCH_SIZE = 25;
+  const selected = deduped.slice(0, BATCH_SIZE);
+
+  const usedSlugs = new Map();
+  function uniqueSlug(base) {
+    if (!base) base = 'prospect';
+    let s = base;
+    let n = 1;
+    while (usedSlugs.has(s)) { n++; s = `${base}-${n}`; }
+    usedSlugs.set(s, true);
+    return s;
+  }
+
+  const batch = [];
+  const sendQueue = [];
+  let crawlOk = 0, crawlFail = 0;
+  const scoreList = [];
+
+  for (let s = 0; s < selected.length; s++) {
+    const { p, i } = selected[s];
+    const firstRaw = wlvlpGetField(p, ['First_NAME', 'FIRST_NAME', 'first_name']);
+    const lastRaw = wlvlpGetField(p, ['LAST_NAME', 'last_name']);
+    const First = wlvlpTitleCase(firstRaw).split(' ')[0] || 'Friend';
+    const Last = wlvlpTitleCase(lastRaw);
+    const cityRaw = wlvlpGetField(p, ['BUS_ADDR_CITY', 'city']);
+    const City = wlvlpTitleCase(cityRaw);
+    const State = String(wlvlpGetField(p, ['BUS_ST_CODE', 'state']) || '').toUpperCase().trim();
+    const dbaRaw = wlvlpGetField(p, ['DBA', 'firm']);
+    const DBA = dbaRaw || `${First} ${Last}`.trim();
+    const profession = wlvlpGetField(p, ['PROFESSION', 'credential']);
+    const credential = wlvlpNormalizeCredential(profession);
+    const firmBucket = String(wlvlpGetField(p, ['firm_bucket']) || '').trim().toLowerCase() || 'local_firm';
+    const email = String(wlvlpGetField(p, ['email_found'])).trim();
+    const domainClean = String(wlvlpGetField(p, ['domain_clean']) || '').trim();
+
+    const baseSlug = wlvlpSlugify(`${First} ${Last} ${City} ${State}`);
+    const slug = uniqueSlug(baseSlug);
+
+    const crawl = await wlvlpCrawlSite(domainClean);
+    if (crawl.fetch_ok) crawlOk++; else crawlFail++;
+    if (s < selected.length - 1) {
+      await new Promise(r => setTimeout(r, 2000));
+    }
+
+    const report = wlvlpBuildLeakReport({ credential, City }, crawl);
+    scoreList.push(report.score);
+    const econ = wlvlpDeriveLeadEconomics(report);
+    const lostLeadsMonth = econ.lost_leads_month;
+    const revenueLostStr = wlvlpFormatMoney(econ.revenue_lost_year);
+    const leakCount = report.leaks.length;
+
+    const tmpl = WLVLP_TEMPLATE_BY_CRED[credential];
+
+    let subject1;
+    if (firmBucket === 'solo_brand') {
+      subject1 = `${First} — ${DBA} site scored ${report.score}/100 on conversion`;
+    } else {
+      subject1 = `${First} — your ${City || 'local'} practice site scored ${report.score}/100 on conversion`;
+    }
+
+    const headline = `${First}, your website may be losing ${lostLeadsMonth}+ leads every month`;
+    const subheadline = `Based on your current site structure, CTA placement, and intake flow, this report estimates how many potential clients leave before they book, call, or submit a form.`;
+
+    const firmOrCityRef = firmBucket === 'solo_brand' ? DBA : `your ${City || 'local'} practice`;
+
+    const body1 =
+`${First},
+
+Your clients check your website before they ever pick up the phone. Based on a quick look at ${domainClean || 'your site'}, your site may be leaving ${lostLeadsMonth}+ leads on the table every month — that is roughly ${revenueLostStr}/year in unrealized revenue.
+
+I put together a free Conversion Leak Report for ${firmOrCityRef} that breaks down exactly where the drop-off is happening and what a fix looks like.
+
+Take a look — no account needed:
+https://websitelotto.virtuallaunch.pro/asset/${slug}
+
+If any of this resonates, I can walk you through the numbers — 15 minutes on Google Meet.
+https://cal.com/vlp/wlvlp-discovery
+
+--
+Jamie L Williams, EA
+Website Lotto
+websitelotto.virtuallaunch.pro
+`;
+
+    const subject2 = `${First} — ${leakCount} conversion leaks on ${domainClean || 'your site'}, ${revenueLostStr}/yr at stake`;
+    const body2 =
+`${First},
+
+I sent you a note a few days ago with a Conversion Leak Report for ${firmOrCityRef}. Your site scored ${report.score}/100 — the report breaks down ${leakCount} specific issues costing an estimated ${revenueLostStr}/year.
+
+Here is the direct link:
+https://websitelotto.virtuallaunch.pro/asset/${slug}
+
+The report includes a before/after of your homepage copy and an interactive calculator so you can adjust the numbers yourself.
+
+Happy to walk through it live if you want.
+https://cal.com/vlp/wlvlp-discovery
+
+--
+Jamie L Williams, EA
+Website Lotto
+websitelotto.virtuallaunch.pro
+`;
+
+    const templateSlug = tmpl.slug;
+    const assetPage = {
+      headline,
+      subheadline,
+      template_preview_slug: templateSlug,
+      template_preview_url: `https://websitelotto.virtuallaunch.pro/sites/${templateSlug}/preview.html`,
+      practice_type: credential,
+      city: City,
+      state: State,
+      firm: DBA,
+      conversion_leak_report: report,
+      cta_claim_url: `https://websitelotto.virtuallaunch.pro/sites/${templateSlug}`,
+      cta_scratch_url: 'https://websitelotto.virtuallaunch.pro/scratch',
+      cta_booking_url: 'https://cal.com/vlp/wlvlp-discovery',
+    };
+
+    // Write asset page to R2
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/wlvlp-asset-pages/${slug}.json`,
+        JSON.stringify(assetPage),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      console.error(`WLVLP batch: failed to write asset page ${slug}:`, e);
+    }
+
+    const record = {
+      slug,
+      email,
+      first_name: First,
+      name: `${First} ${Last}`.trim(),
+      credential,
+      city: City,
+      state: State,
+      firm: DBA,
+      firm_bucket: firmBucket,
+      domain_clean: domainClean,
+      subject: subject1,
+      body: body1,
+      email_1: { subject: subject1, body: body1 },
+      email_2: { subject: subject2, body: body2 },
+      email_1_sent_at: null,
+      email_2_scheduled_for: null,
+      email_2_sent_at: null,
+      prepared_at: startedAt,
+    };
+
+    batch.push(record);
+    sendQueue.push({
+      slug,
+      email,
+      first_name: First,
+      subject: subject1,
+      body: body1,
+      email_2_subject: subject2,
+      email_2_body: body2,
+      email_1_sent_at: null,
+      email_2_scheduled_for: null,
+      email_2_sent_at: null,
+    });
+
+    // Update prospect tracking column on original list
+    prospects[i].wlvlp_email_1_prepared_at = startedAt;
+  }
+
+  // 3. Write outputs to R2
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      `vlp-scale/wlvlp-batches/batch-${today}.json`,
+      JSON.stringify(batch),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch (e) {
+    console.error('WLVLP batch: failed to write batch record:', e);
+  }
+
+  // Merge with existing email1-pending queue if present
+  const queueKey = 'vlp-scale/wlvlp-send-queue/email1-pending.json';
+  let existingQueue = [];
+  try {
+    const existingObj = await env.R2_VIRTUAL_LAUNCH.get(queueKey);
+    if (existingObj) existingQueue = await existingObj.json();
+    if (!Array.isArray(existingQueue)) existingQueue = [];
+  } catch {}
+  const mergedQueue = existingQueue.concat(sendQueue);
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      queueKey,
+      JSON.stringify(mergedQueue),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch (e) {
+    console.error('WLVLP batch: failed to write send queue:', e);
+  }
+
+  // 4. Update prospect list with prepared timestamps
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      prospectsKey,
+      JSON.stringify(prospects),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch (e) {
+    console.error('WLVLP batch: failed to write updated prospect list:', e);
+  }
+
+  const remaining = prospects.filter(p =>
+    !wlvlpIsEmpty(wlvlpGetField(p, ['email_found'])) &&
+    String(wlvlpGetField(p, ['email_status']) || '').trim().toLowerCase() !== 'invalid' &&
+    wlvlpIsEmpty(p.wlvlp_email_1_prepared_at)
+  ).length;
+
+  const min = scoreList.length ? Math.min(...scoreList) : 0;
+  const max = scoreList.length ? Math.max(...scoreList) : 0;
+  const avg = scoreList.length ? (scoreList.reduce((a, b) => a + b, 0) / scoreList.length).toFixed(1) : 0;
+
+  console.log(`WLVLP batch complete: ${batch.length} prospects processed, ${remaining} eligible remaining`);
+  console.log(`  crawls: ${crawlOk} ok / ${crawlFail} fail; score min=${min} max=${max} avg=${avg}; dedup=${dupCount}`);
+
+  return {
+    ok: true,
+    processed: batch.length,
+    remaining,
+    dedup_dropped: dupCount,
+    crawl_ok: crawlOk,
+    crawl_fail: crawlFail,
+    score: { min, max, avg: Number(avg) },
+    batch_key: `vlp-scale/wlvlp-batches/batch-${today}.json`,
+    send_queue_size: mergedQueue.length,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// WLVLP Email Send (called from 14:00 UTC cron)
+// ---------------------------------------------------------------------------
+
+async function handleWlvlpEmailSend(env) {
+  const timestamp = new Date().toISOString();
+  const today = timestamp.slice(0, 10);
+  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+  let email1Sent = 0;
+  let email2Sent = 0;
+
+  const queueKey = 'vlp-scale/wlvlp-send-queue/email1-pending.json';
+  let queue;
+  try {
+    const obj = await env.R2_VIRTUAL_LAUNCH.get(queueKey);
+    if (!obj) {
+      console.log('WLVLP email send: no queue file');
+      return { email1_sent: 0, email2_sent: 0 };
+    }
+    queue = await obj.json();
+  } catch (e) {
+    console.error('WLVLP email send: failed to read queue:', e);
+    return { email1_sent: 0, email2_sent: 0, error: 'queue_read_failed' };
+  }
+
+  if (!Array.isArray(queue) || queue.length === 0) {
+    console.log('WLVLP email send: queue empty');
+    return { email1_sent: 0, email2_sent: 0 };
+  }
+
+  // Email 1: send to all records where email_1_sent_at is null
+  const toSendEmail1 = queue.filter(r => !r.email_1_sent_at);
+  for (const record of toSendEmail1) {
+    try {
+      const delayMs = 45000 + Math.random() * 45000;
+      await delay(delayMs);
+
+      await sendGmailMessage(env, record.email, record.subject, record.body);
+
+      record.email_1_sent_at = new Date().toISOString();
+      const d = new Date();
+      d.setDate(d.getDate() + 3);
+      record.email_2_scheduled_for = d.toISOString().split('T')[0];
+      email1Sent++;
+    } catch (e) {
+      console.error(`WLVLP email 1 send failed for ${record.slug}/${record.email}:`, e.message);
+    }
+  }
+
+  // Email 2: send where scheduled_for <= today AND email_2_sent_at is null
+  const toSendEmail2 = queue.filter(r =>
+    r.email_1_sent_at &&
+    !r.email_2_sent_at &&
+    r.email_2_scheduled_for &&
+    r.email_2_scheduled_for <= today &&
+    r.email_2_subject &&
+    r.email_2_body
+  );
+  for (const record of toSendEmail2) {
+    try {
+      const delayMs = 30000 + Math.random() * 30000;
+      await delay(delayMs);
+
+      await sendGmailMessage(env, record.email, record.email_2_subject, record.email_2_body);
+      record.email_2_sent_at = new Date().toISOString();
+      email2Sent++;
+    } catch (e) {
+      console.error(`WLVLP email 2 send failed for ${record.slug}/${record.email}:`, e.message);
+    }
+  }
+
+  // Archive fully-sent records: move them out of pending when both emails are done.
+  const stillPending = queue.filter(r => !r.email_1_sent_at || (r.email_2_scheduled_for && !r.email_2_sent_at));
+  const completed = queue.filter(r => r.email_1_sent_at && r.email_2_sent_at);
+
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      queueKey,
+      JSON.stringify(stillPending),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+    if (completed.length > 0) {
+      const archiveKey = `vlp-scale/wlvlp-send-queue/sent-${today}.json`;
+      let existingArchive = [];
+      try {
+        const a = await env.R2_VIRTUAL_LAUNCH.get(archiveKey);
+        if (a) existingArchive = await a.json();
+        if (!Array.isArray(existingArchive)) existingArchive = [];
+      } catch {}
+      await env.R2_VIRTUAL_LAUNCH.put(
+        archiveKey,
+        JSON.stringify(existingArchive.concat(completed)),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    }
+  } catch (e) {
+    console.error('WLVLP email send: failed to write back queue:', e);
+  }
+
+  console.log(`WLVLP Email 1: sent ${email1Sent} emails`);
+  console.log(`WLVLP Email 2: sent ${email2Sent} emails`);
+  return { email1_sent: email1Sent, email2_sent: email2Sent };
+}
+
+// ---------------------------------------------------------------------------
 // WLVLP Subdomain Site Handler
 // ---------------------------------------------------------------------------
 
@@ -12830,6 +13583,19 @@ export default {
         await handleWlvlpSiteGeneration(env);
       } catch (e) {
         console.error('WLVLP site generation cron failed:', e);
+      }
+      return;
+    }
+
+    // WLVLP SCALE Batch Generation Cron — 12:00 UTC.
+    // Reads prospects from R2, crawls sites, scores, generates email copy,
+    // writes asset pages + send queue. Fully automated, no Claude usage.
+    if (event && event.cron === '0 12 * * *') {
+      try {
+        const stats = await handleWlvlpBatchGeneration(env, ctx);
+        console.log('WLVLP batch cron:', JSON.stringify(stats));
+      } catch (e) {
+        console.error('WLVLP batch cron failed:', e);
       }
       return;
     }
@@ -13173,7 +13939,17 @@ export default {
       }
     }
 
-    // SCALE Email Sending Cron
+    // WLVLP Email Send Cron (runs alongside SCALE at 14:00 UTC)
+    if (event && event.cron === '0 14 * * *') {
+      try {
+        const stats = await handleWlvlpEmailSend(env);
+        console.log('WLVLP email send cron:', JSON.stringify(stats));
+      } catch (e) {
+        console.error('WLVLP email send cron failed:', e);
+      }
+    }
+
+    // SCALE Email Sending Cron (TTMP)
     try {
       const eventId = `EVT_${crypto.randomUUID()}`;
       const timestamp = new Date().toISOString();
