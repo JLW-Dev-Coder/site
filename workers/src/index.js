@@ -13524,7 +13524,8 @@ async function handleTtmpEmailSend(env) {
     if (record.email_1_sent_at) continue;
     if (record.status && record.status !== 'pending' && record.status !== 'email_1_failed') continue;
     try {
-      const delayMs = 45000 + Math.random() * 45000;
+      // First batch — increase to 45-90s when daily volume exceeds 200.
+      const delayMs = 10000 + Math.random() * 5000;
       await delay(delayMs);
       await sendGmailMessage(env, record.email, record.subject, record.body);
       record.email_1_sent_at = new Date().toISOString();
@@ -13558,7 +13559,7 @@ async function handleTtmpEmailSend(env) {
     );
     for (const record of todo) {
       try {
-        const delayMs = 30000 + Math.random() * 30000;
+        const delayMs = 8000 + Math.random() * 4000;
         await delay(delayMs);
         await sendGmailMessage(env, record.email, record[stage.subjK], record[stage.bodyK]);
         record[stage.sentAt] = new Date().toISOString();
