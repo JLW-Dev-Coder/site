@@ -13536,6 +13536,316 @@ async function handleWlvlpSite(slug, request, env) {
 }
 
 // ---------------------------------------------------------------------------
+// FOIA Lead Enrichment Pipeline
+// ---------------------------------------------------------------------------
+// Reads NDJSON master file from R2, fills domain_clean / email_found /
+// email_status by combining MX checks, catch-all detection, pattern learning
+// and Reoon email verification. Runs daily under the 10:00 UTC cron, capped
+// at 450 Reoon credits/day (50-credit buffer below the $9 plan's 500/day).
+
+const ENRICHMENT_R2_KEY = 'vlp-scale/foia-leads/foia-master.json';
+const ENRICHMENT_KV_TTL = 2592000;        // 30 days
+const ENRICHMENT_BUDGET_TTL = 172800;     // 48 hours
+const ENRICHMENT_DAILY_BUDGET = 450;      // hard ceiling per UTC day
+const ENRICHMENT_REOON_DELAY_MS = 200;    // pause between Reoon calls
+
+function enrichmentExtractDomain(website) {
+  if (!website || typeof website !== 'string') return '';
+  let d = website.trim().toLowerCase();
+  if (!d) return '';
+  d = d.replace(/^https?:\/\//, '');
+  d = d.replace(/^www\./, '');
+  d = d.split('/')[0];
+  d = d.split('?')[0];
+  d = d.split('#')[0];
+  d = d.split(':')[0];
+  if (!d.includes('.') || d.length < 4) return '';
+  return d;
+}
+
+function enrichmentSanitizeNamePart(s) {
+  if (!s || typeof s !== 'string') return '';
+  return s.toLowerCase().replace(/[^a-z]/g, '').trim();
+}
+
+function enrichmentBuildPattern(idx, first, last, domain) {
+  const f = first.charAt(0);
+  const l = last.charAt(0);
+  switch (idx) {
+    case 1: return `${first}@${domain}`;
+    case 2: return `${first}.${last}@${domain}`;
+    case 3: return `${first}${last}@${domain}`;
+    case 4: return `${f}${last}@${domain}`;
+    case 5: return `${first}.${l}@${domain}`;
+    case 6: return `${first}_${last}@${domain}`;
+    default: return '';
+  }
+}
+
+async function enrichmentMxLookup(env, domain) {
+  const cacheKey = `enrichment:mx:${domain}`;
+  const cached = await env.ENRICHMENT_KV.get(cacheKey);
+  if (cached !== null) return cached === 'true';
+  try {
+    const res = await fetch(
+      `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`,
+      { headers: { Accept: 'application/dns-json' } }
+    );
+    if (!res.ok) {
+      await env.ENRICHMENT_KV.put(cacheKey, 'false', { expirationTtl: ENRICHMENT_KV_TTL });
+      return false;
+    }
+    const data = await res.json();
+    const hasMx = Array.isArray(data.Answer) && data.Answer.length > 0 && data.Status === 0;
+    await env.ENRICHMENT_KV.put(cacheKey, hasMx ? 'true' : 'false', { expirationTtl: ENRICHMENT_KV_TTL });
+    return hasMx;
+  } catch {
+    return false;
+  }
+}
+
+async function enrichmentReoonVerify(env, email) {
+  const url = `https://emailverifier.reoon.com/api/v1/verify?email=${encodeURIComponent(email)}&key=${env.REOON_API_KEY}&mode=quick`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data && typeof data.status === 'string' ? data.status : null;
+  } catch {
+    return null;
+  }
+}
+
+async function enrichmentBudgetGet(env, dateKey) {
+  const v = await env.ENRICHMENT_KV.get(`enrichment:reoon_budget:${dateKey}`);
+  return v ? parseInt(v, 10) || 0 : 0;
+}
+
+async function enrichmentBudgetIncrement(env, dateKey) {
+  const cur = await enrichmentBudgetGet(env, dateKey);
+  const next = cur + 1;
+  await env.ENRICHMENT_KV.put(
+    `enrichment:reoon_budget:${dateKey}`,
+    String(next),
+    { expirationTtl: ENRICHMENT_BUDGET_TTL }
+  );
+  return next;
+}
+
+async function handleEnrichmentBatch(env) {
+  const startedAt = new Date();
+  const dateKey = startedAt.toISOString().slice(0, 10);
+
+  const stats = {
+    date: dateKey,
+    total_records: 0,
+    already_enriched: 0,
+    processed_this_run: 0,
+    domains_mx_checked: 0,
+    domains_no_mx: 0,
+    domains_catch_all: 0,
+    patterns_learned: 0,
+    patterns_reused: 0,
+    emails_found_valid: 0,
+    emails_no_valid_pattern: 0,
+    reoon_credits_used: 0,
+    reoon_budget_remaining: ENRICHMENT_DAILY_BUDGET,
+    records_remaining_unenriched: 0,
+    stopped_reason: 'completed'
+  };
+
+  let records;
+  try {
+    const obj = await env.R2_VIRTUAL_LAUNCH.get(ENRICHMENT_R2_KEY);
+    if (!obj) {
+      stats.stopped_reason = 'error';
+      console.error('Enrichment: master file not found at', ENRICHMENT_R2_KEY);
+      return stats;
+    }
+    const text = await obj.text();
+    console.log(`Enrichment: master file size ${text.length} bytes`);
+    records = text.split('\n').filter(l => l.trim().length > 0).map(l => {
+      try { return JSON.parse(l); } catch { return null; }
+    }).filter(r => r !== null);
+    console.log(`Enrichment: parsed ${records.length} records`);
+  } catch (e) {
+    console.error('Enrichment: failed to load master file:', e);
+    stats.stopped_reason = 'error';
+    return stats;
+  }
+
+  stats.total_records = records.length;
+
+  let creditsUsed = await enrichmentBudgetGet(env, dateKey);
+  stats.reoon_budget_remaining = Math.max(0, ENRICHMENT_DAILY_BUDGET - creditsUsed);
+
+  const processedDomains = new Map(); // domain -> { mxOk, catchAll, patternIdx }
+
+  outer: for (let i = 0; i < records.length; i++) {
+    const rec = records[i];
+
+    const isEnriched = (rec.email_found && String(rec.email_found).trim()) ||
+                       (rec.email_status && String(rec.email_status).trim());
+    if (isEnriched) {
+      stats.already_enriched++;
+      continue;
+    }
+
+    let domain = rec.domain_clean && String(rec.domain_clean).trim().toLowerCase();
+    if (!domain) {
+      domain = enrichmentExtractDomain(rec.WEBSITE);
+      if (domain) rec.domain_clean = domain;
+    }
+    if (!domain) {
+      rec.email_status = 'no_domain';
+      stats.processed_this_run++;
+      continue;
+    }
+
+    let domainState = processedDomains.get(domain);
+    if (!domainState) {
+      const mxOk = await enrichmentMxLookup(env, domain);
+      stats.domains_mx_checked++;
+      if (!mxOk) stats.domains_no_mx++;
+      domainState = { mxOk, catchAll: null, patternIdx: null };
+      processedDomains.set(domain, domainState);
+    }
+
+    if (!domainState.mxOk) {
+      rec.email_status = 'no_mx';
+      stats.processed_this_run++;
+      continue;
+    }
+
+    const first = enrichmentSanitizeNamePart(rec.First_NAME);
+    const last = enrichmentSanitizeNamePart(rec.LAST_NAME);
+    if (!first || !last) {
+      rec.email_status = 'no_name';
+      stats.processed_this_run++;
+      continue;
+    }
+
+    // Catch-all detection (per domain, cached in KV)
+    if (domainState.catchAll === null) {
+      const catchAllKey = `enrichment:catchall:${domain}`;
+      const cached = await env.ENRICHMENT_KV.get(catchAllKey);
+      if (cached !== null) {
+        domainState.catchAll = cached === 'true';
+      } else {
+        if (creditsUsed >= ENRICHMENT_DAILY_BUDGET) {
+          stats.stopped_reason = 'budget_exhausted';
+          console.log('Enrichment: daily Reoon budget exhausted (catch-all check)');
+          break outer;
+        }
+        const rand = Math.floor(1000 + Math.random() * 9000);
+        const probe = `zzztest8742${rand}@${domain}`;
+        const status = await enrichmentReoonVerify(env, probe);
+        creditsUsed = await enrichmentBudgetIncrement(env, dateKey);
+        stats.reoon_credits_used++;
+        await new Promise(r => setTimeout(r, ENRICHMENT_REOON_DELAY_MS));
+        const isCatchAll = status === 'valid';
+        await env.ENRICHMENT_KV.put(catchAllKey, isCatchAll ? 'true' : 'false', { expirationTtl: ENRICHMENT_KV_TTL });
+        domainState.catchAll = isCatchAll;
+        if (isCatchAll) stats.domains_catch_all++;
+      }
+    }
+
+    if (domainState.catchAll) {
+      rec.email_found = `${first}@${domain}`;
+      rec.email_status = 'catch_all';
+      stats.processed_this_run++;
+      continue;
+    }
+
+    // Pattern learning — reuse a previously discovered pattern at this domain
+    if (domainState.patternIdx === null) {
+      const patternKey = `enrichment:pattern:${domain}`;
+      const cached = await env.ENRICHMENT_KV.get(patternKey);
+      if (cached !== null) {
+        const idx = parseInt(cached, 10);
+        if (idx >= 1 && idx <= 6) domainState.patternIdx = idx;
+      }
+    }
+
+    if (domainState.patternIdx !== null && domainState.patternIdx >= 1) {
+      rec.email_found = enrichmentBuildPattern(domainState.patternIdx, first, last, domain);
+      rec.email_status = 'pattern_match';
+      stats.patterns_reused++;
+      stats.processed_this_run++;
+      continue;
+    }
+
+    // Pattern generation + Reoon validation (1..6)
+    let winningIdx = 0;
+    for (let p = 1; p <= 6; p++) {
+      if (creditsUsed >= ENRICHMENT_DAILY_BUDGET) {
+        stats.stopped_reason = 'budget_exhausted';
+        console.log('Enrichment: daily Reoon budget exhausted (pattern validation)');
+        break outer;
+      }
+      const candidate = enrichmentBuildPattern(p, first, last, domain);
+      const status = await enrichmentReoonVerify(env, candidate);
+      creditsUsed = await enrichmentBudgetIncrement(env, dateKey);
+      stats.reoon_credits_used++;
+      await new Promise(r => setTimeout(r, ENRICHMENT_REOON_DELAY_MS));
+      if (status === 'valid') {
+        rec.email_found = candidate;
+        rec.email_status = 'valid';
+        winningIdx = p;
+        break;
+      }
+    }
+
+    if (winningIdx > 0) {
+      domainState.patternIdx = winningIdx;
+      await env.ENRICHMENT_KV.put(
+        `enrichment:pattern:${domain}`,
+        String(winningIdx),
+        { expirationTtl: ENRICHMENT_KV_TTL }
+      );
+      stats.patterns_learned++;
+      stats.emails_found_valid++;
+    } else {
+      rec.email_status = 'no_valid_pattern';
+      stats.emails_no_valid_pattern++;
+    }
+    stats.processed_this_run++;
+  }
+
+  stats.reoon_budget_remaining = Math.max(0, ENRICHMENT_DAILY_BUDGET - creditsUsed);
+  stats.records_remaining_unenriched = records.filter(r => {
+    const ef = r.email_found && String(r.email_found).trim();
+    const es = r.email_status && String(r.email_status).trim();
+    return !ef && !es;
+  }).length;
+
+  // Write records back to R2 as NDJSON (every record preserved)
+  try {
+    const ndjson = records.map(r => JSON.stringify(r)).join('\n') + '\n';
+    await env.R2_VIRTUAL_LAUNCH.put(ENRICHMENT_R2_KEY, ndjson, {
+      httpMetadata: { contentType: 'application/x-ndjson' },
+    });
+  } catch (e) {
+    console.error('Enrichment: failed to write master file back:', e);
+    stats.stopped_reason = 'error';
+  }
+
+  // Daily enrichment log
+  try {
+    await r2Put(
+      env.R2_VIRTUAL_LAUNCH,
+      `vlp-scale/enrichment-logs/${dateKey}.json`,
+      stats
+    );
+  } catch (e) {
+    console.error('Enrichment: failed to write log:', e);
+  }
+
+  console.log('Enrichment run complete:', JSON.stringify(stats));
+  return stats;
+}
+
+// ---------------------------------------------------------------------------
 // Fetch handler
 // ---------------------------------------------------------------------------
 
@@ -13586,6 +13896,18 @@ export default {
   },
 
   async scheduled(event, env, ctx) {
+    // FOIA Lead Enrichment Cron — 10:00 UTC daily.
+    // Runs alongside the WLVLP auction settlement on the same trigger;
+    // does not return early so subsequent unconditional cron blocks still run.
+    if (event && event.cron === '0 10 * * *') {
+      try {
+        const stats = await handleEnrichmentBatch(env);
+        console.log('Enrichment cron:', JSON.stringify(stats));
+      } catch (e) {
+        console.error('Enrichment cron failed:', e);
+      }
+    }
+
     // WLVLP Site Generation Cron — only runs on the 06:00 UTC trigger.
     // Sweeps pending vlp-scale/wlvlp-site-requests/* and fills templates.
     if (event && event.cron === '0 6 * * *') {

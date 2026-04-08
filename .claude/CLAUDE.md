@@ -619,6 +619,32 @@ Hunter handles sending, tracking, and follow-ups.
 
 ---
 
+## Enrichment Pipeline
+
+Automated FOIA lead enrichment runs daily under the VLP Worker. Replaces the
+manual Clay enrichment loop in the SCALE workflow.
+
+- **Cron:** 10:00 UTC daily (shares the trigger with WLVLP auction settlement; the enrichment branch runs first and falls through)
+- **Worker entrypoint:** `handleEnrichmentBatch(env)` in `workers/src/index.js`
+- **R2 source / sink:** `vlp-scale/foia-leads/foia-master.json` (NDJSON, one record per line)
+- **R2 logs:** `vlp-scale/enrichment-logs/{YYYY-MM-DD}.json`
+- **KV namespace:** `ENRICHMENT_KV` (id `eca3b78d3e564774bb4bdebed8ffa512`)
+- **KV keys used:**
+  - `enrichment:mx:{domain}` — MX presence cache (30 day TTL)
+  - `enrichment:catchall:{domain}` — catch-all flag (30 day TTL)
+  - `enrichment:pattern:{domain}` — winning pattern index 1..6 (30 day TTL)
+  - `enrichment:reoon_budget:{YYYY-MM-DD}` — daily Reoon credit counter (48 hour TTL)
+- **Daily Reoon budget:** 450 calls (50-credit buffer below the $9/mo plan's 500/day)
+- **Rate limit:** 200ms delay between every Reoon call
+- **Processing order:** load NDJSON → filter unenriched → extract domain → MX check → catch-all detection → pattern reuse (KV) → pattern generation (1..6) → Reoon validation → write back NDJSON
+- **Pattern order (1..6):** `first@`, `first.last@`, `firstlast@`, `flast@`, `first.l@`, `first_last@`
+- **Reoon endpoint:** `https://emailverifier.reoon.com/api/v1/verify?email={email}&key={REOON_API_KEY}&mode=quick`
+- **Reoon secret:** `REOON_API_KEY` (Worker secret, set via `wrangler secret put REOON_API_KEY` — never hardcoded)
+- **Email statuses written:** `valid`, `pattern_match`, `catch_all`, `no_mx`, `no_valid_pattern`, `no_domain`, `no_name`
+- **Memory note:** master file is loaded fully into Worker memory (~25MB / ~88K records). When it grows past ~50MB, switch to chunked processing.
+
+---
+
 ## Post-Task Rules (mandatory after every task)
 
 1. **Commit:** After completing any task, commit all changed files with a descriptive message. Never leave work uncommitted.

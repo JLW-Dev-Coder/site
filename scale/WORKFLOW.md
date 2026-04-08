@@ -2,7 +2,17 @@
 
 Repo: C:\Users\eimaj\virtuallaunch.pro\scale\WORKFLOW.md
 Owner: Jamie L Williams
-Last updated: 2026-04-05
+Last updated: 2026-04-08
+
+> **2026-04-08 — Enrichment is now automated.** Clay-based manual enrichment
+> (Phase 1 Tasks 1.1–1.8) has been replaced by the Worker enrichment pipeline.
+> The VLP Worker reads `vlp-scale/foia-leads/foia-master.json` (NDJSON) from
+> R2 every day at 10:00 UTC and fills `domain_clean`, `email_found`, and
+> `email_status` automatically using MX checks → catch-all detection → pattern
+> learning → Reoon validation. See the **Automated Enrichment Pipeline**
+> section below. Phase 1 below is left in place as historical reference but
+> should not be run for new batches — start at Phase 2 once enrichment has
+> populated `email_found`.
 
 ---
 
@@ -87,6 +97,87 @@ Notes:
 - `FULL_NAME` is required by Clay for Work Email enrichment. The batch generator ignores it.
 - `clay_workbook_ref` is for recordkeeping and dedup across batches.
 - Tracking columns (`vlp_email_1_prepared_at`, `vlp_email_2_prepared_at`) are added by the batch generator. Never add these manually.
+
+---
+
+## Automated Enrichment Pipeline (replaces Phase 1)
+
+**Status:** LIVE — runs daily at 10:00 UTC.
+
+### Overview
+
+The VLP Worker handles enrichment end-to-end. No Clay workbooks, no Google
+Sheets shuttle, no manual CSV exports. The flow is:
+
+```
+BigQuery export
+  → R2 upload (NDJSON to vlp-scale/foia-leads/foia-master.json)
+  → Worker cron (10:00 UTC daily)
+      → load NDJSON
+      → for each unenriched record:
+          → extract domain_clean from WEBSITE
+          → MX check via Cloudflare DNS-over-HTTPS (KV-cached, 30d)
+          → catch-all detection via Reoon (KV-cached, 30d, 1 credit/domain)
+          → pattern learning — reuse winning pattern at this domain (free)
+          → pattern generation (1..6) + Reoon validation
+      → write back NDJSON to the same R2 key
+      → write daily log to vlp-scale/enrichment-logs/{date}.json
+```
+
+Re-export from BigQuery is only required when the FOIA source data refreshes.
+Until then, the same R2 NDJSON file is read and updated in-place every day.
+
+### Components
+
+| Component | Location |
+|-----------|----------|
+| Worker function | `handleEnrichmentBatch(env)` in `workers/src/index.js` |
+| R2 master file | `vlp-scale/foia-leads/foia-master.json` (NDJSON) |
+| R2 daily logs | `vlp-scale/enrichment-logs/{YYYY-MM-DD}.json` |
+| KV namespace | `ENRICHMENT_KV` (id `eca3b78d3e564774bb4bdebed8ffa512`) |
+| Reoon secret | Worker secret `REOON_API_KEY` |
+| Cron trigger | `0 10 * * *` (shared with WLVLP auction settlement) |
+
+### Daily budget
+
+- Reoon plan: $9/mo, 500 verifications/day
+- Worker cap: **450 verifications/day** (50-credit buffer)
+- Counter key: `enrichment:reoon_budget:{YYYY-MM-DD}` (48h TTL)
+- When 450 is reached, the run halts and logs `stopped_reason: budget_exhausted`. The next day's run picks up where it left off.
+
+### Email status values written by the pipeline
+
+| Status | Meaning |
+|--------|---------|
+| `valid` | Reoon validated a generated pattern |
+| `pattern_match` | Reused a previously discovered pattern at the same domain (no Reoon credit spent) |
+| `catch_all` | Domain accepts everything; `first@domain` written |
+| `no_mx` | Domain has no MX records |
+| `no_valid_pattern` | All 6 patterns tried, none returned `valid` |
+| `no_domain` | WEBSITE field could not be parsed into a domain |
+| `no_name` | First or last name missing |
+
+### Pattern order
+
+1. `{first}@{domain}`
+2. `{first}.{last}@{domain}`
+3. `{first}{last}@{domain}`
+4. `{f}{last}@{domain}`
+5. `{first}.{f_last}@{domain}`
+6. `{first}_{last}@{domain}`
+
+### Operator workflow with automated enrichment
+
+1. Wait for the daily 10:00 UTC cron to run.
+2. Read the enrichment log at `vlp-scale/enrichment-logs/{date}.json` for stats.
+3. Pull rows where `email_status` is `valid`, `pattern_match`, or `catch_all` from the master NDJSON to feed into Phase 2 (batch generation).
+4. The batch generator + R2 push (Phases 2 and 3 below) and Hunter.io upload (Phase 4) remain unchanged.
+
+### Re-export from BigQuery (rare)
+
+Only needed when the FOIA source data is refreshed. Re-run the BigQuery shaped
+query, export to NDJSON, and overwrite `vlp-scale/foia-leads/foia-master.json`
+in R2. The Worker picks up the new file on the next 10:00 UTC run.
 
 ---
 

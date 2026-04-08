@@ -40,6 +40,10 @@ database_name = "virtuallaunch-pro"
 database_id = "079dfd69-dbf4-4070-bc91-51f837021795"
 migrations_dir = "workers/migrations"
 
+[[kv_namespaces]]
+binding = "ENRICHMENT_KV"
+id = "eca3b78d3e564774bb4bdebed8ffa512"
+
 # ---------------------------------------
 # Cron Triggers
 # ---------------------------------------
@@ -48,7 +52,7 @@ migrations_dir = "workers/migrations"
 crons = [
   "0 6 * * *",   # Every day 06:00 UTC - WLVLP site generation (template-fill)
   "0 9 * * 1",   # Every Monday 9am UTC - DVLP job matching
-  "0 10 * * *",  # Every day 10am UTC - WLVLP auction settlement
+  "0 10 * * *",  # Every day 10am UTC - WLVLP auction settlement + FOIA lead enrichment
   "0 12 * * *",  # Every day 12:00 UTC - WLVLP SCALE batch generation
   "0 14 * * *"   # Every day 14:00 UTC - SCALE email sending (TTMP + WLVLP)
 ]
@@ -263,6 +267,12 @@ STRIPE_CONNECT_CLIENT_ID = "ca_UEvTMDrQCV82RNrJ4JIaEye4bimUM0RX"
 # STRIPE_DVLP_PRICE_PAID
 # STRIPE_DVLP_SECRET_KEY
 # STRIPE_DVLP_WEBHOOK_SECRET
+
+# =================================================
+# Enrichment Pipeline
+# =================================================
+
+# REOON_API_KEY  — Reoon email verifier ($9/mo plan, 500 verifications/day)
 
 # =================================================
 # Optional / Future Integrations
