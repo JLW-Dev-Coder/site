@@ -209,65 +209,6 @@
       "addedDate": "2026-03-29"
     },
     {
-      "id": "tttmp.games.access-grant.v1",
-      "path": "/contracts/tttmp/tttmp.games.access-grant.v1.json",
-      "endpoint": "/v1/tttmp/games/access",
-      "method": "POST",
-      "status": "active",
-      "category": "tool",
-      "authRequired": true,
-      "signatureRequired": false,
-      "dedupeKey": "{account_id}:{game_slug}:{nowMinutes}",
-      "receiptSource": "R2_VIRTUAL_LAUNCH",
-      "receiptKeyPattern": "/receipts/tttmp/games/{event_id}.json",
-      "usedOnPages": ["/games/*", "/app/games"],
-      "version": "1.0",
-      "writes": [
-        {"target": "R2", "key": "/receipts/tttmp/games/{event_id}.json"},
-        {"target": "R2", "key": "/tokens/{account_id}.json"},
-        {"target": "R2", "key": "/tttmp/play_grants/{account_id}/{grant_id}.json"},
-        {"target": "D1", "table": "tokens"}
-      ],
-      "addedDate": "2026-03-29"
-    },
-    {
-      "id": "tttmp.games.access-verify.v1",
-      "path": "/contracts/tttmp/tttmp.games.access-verify.v1.json",
-      "endpoint": "/v1/tttmp/games/access",
-      "method": "GET",
-      "status": "active",
-      "category": "tool",
-      "authRequired": true,
-      "signatureRequired": false,
-      "dedupeKey": "N/A",
-      "receiptSource": "N/A",
-      "receiptKeyPattern": "N/A",
-      "usedOnPages": ["/games/*"],
-      "version": "1.0",
-      "writes": [],
-      "addedDate": "2026-03-29"
-    },
-    {
-      "id": "tttmp.games.end.v1",
-      "path": "/contracts/tttmp/tttmp.games.end.v1.json",
-      "endpoint": "/v1/tttmp/games/end",
-      "method": "POST",
-      "status": "active",
-      "category": "tool",
-      "authRequired": true,
-      "signatureRequired": false,
-      "dedupeKey": "{grant_id}",
-      "receiptSource": "R2_VIRTUAL_LAUNCH",
-      "receiptKeyPattern": "/receipts/tttmp/games/{event_id}.json",
-      "usedOnPages": ["/games/*"],
-      "version": "1.0",
-      "writes": [
-        {"target": "R2", "key": "/receipts/tttmp/games/{event_id}.json"},
-        {"target": "R2", "key": "/tttmp/play_grants/{account_id}/{grant_id}.json"}
-      ],
-      "addedDate": "2026-03-29"
-    },
-    {
       "id": "tttmp.support.ticket-create.v1",
       "path": "/contracts/tttmp/tttmp.support.ticket-create.v1.json",
       "endpoint": "/v1/tttmp/support/tickets",
