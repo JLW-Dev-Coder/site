@@ -10896,9 +10896,6 @@ TTMP Support Team
       if (!Array.isArray(body.services) || body.services.length === 0) {
         return json({ ok: false, error: 'invalid_payload', field: 'services' }, 400, request);
       }
-      if (typeof body.target_clients !== 'string' || !body.target_clients.trim()) {
-        return json({ ok: false, error: 'invalid_payload', field: 'target_clients' }, 400, request);
-      }
 
       // Whitelist properties (additionalProperties: false)
       const allowedKeys = [
@@ -10911,6 +10908,7 @@ TTMP Support Team
         if (body[k] !== undefined) clean[k] = body[k];
       }
       clean.slug = slug;
+      if (typeof clean.phone === 'string') clean.phone = normalizePhone(clean.phone);
 
       const canonicalKey = `vlp-scale/wlvlp-site-requests/${slug}.json`;
       const receiptKey = `receipts/wlvlp/site-requests/${slug}.json`;
@@ -12582,6 +12580,18 @@ function escapeRegex(str) {
 
 // Apply find-and-replace customizations to a template HTML string using
 // questionnaire fields. Returns the modified HTML.
+function normalizePhone(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11 && digits[0] === '1') {
+    return `(${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
+  }
+  return raw.trim();
+}
+
 function fillTemplate(templateHtml, requestData) {
   let html = templateHtml;
   const data = requestData || {};
@@ -12589,7 +12599,7 @@ function fillTemplate(templateHtml, requestData) {
   const credential   = (data.credential || 'Tax Professional').trim();
   const city         = (data.city || '').trim();
   const state        = (data.state || '').trim();
-  const phone        = (data.phone || '').trim();
+  const phone        = normalizePhone(data.phone || '');
   const email        = (data.email || '').trim();
   const services     = Array.isArray(data.services) ? data.services : [];
   const servicesStr  = services.join(', ');
