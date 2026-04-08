@@ -1,0 +1,32 @@
+{
+  "auth": { "required": false, "trustClientIdentityFields": false, "type": "none" },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Read WLVLP asset page data for SCALE campaign landing pages",
+    "path": "/contracts/wlvlp/wlvlp.asset-pages.read.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "WLVLP Asset Page Read",
+    "usedOnPages": ["websitelotto.virtuallaunch.pro/asset/*"],
+    "validation": { "enumStrict": false, "rejectUnknownValues": false, "requireJsonContentType": false },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/wlvlp/asset-pages/:slug",
+    "method": "GET",
+    "receiptKeyPattern": "",
+    "receiptSource": "",
+    "signature": { "header": null, "required": false, "secretEnvVar": null }
+  },
+  "effects": {
+    "dedupeKey": "",
+    "eventIdFrom": "",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": { "type": "object", "properties": {}, "required": [], "additionalProperties": false },
+  "response": {
+    "success": "{ full asset_page JSON from R2 }",
+    "error": { "ok": false, "error": "not_found" }
+  },
+  "schema": { "name": "wlvlp_asset_pages_read", "version": 1 }
+}

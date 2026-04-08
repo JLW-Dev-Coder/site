@@ -192,6 +192,23 @@
       "addedDate": "2026-03-30"
     },
     {
+      "id": "wlvlp.asset-pages.read.v1",
+      "path": "/contracts/wlvlp/wlvlp.asset-pages.read.v1.json",
+      "endpoint": "/v1/wlvlp/asset-pages/:slug",
+      "method": "GET",
+      "status": "active",
+      "category": "marketing",
+      "authRequired": false,
+      "signatureRequired": false,
+      "dedupeKey": null,
+      "receiptKeyPattern": null,
+      "receiptSource": null,
+      "writes": [],
+      "usedOnPages": ["websitelotto.virtuallaunch.pro/asset/*"],
+      "version": 1,
+      "addedDate": "2026-04-07"
+    },
+    {
       "id": "wlvlp.stripe.webhook.v1",
       "path": "/contracts/wlvlp/wlvlp.stripe.webhook.v1.json",
       "endpoint": "/v1/wlvlp/stripe/webhook",

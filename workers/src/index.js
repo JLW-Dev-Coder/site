@@ -10840,6 +10840,31 @@ TTMP Support Team
   // WLVLP (Website Lotto VLP)
   // -------------------------------------------------------------------------
 
+  // GET /v1/wlvlp/asset-pages/:slug
+  // Public read-only route serving WLVLP SCALE campaign asset page JSON from R2.
+  // No auth required — these back cold-email landing pages.
+  {
+    method: 'GET', pattern: '/v1/wlvlp/asset-pages/:slug',
+    handler: async (_method, _pattern, params, request, env) => {
+      const rawSlug = params.slug || '';
+      // Sanitize: alphanumeric + hyphens only, max 200 chars
+      if (!/^[a-zA-Z0-9-]{1,200}$/.test(rawSlug)) {
+        return json({ ok: false, error: 'not_found' }, 404, request);
+      }
+      try {
+        const obj = await env.R2_VIRTUAL_LAUNCH.get(`vlp-scale/wlvlp-asset-pages/${rawSlug}.json`);
+        if (!obj) {
+          return json({ ok: false, error: 'not_found' }, 404, request);
+        }
+        const data = await obj.json();
+        return json(data, 200, request);
+      } catch (e) {
+        console.error('WLVLP asset page read error:', e);
+        return json({ ok: false, error: 'not_found' }, 404, request);
+      }
+    },
+  },
+
   // GET /v1/wlvlp/templates
   {
     method: 'GET', pattern: '/v1/wlvlp/templates',
