@@ -79,6 +79,9 @@ export default function ScaleSalesPage() {
 
   const mrrTotal = stats?.mrr_total ?? 0
   const scaleRevenue = scale?.purchases?.total_revenue ?? 0
+  const visibleTransactions = (stats?.stripe_transactions ?? []).filter(
+    (tx) => (tx.status === 'succeeded' || tx.status === 'paid') && tx.amount > 0,
+  )
 
   return (
     <div className="space-y-6">
@@ -148,17 +151,20 @@ export default function ScaleSalesPage() {
 
       {/* Stripe transactions */}
       <Card>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-1">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Recent Stripe Payment Intents</div>
           {stats?.stripe_errors && stats.stripe_errors.length > 0 && (
             <div className="text-xs text-amber-400">errors: {stats.stripe_errors.join(', ')}</div>
           )}
         </div>
+        <div className="mb-4 text-xs text-slate-500">
+          Showing completed payments only. Incomplete and $0 sessions are excluded.
+        </div>
         {loading ? (
           <div className="text-slate-500 py-6 text-center text-sm">Loading…</div>
-        ) : !stats?.stripe_transactions || stats.stripe_transactions.length === 0 ? (
+        ) : visibleTransactions.length === 0 ? (
           <div className="text-slate-500 py-8 text-center text-sm">
-            No Stripe payment intents returned. Check that <code>STRIPE_SECRET_KEY_VLP</code> and <code>STRIPE_SECRET_KEY</code> are set on the Worker.
+            No completed Stripe payments to show.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -174,7 +180,7 @@ export default function ScaleSalesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60">
-                {stats.stripe_transactions.map((tx) => (
+                {visibleTransactions.map((tx) => (
                   <tr key={tx.id} className="text-slate-300">
                     <td className="py-2 px-2 whitespace-nowrap text-xs text-slate-500">
                       {new Date(tx.created * 1000).toLocaleDateString()}
