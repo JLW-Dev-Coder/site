@@ -1,557 +1,325 @@
-# Global Testing Order
-
-Work through each platform in this order. Do not skip ahead.
-Fix issues as you find them before moving to the next platform.
+# GLOBAL-TESTING.md — Email Pipeline System
+**Repo:** virtuallaunch.pro
+**Owner:** JLW
+**Last updated:** 2026-04-08
 
 ---
 
-## Issues Found
+## Objective
 
-Status: Open — collected from Round 1 testing (2026-04-06+)
+End-to-end validation of the automated email pipeline: enrichment, campaign routing, and 3-campaign send system (TTMP, VLP, WLVLP). Every test section maps to a deployed component. Run this checklist after any change to the pipeline, and weekly as a health check.
 
-### VLP (virtuallaunch.pro)
+---
 
-#### https://virtuallaunch.pro/dashboard
+## Table of Contents
 
-1) Fix the SVGs, they are distorted on the page
+1. Prerequisites
+2. Enrichment Pipeline (10:00 UTC cron)
+3. Campaign Router (12:00 UTC cron)
+4. TTMP Send Handler (14:00 UTC cron)
+5. VLP Send Handler (14:00 UTC cron)
+6. WLVLP Send Handler (14:00 UTC cron)
+7. Gmail Integration
+8. R2 Data Integrity
+9. KV State Integrity
+10. End-to-End Smoke Test
+11. Monitoring Checklist (daily)
+12. Known Limitations
 
-2) Profile Setup (re-name Directory Profile)
+---
 
-3) For Receipts, re-name/re-package as Payouts or Payments (for 12% platform fee x $/mo pre-payment paid out to tax pro who self-assigned clients from the pool and complete the post-payment flow) 
+## 1. Prerequisites
 
-[FIXED 2026-04-06 (items 2 + 3) — renamed "Profile Setup" → "Directory Profile" and "Receipts" → "Payments" in web/components/ui/Sidebar.tsx, web/app/(app)/dashboard/page.tsx (Quick Links), web/app/(app)/onboarding/page.tsx (page H1), and web/app/(app)/receipts/page.tsx (metadata title + page H1). Route paths /onboarding and /receipts unchanged — cosmetic relabel only.]
+Before running any tests, confirm:
 
-#### https://virtuallaunch.pro/analytics
+- [ ] Worker `virtuallaunch-pro-api` is deployed (check `wrangler deployments list`)
+- [ ] Secrets set: `REOON_API_KEY`, `GOOGLE_PRIVATE_KEY` (full service account JSON), `INTERNAL_TEST_KEY`
+- [ ] KV namespace `ENRICHMENT_KV` bound in wrangler.toml
+- [ ] R2 bucket `virtuallaunch-pro` accessible
+- [ ] Master lead file exists: `vlp-scale/foia-leads/foia-master.json` (NDJSON format)
+- [ ] Gmail API enabled in GCP project
+- [ ] Cron triggers active: `0 10 * * *`, `0 12 * * *`, `0 14 * * *`
 
-1) When clicking the first Cal.com connect link, the page directs to here (https://app.cal.com/oauth2/authorize?client_id=782133b560b9ee33174a7a765b8cd73343ffeb2ece517be73a3061f370e21eeb&redirect_uri=https%3A%2F%2Fapi.virtuallaunch.pro%2Fcal%2Fapp%2Foauth%2Fcallback&response_type=code&state=eyJhY2NvdW50SWQiOiJBQ0NUXzIzNmE4YjM5LTM3MzgtNDQ2NS05YjViLWNjMTZkZWZjYWU1MSIsIm5vbmNlIjoiOTQwNGMzMzItYTFjZi00ZjcwLWJiMDAtNmY0NjJhYTcxODgzIiwiZmxvdyI6InZscCJ9&code_challenge=Vwdg0uIDlne2cEST36fPkBryC7xMNqdN-KejVefL0pw&code_challenge_method=S256) and shows 404 error
+### Test trigger commands
 
-2) When clicking the first Cal.com connect link, the page directs to here (https://app.cal.com/oauth2/authorize?client_id=9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420&redirect_uri=https%3A%2F%2Fapi.virtuallaunch.pro%2Fv1%2Fcal%2Foauth%2Fcallback&response_type=code)
+All test routes require header `X-Internal-Key: {INTERNAL_TEST_KEY value}`.
 
-[VERIFIED 2026-04-06 — VLP frontend already uses the correct fetch+window.location.href pattern in web/components/cal/useCal.ts (connectVlp/connectPro fetch /v1/cal/oauth/start with credentials and redirect to res.authorizationUrl). The 404 is upstream on Cal.com: the first OAuth client (782133...) was registered on Cal.com's dashboard with a wrong redirect_uri (`/cal/app/oauth/callback` instead of `/v1/cal/oauth/callback`). Fix is to update the redirect_uri in the Cal.com OAuth app config — not a code change. The second client (9d03bc...) has the correct redirect_uri and works. Frontend remediation already in place.]
+```bash
+# Enrichment
+curl -X POST https://api.virtuallaunch.pro/internal/test-enrichment -H "X-Internal-Key: enrichment-test-2026" --max-time 1800
 
-#### https://virtuallaunch.pro/onboarding (profile setup)
+# Daily batch generation / campaign router
+curl -X POST https://api.virtuallaunch.pro/internal/test-daily-batch -H "X-Internal-Key: enrichment-test-2026" --max-time 300
 
-1) Behavior should be: first signin, the profile setup page opens as an onboarding step (no sidebar or topbar should show) but allows user to  skip onboarding. On subsequent sign-ins, the user can self-select the profile setup page on the sidebar, at which time the skip button should not show
+# TTMP send
+curl -X POST https://api.virtuallaunch.pro/internal/test-ttmp-send -H "X-Internal-Key: enrichment-test-2026" --max-time 1800
 
-    a) Profile setup page opens on sign-in but skip button doesn't return user to dashboard, it doesn't respond at all
+# VLP send
+curl -X POST https://api.virtuallaunch.pro/internal/test-vlp-send -H "X-Internal-Key: enrichment-test-2026" --max-time 1800
 
-2) Step 5 of onboarding, normalize the phone number
+# WLVLP send (existing route — confirm name with RC)
+curl -X POST https://api.virtuallaunch.pro/internal/test-wlvlp-send -H "X-Internal-Key: enrichment-test-2026" --max-time 1800
+```
 
-3) If any required area is skipped, the user should be directed to that step, for example, professionalId and displayName required
+### Check R2 objects
 
-4) Once submitted, user should be directed to the directory where their name should be auto-entered and their profile displayed for their review
+```bash
+# Enrichment log
+wrangler r2 object get virtuallaunch-pro/vlp-scale/enrichment-logs/{YYYY-MM-DD}.json --remote
 
-5) Make the directory page available as a button so profile can be viewed life at any time
+# Batch log
+wrangler r2 object get virtuallaunch-pro/vlp-scale/batch-logs/{YYYY-MM-DD}.json --remote
 
-6) Could we provide a profile link? If so, implement a share my link so they can see the link and share it button on the page
+# Send queues
+wrangler r2 object get virtuallaunch-pro/vlp-scale/ttmp-send-queue/email1-pending.json --remote
+wrangler r2 object get virtuallaunch-pro/vlp-scale/vlp-send-queue/email1-pending.json --remote
+wrangler r2 object get virtuallaunch-pro/vlp-scale/wlvlp-send-queue/email1-pending.json --remote
 
-[PARTIALLY FIXED 2026-04-06 — items 1-4: (1) First-signin detection via `vlp_profile_completed` localStorage flag in web/app/(app)/onboarding/page.tsx; when absent, the page renders inside a `fixed inset-0 z-50` overlay that visually covers the (app) layout's Sidebar/Topbar and exposes a "Skip" button. On subsequent visits the flag is set, the overlay/skip button are hidden, and the page renders inside the normal app chrome. (2) Step 5 phone field now uses a dedicated input with `onBlur={(e) => set('phone', normalizePhone(e.target.value))}`; `normalizePhone()` strips non-digits, caps at 10, and formats `(XXX) XXX-XXXX` — same pattern as TMP/DVLP. (3) Dashboard guard: web/components/app/OnboardingPrompt.tsx now `router.replace('/onboarding?step=0')` when `vlp_profile_completed` is missing; the onboarding page's useEffect parses `?step=` and seeds `setStep(...)` so the user lands on the step that holds the required fields (full name → derives professionalId + displayName). `save()` also gates submit on `form.fullName.trim()` and jumps to step 0 with an error if missing. (4) After successful POST /v1/profiles, save() sets the completed flag and `router.push('/directory?profile=${professionalId}')`. Items 5 (directory button in chrome) and 6 (share-my-link UI) NOT implemented in this pass. Build: `npm run build` ✓ /onboarding 6.86 kB.]
+# Sent archives
+wrangler r2 object get virtuallaunch-pro/vlp-scale/ttmp-send-queue/sent-{YYYY-MM-DD}.json --remote
+```
 
-7) Improve look of the dropdown. Right now, they are all plain and small (Step 2 - State, )
+### Check Reoon balance
 
-8) Step 2 - Profession, only 5 tax professions are provided. How do we handle other tax professions not listed? Proceed with the fix/improvement
+```bash
+curl.exe -i "https://emailverifier.reoon.com/api/v1/check-account-balance/?key={REOON_API_KEY}"
+```
 
-9) Step 6, when submitting, I get the error: Network error. Please try again. 
+---
 
-10) Save all field inputs as soon as user enters them to avoid losing their data.
+## 2. Enrichment Pipeline (10:00 UTC cron)
 
-#### https://virtuallaunch.pro/account
+**Function:** `handleEnrichmentBatch(env)`
+**Trigger:** `0 10 * * *` cron or `POST /internal/test-enrichment`
 
-1) There should be 4 plan cards. Make the look like the https://virtuallaunch.pro/pricing cards. The plan that the user is current only should be selected, with upgrade or downgrade buttons based on their current plan (the checkout currently work fine)
+### Tests
 
-#### https://virtuallaunch.pro/affiliate
+- [ ] **2.1 — Master file loads** — Response includes `total_records` matching expected count (~88,497)
+- [ ] **2.2 — Domain extraction** — Spot-check 5 records: WEBSITE field correctly stripped to domain_clean (no http://, no www., no trailing paths)
+- [ ] **2.3 — MX check works** — `domains_mx_checked` > 0 in enrichment log. Some `domains_no_mx` expected.
+- [ ] **2.4 — MX results cached** — Run enrichment twice on the same day (after budget reset). Second run should show fewer MX checks (cached in KV `enrichment:mx:{domain}`)
+- [ ] **2.5 — Catch-all detection** — `domains_catch_all` count in log. Verify KV key `enrichment:catchall:{domain}` exists for at least one catch-all domain
+- [ ] **2.6 — Pattern learning** — After first run, check KV for `enrichment:pattern:{domain}` keys. Second run should show `patterns_reused` > 0
+- [ ] **2.7 — Reoon power mode** — Debug log (`vlp-scale/enrichment-logs/reoon-debug-{date}.json`) shows `verification_mode: "power"` in responses
+- [ ] **2.8 — Valid emails found** — `emails_found_valid` > 0 in enrichment log (if zero after power mode fix, investigate Reoon responses)
+- [ ] **2.9 — Budget tracking** — `reoon_credits_used` in log matches actual Reoon dashboard consumption. Counter stops at 450.
+- [ ] **2.10 — 403 handling** — If Reoon returns 403 (out of credits), `stopped_reason` is `reoon_api_error`, budget counter is NOT incremented
+- [ ] **2.11 — Master file write-back** — After enrichment, re-download master file. Enriched records have email_found and email_status populated. Unenriched records are unchanged.
+- [ ] **2.12 — Balance check logged** — `reoon_balance_at_start` appears in enrichment log with daily/instant credit counts
 
-1) Page does not load, shows error: Application error: a server-side exception has occurred while loading virtuallaunch.pro (see the server logs for more information). 
+### Pass criteria
+At least 1 valid email found per run. Budget tracking matches Reoon dashboard within +/- 5 credits.
 
-[FIXED 2026-04-06]
-Digest: 2486881340
+---
 
-#### https://virtuallaunch.pro/receipts
+## 3. Campaign Router (12:00 UTC cron)
 
-1) Still need to text with a test or live receipt
+**Function:** `handleDailyBatchGeneration(env)`
+**Trigger:** `0 12 * * *` cron or `POST /internal/test-daily-batch`
 
-#### https://virtuallaunch.pro/token-usage
+### Tests
 
-1) Not showing usage history although tokens have been used 
+- [ ] **3.1 — Eligible record filter** — Only records with email_found + valid email_status + all three *_email_1_prepared_at empty are selected
+- [ ] **3.2 — Allocation percentages** — Over a batch of 200: ~130 TTMP (65%), ~50 VLP (25%), ~20 WLVLP (10%). Exact numbers will vary due to random assignment — acceptable range: TTMP 55-75%, VLP 15-35%, WLVLP 3-17%
+- [ ] **3.3 — Daily cap enforced** — Batch log shows `batch_size` <= 200 even if more eligible records exist
+- [ ] **3.4 — Queue append (not overwrite)** — If TTMP queue has 50 existing pending records and router adds 130, queue now has 180. No records lost.
+- [ ] **3.5 — 6-email schedule** — Each queue record has email_{2..6}_scheduled_for dates at Day +2, +4, +6, +8, +10 from creation
+- [ ] **3.6 — Personalization resolved** — Spot-check 3 records per campaign: First, City, credential_label, billing range, time savings, revenue opportunity all populated (no {placeholder} tokens remaining)
+- [ ] **3.7 — Master file stamped** — Routed records have the correct *_email_1_prepared_at timestamp. Record cannot be re-routed on next run.
+- [ ] **3.8 — Batch log written** — `vlp-scale/batch-logs/{date}.json` contains routed_ttmp, routed_vlp, routed_wlvlp, eligible_records, records_remaining_eligible
+- [ ] **3.9 — No double-routing** — A record routed to TTMP does NOT also appear in VLP or WLVLP queues
+- [ ] **3.10 — Empty eligible set** — If zero eligible records, batch log shows `batch_size: 0`, no queues modified, no errors
 
-[FIXED 2026-04-06]
+### Pass criteria
+All three queues receive records in roughly correct proportions. No placeholder tokens in email bodies. No duplicate records across queues.
 
-#### https://virtuallaunch.pro/messaging (inquiries)
+---
 
-1) Still need to text with a test or live receipt
+## 4. TTMP Send Handler (14:00 UTC cron)
 
-#### https://virtuallaunch.pro/scale
+**Function:** `handleTtmpEmailSend(env)` via `runStagedSendQueue`
+**Queue:** `vlp-scale/ttmp-send-queue/email1-pending.json`
+**Archive:** `vlp-scale/ttmp-send-queue/sent-{date}.json`
 
-1) Create a operator-only dashboard, separate from the member dashboard.
+### Tests
 
-    a) Analytics
+- [ ] **4.1 — Email 1 sends** — Records with status "pending" get Email 1 sent. Status updates to "email_1_sent" with timestamp.
+- [ ] **4.2 — Email 2 fires on schedule** — Records where email_2_scheduled_for <= today and status is "email_1_sent" get Email 2. Status updates to "email_2_sent".
+- [ ] **4.3 — Emails 3-6 fire on schedule** — Same pattern for each stage. Verify at least one record progresses through all 6.
+- [ ] **4.4 — Correct subjects** — Spot-check: Email 1 subject contains "translating IRS codes", Email 4 contains "I built this", Email 6 contains "Last note"
+- [ ] **4.5 — Correct signature** — Every email body ends with "Jamie L Williams, EA" and "transcript.taxmonitor.pro"
+- [ ] **4.6 — Hello {First} greeting** — Every email body starts with "Hello {First}," (actual name, not literal placeholder)
+- [ ] **4.7 — Second {First} in body** — Each email contains the recipient's first name a second time in the body text
+- [ ] **4.8 — Archive on completion** — Records with all 6 emails sent move to sent-{date}.json. No longer in pending queue.
+- [ ] **4.9 — Failed records preserved** — If Gmail returns error, record stays in queue with last_error field. Not lost, not archived.
+- [ ] **4.10 — Gmail 429 retry** — If rate limited, handler pauses 60s and retries up to 3 times before marking failed
 
-        PROSPECTS
-            TOTAL PROSPECTS
-            EMAIL ELIGIBLE
-            EMAIL PREPARED
-            DAYS REMAINING
-        EMAIL 1 QUEUE
-        EMAIL 2 QUEUE
-        EMAIL BATCH HISTORY
-            DATE (DATE OF BATCH)
-            RECORD COUNT
-            EMAIL 1 PUSHED
-            ASSET PAGES PUSHED
-        BOOKINGS
-        PURCHASES
-        SITE ANALYTICS
+### Pass criteria
+All pending Email 1s send. Follow-up emails fire on correct dates. No records lost.
 
-    Change the ones above to the following:
+---
 
-        ANALYTICS
-            BOOKINGS
-                ALL
-                CANCELLED
-                COMPLETED
-                CONFIRMED
-                PENDING
-                RESCHEDULED
-                UPCOMING
-            EMAILS
-                BATCHES
-                    BATCH DATE
-                    RECORD COUNT
-                    EMAIL 1 PUSHED
-                    ASSET PAGES PUSHED                            
-                BOUNCED
-                DAYS REMAINING
-                DELIVERED
-                ELIGIBLE
-                OPENED
-                REPLIED
-                QUEUED
-                    EMAIL 1
-                    EMAIL 2
-                SCHEDULED
-                SENT
-                SUCCESSFUL
-                UNSUBSCRIBED
-            FORMS
-                SUBMITTED
-            PAGES
-                CTA CLICKED
-                SITE VIEWED
-            SALES
-                MEMBERSHIPS
-                PURCHASES
-                
-    Make each repo card clickable to open a page-view with all the CloudFlare analytics available specific to that repo and provide a all-repos view. See https://www.canva.com/ai/code/thread/dc6b4349-827e-401e-90c6-d4f049d6ed52 for reference of the layout and analytics available.
-
-    b) Calendar
-
-        ALL
-        CANCELLED
-        COMPLETED
-        CONFIRMED
-        PENDING
-        RESCHEDULED
-        UPCOMING
-        
-    Add cards for each Cal.com event type and group by site.
-
-    DVLP
-
-        Developers Virtual Launch Pro Onboarding
-        /tax-monitor-pro/dvlp-onboarding
-
-        Developers Virtual Launch Pro Intro
-        /tax-monitor-pro/dvlp-intro
-
-        Developers Virtual Launch Pro Support
-        /tax-monitor-pro/dvlp-support
-
-    TCVLP
-
-        Tax Claim Virtual Launch Pro Intro
-        /tax-monitor-pro/tcvlp-intro
-
-        Tax Claim Virtual Launch Pro Support
-        /tax-monitor-pro/tcvlp-support
-
-    TMP
-    
-        Tax Monitor Pro Intro
-        /tax-monitor-pro/tmp-intro
-
-        Tax Monitor Pro Support
-        /tax-monitor-pro/tmp-support
-
-    TTTMP
-
-        Tax Tools Tax Monitor Pro Intro
-        /tax-monitor-pro/tttmp-intro
-
-        Tax Tools Tax Monitor Pro Support
-        /tax-monitor-pro/tttmp-support
-
-
-    TTMP
-
-        Transcript Tax Monitor Pro Discovery Call
-        /tax-monitor-pro/ttmp-discovery
-
-        Transcript Tax Monitor Pro Intro
-        /tax-monitor-pro/ttmp-intro
-
-        Transcript Tax Monitor Pro Support
-        /tax-monitor-pro/ttmp-support
-
-    
-    VLP
-
-        Virtual Launch Pro Intro
-        /tax-monitor-pro/vlp-intro
-
-        Virtual Launch Pro Support
-        /tax-monitor-pro/vlp-support
-
-    Ensure all Cal.com links in the repos/sites are updated with the URL above.
-
-    c) CRM
-
-        ALL CLIENTS
-    
-    Change all clients to count only paid users (not prospects). 
-    
-    Remove placeholders so all site data shows. 
-    
-        PIPELINE FUNNEL
-        LAST BATCH
-
-    Ensure the Email 1, 2 Sent are showing accurate data. Right now, both are showing 0/zero sent. Change "true" to "True". 
-    
-    Remove the list of clients section that has the vertical scroll. Instead when clicking the ALL CLIENTS card, the list of clients should open a new page-view with only the clients listed with these columns should show in the top row of the list:
-
-        CLIENT NAME
-        PLATFORM
-        DATE ADDED
-        
-    Each column should be filterable, the PLATFORM column should be a filterable dropdown field
-        
-    When clicking on a client from the list, these details should show specific to each client:
-
-       ANALYTICS
-            BOOKINGS
-                ALL
-                CANCELLED
-                COMPLETED
-                CONFIRMED
-                PENDING
-                RESCHEDULED
-                UPCOMING
-            EMAILS
-                BOUNCED
-                DELIVERED
-                OPENED
-                REPLIED
-                SCHEDULED
-                SENT
-                SUCCESSFUL
-                UNSUBSCRIBED
-            FORMS
-                SUBMITTED
-            PAGES
-                CTA CLICKED
-            SALES
-                MEMBERSHIPS
-                PURCHASES
-       EMAILS
-            SENT
-            REPLIES
-       PROFILE DETAILS
-            FORMS SUBMITTED
-       PURCHASE HISTORY
-       SUPPORT TICKETS
-            MESSAGES
-            RESPONSES
+## 5. VLP Send Handler (14:00 UTC cron)
 
-    d) Pipeline
+**Function:** `handleVlpEmailSend(env)` via `runStagedSendQueue`
+**Queue:** `vlp-scale/vlp-send-queue/email1-pending.json`
+**Archive:** `vlp-scale/vlp-send-queue/sent-{date}.json`
 
-    Add a pipeline section. This should be wHere the WORKFLOW.md actions can be taken (creating batches or uploading/downloading .csv) and should link to the WORKFLOW.md and allow the user to display the WORKFLOW.md contents on the page.    
+### Tests
 
-    Phase 0 — Source Data from BigQuery
-    Phase 1 — Source Prospects via Clay
-        Task 1.1 — Select next 50 rows for VLP
-        Task 1.2 — Export VLP batch to CSV
-        Task 1.3 — Enrich VLP batch in Clay
-        Task 1.4 — Return VLP emails and export
-        Task 1.5 — Select next 50 for TTMP
-        Task 1.6 — Export TTMP batch to CSV
-        Task 1.7 — Enrich TTMP batch in Clay
-        Task 1.8 — Return TTMP emails and export
-    Phase 2 — Generate Batch (node scale/scripts/merge-intake.js, node scale/generate-vlp-batch.js)
-    Phase 3 — Push Asset Pages to R2 (node scale/push-vlp-asset-pages.js scale/batches/vlp-batch-{date}.json --exec --remote)
-    Phase 4 — Import to Hunter.io and Send
-    Phase 5 — Monitor Results
-    Phase 6 — Daily Monitoring
-    Phase 7 — Weekly Review
+- [ ] **5.1 — Email 1 sends** — Same as TTMP 4.1
+- [ ] **5.2 — Emails 2-6 fire on schedule** — Same staged pattern
+- [ ] **5.3 — VLP-specific subjects** — Email 1 contains "taxpayers in {City}", Email 3 contains "referrals slow down", Email 6 contains "Last note"
+- [ ] **5.4 — VLP-specific signature** — "Virtual Launch Pro" and "virtuallaunch.pro" (not transcript.taxmonitor.pro)
+- [ ] **5.5 — TTMP cross-sell in Email 6** — Breakup email includes transcript.taxmonitor.pro/pricing link
+- [ ] **5.6 — new_client_value personalized** — Correct range per profession (EA/CPA/ATTY)
+- [ ] **5.7 — Asset page links** — URLs contain correct slug: virtuallaunch.pro/asset/{slug}
 
-    d) Sales
-    
-    Fix error on the screen: No transaction data. Wire /v1/admin/stats in the Worker to surface Stripe charges
+### Pass criteria
+Same as TTMP. VLP-specific copy and links verified.
 
-    e) Support
-    
-    Unable to submit a support response
+---
 
-[FIXED 2026-04-06 — moved /scale out of the member (app) route group into its own top-level web/app/scale/ tree with a dedicated server-side layout (web/app/scale/layout.tsx) that calls requireAuth() then redirects to /dashboard unless session.email is in OPERATOR_EMAILS (jamie.williams@virtuallaunch.pro, hello@virtuallaunch.pro). Layout renders a new operator-only sidebar (web/components/scale/ScaleSidebar.tsx — Analytics, Support, Calendar, CRM, Sales) plus the existing Topbar (which already shows the user's avatar+profile dropdown on the right). Pages created: web/app/scale/page.tsx (Analytics — existing dashboard moved over, live data from /v1/scale/dashboard + /v1/scale/analytics), web/app/scale/support/page.tsx (cross-platform ticket inbox; tries /v1/admin/support/tickets first, falls back to operator's own tickets via /v1/support/tickets/by-account/{aid} with a placeholder banner; status + platform filters; inline reply via PATCH), web/app/scale/calendar/page.tsx (operator's bookings via /v1/bookings/by-account/{aid} + SCALE attribution stats from /v1/scale/dashboard, status filter tabs, click-to-open detail modal), web/app/scale/crm/page.tsx (8 clickable platform summary cards + All Clients card, pipeline funnel from /v1/scale/dashboard, latest batch summary, prospect list with E1/E2 send markers and asset-page links — non-VLP platforms show "wire admin endpoint" placeholder), web/app/scale/sales/page.tsx (MRR/SCALE revenue/paid calls/token purchases top cards, MRR by platform, VLP membership tier distribution, recent transactions — tries /v1/admin/stats first and shows placeholder banner if not implemented; SCALE-attributed revenue is live from /v1/scale/dashboard). Member sidebar still shows the SCALE link but only operators can enter; non-operators bounce to /dashboard. Build: ✓ /scale 4.22 kB, /scale/calendar 2.19 kB, /scale/crm 2.28 kB, /scale/sales 1.76 kB, /scale/support 2.8 kB.] 
+## 6. WLVLP Send Handler (14:00 UTC cron)
 
-[FOLLOW-UP 2026-04-06 — (a) hid the SCALE entry from the member sidebar entirely for non-operators: web/components/ui/Sidebar.tsx now accepts a `userEmail` prop, defines an OPERATOR_EMAILS allowlist (jamie.williams@virtuallaunch.pro, hello@virtuallaunch.pro), and filters NAV_ITEMS to drop /scale unless the email matches; web/app/(app)/layout.tsx passes session.email through. (b) Implemented the two admin endpoints the SCALE pages depended on so the placeholder banners go away: GET /v1/admin/support/tickets returns up to 100 cross-platform tickets (D1 support_tickets joined to accounts for email + platform, ordered by created_at DESC), GET /v1/admin/stats returns total_accounts (COUNT from D1 accounts), memberships_by_tier (D1 memberships GROUP BY plan_key WHERE status='active'), tokens totals (SUM from D1 tokens projection), and the 20 most recent transactions read from R2 receipts/billing/ prefix. Both routes are gated by the same operator allowlist via requireSession + adminEmails check (mirrors /v1/admin/tokens/grant). Worker deployed — version 7958ef84-aa54-4a41-b3e4-5c40f0b7dd07.]
+**Function:** `handleWlvlpEmailSend(env)` via `runStagedSendQueue`
+**Queue:** `vlp-scale/wlvlp-send-queue/email1-pending.json`
+**Archive:** `vlp-scale/wlvlp-send-queue/sent-{date}.json`
 
-#### https://virtuallaunch.pro/support
+### Tests
 
-1) Instead of the pop-up ticket form, allow the message to be entered as a form on the page
+- [ ] **6.1 — All 6 emails supported** — Handler processes emails 1 through 6 (extended from original 2)
+- [ ] **6.2 — WLVLP-specific subjects** — Email 1 contains "I looked at your website", Email 5 contains "been meaning to fix"
+- [ ] **6.3 — WLVLP-specific signature** — "Website Lotto by Virtual Launch Pro" and "websitelotto.virtuallaunch.pro"
+- [ ] **6.4 — TTMP cross-sell in Email 6** — Breakup email includes transcript.taxmonitor.pro/pricing link
+- [ ] **6.5 — Asset page links** — URLs contain websitelotto.virtuallaunch.pro/asset/{slug}
+- [ ] **6.6 — Legacy WLVLP records** — The 32 pre-existing WLVLP queue records from before Phase 2 still send correctly
 
-[FIXED 2026-04-06 — replaced the fixed-overlay modal in web/app/(app)/support/page.tsx with an inline new-ticket form that renders in the right detail column when the user clicks "New Ticket" (subject + priority + message + Cancel/Send). Removed showModal state, added composing state, success state shows inline confirmation and auto-closes. Selecting an existing ticket clears compose mode.]
+### Pass criteria
+6-email sequence completes. WLVLP-specific copy verified. Legacy records handled.
 
-### TTMP (taxmonitor.pro)
+---
 
-#### https://taxmonitor.pro/directory
+## 7. Gmail Integration
 
-1) Instead of entry fields make city and state dropdowns 
+### Tests
 
-[FIXED 2026-04-06 — app/directory/page.tsx: state filter is now a `<select>` populated from a 51-entry US_STATES const (50 states + DC, full names as labels, 2-letter codes as values). City filter is a text input bound to a `<datalist id="directory-cities">` populated dynamically from unique city values across the loaded professionals (sample + API), giving native autocomplete without forcing a closed dropdown. Both reuse the existing .locationInput class.]
+- [ ] **7.1 — Service account auth** — sendGmailMessage successfully authenticates (no "Failed to parse GOOGLE_PRIVATE_KEY JSON" error)
+- [ ] **7.2 — Email delivery** — Send a test email to your own inbox. Verify it arrives, displays correctly, has correct From address.
+- [ ] **7.3 — UTF-8 handling** — Email bodies with em-dashes, smart quotes, or special characters send without "Latin1 range" errors
+- [ ] **7.4 — Rate limit handling** — 429 responses trigger 60s pause + retry (up to 3 retries). Verify via logs if rate limit is hit at scale.
+- [ ] **7.5 — Non-429 errors** — 4xx/5xx errors (other than 429) do NOT retry. Record marked as failed with error message.
+- [ ] **7.6 — Bounce monitoring** — After sending 50+ emails, check Gmail sent folder for bounce-back messages. Acceptable bounce rate: < 5%.
 
-#### https://taxmonitor.pro/pricing
+### Pass criteria
+Emails arrive in real inboxes. No auth errors. Rate limiting handled gracefully.
 
-1) For the monthly and yearly toggle, I want them to look like this https://virtuallaunch.pro/pricing page's toggle
+---
 
-2) For each price, monthly or yearly, all should open a Stripe checkout. Now, they do not, they just refresh the page. 
+## 8. R2 Data Integrity
 
-[FIXED 2026-04-06 — Worker /v1/tmp/memberships/checkout response was returned without the request arg, so getCorsHeaders fell back to virtuallaunch.pro and browser blocked the cross-origin response from taxmonitor.pro. Added request arg to json() at workers/src/index.js:7452 (and to membership/preferences/dashboard handlers that had the same omission). TMP pricing page now also surfaces checkout errors via alert instead of swallowing them.] 
+### Tests
 
-[FIXED 2026-04-06 (round 2) — checkout still returned INTERNAL_ERROR after the CORS fix because the handler called `new Stripe(env.STRIPE_SECRET_KEY)` but the Stripe SDK is not imported in workers/src/index.js (every other checkout uses the local stripePost helper). `new Stripe(...)` threw ReferenceError → caught → 500. Replaced with `await stripePost('/checkout/sessions', sessionData, env)` at workers/src/index.js:7450, matching the TTTMP/VLP checkout pattern.] 
+- [ ] **8.1 — Master file format** — NDJSON (one JSON object per line). No blank lines break parsing. All 88,497 records present after any write-back.
+- [ ] **8.2 — Queue files valid JSON** — Each send queue file is a valid JSON array. No truncation.
+- [ ] **8.3 — No cross-contamination** — TTMP records only in ttmp-send-queue, VLP in vlp-send-queue, WLVLP in wlvlp-send-queue. Zero overlap.
+- [ ] **8.4 — Archive files accumulate** — sent-{date}.json files created daily. Old archives not overwritten.
+- [ ] **8.5 — Enrichment logs accumulate** — One log per day in vlp-scale/enrichment-logs/. Old logs not overwritten.
+- [ ] **8.6 — Batch logs accumulate** — One log per day in vlp-scale/batch-logs/.
 
-[FIXED 2026-04-06 (round 3) — unauthenticated visitors clicking a paid plan were redirected to /sign-in instead of going to Stripe. Removed the !accountId → /sign-in redirect from handleSelectI/handleSelectII in app/pricing/page.tsx so the click goes straight to api.createTmpCheckout.] 
+### R2 key inventory
 
-[FIXED 2026-04-06 (round 4) — Worker /v1/tmp/memberships/checkout now allows anonymous checkout. Replaced requireSession with optional getSessionFromRequest, accepts optional `email` from request body (passed as Stripe customer_email; otherwise Stripe collects it), sets client_reference_id to account_id or 'anonymous', and metadata.account_id to the same. Webhook handler at workers/src/index.js (checkout.session.completed → platform==='tmp') now reconciles anonymous payments by looking up the account by Stripe customer email, creating one if it doesn't exist, then activating the membership against the resolved account_id. End-to-end anonymous TMP checkout now completes.] 
+| Key pattern | Written by | Read by |
+|---|---|---|
+| vlp-scale/foia-leads/foia-master.json | Enrichment + Router | Enrichment + Router |
+| vlp-scale/enrichment-logs/{date}.json | Enrichment | Monitoring |
+| vlp-scale/batch-logs/{date}.json | Router | Monitoring |
+| vlp-scale/ttmp-send-queue/email1-pending.json | Router | TTMP send handler |
+| vlp-scale/ttmp-send-queue/sent-{date}.json | TTMP send handler | Monitoring |
+| vlp-scale/vlp-send-queue/email1-pending.json | Router | VLP send handler |
+| vlp-scale/vlp-send-queue/sent-{date}.json | VLP send handler | Monitoring |
+| vlp-scale/wlvlp-send-queue/email1-pending.json | Router | WLVLP send handler |
+| vlp-scale/wlvlp-send-queue/sent-{date}.json | WLVLP send handler | Monitoring |
+| vlp-scale/wlvlp-asset-pages/{slug}.json | Router | WLVLP site serving |
 
-[FIXED 2026-04-06 (round 5) — STRIPE_PRICE_TMP_PREMIER_MONTHLY and STRIPE_PRICE_TMP_PREMIER_YEARLY were swapped in wrangler.toml, so Premier monthly checkout was charging the yearly price (and vice-versa). Swapped lines 165-166 to the correct Stripe price IDs and redeployed the Worker. All other TMP price IDs (essential/plus/bronze/silver/gold/snapshot/MFJ) verified correct. Plan_key → env var mapping at workers/src/index.js:7449-7460 verified correct.]
+### Pass criteria
+All files parseable. Record counts consistent across reads/writes. No data loss.
 
-#### https://taxmonitor.pro/sign-in
+---
 
-1) For the magic link, it directs to the wrong destination, https://taxmonitor.pro/sign-in?redirect=%2Fdashboard 
+## 9. KV State Integrity
 
-[VERIFIED 2026-04-06 — TMP frontend at app/sign-in/page.tsx already calls api.requestMagicLink(email, 'https://taxmonitor.pro/dashboard') with the correct full-URL redirectUri. Worker (workers/src/index.js:1469) signs the JWT with redirect_uri and verify-handler (line 1568) uses redirectWithCookie with the .taxmonitor.pro cookie domain (cookieDomainForUrl line 882). The user-observed bounce to /sign-in?redirect=%2Fdashboard is the AuthGuard fallback in components/AuthGuard.tsx:38 firing because the cookie wasn't visible to the dashboard fetch — this is the same class of cross-origin/CORS issue already fixed for TMP checkout/preferences. Frontend is correct; if the bounce reproduces, the next step is to inspect the magic-link verify path's CORS headers + cookie domain in the Worker (out of scope for the TMP repo).]
+### Tests
 
-#### https://taxmonitor.pro/dashboard
+- [ ] **9.1 — MX cache populated** — After enrichment run, `enrichment:mx:{domain}` keys exist for checked domains
+- [ ] **9.2 — Catch-all cache populated** — `enrichment:catchall:{domain}` keys exist for tested domains
+- [ ] **9.3 — Pattern cache populated** — `enrichment:pattern:{domain}` keys exist for domains where a pattern was found
+- [ ] **9.4 — Budget counter accurate** — `enrichment:reoon_budget:{date}` matches expected Reoon call count
+- [ ] **9.5 — TTLs working** — Keys expire after 30 days (MX, catch-all, pattern) or 48 hours (budget). Verify with `wrangler kv key get`
 
-1) The tax pro-specific dashboard is incorrectly nested inside the taxpayer/public dashboard, there should only the taxpayer dashboard, the tax pro-specific dashboard should only be avaiable through VLP
+### Pass criteria
+KV keys exist where expected. Budget counter matches Reoon dashboard.
 
-2) Token Balance prints "NaN" versus 0 or the actual amount 
+---
 
-[FIXED 2026-04-06 — DashboardHome was reading res.transcript_tokens + res.tax_game_tokens from /v1/tokens/balance, but the worker returns {balance:{transcriptTokens, taxGameTokens}} (camelCase, nested), so both were undefined → undefined+undefined = NaN. Switched to reading session.transcript_tokens from /v1/auth/session per the canonical session shape.] 
+## 10. End-to-End Smoke Test
 
-[FIXED 2026-04-06 (item 1) — TMP dashboard had a tax-pro nav and SPA wired up for Clients, Monitored Clients, Client Pool, Client Reports, and Payouts (B2B features that belong only in VLP). Stripped them from app/dashboard/page.tsx (NAV_ITEMS, ViewKey, imports, SPA switch) and deleted the now-unused components Clients.tsx, MonitoredClients.tsx, ClientPool.tsx, ClientReportAccess.tsx, Payouts.tsx. Renamed `proProfile` view → `myProfile` so the label/wording is taxpayer-facing. DashboardHome's "Active Clients" summary card (also a tax-pro relic) was replaced with a "Monitoring Status" card that surfaces the taxpayer's TMP plan + monitoring phase. Remaining nav is taxpayer-only: Dashboard, Compliance Report, Transcript Changes, ESign 2848, Active Alerts, Tokens, Receipts, My Profile, Help Center.]
+Run this sequence to validate the entire pipeline from raw lead to sent email:
 
-#### https://taxmonitor.pro/dashboard/profile
+1. **Manually add a test record** to the master file with your own email address, a known good domain, and profession "EA"
+2. **Trigger enrichment** — verify your test record gets email_found populated
+3. **Trigger campaign router** — verify your test record appears in one of the three send queues
+4. **Trigger the appropriate send handler** — verify you receive the email in your inbox
+5. **Wait for Day 2** (or manually adjust the scheduled date) — verify Email 2 arrives
+6. **Verify the email content**: correct greeting, correct personalization, correct links, correct signature
 
-1) Fix the error: Failed to load, try again 
+### Test record template
 
-[FIXED 2026-04-06 — ProfileContent was using Promise.all over getAccount/getPreferences/get2faStatus and reading them as flat objects. The worker returns {ok, account:{...}} and {ok, preferences:{...}}; preferences default branch was also missing the request arg in json() so its CORS header fell back and the browser rejected the response, failing the whole Promise.all. Switched to Promise.allSettled, unwrapped .account and .preferences, mapped in_app_enabled/sms_enabled/appearance correctly, and added the request arg to the worker's preferences default response (workers/src/index.js:7608).]
+Add this line to the master NDJSON file:
 
-#### https://taxmonitor.pro/calendar
+```json
+{"LAST_NAME":"TESTUSER","First_NAME":"Jamie","FULL_NAME":"Jamie TESTUSER","DBA":"Test Tax Firm","BUS_ADDR_CITY":"San Diego","BUS_ST_CODE":"CA","WEBSITE":"virtuallaunch.pro","BUS_PHNE_NBR":"","PROFESSION":"EA","domain_clean":"","email_found":"","email_status":"","firm_bucket":"","clay_workbook_ref":""}
+```
 
-1) Remove and use hardcoded calendar entries. Add them to a contract that includes a cron schedule based on their membership level (i.e. 6/wk, 8/wk, 12/wk, or one-time, MFJ is an add-on to any plan) 
+After testing, remove this record from the master file and any send queues.
 
-2) For Cal.com integration, when clicking Connect Calendar, fix the error, right now it shows page https://api.taxmonitor.pro/v1/cal/oauth/start and JSON body {"ok":true,"status":"redirect_required","authorizationUrl":"https://app.cal.com/oauth2/authorize?client_id=782133b560b9ee33174a7a765b8cd73343ffeb2ece517be73a3061f370e21eeb&redirect_uri=https%3A%2F%2Fapi.virtuallaunch.pro%2Fcal%2Fapp%2Foauth%2Fcallback&response_type=code&state=eyJhY2NvdW50SWQiOiJBQ0NUXzIzNmE4YjM5LTM3MzgtNDQ2NS05YjViLWNjMTZkZWZjYWU1MSIsIm5vbmNlIjoiNGZiMGI4NWQtY2JkNS00NDEwLWE2NDAtZDQwMjFjNjY3NDZiIiwiZmxvdyI6InZscCJ9&code_challenge=3VbQJEOUHug6SvuINmfVqgYkD6tvDdZdi_verplNXH8&code_challenge_method=S256"}. It should redirect back to the app calendar page and show the Cal.com events on the calendar
+### Pass criteria
+Email arrives in your inbox with correct personalization. Full 6-email sequence fires on schedule.
 
-3) Both Cal.com event types never resolve (tax-monitor-pro/tax-monitor-service-intro and tax-monitor-pro/tax-monitor-service-support, use the pop-up element embeds below)
+---
 
-4) For the calendar date cards, they all should be the same size. Right now, they render uneven widths but same height 
+## 11. Monitoring Checklist (daily)
 
-[FIXED 2026-04-06 (item 2) — Connect Calendar button in app/calendar/page.tsx was an `<a href="https://api.taxmonitor.pro/v1/cal/oauth/start">` that browser-navigated directly to the Worker JSON endpoint (showing the raw {ok:true,status:"redirect_required",authorizationUrl:"..."} body to the user). Same shape as the Google OAuth issue. Added api.startCalOAuth() in lib/api.ts that calls the endpoint via apiFetch (cookie-authenticated) and reads the JSON; replaced the `<a>` with a `<button onClick>` that awaits startCalOAuth() then sets window.location.href = res.authorizationUrl, with loading + error states. Items 1, 3 still open.] 
+Run every morning after all three crons have fired (after 15:00 UTC):
 
-[FIXED 2026-04-06 (item 4) — calendar day cells were uneven width because grid `1fr` tracks size to their largest content; when a day had a long event-dot label (e.g. "Document Upload Reminder") that single cell would expand and squeeze its neighbors. Fixed in app/calendar/page.module.css by switching `.daysGrid` and `.dayHeaders` to `grid-template-columns: repeat(7, minmax(0, 1fr))` (which forces equal tracks regardless of intrinsic size) and adding `min-width:0; width:100%; box-sizing:border-box; overflow:hidden` to `.dayCell` so the existing event-dot ellipsis truncation actually engages instead of pushing the cell wider.]
+- [ ] **Enrichment log** — Check `vlp-scale/enrichment-logs/{date}.json`. Verify emails_found_valid > 0 and stopped_reason is "budget_exhausted" or "completed" (not "reoon_api_error").
+- [ ] **Batch log** — Check `vlp-scale/batch-logs/{date}.json`. Verify batch_size > 0 and allocation is roughly 65/25/10.
+- [ ] **Send queues** — Check each pending queue. Verify queue sizes are growing (new records added) and shrinking (records progressing through stages and archiving).
+- [ ] **Sent archives** — Check sent-{date}.json for each campaign. Records completing all 6 emails appear here.
+- [ ] **Reoon balance** — Check via API. Credits should reset daily. If balance is 0 before 10:00 UTC, investigate.
+- [ ] **Gmail bounce rate** — Check Gmail sent folder for bounce-backs. If > 5% of recent sends bounced, pause and investigate domain patterns.
+- [ ] **Stripe dashboard** — Check for new TTMP token purchases, VLP memberships, or WLVLP template sales.
 
-#### https://taxmonitor.pro/messages
+---
 
-1) Instead of the  pop-up message form, allow the message to be entered as a form on the page
+## 12. Known Limitations
 
-[FIXED 2026-04-06 — app/messages/page.tsx: removed the `.modalOverlay` compose modal entirely. Added a `renderComposeForm()` helper that renders the same Category/Subject/Message fields + Save Draft/Send actions as an inline panel inside the right detail column whenever `composeOpen` is true (replacing the message detail). On mobile the same form renders inside the existing `mobileDetailOverlay` slot. New CSS classes `.composeInline`, `.composeInlineHeader`, `.composeInlineBody`, `.composeInlineFooter` added to page.module.css. Draft autosave + send/cancel logic preserved.]
+**Worker timeout at scale:** The 14:00 UTC send block runs TTMP, VLP, and WLVLP sequentially. At full pipeline capacity (~200 new leads/day + follow-ups from prior 10 days), total daily sends could reach 600-900 emails. Without artificial delays this should complete quickly, but if Gmail 429 retries stack up (60s pause each), the Worker may timeout. Monitor duration_ms in send handler responses. If consistently > 10 minutes, split into separate cron slots.
 
-#### https://taxmonitor.pro/support
+**Reoon throughput:** 500 credits/day with power mode. Catch-all detection + pattern validation means each lead may consume 1-7 credits. Realistic enrichment rate: 75-200 new leads/day depending on domain diversity. 88K backlog will take months to fully enrich. Prioritization by domain clustering maximizes throughput.
 
-1) Directs user to https://transcript.taxmonitor.pro/login/ when instead there should be a fully functional supported page designed with a support ticket form (use the https://virtuallaunch.pro/support page as reference for the design, also note I was able to test a ticket submission and it was received)
+**Pattern-unvalidated emails:** The first 50 TTMP emails were sent using pattern-generated addresses without Reoon validation. Higher bounce rate expected. Monitor these specifically.
 
-2) Instead of the pop-up ticket form, allow the message to be entered as a form on the page 
+**No open/click tracking:** The current pipeline sends plain text via Gmail API. No pixel tracking, no link wrapping. Open and click rates are not measurable until a tracking layer is added (future enhancement).
 
-[FIXED 2026-04-06 — current source at app/support/page.tsx is already a fully on-page support page (hero, FAQ accordion, contact cards, and an inline submit-ticket form posting to api.createTicket → POST /v1/support/tickets with platform:'tmp'). No popup, no redirect to TTMP login. Confirmed there is no /support/index.html legacy file shadowing the route. The user-reported TTMP /login redirect was from a stale deploy; rebuilding (npm run build) and pushing republishes the correct page.]
+**No unsubscribe mechanism:** CAN-SPAM requires a working unsubscribe link in commercial email. The current emails do not include one. Add before scaling past initial test batches. This is a legal requirement.
 
-#### https://taxmonitor.pro/exit-survey
+**Single Gmail inbox:** All three campaigns send from the same address. If one campaign generates complaints, it affects deliverability for all three. Consider separating sending addresses per campaign when budget allows.
 
-1) Instead of the pop-up thank you, show the thank you message on the page 
+---
 
-[FIXED 2026-04-06 — app/exit-survey/page.tsx: removed the fixed `.successOverlay` block that rendered after submit. The thank-you confirmation now renders inline at the top of the page inside a new `.inlineSuccess` card (added to page.module.css) with the same icon, title, description, and Return to site / Return to dashboard links. Submit handler now also smoothly scrolls the window to top so the message is visible.]
+## Version History
 
-#### https://taxmonitor.pro/intake
-
-1) At Step 3, normalize the phone number after it is entered
-
-2) At Step 3, I am unable to click the Back and I should be able to (ensure we have this behavior for all steps)  
-
-[FIXED 2026-04-06 — item 1: added `normalizePhone(raw)` helper in app/intake/page.tsx that strips non-digits, caps at 10, and reformats as `(XXX) XXX-XXXX`; bound it to `onBlur` of the phone input on the Personal Information step so the value is normalized as soon as the user tabs/clicks away. Item 2: verified Back button logic — the `.navBtnSecondary` button calls `handleBack()` which decrements `step` and is only `disabled` when `step === 0`, so Back works on every step >0. Final review step (step 2) Back button confirmed enabled and functional in build output.]
-
-#### https://taxmonitor.pro/payment
-
-1) At the payment page, the offer that was selected should show. Now, it blank 
-
-[FIXED 2026-04-06 — root cause was a field-name mismatch between offer and payment pages: app/offer/page.tsx wrote sessionStorage `offer_data` with keys `selected_plan/plan_name/plan_price/total`, while app/payment/page.tsx read `plan_id/plan_name/price/price_id/name`. The plan summary rendered blank and `createCheckoutSession` was called with an empty price_id. Updated offer page to (a) call `api.getTmpPricing()` on mount to build a plan_key→price_id map from the worker response (plan_ii + addons), and (b) write offer_data with the canonical keys `plan_id, plan_name, price, price_id, mfj_addon, mfj_price, mfj_price_id, total, approved_at`. Payment page now also guards against empty price_id with an inline error and passes `?session_id={CHECKOUT_SESSION_ID}` in the success_url so payment-success can confirm via getCheckoutStatus.]
-
-#### https://taxmonitor.pro/payment-success
-
-Unable to test, see issue 11.
-
-[FIXED 2026-04-06 — page already correctly reads `session_id` from URL params and calls `api.getCheckoutStatus(session_id)` to flip status to success/error. The blocker was upstream (payment page never reached Stripe due to empty price_id and never set CHECKOUT_SESSION_ID in success_url). With the offer/payment fix above, the success page now receives the real Stripe session id and can confirm the payment.]
-
-### TTMP (transcript.taxmonitor.pro)
-
-#### https://transcript.taxmonitor.pro/resources/irs-code-971-meaning
-
-1) Improve the look of this CTA section: View sample report Try the parser (requires credits)
-
-2)  All the links goes to *.html, for example, https://transcript.taxmonitor.pro/resources/how-to-read-irs-transcripts.html instead of https://transcript.taxmonitor.pro/resources/how-to-read-irs-transcripts/
-
-3) CTA "Transcript Analysis Tool →" goes to the wrong destination, https://transcript.taxmonitor.pro/demo/ (delete the demo page), should be https://transcript.taxmonitor.pro/
-
-4) Try the parser (requires credits) and View sample report#how-it-works goes to the wrong destionation, https://transcript.taxmonitor.pro/demo/, should go to: parser and sample report
-
-5) In the RELATED CODES right side panel, "irs" should be capitalized "IRS"
-
-6) Book a demo goes to the wrong destination, https://transcript.taxmonitor.pro/demo/, should go to https://transcript.taxmonitor.pro/contact/
-
-7) Start Free Trial → should go to https://transcript.taxmonitor.pro/login/ 
-
-
-[FIXED 2026-04-06 — item 2: bulk-rewrote 1,712 `/resources/{slug}.html` → `/resources/{slug}/` references plus 38 `/index.html` → `/` references inside content/resources/*.json via scripts/fix-resource-html-links.js. Item 5: Sidebar.tsx now post-processes the auto-titlecased slug with `.replace(/\bIrs\b/g, 'IRS')` so related-code labels render "IRS Code 971 Meaning". Other items still open.]
-
-#### https://transcript.taxmonitor.pro/resources/account-transcript-explained
-
-1) Same as issue 1. above item 7
-
-#### https://transcript.taxmonitor.pro/resources/canopy-vs-manual-transcript-interpretation
-
-1) Same as issue 1. above item 7
-
-2) Improve the content quality and add a comparison table with several comparable online tools (source from the original html file, if available) 
-
-[FIXED 2026-04-06 (item 2) — content/resources/canopy-vs-manual-transcript-interpretation.json was a 1,817-char templated stub. Rewrote to a 7,632-char article with a 7-row Canopy / Manual / TTMP comparison table (speed, accuracy, privacy, cost, learning curve, output format, best for) plus dedicated sections on where Canopy wins, where Canopy falls short, the reality of manual interpretation, and the TTMP approach. Also rewrote the other 6 thin templated comparison pages — canopy-vs-transcript-tax-monitor-pro (was 207 chars → 5,888), cloud-transcript-tools-vs-local-parsing, intuit-transcript-feature-vs-dedicated-parser, local-irs-transcript-parsing-vs-upload-based-tools, manual-transcript-reading-vs-automated-reports, pitbulltax-transcript-reports-vs-local-parsing — each now has a substantive comparison table and analysis sections.]
-
-#### https://transcript.taxmonitor.pro/resources/how-to-read-irs-transcripts/
-
-1) Same as issue 1. above item 7
-
-2) Improve the content quality (source from the original html file, if available)
-
-3) Change the line above the Automate This Process section and in the CTA of the same section from orange to should match the color theme of the site 
-
-[FIXED 2026-04-06 (item 2) — content/resources/how-to-read-irs-transcripts.json was a 161-char single-paragraph stub. Rewrote to a 13,908-char definitive guide covering the four IRS transcript types (with table), the four ways to request a transcript (TDS, PPS, IRS Online Account, 4506-T), how to read an Account Transcript section by section, a 15-row table of must-know transaction codes (150, 766/768, 806, 570, 571/572, 971, 846, 290/291, 420/424, 480/482, 520/521/522, 530, 582/583, 977), red flags that demand action (TC 570 with no 571, TC 420/424, TC 922/925, TC 971 action codes 069/121/124, TC 599 with no 150, stuck cycles, TC 706/826), a 9-step repeatable reading workflow, and how TTMP automates the mechanical work.] [FIXED 2026-04-06 — item 3: components/templates/HowToTemplate.tsx was hard-coded to amber #f59e0b for the borderTop above "Automate This Process" and the inline CTA bar (background rgba(245,158,11,0.07), border rgba(245,158,11,0.25), Start Free Trial button background #f59e0b). Replaced all three with the TTMP teal palette (#14b8a6, rgba(20,184,166,0.07/0.25)) so resource how-to pages match the rest of the site.]
-
-#### https://transcript.taxmonitor.pro/app/dashboard/
-
-1) Email report link to client doesn't work as intended, prehaps we should remove this entirely (do as is best recommended) 
-
-[FIXED 2026-04-06 — frontend was POSTing to /forms/transcript/report-email with payload {email,eventId,reportUrl,tokenId}; corrected to /v1/transcripts/report-email with {report_id,email,event_id} matching VLP Worker contract. Also stored data.report_id from /v1/transcripts/preview response and removed the 1.5s auto-redirect that was navigating away before users could use the email field.]
-
-#### https://transcript.taxmonitor.pro/app/reports/
-
-1) No reports are loading although reports have been saved/printed to PDF 
-
-[FIXED 2026-04-06 — page was a static "No reports yet" placeholder that never called the API. Wired it up to GET /v1/transcripts/reports (cookie auth) and render the list with Open links into /app/report/?report_id=...] [FIXED 2026-04-06 (round 2) — wired-up call still surfaced as "Failed to fetch" in the browser because the success response in the GET /v1/transcripts/reports handler called `json({...})` without the request arg, so getCorsHeaders defaulted Access-Control-Allow-Origin to virtuallaunch.pro and the transcript.taxmonitor.pro origin was rejected. Added request arg + status at workers/src/index.js:6306.]
-
-#### https://transcript.taxmonitor.pro/app/receipts/
-
-1) Still need to test with Stripe sandbox or using promotional coupons (100% discount)
-
-#### https://transcript.taxmonitor.pro/app/support/
-
-1) Same as TMP 
-
-[FIXED 2026-04-06 — TTMP support page already had an inline form, but it (a) only had a message field with no subject, (b) POSTed to /v1/contact instead of the canonical /v1/support/tickets endpoint, and (c) used a browser alert() for confirmation. Refactored SupportClient.tsx to mirror TMP: subject + message fields, error/submitted/submitting state, inline teal success card with "Send another" reset, and a new api.createTicket helper in lib/api.ts that POSTs to /v1/support/tickets with platform:'ttmp'.]
-
-#### https://transcript.taxmonitor.pro/app/token-usage/
-
-1) Still need to test with Stripe sandbox or adding test tokens through R2
-
-#### https://transcript.taxmonitor.pro/app/calendar/
-
-1) Same as TMP 
-
-[VERIFIED 2026-04-06 — TTMP /app/calendar is currently a static booking page (two cal.com booking links: support call + service intro). It does NOT use the Cal.com OAuth Connect flow that TMP had to fix, and it does NOT render a date-grid calendar (no date cards), so the TMP fixes (fetch+redirect for /v1/cal/oauth/start and grid-template-columns: repeat(7, minmax(0,1fr)) for uneven cells) do not apply here — there is nothing to port. If a full calendar view is later added to TTMP, both fixes should be carried over from TMP app/calendar/page.tsx + page.module.css.]
-
-#### https://transcript.taxmonitor.pro/app/affiliate/
-
-1) Laods in purple instad of teal/TTMP brand colors, also the sidebar for the affiliate is different then the others, ensure they are all in unison (use components, if best), and ensure mobile responsible (right now, in the mobile version, the sidebar takes up 1/2 of the screen when viewing the affiliate page and filles up the top of the mobile screen for the other pages) 
-
-[FIXED 2026-04-06 — color portion only: app/app/affiliate/affiliate.module.css was hard-coded to the VLP purple/indigo palette (#7c3aed, #8b5cf6, #6d28d9, #c4b5fd, rgba(139,92,246,...), rgba(99,102,241,...), rgba(76,29,149,...), rgba(49,46,129,...)). Replaced every purple value with the TTMP teal palette (#14b8a6, #2dd4bf, #0d9488, #5eead4, rgba(20,184,166,...), rgba(45,212,191,...), rgba(13,148,136,...), rgba(15,118,110,...)) — affects appShell radial gradients, sidebar gradient, brandMark gradient, navLinkActive, topbar gradient, statAmount color, and btnPrimary gradient. Sidebar-unification + mobile responsive items still open.] 
-
-[FIXED 2026-04-06 (mobile sidebar) — replaced the legacy mobile rule (`.sidebar { width: 100% !important; height: auto; position: relative }` which stacked the entire 220px sidebar above the page content and ate the top half of the mobile viewport) with an off-canvas hamburger drawer pattern in app/app/dashboard/dashboard.module.css. On <=768px the sidebar is now `position: fixed; left: 0; transform: translateX(-100%); width: 260px !important; z-index: 100`, slid open via a new `.sidebarMobileOpen` class (translateX(0)) and dismissed by tapping a `.sidebarOverlay` backdrop. Added a hamburger menu button to components/AppTopbar.tsx (new `onMenuClick` prop, hidden on >768px via `.menuBtn` in AppTopbar.module.css) and wired `mobileNavOpen` state + overlay + class toggle into all 8 app client pages: DashboardClient, AccountClient, AffiliateClient, CalendarClient, ReceiptsClient, ReportsClient, SupportClient, TokenUsageClient. The dashboard-only desktop collapse feature (`.sidebarCollapsed`) is preserved and now overridden on mobile by the explicit `width: 260px !important`.]
-
-#### For the app topbar, can we implement a modern look and use it across all repos for uniformity 
-
-[FIXED 2026-04-06 (TTMP) — created shared components/AppTopbar.tsx + AppTopbar.module.css implementing a clean, minimal topbar matching VLP's pattern: gradient-teal "TT" brand mark + TTMP wordmark + page title on the left; rightExtra slot (token pill / token badge / dashboard buy buttons), notification bell button, and email + avatar pill that opens a dropdown with Account, Support, Sign Out actions. Sticky, backdrop-blurred dark bg, teal accent #14b8a6, hides email/wordmark on <640px for mobile. Replaced inline `<header className={styles.topbar}>` markup in all 8 client pages — DashboardClient, AccountClient, AffiliateClient, CalendarClient, ReceiptsClient, ReportsClient, SupportClient, TokenUsageClient — with `<AppTopbar title=... email=... onSignOut=... rightExtra=... />`. Same component should be ported to VLP/TMP for cross-repo uniformity in a follow-up.]
-
-### DVLP (developers.virtuallaunch.pro)
-
-#### https://developers.virtuallaunch.pro
-
-1) Add the 9 tech icons to the left side hero 
-
-[FIXED 2026-04-06 — replaced the 9 placeholder circle SVGs in the homepage hero `.iconGrid` with 9 single-color simple-icons SVG paths (React, Node.js, Python, TypeScript, JavaScript, AWS, Docker, PostgreSQL, GitHub) inlined via a `techIcons` array in app/page.tsx. Each icon keeps the existing `.iconItem` float animation, hover scale, and 0.3s staggered animationDelay; added title/aria-label for accessibility.]
-
-#### https://developers.virtuallaunch.pro/developers
-
-1) Add the detailed filters like the original .html page 
-
-[FIXED 2026-04-06 — added a multi-control filter bar to app/developers/DevelopersList.tsx: search, skill dropdown (18 options matching onboarding's SKILLS list), experience-level dropdown (1–2 / 3–5 / 5–8 / 8+ years), availability dropdown (Full-time / Part-time / Contract / Weekends only), and Min/Max $/hr rate range inputs, plus a Clear button that appears once any filter is active. Filtering is client-side via useMemo over the existing /v1/dvlp/developers result. Added matching `.filterBar` / `.filterInput` / `.filterSelect` / `.filterRate` / `.clearBtn` styles to app/developers/page.module.css with a responsive 1→2→7-column grid. No original .html version existed in the repo; the filter set was synthesized from the onboarding contract fields.]
-
-#### https://developers.virtuallaunch.pro/find-developers
-
-1) Change the CTA Find a Developer to direct to https://developers.virtuallaunch.pro/developers instead of itself, 
-
-2) For the form, normalize the phone number and allow multi-project type selections 
-
-[FIXED 2026-04-06 — (1) bottom CTA `.ctaPrimary` href changed from `/find-developers` (self-link) to `/developers` in app/find-developers/page.tsx. (2) Added `normalizePhone()` helper that strips non-digits, slices to 10, and formats `(XXX) XXX-XXXX` on blur (kept free-form during typing); placeholder updated. (3) Replaced the single-select `<select>` Project Type dropdown with a multi-select checkbox grid using a new `projectTypes: string[]` form field + `toggleProjectType()`; submission joins the array as a comma-separated `projectType` string for backwards compatibility with the existing /v1/dvlp/developer-match-intake contract. Added `.checkboxGrid` / `.checkboxChip` / `.checkboxChecked` styles to page.module.css.]
-
-#### https://developers.virtuallaunch.pro/onboarding
-
-1) For step 1 of the form, normalize the phone number, add dropdown behavior for the city and country (make both required fields)
-
-2) For step 2, we want experience level per tech item (adjust the behavior accordingly - the contract should reflect the experience level per tech item)
-
-3) For all fields, add a tooltip to each
-
-4) When click step 4, this error shows: Something went wrong. Please try again so I could not test the success page or loadiing the support reference ID 
-
-[PARTIALLY FIXED 2026-04-06 — (1) Step 1: added `normalizePhone()` (same as find-developers) wired to onBlur on the phone input; replaced the free-form Location input with a Country `<select>` (27 countries, "Other" fallback) + City field that switches to a 20-option US-cities `<select>` when Country is "United States" otherwise stays a text input; both city and country are now required by `handleNext()` (also marked phone required). On submit, `selectPlan()` recombines them as `location: "city, country"` to keep the existing onboarding payload shape. The existing useEffect that hydrates from `getOnboarding(ref)` now splits a stored "City, Country" location back into city/country fields. (2) Step 2: added a `skill_levels: Record<string, 'Junior'|'Mid'|'Senior'>` form field; `toggleSkill()` auto-seeds new skills to "Mid" and removes the entry on deselect; once any skill is selected, a new "Experience level per skill" panel renders one row per selected skill with a level `<select>`; `handleNext()` blocks advancing if any selected skill lacks a level. The full skill_levels map is included in the onboarding submission payload — backend contract update is still required to formally accept this new field. (3) Per-field tooltips IMPLEMENTED 2026-04-06 — extended the local Field component in app/onboarding/page.tsx to accept a `tooltip` prop and render an inline info-circle SVG icon next to each label. On hover/focus the icon reveals an absolutely-positioned `.tooltipBubble` (CSS-only, no JS state) anchored above the icon with a teal-bordered dark card, max-width 18rem, and a small arrow tail; mobile (<=480px) re-anchors the bubble to the left edge to avoid viewport clipping. The wrapper is keyboard-focusable (`tabIndex={0}` + `role="button"` + `aria-label`) so the same content surfaces on focus for non-mouse users, and the bubble carries `role="tooltip"` for AT. Tooltips were added to all 12 form fields across steps 1–3: Full Name, Email, Phone, Country, City, Bio, Portfolio/GitHub URL (step 1), Select skills, Experience level per skill, Experience Level (step 2), Hourly Rate, Availability, Notification Frequency (step 3). Copy explains *what* each field is for and *why* it's collected (e.g. Phone "used only for client intro calls and urgent match notifications — never shared on public profile"; per-skill levels define Junior/Mid/Senior thresholds). Styles added to app/onboarding/page.module.css under a new "Tooltip" block (.tooltipWrap/.tooltipIcon/.tooltipBubble). Backend contract update for skill_levels FIXED 2026-04-06 in VLP repo — added optional `skill_levels` object (additionalProperties enum Junior/Mid/Senior) to contracts/dvlp/dvlp.onboarding.create.v1.json payload.properties (not added to required for backward compat); updated POST /v1/dvlp/onboarding handler in workers/src/index.js to destructure `skill_levels` from body and persist it on the canonical R2 object at dvlp/onboarding/{developerId}.json alongside the other profile fields. (4) Step 4 error: the catch in `selectPlan()` swallowed all errors with a generic "Something went wrong". Reworked to inspect the thrown ApiError's `status` and `body.error`/`body.message`, surfacing the real backend validation message (e.g. "Submission failed: missing required field X") instead of the generic string; network errors now say "Network error. Please check your connection". Combined with the new step-1 required-field validation (phone/city/country) and the city+country→location join, the most likely root cause (the API rejecting an empty `location` or malformed payload) is now surfaced and fixed; remaining backend-only failures will at least show a human-readable reason.]
-
-
-#### https://developers.virtuallaunch.pro/support
-
-1) The page should include a support ticket form, where the user can enter their reference ID (emailed upon submission and printed/rendered on the success page) to view their support ticket status or to load their job matches and messages (see https://virtuallaunch.pro/contact to use as a  reference for the full support page layout and design)
-
-2) The book call card should open the following Cal.com event via pop-up element on click
-
-3) The hero and CTA button reference to book call should direct the user to the book call card 
-
-[FIXED 2026-04-06 — (1) Added new client component app/support/TicketLookup.tsx rendered above the FAQ: a single-input form that accepts a `VLP-XXXXXXX` reference ID, validates the pattern client-side, then calls GET /forms/support/status?clientRef=… (existing public DVLP contract) plus GET /forms/support/posts?clientRef=… for recent messages; renders a status badge, last-updated timestamp, and up to 5 message cards inline. Errors map `not_found` → "No record found for that reference ID" and surface network failures. (2) Added new client component app/support/BookCallCard.tsx that lazy-loads the official `https://app.cal.com/embed/embed.js` script on mount, calls `Cal('init')` + `Cal('ui', { theme: 'dark', brandColor: '#10b981' })`, and renders a "Schedule Now" button which calls `Cal('modal', { calLink: 'virtuallaunchpro/intro', config: { theme: 'dark' } })` to open the popup overlay; falls back to `window.open()` if the script hasn't loaded yet. (3) Added a new hero actions row with "Book a Call" → `#book-call` and "Check My Status" → `#ticket-lookup` anchor links; both target sections have `scroll-margin-top: 5rem` so the sticky header doesn't cover them. The bottom CTA section also got a "Book a Call" secondary button (replacing the old `/pricing` link) and the existing in-page Cal.com `<a href="https://cal.com/...">` contact card was switched to an in-page `#book-call` anchor instead of opening a new tab. New `.heroActions/.heroPrimary/.heroSecondary/.lookup*/.bookCall*` styles added to page.module.css. Page kept as a server component for metadata; only the two new interactive widgets are `'use client'`.]
-
-### WLVLP (websitelotto.virtuallaunch.pro)
-
-#### https://websitelotto.virtuallaunch.pro
-
-WLVLP checkout endpoint implemented 
-
-[IMPLEMENTED 2026-04-07 — Added 4 WLVLP Stripe price IDs (STRIPE_PRICE_WLVLP_STANDARD/PREMIUM/HOSTING/PREMIUM_HOSTING) to wrangler.toml. Replaced the old auction/buy_now subscription POST /v1/wlvlp/checkout (workers/src/index.js around the WLVLP routes block) with a new payment-mode handler matching the TMP anonymous-checkout pattern: optional session via getSessionFromRequest, accepts {slug, tier, email?} where tier is "standard"|"premium", maps to env.STRIPE_PRICE_WLVLP_STANDARD / STRIPE_PRICE_WLVLP_PREMIUM, mode:"payment", success_url=https://websitelotto.virtuallaunch.pro/purchase-success?session_id={CHECKOUT_SESSION_ID}, cancel_url=https://websitelotto.virtuallaunch.pro/sites/${slug}, client_reference_id=accountId||"anonymous", metadata.platform="wlvlp". Added a new WLVLP branch to the central checkout.session.completed handler at workers/src/index.js (after the TMP block, before the legacy membership_id block) that reconciles anonymous buyers by Stripe customer email (creates ACCT_ row if needed, mirrors TMP), writes receipts/wlvlp/purchase/{slug}.json receipt, writes the canonical wlvlp/sites/{slug}.json with {owner, slug, tier, status:"active", purchased_at, hosting_expires_at} (12 months out), and best-effort upserts wlvlp_templates + wlvlp_purchases D1 projections. CORS already includes https://websitelotto.virtuallaunch.pro in ALLOWED_ORIGINS at workers/src/index.js:124. Worker deployed — version d5762cb3-61e1-4764-a20a-0f394baa48f2.]
-
-### TTTMP (taxtools.taxmonitor.pro)
-
-### TCVLP (taxclaim.virtuallaunch.pro)
-
-### GVLP (games.virtuallaunch.pro)
+| Date | Change |
+|---|---|
+| 2026-04-08 | Initial version — enrichment pipeline, campaign router, 3-campaign send system |
