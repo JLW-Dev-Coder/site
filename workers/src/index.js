@@ -4989,18 +4989,62 @@ const ROUTES = [
           membershipsByTier[row.plan_key] = row.count
         }
 
+        // Stripe charges from both VLP-family and TMP-family accounts
+        const stripeTransactions = []
+        const stripeErrors = []
+        const stripeAccounts = [
+          { label: 'vlp', key: env.STRIPE_SECRET_KEY_VLP },
+          { label: 'tmp', key: env.STRIPE_SECRET_KEY },
+        ]
+        for (const acct of stripeAccounts) {
+          if (!acct.key) {
+            stripeErrors.push(`${acct.label}:missing_key`)
+            continue
+          }
+          try {
+            const resp = await fetch('https://api.stripe.com/v1/charges?limit=25', {
+              headers: { 'Authorization': `Bearer ${acct.key}` },
+            })
+            if (!resp.ok) {
+              stripeErrors.push(`${acct.label}:${resp.status}`)
+              continue
+            }
+            const body = await resp.json()
+            for (const ch of (body.data || [])) {
+              stripeTransactions.push({
+                id: ch.id,
+                amount: ch.amount,
+                currency: ch.currency,
+                status: ch.status,
+                paid: ch.paid,
+                refunded: ch.refunded,
+                description: ch.description || ch.statement_descriptor || '',
+                email: ch.billing_details?.email || ch.receipt_email || (ch.metadata && ch.metadata.email) || '',
+                customer: ch.customer || null,
+                created: ch.created,
+                platform: acct.label,
+                receipt_url: ch.receipt_url || null,
+              })
+            }
+          } catch (e) {
+            stripeErrors.push(`${acct.label}:${e.message}`)
+          }
+        }
+        // Sort newest first across both accounts
+        stripeTransactions.sort((a, b) => (b.created || 0) - (a.created || 0))
+
         return json({
           ok: true,
-          stats: {
-            total_accounts: accountsRow?.total || 0,
-            memberships_by_tier: membershipsByTier,
-            tokens: {
-              transcript_total: tokenRow?.transcript_total || 0,
-              tax_game_total: tokenRow?.tax_game_total || 0,
-              holder_count: tokenRow?.holder_count || 0,
-            },
-            recent_transactions: recentTransactions,
+          total_accounts: accountsRow?.total || 0,
+          memberships_by_tier: membershipsByTier,
+          tokens: {
+            transcript_total: tokenRow?.transcript_total || 0,
+            tax_game_total: tokenRow?.tax_game_total || 0,
+            holder_count: tokenRow?.holder_count || 0,
           },
+          recent_transactions: recentTransactions,
+          stripe_transactions: stripeTransactions,
+          stripe_errors: stripeErrors,
         }, 200, request)
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 500, request)

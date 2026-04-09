@@ -8,10 +8,28 @@ interface ScaleResponses {
   purchases?: { count: number; total_revenue: number }
 }
 
+interface StripeTransaction {
+  id: string
+  amount: number
+  currency: string
+  status: string
+  paid?: boolean
+  refunded?: boolean
+  description: string
+  email: string
+  customer?: string | null
+  created: number
+  platform?: string
+  receipt_url?: string | null
+}
+
 interface AdminStats {
   mrr_total?: number
   mrr_by_platform?: Record<string, number>
   membership_distribution?: Record<string, number>
+  memberships_by_tier?: Record<string, number>
+  total_accounts?: number
+  tokens?: { transcript_total: number; tax_game_total: number; holder_count: number }
   recent_transactions?: Array<{
     id: string
     amount: number
@@ -20,6 +38,8 @@ interface AdminStats {
     created: number
     platform?: string
   }>
+  stripe_transactions?: StripeTransaction[]
+  stripe_errors?: string[]
   token_purchases?: { count: number; revenue: number }
 }
 
@@ -128,31 +148,63 @@ export default function ScaleSalesPage() {
         </div>
       </Card>
 
-      {/* Recent transactions */}
+      {/* Stripe transactions */}
       <Card>
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">Recent Transactions</div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Recent Stripe Charges</div>
+          {stats?.stripe_errors && stats.stripe_errors.length > 0 && (
+            <div className="text-xs text-amber-400">errors: {stats.stripe_errors.join(', ')}</div>
+          )}
+        </div>
         {loading ? (
           <div className="text-slate-500 py-6 text-center text-sm">Loading…</div>
-        ) : !stats?.recent_transactions || stats.recent_transactions.length === 0 ? (
+        ) : !stats?.stripe_transactions || stats.stripe_transactions.length === 0 ? (
           <div className="text-slate-500 py-8 text-center text-sm">
-            No transaction data. Wire <code>/v1/admin/stats</code> in the Worker to surface Stripe charges.
+            No Stripe charges returned. Check that <code>STRIPE_SECRET_KEY_VLP</code> and <code>STRIPE_SECRET_KEY</code> are set on the Worker.
           </div>
         ) : (
-          <div className="divide-y divide-slate-800/60">
-            {stats.recent_transactions.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between px-2 py-3 text-sm">
-                <div className="min-w-0">
-                  <div className="font-medium text-white truncate">{tx.description}</div>
-                  <div className="text-xs text-slate-500 truncate">
-                    {tx.email} {tx.platform && `· ${tx.platform.toUpperCase()}`}
-                  </div>
-                </div>
-                <div className="shrink-0 text-right">
-                  <div className="font-bold text-emerald-400">{fmtCurrency(tx.amount / 100)}</div>
-                  <div className="text-xs text-slate-500">{new Date(tx.created * 1000).toLocaleDateString()}</div>
-                </div>
-              </div>
-            ))}
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase text-slate-500 border-b border-slate-800/60">
+                  <th className="py-2 px-2">Date</th>
+                  <th className="py-2 px-2">Amount</th>
+                  <th className="py-2 px-2">Status</th>
+                  <th className="py-2 px-2">Customer</th>
+                  <th className="py-2 px-2">Description</th>
+                  <th className="py-2 px-2">Acct</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-800/60">
+                {stats.stripe_transactions.map((tx) => (
+                  <tr key={tx.id} className="text-slate-300">
+                    <td className="py-2 px-2 whitespace-nowrap text-xs text-slate-500">
+                      {new Date(tx.created * 1000).toLocaleDateString()}
+                    </td>
+                    <td className="py-2 px-2 whitespace-nowrap font-bold text-emerald-400">
+                      {fmtCurrency(tx.amount / 100)}
+                    </td>
+                    <td className="py-2 px-2 whitespace-nowrap">
+                      <span className={
+                        tx.refunded ? 'text-amber-400' :
+                        tx.status === 'succeeded' ? 'text-emerald-400' :
+                        tx.status === 'failed' ? 'text-rose-400' :
+                        'text-slate-400'
+                      }>
+                        {tx.refunded ? 'refunded' : tx.status}
+                      </span>
+                    </td>
+                    <td className="py-2 px-2 truncate max-w-[200px]" title={tx.email}>
+                      {tx.email || <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="py-2 px-2 truncate max-w-[260px]" title={tx.description}>
+                      {tx.description || <span className="text-slate-600">—</span>}
+                    </td>
+                    <td className="py-2 px-2 text-xs uppercase text-slate-500">{tx.platform}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </Card>
