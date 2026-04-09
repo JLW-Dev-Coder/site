@@ -1328,6 +1328,153 @@ async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = 
   if (!zoneTag || !hostname) {
     return { ok: false, error: `unknown platform: ${platform}` };
   }
+  if (!env.CF_API_TOKEN) {
+    return { ok: false, error: 'missing CF_API_TOKEN' };
+  }
+
+  // Cloudflare httpRequestsAdaptiveGroups limits any query to a 1-day window.
+  // Split [since, until] into 1-day chunks and query each in parallel, then
+  // aggregate. A 7-day range generates 7 GraphQL calls per platform.
+  const start = new Date(sinceIso);
+  const end = new Date(untilIso);
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
+    return { ok: false, error: 'invalid time range' };
+  }
+
+  const days = [];
+  let cursor = start;
+  while (cursor < end) {
+    const next = new Date(cursor);
+    next.setUTCDate(next.getUTCDate() + 1);
+    const dayEnd = next > end ? end : next;
+    days.push({ start: cursor.toISOString(), end: dayEnd.toISOString() });
+    cursor = next;
+  }
+
+  const dayResults = await Promise.allSettled(
+    days.map((day) => fetchSingleDayAnalytics(env, platform, day.start, day.end, { includeTimeseries })),
+  );
+
+  const successes = [];
+  let firstError = null;
+  for (const settled of dayResults) {
+    if (settled.status === 'fulfilled' && settled.value.ok) {
+      successes.push(settled.value.data);
+    } else if (!firstError) {
+      firstError = settled.status === 'rejected'
+        ? ((settled.reason && settled.reason.message) || String(settled.reason))
+        : settled.value.error;
+    }
+  }
+
+  if (successes.length === 0) {
+    return { ok: false, error: firstError || 'no data' };
+  }
+
+  if (!includeTimeseries) {
+    const totals = {
+      total_requests: 0,
+      cached_requests: 0,
+      total_bytes: 0,
+      cached_bytes: 0,
+      page_views: 0,
+      unique_visitors: 0,
+      threats: 0,
+    };
+    for (const day of successes) {
+      totals.total_requests += day.total_requests || 0;
+      totals.cached_requests += day.cached_requests || 0;
+      totals.total_bytes += day.total_bytes || 0;
+      totals.cached_bytes += day.cached_bytes || 0;
+      totals.page_views += day.page_views || 0;
+      totals.threats += day.threats || 0;
+    }
+    return { ok: true, data: totals };
+  }
+
+  // Full mode aggregation: traffic + timeseries + status_codes + top_paths +
+  // top_countries + firewall.
+  const aggTraffic = {
+    total_requests: 0,
+    cached_requests: 0,
+    total_bytes: 0,
+    cached_bytes: 0,
+    page_views: 0,
+    unique_visitors: 0,
+    threats: 0,
+    timeseries: [],
+  };
+  const statusMap = new Map();
+  const pathMap = new Map();
+  const countryMap = new Map();
+  const firewallMap = new Map();
+
+  for (const day of successes) {
+    const t = day.traffic || {};
+    aggTraffic.total_requests += t.total_requests || 0;
+    aggTraffic.cached_requests += t.cached_requests || 0;
+    aggTraffic.total_bytes += t.total_bytes || 0;
+    aggTraffic.cached_bytes += t.cached_bytes || 0;
+    aggTraffic.page_views += t.page_views || 0;
+    aggTraffic.threats += t.threats || 0;
+    if (Array.isArray(t.timeseries)) {
+      aggTraffic.timeseries.push(...t.timeseries);
+    }
+    for (const row of (day.status_codes || [])) {
+      const k = row.status;
+      statusMap.set(k, (statusMap.get(k) || 0) + (row.count || 0));
+    }
+    for (const row of (day.top_paths || [])) {
+      const k = row.path;
+      const cur = pathMap.get(k) || { path: k, requests: 0, pageViews: 0 };
+      cur.requests += row.requests || 0;
+      cur.pageViews += row.pageViews || 0;
+      pathMap.set(k, cur);
+    }
+    for (const row of (day.top_countries || [])) {
+      const k = row.country;
+      const cur = countryMap.get(k) || { country: k, requests: 0 };
+      cur.requests += row.requests || 0;
+      countryMap.set(k, cur);
+    }
+    for (const row of (day.firewall || [])) {
+      const k = row.action;
+      firewallMap.set(k, (firewallMap.get(k) || 0) + (row.count || 0));
+    }
+  }
+
+  const status_codes = Array.from(statusMap.entries())
+    .map(([status, count]) => ({ status, count }))
+    .sort((a, b) => b.count - a.count);
+  const top_paths = Array.from(pathMap.values())
+    .sort((a, b) => b.requests - a.requests)
+    .slice(0, 20);
+  const top_countries = Array.from(countryMap.values())
+    .sort((a, b) => b.requests - a.requests)
+    .slice(0, 10);
+  const firewall = Array.from(firewallMap.entries())
+    .map(([action, count]) => ({ action, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return {
+    ok: true,
+    data: {
+      traffic: aggTraffic,
+      status_codes,
+      top_paths,
+      top_countries,
+      firewall,
+    },
+  };
+}
+
+async function fetchSingleDayAnalytics(env, platform, sinceIso, untilIso, opts = {}) {
+  const includeTimeseries = opts.includeTimeseries !== false;
+  const zoneTag = CF_ZONE_MAP[platform];
+  const hostname = CF_DOMAIN_MAP[platform];
+  if (!zoneTag || !hostname) {
+    return { ok: false, error: `unknown platform: ${platform}` };
+  }
   const token = env.CF_API_TOKEN;
   if (!token) {
     return { ok: false, error: 'missing CF_API_TOKEN' };
@@ -1430,6 +1577,9 @@ async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = 
   const variables = { zoneTag, since: sinceIso, until: untilIso };
   if (!isRoot) variables.hostname = hostname;
 
+  // 10s per-day timeout so the /all endpoint can't hang on a stalled day.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
   let resp;
   try {
     resp = await fetch('https://api.cloudflare.com/client/v4/graphql', {
@@ -1439,9 +1589,13 @@ async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = 
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ query, variables }),
+      signal: controller.signal,
     });
   } catch (e) {
+    if (e.name === 'AbortError') return { ok: false, error: 'graphql: timeout' };
     return { ok: false, error: `network: ${e.message}` };
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   if (!resp.ok) {
