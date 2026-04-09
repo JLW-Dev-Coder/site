@@ -670,6 +670,241 @@
   }
 }
 
+/* ---------------------------------------------------------------------- */
+/* Pipeline action buttons (manual triggers — placeholders)                */
+/* ---------------------------------------------------------------------- */
+.actionButtonRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.actionButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid transparent;
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.7), rgba(15, 23, 42, 0.7)),
+    linear-gradient(to right, rgb(249, 115, 22), rgb(245, 158, 11));
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  border-radius: 0.625rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  cursor: not-allowed;
+  backdrop-filter: blur(10px);
+  transition: all 0.2s;
+}
+
+.actionButton:hover {
+  transform: translateY(-1px);
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.55)),
+    linear-gradient(to right, rgb(251, 146, 60), rgb(251, 191, 36));
+}
+
+.actionButtonBadge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(148, 163, 184, 0.9);
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.25rem;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Workflow section + markdown rendering                                   */
+/* ---------------------------------------------------------------------- */
+.workflowNote {
+  margin-top: 0.4rem;
+  padding: 0 1.25rem 0.4rem 1.25rem;
+  font-size: 0.7rem;
+  font-style: italic;
+  color: rgba(148, 163, 184, 0.6);
+}
+
+.workflowBody {
+  padding: 0.75rem 1.5rem 1.5rem 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.workflowMarkdown {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: rgba(203, 213, 225, 0.92); /* slate-300 */
+  word-wrap: break-word;
+}
+
+.workflowMarkdown h1,
+.workflowMarkdown h2,
+.workflowMarkdown h3,
+.workflowMarkdown h4,
+.workflowMarkdown h5,
+.workflowMarkdown h6 {
+  color: rgba(255, 255, 255, 0.95);
+  font-family: 'Raleway', system-ui, sans-serif;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.6rem;
+  line-height: 1.25;
+}
+
+.workflowMarkdown h1 { font-size: 1.4rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.4rem; }
+.workflowMarkdown h2 { font-size: 1.2rem; border-bottom: 1px solid rgba(255, 255, 255, 0.06); padding-bottom: 0.3rem; }
+.workflowMarkdown h3 { font-size: 1.05rem; }
+.workflowMarkdown h4 { font-size: 0.95rem; }
+.workflowMarkdown h5 { font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.workflowMarkdown h6 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: rgba(148, 163, 184, 0.95); }
+
+.workflowMarkdown p {
+  margin: 0.6rem 0;
+}
+
+.workflowMarkdown a {
+  color: rgb(249, 115, 22); /* brand orange */
+  text-decoration: none;
+  border-bottom: 1px dotted rgba(249, 115, 22, 0.5);
+}
+
+.workflowMarkdown a:hover {
+  color: rgb(251, 146, 60);
+  border-bottom-color: rgb(251, 146, 60);
+}
+
+.workflowMarkdown strong { color: rgba(255, 255, 255, 0.98); font-weight: 700; }
+.workflowMarkdown em { color: rgba(255, 255, 255, 0.9); font-style: italic; }
+
+.workflowMarkdown ul,
+.workflowMarkdown ol {
+  margin: 0.6rem 0;
+  padding-left: 1.4rem;
+}
+
+.workflowMarkdown li {
+  margin: 0.25rem 0;
+}
+
+.workflowMarkdown ul li::marker {
+  color: rgba(249, 115, 22, 0.7);
+}
+
+.workflowMarkdown ol li::marker {
+  color: rgba(249, 115, 22, 0.7);
+  font-weight: 600;
+}
+
+.workflowMarkdown hr {
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1.5rem 0;
+}
+
+.workflowMarkdown blockquote {
+  margin: 0.8rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 3px solid rgba(249, 115, 22, 0.6);
+  background-color: rgba(255, 255, 255, 0.03);
+  color: rgba(203, 213, 225, 0.85);
+  border-radius: 0 0.4rem 0.4rem 0;
+}
+
+.workflowMarkdown blockquote p {
+  margin: 0.25rem 0;
+}
+
+.workflowMarkdown code {
+  font-family: 'Menlo', 'Monaco', 'Consolas', monospace;
+  font-size: 0.78rem;
+  padding: 0.1rem 0.35rem;
+  background-color: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.25rem;
+  color: rgba(251, 191, 36, 0.95); /* amber accent */
+}
+
+.workflowMarkdown pre {
+  margin: 0.8rem 0;
+  padding: 1rem;
+  background-color: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  backdrop-filter: blur(10px);
+}
+
+.workflowMarkdown pre code {
+  display: block;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: rgba(226, 232, 240, 0.95); /* slate-200 */
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.workflowMarkdown table {
+  width: 100%;
+  margin: 0.8rem 0;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.workflowMarkdown thead {
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.workflowMarkdown th {
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+
+.workflowMarkdown td {
+  padding: 0.55rem 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(203, 213, 225, 0.92);
+}
+
+.workflowMarkdown tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.workflowMarkdown tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.workflowMarkdown img {
+  max-width: 100%;
+  border-radius: 0.4rem;
+}
+
+.workflowLoading,
+.workflowError {
+  padding: 1rem 0;
+  font-size: 0.8rem;
+  color: rgba(148, 163, 184, 0.85);
+  text-align: center;
+}
+
+.workflowError {
+  color: rgba(248, 113, 113, 0.9);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .table {

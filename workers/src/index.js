@@ -5801,6 +5801,35 @@ const ROUTES = [
   },
 
   {
+    method: 'GET', pattern: '/v1/admin/scale/workflow',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      const obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/workflow.md')
+      if (!obj) {
+        return json({ ok: false, error: 'WORKFLOW.md not found in R2' }, 404, request)
+      }
+
+      const body = await obj.text()
+      const corsHeaders = getCorsHeaders(request)
+      return new Response(body, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/markdown; charset=utf-8',
+          'Cache-Control': 'no-store',
+          ...corsHeaders,
+        },
+      })
+    },
+  },
+
+  {
     method: 'GET', pattern: '/v1/scale/dashboard',
     handler: async (_method, _pattern, _params, request, env) => {
       const { session, error } = await requireSession(request, env)

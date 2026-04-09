@@ -357,7 +357,7 @@ export default function ScaleAnalyticsPage() {
           <p className="mt-1 text-sm text-slate-400">
             {tab === 'all-repos'
               ? 'Cloudflare traffic across all 8 VLP repos'
-              : 'Email outreach pipeline + responses'}
+              : 'Outreach pipeline metrics, manual triggers, and workflow reference'}
           </p>
         </div>
         <button
@@ -395,7 +395,7 @@ export default function ScaleAnalyticsPage() {
           className={`${styles.tabButton} ${tab === 'pipeline' ? styles.tabButtonActive : ''}`}
           onClick={() => setTab('pipeline')}
         >
-          SCALE Pipeline
+          Pipeline
         </button>
       </div>
 
@@ -405,49 +405,34 @@ export default function ScaleAnalyticsPage() {
           error={allAnalyticsError}
           data={allAnalytics}
           summary={summary}
-          pipeline={pipeline}
-          stats={stats}
         />
       ) : (
-        <PipelineView loading={pipelineLoading} error={pipelineError} data={pipeline} />
+        <PipelineView
+          loading={pipelineLoading}
+          error={pipelineError}
+          data={pipeline}
+          summary={summary}
+          stats={stats}
+        />
       )}
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// All Repos view
+// All Repos view — summary bar + repo cards grid only
 // ---------------------------------------------------------------------------
 function AllReposView({
   loading,
   error,
   data,
   summary,
-  pipeline,
-  stats,
 }: {
   loading: boolean
   error: string | null
   data: AllAnalyticsData | null
   summary: { requests: number; page_views: number; uniques: number; bytes: number; threats: number }
-  pipeline: DashboardData | null
-  stats: AdminStats | null
 }) {
-  // ---- SALES fallbacks ---------------------------------------------------
-  const memberships = stats?.paid_accounts ?? 0
-  const purchases = pipeline?.responses?.purchases?.count ?? 0
-
-  // ---- EMAILS fallbacks --------------------------------------------------
-  const latestBatch = pipeline?.batch_history && pipeline.batch_history.length > 0
-    ? [...pipeline.batch_history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-    : null
-  const email1Sent = (pipeline?.email1_queue ?? []).filter((r) => r.email_1_sent_at).length
-  const email1Queued = (pipeline?.email1_queue ?? []).length
-  const email2Scheduled = (pipeline?.email2_queue ?? []).filter((r) => r.email_2_scheduled_for).length
-  const email2Sent = (pipeline?.email2_queue ?? []).filter((r) => r.email_2_sent_at).length
-  const eligible = pipeline?.pipeline?.eligible ?? 0
-  const daysRemaining = pipeline?.pipeline?.days_remaining ?? 0
-
   return (
     <>
       {/* Summary bar */}
@@ -494,22 +479,366 @@ function AllReposView({
           ))}
         </div>
       )}
+    </>
+  )
+}
 
-      {/* Metric hierarchy from test notes */}
+function SummaryStat({ label, value, accent }: { label: string; value: string; accent?: 'red' }) {
+  return (
+    <div className={styles.summaryStat}>
+      <div className={`${styles.summaryStatValue} ${accent === 'red' ? styles.statusRed : ''}`}>{value}</div>
+      <div className={styles.summaryStatLabel}>{label}</div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Action buttons — manual /internal/test-* triggers (placeholders for now)
+// ---------------------------------------------------------------------------
+const PIPELINE_ACTIONS: Array<{ label: string; endpoint: string }> = [
+  { label: 'Run Enrichment', endpoint: 'POST /internal/test-enrichment' },
+  { label: 'Run Daily Batch', endpoint: 'POST /internal/test-daily-batch' },
+  { label: 'Run TTMP Send', endpoint: 'POST /internal/test-ttmp-send' },
+  { label: 'Run VLP Send', endpoint: 'POST /internal/test-vlp-send' },
+]
+
+function PipelineActionButtons() {
+  // TODO: wire to /internal/test-* endpoints with INTERNAL_TEST_KEY header
+  return (
+    <div className={styles.actionButtonRow}>
+      {PIPELINE_ACTIONS.map((a) => (
+        <button
+          key={a.endpoint}
+          type="button"
+          className={styles.actionButton}
+          title="Manual trigger — requires INTERNAL_TEST_KEY"
+          aria-disabled
+          disabled
+        >
+          <span>{a.label}</span>
+          <span className={styles.actionButtonBadge}>Soon</span>
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Workflow section — fetches WORKFLOW.md from R2 and renders it
+// ---------------------------------------------------------------------------
+function WorkflowSection() {
+  const [open, setOpen] = useState(false)
+  const [markdown, setMarkdown] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!open || markdown !== null || loading) return
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    fetch('https://api.virtuallaunch.pro/v1/admin/scale/workflow', { credentials: 'include' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.text()
+      })
+      .then((text) => {
+        if (cancelled) return
+        setMarkdown(text)
+      })
+      .catch((e) => {
+        if (cancelled) return
+        setError(e instanceof Error ? e.message : 'Failed to load WORKFLOW.md')
+      })
+      .finally(() => {
+        if (cancelled) return
+        setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [open, markdown, loading])
+
+  return (
+    <div className={styles.metricSection}>
+      <button
+        type="button"
+        className={styles.metricSectionHeader}
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        <span className={styles.metricSectionTitle}>Workflow</span>
+        <span className={styles.metricSectionChevron} aria-hidden>
+          {open ? '−' : '+'}
+        </span>
+      </button>
+      <div className={styles.workflowNote}>
+        Synced from <code>scale/WORKFLOW.md</code> — push updates via <code>node scale/push-workflow.js</code>
+      </div>
+      {open && (
+        <div className={styles.workflowBody}>
+          {loading && <div className={styles.workflowLoading}>Loading WORKFLOW.md from R2…</div>}
+          {error && <div className={styles.workflowError}>Error: {error}</div>}
+          {!loading && !error && markdown !== null && (
+            <div
+              className={styles.workflowMarkdown}
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(markdown) }}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Lightweight markdown renderer
+// Handles: headings (#-######), bold/italic, code (``` and inline `),
+// tables, links, ordered/unordered lists, horizontal rules, blockquotes.
+// ---------------------------------------------------------------------------
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function renderInline(text: string): string {
+  let out = escapeHtml(text)
+  // inline code first (so other patterns inside don't get processed)
+  out = out.replace(/`([^`]+)`/g, (_m, code) => `<code>${code}</code>`)
+  // links [text](url)
+  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, url) => {
+    const safeUrl = url.replace(/"/g, '%22')
+    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`
+  })
+  // bold **text** or __text__
+  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+  out = out.replace(/__([^_]+)__/g, '<strong>$1</strong>')
+  // italic *text* or _text_
+  out = out.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+  out = out.replace(/(^|[^_])_([^_\n]+)_/g, '$1<em>$2</em>')
+  return out
+}
+
+function renderMarkdown(src: string): string {
+  const lines = src.replace(/\r\n/g, '\n').split('\n')
+  const out: string[] = []
+  let i = 0
+
+  // List/blockquote/paragraph state
+  let inUl = false
+  let inOl = false
+  let inBq = false
+  let paraBuf: string[] = []
+
+  const flushPara = () => {
+    if (paraBuf.length === 0) return
+    out.push(`<p>${renderInline(paraBuf.join(' '))}</p>`)
+    paraBuf = []
+  }
+  const closeLists = () => {
+    if (inUl) { out.push('</ul>'); inUl = false }
+    if (inOl) { out.push('</ol>'); inOl = false }
+  }
+  const closeBq = () => {
+    if (inBq) { out.push('</blockquote>'); inBq = false }
+  }
+  const closeAll = () => {
+    flushPara()
+    closeLists()
+    closeBq()
+  }
+
+  while (i < lines.length) {
+    const line = lines[i]
+
+    // Fenced code block
+    const fence = line.match(/^```(\w*)\s*$/)
+    if (fence) {
+      closeAll()
+      const lang = fence[1] || ''
+      const codeLines: string[] = []
+      i++
+      while (i < lines.length && !/^```\s*$/.test(lines[i])) {
+        codeLines.push(lines[i])
+        i++
+      }
+      i++ // skip closing fence
+      const langClass = lang ? ` class="lang-${lang}"` : ''
+      out.push(`<pre><code${langClass}>${escapeHtml(codeLines.join('\n'))}</code></pre>`)
+      continue
+    }
+
+    // Horizontal rule
+    if (/^\s*(\*\s*){3,}\s*$/.test(line) || /^\s*(-\s*){3,}\s*$/.test(line) || /^\s*(_\s*){3,}\s*$/.test(line)) {
+      closeAll()
+      out.push('<hr />')
+      i++
+      continue
+    }
+
+    // Heading
+    const h = line.match(/^(#{1,6})\s+(.*)$/)
+    if (h) {
+      closeAll()
+      const level = h[1].length
+      out.push(`<h${level}>${renderInline(h[2].trim())}</h${level}>`)
+      i++
+      continue
+    }
+
+    // Table — header line followed by separator |---|---|
+    if (/\|/.test(line) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
+      closeAll()
+      const splitRow = (row: string) =>
+        row.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map((c) => c.trim())
+      const headers = splitRow(line)
+      i += 2 // skip header + separator
+      const rows: string[][] = []
+      while (i < lines.length && /\|/.test(lines[i]) && lines[i].trim() !== '') {
+        rows.push(splitRow(lines[i]))
+        i++
+      }
+      out.push('<table><thead><tr>')
+      for (const h of headers) out.push(`<th>${renderInline(h)}</th>`)
+      out.push('</tr></thead><tbody>')
+      for (const r of rows) {
+        out.push('<tr>')
+        for (const c of r) out.push(`<td>${renderInline(c)}</td>`)
+        out.push('</tr>')
+      }
+      out.push('</tbody></table>')
+      continue
+    }
+
+    // Blockquote
+    const bq = line.match(/^>\s?(.*)$/)
+    if (bq) {
+      flushPara()
+      closeLists()
+      if (!inBq) {
+        out.push('<blockquote>')
+        inBq = true
+      }
+      out.push(`<p>${renderInline(bq[1])}</p>`)
+      i++
+      continue
+    } else if (inBq && line.trim() === '') {
+      closeBq()
+      i++
+      continue
+    }
+
+    // Unordered list
+    const ul = line.match(/^\s*[-*+]\s+(.*)$/)
+    if (ul) {
+      flushPara()
+      closeBq()
+      if (inOl) { out.push('</ol>'); inOl = false }
+      if (!inUl) { out.push('<ul>'); inUl = true }
+      out.push(`<li>${renderInline(ul[1])}</li>`)
+      i++
+      continue
+    }
+
+    // Ordered list
+    const ol = line.match(/^\s*\d+\.\s+(.*)$/)
+    if (ol) {
+      flushPara()
+      closeBq()
+      if (inUl) { out.push('</ul>'); inUl = false }
+      if (!inOl) { out.push('<ol>'); inOl = true }
+      out.push(`<li>${renderInline(ol[1])}</li>`)
+      i++
+      continue
+    }
+
+    // Blank line — paragraph break
+    if (line.trim() === '') {
+      flushPara()
+      closeLists()
+      closeBq()
+      i++
+      continue
+    }
+
+    // Default: paragraph text
+    closeLists()
+    closeBq()
+    paraBuf.push(line.trim())
+    i++
+  }
+
+  closeAll()
+  return out.join('\n')
+}
+
+// ---------------------------------------------------------------------------
+// Pipeline view
+// ---------------------------------------------------------------------------
+function PipelineView({
+  loading,
+  error,
+  data,
+  summary,
+  stats,
+}: {
+  loading: boolean
+  error: string | null
+  data: DashboardData | null
+  summary: { requests: number; page_views: number; uniques: number; bytes: number; threats: number }
+  stats: AdminStats | null
+}) {
+  const formatCurrencyLocal = (n: number) =>
+    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+
+  const getPipelineAccentClass = (value: number, thresholds: { red: number; yellow: number }): string => {
+    if (value < thresholds.red) return styles.statusRed
+    if (value < thresholds.yellow) return styles.statusYellow
+    return styles.statusGreen
+  }
+
+  const getDaysRemainingAccentClass = (days: number): string => {
+    if (days < 7) return styles.statusRed
+    if (days <= 14) return styles.statusYellow
+    return styles.statusGreen
+  }
+
+  // ---- Metric hierarchy fallbacks ----------------------------------------
+  const memberships = stats?.paid_accounts ?? 0
+  const purchases = data?.responses?.purchases?.count ?? 0
+  const latestBatch = data?.batch_history && data.batch_history.length > 0
+    ? [...data.batch_history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
+    : null
+  const email1Sent = (data?.email1_queue ?? []).filter((r) => r.email_1_sent_at).length
+  const email1Queued = (data?.email1_queue ?? []).length
+  const email2Scheduled = (data?.email2_queue ?? []).filter((r) => r.email_2_scheduled_for).length
+  const email2Sent = (data?.email2_queue ?? []).filter((r) => r.email_2_sent_at).length
+  const eligible = data?.pipeline?.eligible ?? 0
+  const daysRemaining = data?.pipeline?.days_remaining ?? 0
+
+  // Metric sections + action buttons + workflow render even when the
+  // dashboard endpoint is loading or errored — they're independent.
+  const headerBlock = (
+    <>
+      {/* Metric hierarchy */}
       <div className={styles.metricSections}>
         <MetricSection title="BOOKINGS">
           <MetricRow label="ALL" value={0} />
-          <MetricRow label="CANCELLED" value={pipeline?.responses?.bookings?.cancelled ?? 0} />
+          <MetricRow label="CANCELLED" value={data?.responses?.bookings?.cancelled ?? 0} />
           <MetricRow label="COMPLETED" value={0} />
           <MetricRow label="CONFIRMED" value={0} />
           <MetricRow label="PENDING" value={0} />
-          <MetricRow label="RESCHEDULED" value={pipeline?.responses?.bookings?.rescheduled ?? 0} />
+          <MetricRow label="RESCHEDULED" value={data?.responses?.bookings?.rescheduled ?? 0} />
           <MetricRow label="UPCOMING" value={0} />
           <div className={styles.metricNote}>No bookings endpoint wired yet</div>
         </MetricSection>
 
         <MetricSection title="EMAILS">
-          <MetricRow label="BATCHES" value={pipeline?.batch_history?.length ?? 0} />
+          <MetricRow label="BATCHES" value={data?.batch_history?.length ?? 0} />
           <MetricRow label="BATCH DATE" value={latestBatch ? new Date(latestBatch.date).toLocaleDateString() : '—'} />
           <MetricRow label="RECORD COUNT" value={latestBatch?.record_count ?? 0} />
           <MetricRow label="EMAIL 1 PUSHED" value={latestBatch?.email1_pushed ?? 0} />
@@ -522,7 +851,7 @@ function AllReposView({
           <MetricRow label="REPLIED" value={0} />
           <MetricRow label="QUEUED" value={email1Queued} />
           <MetricRow label="EMAIL 1" value={email1Queued} />
-          <MetricRow label="EMAIL 2" value={(pipeline?.email2_queue ?? []).length} />
+          <MetricRow label="EMAIL 2" value={(data?.email2_queue ?? []).length} />
           <MetricRow label="SCHEDULED" value={email2Scheduled} />
           <MetricRow label="SENT" value={email1Sent + email2Sent} />
           <MetricRow label="SUCCESSFUL" value={email1Sent + email2Sent} />
@@ -545,68 +874,47 @@ function AllReposView({
           <MetricRow label="PURCHASES" value={formatNumber(purchases)} />
         </MetricSection>
       </div>
+
+      {/* Manual trigger buttons */}
+      <PipelineActionButtons />
+
+      {/* Workflow markdown viewer */}
+      <WorkflowSection />
     </>
   )
-}
-
-function SummaryStat({ label, value, accent }: { label: string; value: string; accent?: 'red' }) {
-  return (
-    <div className={styles.summaryStat}>
-      <div className={`${styles.summaryStatValue} ${accent === 'red' ? styles.statusRed : ''}`}>{value}</div>
-      <div className={styles.summaryStatLabel}>{label}</div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// SCALE Pipeline view (preserved from previous page)
-// ---------------------------------------------------------------------------
-function PipelineView({
-  loading,
-  error,
-  data,
-}: {
-  loading: boolean
-  error: string | null
-  data: DashboardData | null
-}) {
-  const formatCurrencyLocal = (n: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
-
-  const getPipelineAccentClass = (value: number, thresholds: { red: number; yellow: number }): string => {
-    if (value < thresholds.red) return styles.statusRed
-    if (value < thresholds.yellow) return styles.statusYellow
-    return styles.statusGreen
-  }
-
-  const getDaysRemainingAccentClass = (days: number): string => {
-    if (days < 7) return styles.statusRed
-    if (days <= 14) return styles.statusYellow
-    return styles.statusGreen
-  }
 
   if (loading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className={styles.skeletonCard}></div>
-        ))}
+      <div className="space-y-8">
+        {headerBlock}
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className={styles.skeletonCard}></div>
+          ))}
+        </div>
       </div>
     )
   }
 
   if (error && !data) {
     return (
-      <Card>
-        <div className="text-slate-400 text-center py-8">{error}</div>
-      </Card>
+      <div className="space-y-8">
+        {headerBlock}
+        <Card>
+          <div className="text-slate-400 text-center py-8">{error}</div>
+        </Card>
+      </div>
     )
   }
 
-  if (!data) return null
+  if (!data) {
+    return <div className="space-y-8">{headerBlock}</div>
+  }
 
   return (
     <div className="space-y-8">
+      {headerBlock}
+
       {/* Pipeline overview */}
       {!data.pipeline ? (
         <Card>
