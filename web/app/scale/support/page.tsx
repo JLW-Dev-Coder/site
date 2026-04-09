@@ -101,23 +101,27 @@ export default function ScaleSupportPage() {
   async function handleSend() {
     if (!selected || !reply.trim()) return
     setSending(true)
+    setError(null)
     try {
-      await fetch(`https://api.virtuallaunch.pro/v1/support/tickets/${selected.ticket_id}`, {
+      const res = await fetch(`https://api.virtuallaunch.pro/v1/admin/support/tickets/${selected.ticket_id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ message: reply.trim(), author: 'support' }),
+        body: JSON.stringify({ message: reply.trim() }),
       })
-      setReply('')
-      // Refresh
-      const r = await fetch(`https://api.virtuallaunch.pro/v1/support/tickets/${selected.ticket_id}`, { credentials: 'include' })
-      if (r.ok) {
-        const updated = await r.json()
-        const t: Ticket = updated.ticket ?? updated
-        setTickets((prev) => prev.map((p) => (p.ticket_id === t.ticket_id ? t : p)))
-        setSelected(t)
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        setError(err.message || `Failed to send response (${res.status})`)
+        return
       }
-    } catch {/* ignore */} finally {
+      const data = await res.json()
+      const t: Ticket = data.ticket
+      setTickets((prev) => prev.map((p) => (p.ticket_id === t.ticket_id ? t : p)))
+      setSelected(t)
+      setReply('')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to send response')
+    } finally {
       setSending(false)
     }
   }

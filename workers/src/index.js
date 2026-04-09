@@ -4911,7 +4911,120 @@ const ROUTES = [
             ORDER BY t.created_at DESC
             LIMIT 100`
         ).all()
-        return json({ ok: true, tickets: result.results || [] }, 200, request)
+        const rows = result.results || []
+        // Hydrate messages[] from R2 canonical record (parallel)
+        const tickets = await Promise.all(rows.map(async (row) => {
+          let messages = []
+          try {
+            const obj = await env.R2_VIRTUAL_LAUNCH.get(`support_tickets/${row.ticket_id}.json`)
+            if (obj) {
+              const data = await obj.json().catch(() => ({}))
+              if (Array.isArray(data.messages)) messages = data.messages
+            }
+          } catch {}
+          // Seed initial user message if R2 record has no thread yet
+          if (messages.length === 0 && row.message) {
+            messages = [{
+              id: `msg_seed_${row.ticket_id}`,
+              body: row.message,
+              author: 'user',
+              createdAt: row.created_at,
+            }]
+          }
+          return { ...row, messages }
+        }))
+        return json({ ok: true, tickets }, 200, request)
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 500, request)
+      }
+    },
+  },
+
+  {
+    method: 'PATCH', pattern: '/v1/admin/support/tickets/:ticket_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      try {
+        const body = await parseBody(request)
+        const replyText = (body?.message ?? '').toString().trim()
+        const newStatus = body?.status
+        if (!replyText && !newStatus) {
+          return json({ ok: false, error: 'VALIDATION', message: 'message or status required' }, 400, request)
+        }
+        const validStatuses = ['closed', 'in_progress', 'open', 'reopened', 'resolved', 'awaiting']
+        if (newStatus && !validStatuses.includes(newStatus)) {
+          return json({ ok: false, error: 'VALIDATION', message: `status must be one of: ${validStatuses.join(', ')}` }, 400, request)
+        }
+
+        const row = await env.DB.prepare(
+          `SELECT t.*, a.email, a.platform FROM support_tickets t
+             LEFT JOIN accounts a ON a.account_id = t.account_id
+            WHERE t.ticket_id = ?`
+        ).bind(params.ticket_id).first()
+        if (!row) return json({ ok: false, error: 'NOT_FOUND' }, 404, request)
+
+        const now = new Date().toISOString()
+        const existingObj = await env.R2_VIRTUAL_LAUNCH.get(`support_tickets/${params.ticket_id}.json`)
+        const existing = existingObj ? await existingObj.json().catch(() => ({})) : {}
+        const messages = Array.isArray(existing.messages) ? existing.messages.slice() : []
+        if (messages.length === 0 && row.message) {
+          messages.push({
+            id: `msg_seed_${params.ticket_id}`,
+            body: row.message,
+            author: 'user',
+            createdAt: row.created_at,
+          })
+        }
+        if (replyText) {
+          messages.push({
+            id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+            body: replyText,
+            author: 'support',
+            createdAt: now,
+          })
+        }
+
+        const effectiveStatus = newStatus || (replyText ? 'awaiting' : row.status)
+
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `support_tickets/${params.ticket_id}.json`, {
+          ...existing,
+          ticket_id: params.ticket_id,
+          account_id: row.account_id,
+          subject: row.subject,
+          priority: row.priority,
+          status: effectiveStatus,
+          messages,
+          updatedAt: now,
+        })
+
+        await d1Run(env.DB,
+          `UPDATE support_tickets SET status = ?, updated_at = ? WHERE ticket_id = ?`,
+          [effectiveStatus, now, params.ticket_id]
+        )
+
+        return json({
+          ok: true,
+          ticket: {
+            ticket_id: params.ticket_id,
+            account_id: row.account_id,
+            subject: row.subject,
+            message: row.message,
+            priority: row.priority,
+            status: effectiveStatus,
+            created_at: row.created_at,
+            updated_at: now,
+            email: row.email,
+            platform: row.platform,
+            messages,
+          },
+        }, 200, request)
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 500, request)
       }

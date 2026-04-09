@@ -532,6 +532,28 @@ Both plan keys should grant identical token amounts.
 
 ---
 
+## 20a. Admin Endpoints
+
+Operator-only routes gated by a hardcoded admin email allowlist
+(`['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']`) inside
+each handler. All require a valid `vlp_session` cookie. Non-allowlisted
+sessions receive `403 FORBIDDEN`.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET   | `/v1/admin/stats` | Returns `{ ok, total_accounts, memberships_by_tier, tokens, recent_transactions, stripe_transactions[], stripe_errors[] }`. Pulls live charges from both VLP and TMP Stripe accounts. |
+| GET   | `/v1/admin/support/tickets` | Returns up to 100 cross-platform tickets (joined to `accounts` for `email` + `platform`), with `messages[]` hydrated from R2 (`support_tickets/{id}.json`). Initial user message is seeded from the D1 row when no R2 thread exists yet. |
+| PATCH | `/v1/admin/support/tickets/:ticket_id` | Body: `{ message?, status? }`. Appends an operator reply (`author: 'support'`) to the R2 ticket's `messages[]` thread, sets status to `awaiting` (or the supplied status), updates the D1 projection, and returns the full updated ticket. R2 is authoritative; D1 mirrors `status` / `updated_at`. |
+
+Frontend usage: the SCALE operator console (`/scale/support`) reads from
+`GET /v1/admin/support/tickets` and submits replies via
+`PATCH /v1/admin/support/tickets/:ticket_id` with `{ message }`. Do not
+route operator replies through the user-facing
+`PATCH /v1/support/tickets/:ticket_id` — that handler overwrites the
+ticket's `message` column instead of appending to a thread.
+
+---
+
 ## 21. WLVLP Operational Reference
 
 WLVLP is operational and live. All backend routes live in `workers/src/index.js`. WLVLP never had its own Worker.
