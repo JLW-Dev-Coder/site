@@ -715,6 +715,22 @@ asset page (`websitelotto.virtuallaunch.pro/asset/{slug}`).
 - **Batch source:** the daily campaign router (`handleDailyBatchGeneration`). The previous `handleWlvlpBatchGeneration` site-crawler is no longer scheduled. Per-prospect site crawl + leak score + bespoke leak report are dropped in favor of static templates.
 - **Asset pages:** the router writes a minimal `vlp-scale/wlvlp-asset-pages/{slug}.json` for each routed record so the email's preview link resolves.
 
+## CAN-SPAM Compliance
+
+All outbound campaign emails (TTMP, VLP, WLVLP) include a CAN-SPAM compliant
+footer with physical mailing address and a per-recipient unsubscribe link.
+
+- **Physical address:** Lenore, Inc c/o Virtual Launch Pro, 1175 Avocado Avenue Suite 101 PMB 1010, El Cajon, CA 92020
+- **Unsubscribe route:** `GET /unsubscribe?email={email}&campaign={ttmp|vlp|wlvlp}` — public, no auth required (CAN-SPAM mandate). Returns a plain HTML confirmation page.
+- **Worker entrypoint:** unsubscribe handler lives inline in `workers/src/index.js` fetch handler, before the `/internal/*` routes.
+- **Master mutation on unsubscribe:** sets `unsubscribed_at` (ISO timestamp) on the matching `vlp-scale/foia-leads/foia-master.json` record (case-insensitive `email_found` match).
+- **Queue mutation on unsubscribe:** flips `status` to `"unsubscribed"` (and sets `unsubscribed_at`) on matching records in all three send queues — `vlp-scale/{ttmp|vlp|wlvlp}-send-queue/email1-pending.json`.
+- **Send handler skip:** `runStagedSendQueue` skips any record with `status === 'unsubscribed'` for both Email 1 and Emails 2-6 — no send, no archive, no status change.
+- **Enrichment skip:** `handleEnrichmentBatch` skips any record where `unsubscribed_at` is set — no Reoon credits spent on opted-out prospects.
+- **Router skip:** `handleDailyBatchGeneration` filters out records where `unsubscribed_at` is set when building the eligibility list.
+- **Footer generation:** `canspamTtmpFooter`, `canspamVlpFooter`, `canspamWlvlpFooter` in `workers/src/index.js`. Appended to all 6 email bodies inside `buildTtmpQueueRecord` / `buildVlpQueueRecord` / `buildWlvlpQueueRecord`. The standalone `scale/build-ttmp-batch.js` builder applies the same footer.
+- **One-shot backfill route:** `POST /internal/backfill-canspam-footer` (requires `X-Internal-Key`) — idempotently appends the footer to any queue record body that doesn't already contain `1175 Avocado Avenue`.
+
 ## Deploy Policy
 
 Unless explicitly told otherwise, every task that modifies Worker source

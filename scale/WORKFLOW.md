@@ -32,6 +32,27 @@ eligible count.
 - `POST /internal/test-vlp-send`
 
 
+## CAN-SPAM Compliance (all send pipelines)
+
+Every outbound email body (TTMP, VLP, WLVLP — all 18 templates) ends with a
+CAN-SPAM compliant footer that contains the physical mailing address and a
+per-recipient unsubscribe link:
+
+```
+Lenore, Inc c/o Virtual Launch Pro
+1175 Avocado Avenue Suite 101 PMB 1010
+El Cajon, CA 92020
+
+To stop receiving these emails:
+https://api.virtuallaunch.pro/unsubscribe?email={recipient}&campaign={ttmp|vlp|wlvlp}
+```
+
+Unsubscribe requests hit `GET /unsubscribe` on the Worker (no auth). The route
+sets `unsubscribed_at` on the matching master file record and flips matching
+queue records to `status="unsubscribed"`. The send handlers skip those records;
+the enrichment pipeline and the daily campaign router also skip records with
+`unsubscribed_at` set so no further effort is spent on opted-out prospects.
+
 ## TTMP Send Pipeline (pattern-unvalidated)
 
 Independent of the Hunter.io VLP send rail. The Worker now drives a 6-email

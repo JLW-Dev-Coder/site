@@ -13439,6 +13439,7 @@ async function runStagedSendQueue(env, opts) {
 
   // Email 1
   for (const record of queue) {
+    if (record.status === 'unsubscribed') continue;
     if (record.email_1_sent_at) continue;
     if (record.status && record.status !== 'pending' && record.status !== 'email_1_failed') continue;
     try {
@@ -13463,6 +13464,7 @@ async function runStagedSendQueue(env, opts) {
   ];
   for (const stage of stages) {
     const todo = queue.filter(r =>
+      r.status !== 'unsubscribed' &&
       r[stage.prevSent] &&
       !r[stage.sentAt] &&
       r[stage.sched] &&
@@ -14190,6 +14192,58 @@ websitelotto.virtuallaunch.pro
   };
 }
 
+// ---- CAN-SPAM compliance footers --------------------------------------------
+// Appended to every campaign email body. Includes physical mailing address
+// and a per-recipient unsubscribe link served by the Worker at /unsubscribe.
+function canspamTtmpFooter(email) {
+  const enc = encodeURIComponent(email || '');
+  return `
+—
+Jamie L Williams, EA
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro
+
+Lenore, Inc c/o Virtual Launch Pro
+1175 Avocado Avenue Suite 101 PMB 1010
+El Cajon, CA 92020
+
+To stop receiving these emails:
+https://api.virtuallaunch.pro/unsubscribe?email=${enc}&campaign=ttmp
+`;
+}
+function canspamVlpFooter(email) {
+  const enc = encodeURIComponent(email || '');
+  return `
+—
+Jamie L Williams, EA
+Virtual Launch Pro
+virtuallaunch.pro
+
+Lenore, Inc c/o Virtual Launch Pro
+1175 Avocado Avenue Suite 101 PMB 1010
+El Cajon, CA 92020
+
+To stop receiving these emails:
+https://api.virtuallaunch.pro/unsubscribe?email=${enc}&campaign=vlp
+`;
+}
+function canspamWlvlpFooter(email) {
+  const enc = encodeURIComponent(email || '');
+  return `
+—
+Jamie L Williams, EA
+Website Lotto by Virtual Launch Pro
+websitelotto.virtuallaunch.pro
+
+Lenore, Inc c/o Virtual Launch Pro
+1175 Avocado Avenue Suite 101 PMB 1010
+El Cajon, CA 92020
+
+To stop receiving these emails:
+https://api.virtuallaunch.pro/unsubscribe?email=${enc}&campaign=wlvlp
+`;
+}
+
 function buildTtmpQueueRecord(rec, ctx) {
   const { first, lastDisplay, firstDisplay, city, state, slug, email, profession, cred, todayIso, baseDate, domain } = ctx;
   const e1 = ttmpEmail1(firstDisplay, cred);
@@ -14198,6 +14252,9 @@ function buildTtmpQueueRecord(rec, ctx) {
   const e4 = ttmpEmail4(firstDisplay);
   const e5 = ttmpEmail5(firstDisplay);
   const e6 = ttmpEmail6(firstDisplay);
+  const footer = canspamTtmpFooter(email);
+  e1.body += footer; e2.body += footer; e3.body += footer;
+  e4.body += footer; e5.body += footer; e6.body += footer;
   return {
     slug, email,
     first_name: firstDisplay, last_name: lastDisplay,
@@ -14225,6 +14282,9 @@ function buildVlpQueueRecord(rec, ctx) {
   const e4 = vlpEmail4(firstDisplay, cred, slug);
   const e5 = vlpEmail5(firstDisplay, slug);
   const e6 = vlpEmail6(firstDisplay, city || 'your area');
+  const footer = canspamVlpFooter(email);
+  e1.body += footer; e2.body += footer; e3.body += footer;
+  e4.body += footer; e5.body += footer; e6.body += footer;
   return {
     slug, email,
     first_name: firstDisplay, last_name: lastDisplay,
@@ -14252,6 +14312,9 @@ function buildWlvlpQueueRecord(rec, ctx) {
   const e4 = wlvlpRouterEmail4(firstDisplay, slug);
   const e5 = wlvlpRouterEmail5(firstDisplay, slug);
   const e6 = wlvlpRouterEmail6(firstDisplay, slug);
+  const footer = canspamWlvlpFooter(email);
+  e1.body += footer; e2.body += footer; e3.body += footer;
+  e4.body += footer; e5.body += footer; e6.body += footer;
   return {
     slug, email,
     first_name: firstDisplay, last_name: lastDisplay,
@@ -14327,6 +14390,7 @@ async function handleDailyBatchGeneration(env) {
     const es = r.email_status && String(r.email_status).trim().toLowerCase();
     if (!ef) continue;
     if (!es || !ALLOWED_SEND_STATUSES.has(es)) continue;
+    if (r.unsubscribed_at && String(r.unsubscribed_at).trim()) continue;
     if (r.ttmp_email_1_prepared_at && String(r.ttmp_email_1_prepared_at).trim()) continue;
     if (r.vlp_email_1_prepared_at && String(r.vlp_email_1_prepared_at).trim()) continue;
     if (r.wlvlp_email_1_prepared_at && String(r.wlvlp_email_1_prepared_at).trim()) continue;
@@ -14693,6 +14757,12 @@ async function handleEnrichmentBatch(env) {
       continue;
     }
 
+    // Skip unsubscribed records — no point spending Reoon credits on them.
+    if (rec.unsubscribed_at && String(rec.unsubscribed_at).trim()) {
+      stats.already_enriched++;
+      continue;
+    }
+
     let domain = rec.domain_clean && String(rec.domain_clean).trim().toLowerCase();
     if (!domain) {
       domain = enrichmentExtractDomain(rec.WEBSITE);
@@ -14919,6 +14989,159 @@ export default {
           'Location': redirectTarget,
           ...getCorsHeaders(request)
         }
+      });
+    }
+
+    // CAN-SPAM compliance — public unsubscribe route. No authentication.
+    // Marks the master file record with unsubscribed_at and flips matching
+    // queue records to status="unsubscribed" so the send handlers skip them.
+    if (pathname === '/unsubscribe' && method === 'GET') {
+      const emailParam = (url.searchParams.get('email') || '').trim();
+      const campaignParam = (url.searchParams.get('campaign') || '').trim();
+      console.log('Unsubscribe:', emailParam, campaignParam, new Date().toISOString());
+      const htmlHeaders = { 'Content-Type': 'text/html;charset=UTF-8', ...getCorsHeaders(request) };
+      if (!emailParam) {
+        return new Response(
+          `<!DOCTYPE html><html><head><title>Unsubscribe</title></head><body style="font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; text-align: center;"><h2>No email specified.</h2></body></html>`,
+          { status: 400, headers: htmlHeaders }
+        );
+      }
+      const target = emailParam.toLowerCase();
+      const nowIso = new Date().toISOString();
+
+      // 1. Mutate master NDJSON
+      try {
+        const obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/foia-leads/foia-master.json');
+        if (obj) {
+          const text = await obj.text();
+          const lines = text.split('\n');
+          let mutated = false;
+          const out = [];
+          for (const line of lines) {
+            if (!line.trim()) { out.push(line); continue; }
+            try {
+              const r = JSON.parse(line);
+              const rEmail = String(r.email_found || '').trim().toLowerCase();
+              if (rEmail && rEmail === target) {
+                r.unsubscribed_at = nowIso;
+                mutated = true;
+              }
+              out.push(JSON.stringify(r));
+            } catch {
+              out.push(line);
+            }
+          }
+          if (mutated) {
+            await env.R2_VIRTUAL_LAUNCH.put(
+              'vlp-scale/foia-leads/foia-master.json',
+              out.join('\n'),
+              { httpMetadata: { contentType: 'application/x-ndjson' } }
+            );
+          }
+        }
+      } catch (e) {
+        console.error('Unsubscribe: master mutation failed:', e);
+      }
+
+      // 2. Flip status in each queue
+      const queueKeys = [
+        'vlp-scale/ttmp-send-queue/email1-pending.json',
+        'vlp-scale/vlp-send-queue/email1-pending.json',
+        'vlp-scale/wlvlp-send-queue/email1-pending.json',
+      ];
+      for (const qKey of queueKeys) {
+        try {
+          const qObj = await env.R2_VIRTUAL_LAUNCH.get(qKey);
+          if (!qObj) continue;
+          const arr = await qObj.json();
+          if (!Array.isArray(arr)) continue;
+          let dirty = false;
+          for (const rec of arr) {
+            const rEmail = String(rec.email || '').trim().toLowerCase();
+            if (rEmail === target && rec.status !== 'unsubscribed') {
+              rec.status = 'unsubscribed';
+              rec.unsubscribed_at = nowIso;
+              dirty = true;
+            }
+          }
+          if (dirty) {
+            await env.R2_VIRTUAL_LAUNCH.put(
+              qKey,
+              JSON.stringify(arr),
+              { httpMetadata: { contentType: 'application/json' } }
+            );
+          }
+        } catch (e) {
+          console.error(`Unsubscribe: queue mutation failed for ${qKey}:`, e);
+        }
+      }
+
+      return new Response(
+        `<!DOCTYPE html>
+<html>
+<head><title>Unsubscribed</title></head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; text-align: center;">
+  <h2>You've been unsubscribed</h2>
+  <p>You will no longer receive emails from us.</p>
+  <p>If this was a mistake, contact jamie@virtuallaunch.pro to re-subscribe.</p>
+</body>
+</html>`,
+        { status: 200, headers: htmlHeaders }
+      );
+    }
+
+    // Internal one-shot CAN-SPAM footer backfill for existing queue records.
+    // Idempotent — only patches bodies that don't already contain the address.
+    if (pathname === '/internal/backfill-canspam-footer' && method === 'POST') {
+      const providedKey = request.headers.get('X-Internal-Key') || '';
+      if (!env.INTERNAL_TEST_KEY || providedKey !== env.INTERNAL_TEST_KEY) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      }
+      const stamp = '1175 Avocado Avenue';
+      const bodyKeys = ['body', 'email_2_body', 'email_3_body', 'email_4_body', 'email_5_body', 'email_6_body'];
+      const targets = [
+        { key: 'vlp-scale/ttmp-send-queue/email1-pending.json',  footerFn: canspamTtmpFooter,  campaign: 'ttmp'  },
+        { key: 'vlp-scale/vlp-send-queue/email1-pending.json',   footerFn: canspamVlpFooter,   campaign: 'vlp'   },
+        { key: 'vlp-scale/wlvlp-send-queue/email1-pending.json', footerFn: canspamWlvlpFooter, campaign: 'wlvlp' },
+      ];
+      const report = {};
+      for (const t of targets) {
+        try {
+          const obj = await env.R2_VIRTUAL_LAUNCH.get(t.key);
+          if (!obj) { report[t.campaign] = { skipped: 'no_queue' }; continue; }
+          const arr = await obj.json();
+          if (!Array.isArray(arr)) { report[t.campaign] = { skipped: 'not_array' }; continue; }
+          let recordsPatched = 0;
+          let bodiesPatched = 0;
+          for (const rec of arr) {
+            const footer = t.footerFn(rec.email || '');
+            let patched = false;
+            for (const bk of bodyKeys) {
+              const cur = rec[bk];
+              if (typeof cur === 'string' && cur.length > 0 && cur.indexOf(stamp) === -1) {
+                rec[bk] = cur + footer;
+                bodiesPatched++;
+                patched = true;
+              }
+            }
+            if (patched) recordsPatched++;
+          }
+          await env.R2_VIRTUAL_LAUNCH.put(
+            t.key,
+            JSON.stringify(arr),
+            { httpMetadata: { contentType: 'application/json' } }
+          );
+          report[t.campaign] = { records_in_queue: arr.length, records_patched: recordsPatched, bodies_patched: bodiesPatched };
+        } catch (e) {
+          report[t.campaign] = { error: String(e && e.message || e) };
+        }
+      }
+      return new Response(JSON.stringify(report, null, 2), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
       });
     }
 

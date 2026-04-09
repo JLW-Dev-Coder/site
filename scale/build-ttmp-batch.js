@@ -90,6 +90,24 @@ const CRED = {
   ATTY: { label: 'Tax Attorney',   billing: '$200-500', weekly: '4 hours',   annual: '192 hours', revenue: '$38,400-$96,000' },
 };
 
+// ---- CAN-SPAM compliance footer ---------------------------------------------
+function canspamFooter(email) {
+  const enc = encodeURIComponent(email || '');
+  return `
+—
+Jamie L Williams, EA
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro
+
+Lenore, Inc c/o Virtual Launch Pro
+1175 Avocado Avenue Suite 101 PMB 1010
+El Cajon, CA 92020
+
+To stop receiving these emails:
+https://api.virtuallaunch.pro/unsubscribe?email=${enc}&campaign=ttmp
+`;
+}
+
 // ---- Email templates ---------------------------------------------------------
 
 function email1(first, c) {
@@ -324,6 +342,9 @@ for (const s of selected) {
   const e4 = email4(firstDisplay);
   const e5 = email5(firstDisplay);
   const e6 = email6(firstDisplay);
+  const footer = canspamFooter(email);
+  e1.body += footer; e2.body += footer; e3.body += footer;
+  e4.body += footer; e5.body += footer; e6.body += footer;
 
   queue.push({
     slug,
