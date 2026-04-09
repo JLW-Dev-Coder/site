@@ -13,8 +13,6 @@ interface StripeTransaction {
   amount: number
   currency: string
   status: string
-  paid?: boolean
-  refunded?: boolean
   description: string
   email: string
   customer?: string | null
@@ -151,7 +149,7 @@ export default function ScaleSalesPage() {
       {/* Stripe transactions */}
       <Card>
         <div className="flex items-center justify-between mb-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Recent Stripe Charges</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Recent Stripe Payment Intents</div>
           {stats?.stripe_errors && stats.stripe_errors.length > 0 && (
             <div className="text-xs text-amber-400">errors: {stats.stripe_errors.join(', ')}</div>
           )}
@@ -160,7 +158,7 @@ export default function ScaleSalesPage() {
           <div className="text-slate-500 py-6 text-center text-sm">Loading…</div>
         ) : !stats?.stripe_transactions || stats.stripe_transactions.length === 0 ? (
           <div className="text-slate-500 py-8 text-center text-sm">
-            No Stripe charges returned. Check that <code>STRIPE_SECRET_KEY_VLP</code> and <code>STRIPE_SECRET_KEY</code> are set on the Worker.
+            No Stripe payment intents returned. Check that <code>STRIPE_SECRET_KEY_VLP</code> and <code>STRIPE_SECRET_KEY</code> are set on the Worker.
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -186,12 +184,11 @@ export default function ScaleSalesPage() {
                     </td>
                     <td className="py-2 px-2 whitespace-nowrap">
                       <span className={
-                        tx.refunded ? 'text-amber-400' :
-                        tx.status === 'succeeded' ? 'text-emerald-400' :
-                        tx.status === 'failed' ? 'text-rose-400' :
-                        'text-slate-400'
+                        tx.status === 'succeeded' || tx.status === 'paid' ? 'text-emerald-400' :
+                        tx.status === 'canceled' || tx.status === 'failed' ? 'text-rose-400' :
+                        'text-amber-400'
                       }>
-                        {tx.refunded ? 'refunded' : tx.status}
+                        {tx.status || '—'}
                       </span>
                     </td>
                     <td className="py-2 px-2 truncate max-w-[200px]" title={tx.email}>

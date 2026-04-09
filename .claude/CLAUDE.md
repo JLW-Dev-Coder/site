@@ -541,7 +541,7 @@ sessions receive `403 FORBIDDEN`.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET   | `/v1/admin/stats` | Returns `{ ok, total_accounts, memberships_by_tier, tokens, recent_transactions, stripe_transactions[], stripe_errors[] }`. Pulls live charges from both VLP and TMP Stripe accounts. |
+| GET   | `/v1/admin/stats` | Returns `{ ok, total_accounts, memberships_by_tier, tokens, recent_transactions, stripe_transactions[], stripe_errors[] }`. Pulls live **payment intents** (`/v1/payment_intents?limit=25`) from both VLP and TMP Stripe accounts. Falls back to `/v1/checkout/sessions?limit=25` per account when payment_intents returns empty. `receipt_url` is intentionally left blank to avoid a second per-row API call. |
 | GET   | `/v1/admin/support/tickets` | Returns up to 100 cross-platform tickets (joined to `accounts` for `email` + `platform`), with `messages[]` hydrated from R2 (`support_tickets/{id}.json`). Initial user message is seeded from the D1 row when no R2 thread exists yet. |
 | PATCH | `/v1/admin/support/tickets/:ticket_id` | Body: `{ message?, status? }`. Appends an operator reply (`author: 'support'`) to the R2 ticket's `messages[]` thread, sets status to `awaiting` (or the supplied status), updates the D1 projection, and returns the full updated ticket. R2 is authoritative; D1 mirrors `status` / `updated_at`. |
 

@@ -5102,7 +5102,8 @@ const ROUTES = [
           membershipsByTier[row.plan_key] = row.count
         }
 
-        // Stripe charges from both VLP-family and TMP-family accounts
+        // Stripe payment intents from both VLP-family and TMP-family accounts.
+        // Falls back to checkout sessions if payment_intents returns empty.
         const stripeTransactions = []
         const stripeErrors = []
         const stripeAccounts = [
@@ -5114,33 +5115,63 @@ const ROUTES = [
             stripeErrors.push(`${acct.label}:missing_key`)
             continue
           }
+          let added = 0
           try {
-            const resp = await fetch('https://api.stripe.com/v1/charges?limit=25', {
+            const resp = await fetch('https://api.stripe.com/v1/payment_intents?limit=25', {
               headers: { 'Authorization': `Bearer ${acct.key}` },
             })
             if (!resp.ok) {
-              stripeErrors.push(`${acct.label}:${resp.status}`)
-              continue
-            }
-            const body = await resp.json()
-            for (const ch of (body.data || [])) {
-              stripeTransactions.push({
-                id: ch.id,
-                amount: ch.amount,
-                currency: ch.currency,
-                status: ch.status,
-                paid: ch.paid,
-                refunded: ch.refunded,
-                description: ch.description || ch.statement_descriptor || '',
-                email: ch.billing_details?.email || ch.receipt_email || (ch.metadata && ch.metadata.email) || '',
-                customer: ch.customer || null,
-                created: ch.created,
-                platform: acct.label,
-                receipt_url: ch.receipt_url || null,
-              })
+              stripeErrors.push(`${acct.label}:pi:${resp.status}`)
+            } else {
+              const body = await resp.json()
+              for (const pi of (body.data || [])) {
+                stripeTransactions.push({
+                  id: pi.id,
+                  amount: pi.amount,
+                  currency: pi.currency,
+                  status: pi.status,
+                  description: pi.description || '',
+                  email: pi.receipt_email || (pi.metadata && pi.metadata.email) || '',
+                  customer: pi.customer || '',
+                  created: pi.created,
+                  platform: acct.label,
+                  receipt_url: '',
+                })
+                added++
+              }
             }
           } catch (e) {
-            stripeErrors.push(`${acct.label}:${e.message}`)
+            stripeErrors.push(`${acct.label}:pi:${e.message}`)
+          }
+
+          // Fallback: try checkout sessions if no payment intents surfaced
+          if (added === 0) {
+            try {
+              const csResp = await fetch('https://api.stripe.com/v1/checkout/sessions?limit=25', {
+                headers: { 'Authorization': `Bearer ${acct.key}` },
+              })
+              if (!csResp.ok) {
+                stripeErrors.push(`${acct.label}:cs:${csResp.status}`)
+              } else {
+                const csBody = await csResp.json()
+                for (const cs of (csBody.data || [])) {
+                  stripeTransactions.push({
+                    id: cs.id,
+                    amount: cs.amount_total || 0,
+                    currency: cs.currency || 'usd',
+                    status: cs.payment_status || cs.status || '',
+                    description: (cs.metadata && cs.metadata.description) || '',
+                    email: cs.customer_email || (cs.customer_details && cs.customer_details.email) || '',
+                    customer: cs.customer || '',
+                    created: cs.created,
+                    platform: acct.label,
+                    receipt_url: '',
+                  })
+                }
+              }
+            } catch (e) {
+              stripeErrors.push(`${acct.label}:cs:${e.message}`)
+            }
           }
         }
         // Sort newest first across both accounts
