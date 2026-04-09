@@ -1301,28 +1301,27 @@ const CF_DOMAIN_MAP = {
 // Root domains (vlp, tmp) don't need a host filter — the whole zone is them.
 const CF_ROOT_DOMAINS = new Set(['vlp', 'tmp']);
 
-// Fetch a single platform's analytics from the Cloudflare GraphQL API.
-// Returns { ok, data } on success, or { ok: false, error } on failure.
+// Fetch a single platform's analytics from the Cloudflare GraphQL API
+// (httpRequests1dGroups dataset — Free plan compatible).
 //
-// Schema notes (httpRequestsAdaptiveGroups — the only dataset that supports
-// per-host filtering, which we need because most platforms share zones):
-//   - Total request count is the top-level `count` field, NOT `sum.requests`.
-//   - Bytes are `sum.edgeResponseBytes`, NOT `sum.bytes`.
-//   - There is no `sum.cachedRequests` / `sum.cachedBytes` / `sum.pageViews` /
-//     `sum.threats`. We compute cached counts via a sibling sub-query filtered
-//     by `cacheStatus_in`, and threats via `firewallEventsAdaptiveGroups`.
-//   - Page views are not available on adaptive groups. We expose `count` as
-//     the closest proxy in the response so the frontend keeps working.
-//   - `uniq { uniques }` is NOT available on httpRequestsAdaptiveGroups in
-//     this account/zone — it errors with "unknown field". The only dataset
-//     that exposes it is `httpRequests1dGroups`, which (a) doesn't support
-//     per-host filtering and (b) uses a different (Date, not Time) filter
-//     shape, so we can't reuse the same variables. For now we set
-//     unique_visitors to 0 across the board and surface request count as
-//     the traffic metric. Revisit if we need true uniques.
-//   - orderBy uses `count_DESC` for totals, `datetimeHour_ASC` for timeseries.
-async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = {}) {
-  const includeTimeseries = opts.includeTimeseries !== false;
+// Notes:
+//   - httpRequests1dGroups uses date-only filters (date_gt / date_lt), not
+//     datetime ranges. We convert ISO timestamps to YYYY-MM-DD strings.
+//     date_gt / date_lt are exclusive, so we widen the range by 1 day on
+//     each side to include the requested boundary days.
+//   - Per-host filtering is NOT supported on this dataset. Subdomain
+//     platforms (ttmp, tttmp, dvlp, gvlp, tcvlp, wlvlp) therefore report
+//     ZONE-WIDE totals shared with their parent. The /v1/admin/analytics
+//     endpoints advertise this via `shared_zone: true` and `shared_with`.
+//   - The 1d dataset supports `sum.requests`, `sum.cachedRequests`,
+//     `sum.bytes`, `sum.cachedBytes`, `sum.pageViews`, `sum.threats`,
+//     `uniq.uniques`, plus `responseStatusMap` and `countryMap` nested
+//     inside `sum` — a single query covers everything we need.
+//   - `top_paths` is unavailable on the 1d dataset (requires
+//     httpRequestsAdaptiveGroups → Pro+ plan) and returns [].
+//   - `firewallEventsAdaptiveGroups` is attempted as a separate query;
+//     if it errors on Free, the `firewall` field returns [].
+async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso) {
   const zoneTag = CF_ZONE_MAP[platform];
   const hostname = CF_DOMAIN_MAP[platform];
   if (!zoneTag || !hostname) {
@@ -1332,270 +1331,69 @@ async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = 
     return { ok: false, error: 'missing CF_API_TOKEN' };
   }
 
-  // Cloudflare httpRequestsAdaptiveGroups limits any query to a 1-day window.
-  // Split [since, until] into 1-day chunks and query each in parallel, then
-  // aggregate. A 7-day range generates 7 GraphQL calls per platform.
   const start = new Date(sinceIso);
   const end = new Date(untilIso);
   if (isNaN(start.getTime()) || isNaN(end.getTime()) || start >= end) {
     return { ok: false, error: 'invalid time range' };
   }
 
-  const days = [];
-  let cursor = start;
-  while (cursor < end) {
-    const next = new Date(cursor);
-    next.setUTCDate(next.getUTCDate() + 1);
-    const dayEnd = next > end ? end : next;
-    days.push({ start: cursor.toISOString(), end: dayEnd.toISOString() });
-    cursor = next;
-  }
-
-  const dayResults = await Promise.allSettled(
-    days.map((day) => fetchSingleDayAnalytics(env, platform, day.start, day.end, { includeTimeseries })),
-  );
-
-  const successes = [];
-  let firstError = null;
-  for (const settled of dayResults) {
-    if (settled.status === 'fulfilled' && settled.value.ok) {
-      successes.push(settled.value.data);
-    } else if (!firstError) {
-      firstError = settled.status === 'rejected'
-        ? ((settled.reason && settled.reason.message) || String(settled.reason))
-        : settled.value.error;
-    }
-  }
-
-  if (successes.length === 0) {
-    return { ok: false, error: firstError || 'no data' };
-  }
-
-  if (!includeTimeseries) {
-    const totals = {
-      total_requests: 0,
-      cached_requests: 0,
-      total_bytes: 0,
-      cached_bytes: 0,
-      page_views: 0,
-      unique_visitors: 0,
-      threats: 0,
-    };
-    for (const day of successes) {
-      totals.total_requests += day.total_requests || 0;
-      totals.cached_requests += day.cached_requests || 0;
-      totals.total_bytes += day.total_bytes || 0;
-      totals.cached_bytes += day.cached_bytes || 0;
-      totals.page_views += day.page_views || 0;
-      totals.threats += day.threats || 0;
-    }
-    return { ok: true, data: totals };
-  }
-
-  // Full mode aggregation: traffic + timeseries + status_codes + top_paths +
-  // top_countries + firewall.
-  const aggTraffic = {
-    total_requests: 0,
-    cached_requests: 0,
-    total_bytes: 0,
-    cached_bytes: 0,
-    page_views: 0,
-    unique_visitors: 0,
-    threats: 0,
-    timeseries: [],
-  };
-  const statusMap = new Map();
-  const pathMap = new Map();
-  const countryMap = new Map();
-  const firewallMap = new Map();
-
-  for (const day of successes) {
-    const t = day.traffic || {};
-    aggTraffic.total_requests += t.total_requests || 0;
-    aggTraffic.cached_requests += t.cached_requests || 0;
-    aggTraffic.total_bytes += t.total_bytes || 0;
-    aggTraffic.cached_bytes += t.cached_bytes || 0;
-    aggTraffic.page_views += t.page_views || 0;
-    aggTraffic.threats += t.threats || 0;
-    if (Array.isArray(t.timeseries)) {
-      aggTraffic.timeseries.push(...t.timeseries);
-    }
-    for (const row of (day.status_codes || [])) {
-      const k = row.status;
-      statusMap.set(k, (statusMap.get(k) || 0) + (row.count || 0));
-    }
-    for (const row of (day.top_paths || [])) {
-      const k = row.path;
-      const cur = pathMap.get(k) || { path: k, requests: 0, pageViews: 0 };
-      cur.requests += row.requests || 0;
-      cur.pageViews += row.pageViews || 0;
-      pathMap.set(k, cur);
-    }
-    for (const row of (day.top_countries || [])) {
-      const k = row.country;
-      const cur = countryMap.get(k) || { country: k, requests: 0 };
-      cur.requests += row.requests || 0;
-      countryMap.set(k, cur);
-    }
-    for (const row of (day.firewall || [])) {
-      const k = row.action;
-      firewallMap.set(k, (firewallMap.get(k) || 0) + (row.count || 0));
-    }
-  }
-
-  const status_codes = Array.from(statusMap.entries())
-    .map(([status, count]) => ({ status, count }))
-    .sort((a, b) => b.count - a.count);
-  const top_paths = Array.from(pathMap.values())
-    .sort((a, b) => b.requests - a.requests)
-    .slice(0, 20);
-  const top_countries = Array.from(countryMap.values())
-    .sort((a, b) => b.requests - a.requests)
-    .slice(0, 10);
-  const firewall = Array.from(firewallMap.entries())
-    .map(([action, count]) => ({ action, count }))
-    .sort((a, b) => b.count - a.count);
-
-  return {
-    ok: true,
-    data: {
-      traffic: aggTraffic,
-      status_codes,
-      top_paths,
-      top_countries,
-      firewall,
-    },
-  };
-}
-
-async function fetchSingleDayAnalytics(env, platform, sinceIso, untilIso, opts = {}) {
-  const includeTimeseries = opts.includeTimeseries !== false;
-  const zoneTag = CF_ZONE_MAP[platform];
-  const hostname = CF_DOMAIN_MAP[platform];
-  if (!zoneTag || !hostname) {
-    return { ok: false, error: `unknown platform: ${platform}` };
-  }
-  const token = env.CF_API_TOKEN;
-  if (!token) {
-    return { ok: false, error: 'missing CF_API_TOKEN' };
-  }
-
-  const isRoot = CF_ROOT_DOMAINS.has(platform);
-  // Subdomain platforms scope every query by clientRequestHTTPHost.
-  const baseFilter = isRoot
-    ? `datetime_geq: $since, datetime_leq: $until`
-    : `datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $hostname`;
-  const httpFilter = `{ ${baseFilter} }`;
-  // Cloudflare cache statuses considered "served from cache".
-  const cachedFilter = `{ ${baseFilter}, cacheStatus_in: ["hit","stream_hit","revalidated","updating"] }`;
-
-  // Totals are always fetched (single bucket, no datetime dimension).
-  const totalsBlock = `
-        totals: httpRequestsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 1
-        ) {
-          count
-          sum { edgeResponseBytes }
-        }
-        cachedTotals: httpRequestsAdaptiveGroups(
-          filter: ${cachedFilter}
-          limit: 1
-        ) {
-          count
-          sum { edgeResponseBytes }
-        }
-        firewallTotals: firewallEventsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 1
-        ) {
-          count
-        }`;
-
-  const timeseriesBlock = includeTimeseries ? `
-        timeseries: httpRequestsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 1000
-          orderBy: [datetimeHour_ASC]
-        ) {
-          count
-          sum { edgeResponseBytes }
-          dimensions { datetimeHour }
-        }
-        cachedTimeseries: httpRequestsAdaptiveGroups(
-          filter: ${cachedFilter}
-          limit: 1000
-          orderBy: [datetimeHour_ASC]
-        ) {
-          count
-          dimensions { datetimeHour }
-        }` : '';
-
-  const detailBlocks = includeTimeseries ? `
-        statusCodes: httpRequestsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 100
-          orderBy: [count_DESC]
-        ) {
-          count
-          dimensions { edgeResponseStatus }
-        }
-        topPaths: httpRequestsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 20
-          orderBy: [count_DESC]
-        ) {
-          count
-          dimensions { clientRequestPath }
-        }
-        topCountries: httpRequestsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 10
-          orderBy: [count_DESC]
-        ) {
-          count
-          dimensions { clientCountryName }
-        }
-        firewall: firewallEventsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 100
-          orderBy: [count_DESC]
-        ) {
-          count
-          dimensions { action }
-        }` : '';
+  // Convert ISO timestamps to date-only strings (YYYY-MM-DD). date_gt /
+  // date_lt are exclusive, so subtract 1 day from since and add 1 day to
+  // until to include the requested boundary days.
+  const sinceDate = new Date(start.getTime() - 24 * 60 * 60 * 1000)
+    .toISOString().split('T')[0];
+  const untilDate = new Date(end.getTime() + 24 * 60 * 60 * 1000)
+    .toISOString().split('T')[0];
 
   const query = `
-    query ($zoneTag: String!, $since: Time!, $until: Time!${isRoot ? '' : ', $hostname: String!'}) {
+    query ($zoneTag: String!, $since: String!, $until: String!) {
       viewer {
-        zones(filter: { zoneTag: $zoneTag }) {${totalsBlock}${timeseriesBlock}${detailBlocks}
+        zones(filter: { zoneTag: $zoneTag }) {
+          httpRequests1dGroups(
+            filter: { date_gt: $since, date_lt: $until }
+            limit: 1000
+            orderBy: [date_ASC]
+          ) {
+            dimensions { date }
+            sum {
+              requests
+              cachedRequests
+              bytes
+              cachedBytes
+              pageViews
+              threats
+              responseStatusMap {
+                edgeResponseStatus
+                requests
+              }
+              countryMap {
+                clientCountryName
+                requests
+                threats
+              }
+            }
+            uniq { uniques }
+          }
         }
       }
     }
   `;
 
-  const variables = { zoneTag, since: sinceIso, until: untilIso };
-  if (!isRoot) variables.hostname = hostname;
-
-  // 10s per-day timeout so the /all endpoint can't hang on a stalled day.
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
   let resp;
   try {
     resp = await fetch('https://api.cloudflare.com/client/v4/graphql', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${env.CF_API_TOKEN}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ query, variables }),
-      signal: controller.signal,
+      body: JSON.stringify({
+        query,
+        variables: { zoneTag, since: sinceDate, until: untilDate },
+      }),
     });
   } catch (e) {
-    if (e.name === 'AbortError') return { ok: false, error: 'graphql: timeout' };
     return { ok: false, error: `network: ${e.message}` };
-  } finally {
-    clearTimeout(timeoutId);
   }
 
   if (!resp.ok) {
@@ -1612,78 +1410,144 @@ async function fetchSingleDayAnalytics(env, platform, sinceIso, untilIso, opts =
   const zone = body?.data?.viewer?.zones?.[0];
   if (!zone) return { ok: false, error: 'graphql: zone not found' };
 
-  // Aggregate the totals bucket.
-  const totalsRow = (zone.totals && zone.totals[0]) || null;
-  const cachedRow = (zone.cachedTotals && zone.cachedTotals[0]) || null;
-  const firewallTotalsRow = (zone.firewallTotals && zone.firewallTotals[0]) || null;
+  const days = zone.httpRequests1dGroups || [];
 
-  const totalRequests = totalsRow?.count || 0;
-  const totals = {
-    total_requests: totalRequests,
-    cached_requests: cachedRow?.count || 0,
-    total_bytes: totalsRow?.sum?.edgeResponseBytes || 0,
-    cached_bytes: cachedRow?.sum?.edgeResponseBytes || 0,
-    // page_views: adaptive groups doesn't expose pageViews — use request count
-    // as the closest proxy so the frontend response shape stays stable.
-    page_views: totalRequests,
-    // TODO: unique visitors requires httpRequests1dGroups dataset (no per-host filter).
-    unique_visitors: 0,
-    threats: firewallTotalsRow?.count || 0,
-  };
+  let total_requests = 0;
+  let cached_requests = 0;
+  let total_bytes = 0;
+  let cached_bytes = 0;
+  let page_views = 0;
+  let unique_visitors = 0;
+  let threats = 0;
 
-  if (!includeTimeseries) {
-    return { ok: true, data: totals };
+  const statusMap = new Map();
+  const countryMap = new Map();
+  const timeseries = [];
+
+  for (const day of days) {
+    const sum = day.sum || {};
+    const uniq = day.uniq || {};
+    total_requests += sum.requests || 0;
+    cached_requests += sum.cachedRequests || 0;
+    total_bytes += sum.bytes || 0;
+    cached_bytes += sum.cachedBytes || 0;
+    page_views += sum.pageViews || 0;
+    threats += sum.threats || 0;
+    unique_visitors += uniq.uniques || 0;
+
+    timeseries.push({
+      date: day.dimensions?.date,
+      requests: sum.requests || 0,
+      cached: sum.cachedRequests || 0,
+      bytes: sum.bytes || 0,
+      pageViews: sum.pageViews || 0,
+      uniques: uniq.uniques || 0,
+    });
+
+    for (const row of (sum.responseStatusMap || [])) {
+      const k = row.edgeResponseStatus;
+      statusMap.set(k, (statusMap.get(k) || 0) + (row.requests || 0));
+    }
+    for (const row of (sum.countryMap || [])) {
+      const k = row.clientCountryName;
+      const cur = countryMap.get(k) || { country: k, requests: 0, threats: 0 };
+      cur.requests += row.requests || 0;
+      cur.threats += row.threats || 0;
+      countryMap.set(k, cur);
+    }
   }
 
-  // Build a hour -> cached count lookup so we can join into the timeseries.
-  const cachedByHour = new Map();
-  for (const row of (zone.cachedTimeseries || [])) {
-    cachedByHour.set(row.dimensions?.datetimeHour, row.count || 0);
-  }
+  const cache_hit_ratio = total_requests > 0
+    ? Number((cached_requests / total_requests).toFixed(4))
+    : 0;
 
-  const timeseries = (zone.timeseries || []).map((row) => {
-    const hour = row.dimensions?.datetimeHour;
-    const reqs = row.count || 0;
-    return {
-      datetime: hour,
-      requests: reqs,
-      cached: cachedByHour.get(hour) || 0,
-      bytes: row.sum?.edgeResponseBytes || 0,
-      pageViews: reqs,
-    };
-  });
+  const status_codes = Array.from(statusMap.entries())
+    .map(([status, count]) => ({ status, count }))
+    .sort((a, b) => b.count - a.count);
 
-  const statusCodes = (zone.statusCodes || []).map((row) => ({
-    status: row.dimensions?.edgeResponseStatus,
-    count: row.count || 0,
-  }));
+  const top_countries = Array.from(countryMap.values())
+    .sort((a, b) => b.requests - a.requests)
+    .slice(0, 10);
 
-  const topPaths = (zone.topPaths || []).map((row) => ({
-    path: row.dimensions?.clientRequestPath,
-    requests: row.count || 0,
-    pageViews: row.count || 0,
-  }));
-
-  const topCountries = (zone.topCountries || []).map((row) => ({
-    country: row.dimensions?.clientCountryName,
-    requests: row.count || 0,
-  }));
-
-  const firewall = (zone.firewall || []).map((row) => ({
-    action: row.dimensions?.action,
-    count: row.count || 0,
-  }));
+  // Firewall: try the adaptive dataset; tolerate failure on Free plan.
+  const firewall = await fetchFirewallEvents(env, zoneTag, sinceIso, untilIso);
 
   return {
     ok: true,
     data: {
-      traffic: { ...totals, timeseries },
-      status_codes: statusCodes,
-      top_paths: topPaths,
-      top_countries: topCountries,
+      traffic: {
+        total_requests,
+        cached_requests,
+        total_bytes,
+        cached_bytes,
+        page_views,
+        unique_visitors,
+        threats,
+        cache_hit_ratio,
+        timeseries,
+      },
+      status_codes,
+      // top_paths requires httpRequestsAdaptiveGroups (Pro+ plan)
+      top_paths: [],
+      top_countries,
       firewall,
     },
   };
+}
+
+// Best-effort fetch of firewall event breakdown. Returns [] on any failure
+// (including Free-plan denials) so it never blocks the main analytics call.
+async function fetchFirewallEvents(env, zoneTag, sinceIso, untilIso) {
+  const query = `
+    query ($zoneTag: String!, $since: Time!, $until: Time!) {
+      viewer {
+        zones(filter: { zoneTag: $zoneTag }) {
+          firewallEventsAdaptiveGroups(
+            filter: { datetime_geq: $since, datetime_leq: $until }
+            limit: 100
+            orderBy: [count_DESC]
+          ) {
+            count
+            dimensions { action }
+          }
+        }
+      }
+    }
+  `;
+  try {
+    const resp = await fetch('https://api.cloudflare.com/client/v4/graphql', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${env.CF_API_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        variables: { zoneTag, since: sinceIso, until: untilIso },
+      }),
+    });
+    if (!resp.ok) return [];
+    const body = await resp.json().catch(() => null);
+    if (!body || (body.errors && body.errors.length)) return [];
+    const zone = body?.data?.viewer?.zones?.[0];
+    if (!zone) return [];
+    return (zone.firewallEventsAdaptiveGroups || []).map((row) => ({
+      action: row.dimensions?.action,
+      count: row.count || 0,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+// Compute the list of sibling domains that share a zone with the given
+// platform. Empty array for root-domain platforms (vlp, tmp).
+function sharedDomainsForPlatform(platform) {
+  if (CF_ROOT_DOMAINS.has(platform)) return [];
+  const zone = CF_ZONE_MAP[platform];
+  return Object.entries(CF_ZONE_MAP)
+    .filter(([p, z]) => z === zone && p !== platform)
+    .map(([p]) => CF_DOMAIN_MAP[p]);
 }
 
 // WLVLP Business Rules (hardcoded)
@@ -5825,33 +5689,62 @@ const ROUTES = [
       const sinceIso = url.searchParams.get('since') || sevenDaysAgo.toISOString()
       const untilIso = url.searchParams.get('until') || now.toISOString()
 
-      const platformKeys = Object.keys(CF_ZONE_MAP)
-      const results = await Promise.allSettled(
-        platformKeys.map((p) => fetchPlatformAnalytics(env, p, sinceIso, untilIso, { includeTimeseries: false }))
+      // Optimization: many platforms share zones (VLP/DVLP/GVLP/TCVLP/WLVLP
+      // all on the same zone, TMP/TTMP/TTTMP on another). Since the 1d
+      // dataset can't filter by host, the per-zone result is identical for
+      // every platform on that zone. Fetch each unique zone exactly once
+      // and reuse the result — 8 platforms collapse to 2 GraphQL calls.
+      const zoneToRep = new Map() // zoneId -> first platform key on that zone
+      for (const [p, z] of Object.entries(CF_ZONE_MAP)) {
+        if (!zoneToRep.has(z)) zoneToRep.set(z, p)
+      }
+      const uniqueReps = Array.from(zoneToRep.values())
+
+      const fetchResults = await Promise.allSettled(
+        uniqueReps.map((p) => fetchPlatformAnalytics(env, p, sinceIso, untilIso))
       )
 
-      const platforms = {}
-      for (let i = 0; i < platformKeys.length; i++) {
-        const key = platformKeys[i]
-        const settled = results[i]
-        const domain = CF_DOMAIN_MAP[key]
-        if (settled.status !== 'fulfilled' || !settled.value.ok) {
+      const dataByZone = new Map()
+      for (let i = 0; i < uniqueReps.length; i++) {
+        const zone = CF_ZONE_MAP[uniqueReps[i]]
+        const settled = fetchResults[i]
+        if (settled.status === 'fulfilled' && settled.value.ok) {
+          dataByZone.set(zone, { ok: true, data: settled.value.data })
+        } else {
           const err = settled.status === 'rejected'
             ? (settled.reason && settled.reason.message) || String(settled.reason)
             : settled.value.error
-          platforms[key] = { domain, error: err }
+          dataByZone.set(zone, { ok: false, error: err })
+        }
+      }
+
+      const platforms = {}
+      for (const platform of Object.keys(CF_ZONE_MAP)) {
+        const zone = CF_ZONE_MAP[platform]
+        const domain = CF_DOMAIN_MAP[platform]
+        const isSubdomain = !CF_ROOT_DOMAINS.has(platform)
+        const sharedWith = sharedDomainsForPlatform(platform)
+        const result = dataByZone.get(zone)
+        if (!result || !result.ok) {
+          platforms[platform] = {
+            domain,
+            shared_zone: isSubdomain,
+            shared_with: sharedWith,
+            error: (result && result.error) || 'no data',
+          }
           continue
         }
-        const t = settled.value.data
-        const cacheHit = t.total_requests > 0 ? t.cached_requests / t.total_requests : 0
-        platforms[key] = {
+        const t = result.data.traffic
+        platforms[platform] = {
           domain,
+          shared_zone: isSubdomain,
+          shared_with: sharedWith,
           total_requests: t.total_requests,
           page_views: t.page_views,
           unique_visitors: t.unique_visitors,
           bandwidth_bytes: t.total_bytes,
           threats: t.threats,
-          cache_hit_ratio: Number(cacheHit.toFixed(4)),
+          cache_hit_ratio: t.cache_hit_ratio,
         }
       }
 
@@ -5886,10 +5779,13 @@ const ROUTES = [
       const sinceIso = url.searchParams.get('since') || sevenDaysAgo.toISOString()
       const untilIso = url.searchParams.get('until') || now.toISOString()
 
-      const result = await fetchPlatformAnalytics(env, platform, sinceIso, untilIso, { includeTimeseries: true })
+      const result = await fetchPlatformAnalytics(env, platform, sinceIso, untilIso)
       if (!result.ok) {
         return json({ ok: false, error: result.error }, 502, request)
       }
+
+      const isSubdomain = !CF_ROOT_DOMAINS.has(platform)
+      const sharedWith = sharedDomainsForPlatform(platform)
 
       return json({
         ok: true,
@@ -5897,6 +5793,8 @@ const ROUTES = [
         domain: CF_DOMAIN_MAP[platform],
         since: sinceIso,
         until: untilIso,
+        shared_zone: isSubdomain,
+        shared_with: sharedWith,
         ...result.data,
       }, 200, request)
     },
