@@ -54,18 +54,31 @@ Build a repeatable system where:
 
 ---
 
-## 3. Pipeline
+## 3. Pipeline (fully automated, 3 crons)
 
-| Step | Owner | Action | Output |
-|------|-------|--------|--------|
-| 1. Source | JLW | Scrub public data — NAEA, state boards, FOIA lists, LinkedIn, Google Maps | CSV/JSON prospect file |
-| 2. Enrich | Clay + Claude | Validate emails, assign firm buckets, generate slugs | Enriched prospect records |
-| 3. Generate | Claude | Process uploaded file — produce asset page data + email copy per prospect | JSON batch file |
-| 4. Store | JLW / Worker | Push JSON to R2 — asset pages live at platform-specific routes | Asset pages served by VLP Worker |
-| 5. Send | Brevo (cold) / Resend (transactional) | Deliver Email 1 with CTA linking to asset page | Tracked sends |
-| 6. Track | VLP Worker | Log asset page views, CTA clicks, form submissions | D1 analytics |
-| 7. Follow up | Brevo | Email 2 after 2-3 day delay | Tracked sends |
-| 8. Close | JLW | Take booked calls on Google Meet, demo product, close sale | Stripe payment |
+The end-to-end SCALE pipeline is automated inside the VLP Worker. There are
+three campaigns (TTMP, VLP, WLVLP) sharing the same FOIA master file and
+the same daily loop. No Hunter.io, no Brevo, no Claude in the loop.
+
+| Step | Owner | When | Action |
+|------|-------|------|--------|
+| 1. Source | JLW | One-time per FOIA refresh | Drop new rows into `vlp-scale/foia-leads/foia-master.json` (NDJSON) |
+| 2. Enrich | Worker (`handleEnrichmentBatch`) | 10:00 UTC daily | MX → catch-all → pattern reuse → pattern generation → Reoon validation; writes back `email_found`, `email_status` |
+| 3. Route | Worker (`handleDailyBatchGeneration`) | 12:00 UTC daily | Filter eligible (have email, no campaign yet), cap at 200/day, weighted random TTMP 65 / VLP 25 / WLVLP 10. Generate full 6-email queue entry per record, append to per-campaign queue, stamp master with `prepared_at`. |
+| 4. Send | Worker (`handleTtmpEmailSend` → `handleVlpEmailSend` → `handleWlvlpEmailSend`) | 14:00 UTC daily | Walks each queue, sends Email 1 + any scheduled follow-ups (Day 0, +2, +4, +6, +8, +10) |
+| 5. Track | VLP Worker | Continuous | Asset page views, CTA clicks → D1 analytics |
+| 6. Close | JLW | As bookings come in | Cal.com → Google Meet → Stripe |
+
+**Daily caps & allocation:**
+- `DAILY_BATCH_CAP = 200` records routed/day
+- TTMP 65% (~130/day) — transcript automation campaign
+- VLP 25% (~50/day)  — directory listing campaign
+- WLVLP 10% (~20/day) — Website Lotto campaign
+
+**Cadence (every campaign):** Email 1 = Day 0, then +2, +4, +6, +8, +10.
+After Email 6, records archive to `vlp-scale/{campaign}-send-queue/sent-{date}.json`.
+
+**Daily logs:** `vlp-scale/batch-logs/{YYYY-MM-DD}.json`
 
 ---
 

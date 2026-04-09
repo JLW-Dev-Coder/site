@@ -645,22 +645,75 @@ manual Clay enrichment loop in the SCALE workflow.
 
 ---
 
+## Campaign Router
+
+Unified daily batch generator that routes enriched FOIA leads into
+the TTMP, VLP, and WLVLP send queues. Replaces the legacy
+`handleWlvlpBatchGeneration` site-crawler at the same cron slot.
+
+- **Worker entrypoint:** `handleDailyBatchGeneration(env)` in `workers/src/index.js`
+- **Cron:** 12:00 UTC daily (replaces the old WLVLP batch generator)
+- **Manual trigger:** `POST /internal/test-daily-batch` with `X-Internal-Key: $INTERNAL_TEST_KEY`
+- **Source:** `vlp-scale/foia-leads/foia-master.json` (NDJSON)
+- **Eligibility filter:** record has non-empty `email_found`, `email_status` ∈ {`valid`, `pattern_match`, `catch_all`, `pattern_unvalidated`}, and all three of `ttmp_email_1_prepared_at` / `vlp_email_1_prepared_at` / `wlvlp_email_1_prepared_at` are empty.
+- **Daily cap:** `DAILY_BATCH_CAP = 200` total leads/day across all three campaigns. Leaves room under Gmail's 2k/day limit for follow-ups (emails 2-6).
+- **Allocation (weighted random per record):** TTMP 65%, VLP 25%, WLVLP 10% (`Math.random()` thresholds 0.65 / 0.90).
+- **Output queues:**
+  - `vlp-scale/ttmp-send-queue/email1-pending.json`
+  - `vlp-scale/vlp-send-queue/email1-pending.json`
+  - `vlp-scale/wlvlp-send-queue/email1-pending.json`
+- **Append, never overwrite:** existing queue is read, new records appended, then written back.
+- **Master mutation:** sets the matching `{ttmp|vlp|wlvlp}_email_1_prepared_at` ISO timestamp on each routed record before writing the master file back as NDJSON.
+- **WLVLP asset pages:** for each WLVLP routed record, a minimal asset page is written to `vlp-scale/wlvlp-asset-pages/{slug}.json` so the `/asset/{slug}` link resolves. (No site crawl — the pre-router crawler/scoring path is dropped.)
+- **Daily log:** `vlp-scale/batch-logs/{YYYY-MM-DD}.json` with `eligible_records`, `batch_size`, `routed_ttmp`, `routed_vlp`, `routed_wlvlp`, `records_remaining_eligible`, queue sizes.
+
 ## TTMP Email Send Pipeline
 
 Drip-style 6-email TTMP outreach driven by the Worker, fed by pattern-generated
-addresses (`first.last@domain`) — no Reoon validation in the unvalidated branch.
+addresses (`first.last@domain`).
 
 - **Queue R2 key:** `vlp-scale/ttmp-send-queue/email1-pending.json`
 - **Archive R2 key:** `vlp-scale/ttmp-send-queue/sent-{YYYY-MM-DD}.json`
-- **Worker entrypoint:** `handleTtmpEmailSend(env)` in `workers/src/index.js`
-- **Cron:** 14:00 UTC daily (alongside `handleWlvlpEmailSend`)
+- **Worker entrypoint:** `handleTtmpEmailSend(env)` → `runStagedSendQueue(env, ...)` in `workers/src/index.js`
+- **Cron:** 14:00 UTC daily (first of the unified TTMP→VLP→WLVLP send block)
 - **Manual trigger:** `POST /internal/test-ttmp-send` with `X-Internal-Key: $INTERNAL_TEST_KEY`
 - **Schedule (compressed 10-day cadence):** Email 1 = Day 0, Email 2 = +2, Email 3 = +4, Email 4 = +6, Email 5 = +8, Email 6 = +10
-- **Send delays:** 45-90s between Email 1 sends; 30-60s between follow-ups
-- **Templates:** stored inline on each queue record (`subject`, `body`, `email_2_subject`, `email_2_body`, … `email_6_subject`, `email_6_body`). The Worker does not own template strings — they are baked in by `scale/build-ttmp-batch.js` so copy changes do not require a Worker deploy.
-- **Batch builder:** `scale/build-ttmp-batch.js` (filters `vlp-scale/foia-leads/foia-master.json` for unenriched CPA/EA/ATTY records with non-freemail domains, sorts by LAST_NAME, takes 50)
-- **Master mutation on enqueue:** sets `email_found`, `email_status = "pattern_unvalidated"`, `ttmp_email_1_prepared_at` on each selected lead
+- **Send delays:** 10-15s between Email 1 sends; 8-12s between follow-ups
+- **Templates:** stored inline on each queue record (`subject`, `body`, `email_2_subject`, `email_2_body`, … `email_6_subject`, `email_6_body`).
+- **Batch source:** the daily campaign router (`handleDailyBatchGeneration`). The legacy `scale/build-ttmp-batch.js` builder is retained for one-off ad-hoc batches but is no longer the primary feed.
 - **Status field on queue records:** `pending` → `email_1_sent` → `email_2_sent` → … → `email_6_sent`. Failures set `email_{n}_failed` and copy `last_error`. Records with all 6 emails sent move to the daily archive object.
+
+## VLP Email Send Pipeline
+
+Same shape as the TTMP pipeline. Sends prospects in the VLP membership
+campaign to the directory listing pricing page (`virtuallaunch.pro/pricing`)
+and an asset page (`virtuallaunch.pro/asset/{slug}`).
+
+- **Queue R2 key:** `vlp-scale/vlp-send-queue/email1-pending.json`
+- **Archive R2 key:** `vlp-scale/vlp-send-queue/sent-{YYYY-MM-DD}.json`
+- **Worker entrypoint:** `handleVlpEmailSend(env)` → `runStagedSendQueue(env, ...)` in `workers/src/index.js`
+- **Cron:** 14:00 UTC daily (second handler in the unified send block)
+- **Manual trigger:** `POST /internal/test-vlp-send` with `X-Internal-Key: $INTERNAL_TEST_KEY`
+- **Schedule:** identical compressed 10-day cadence as TTMP (Day 0, +2, +4, +6, +8, +10)
+- **Send delays:** identical to TTMP (10-15s for Email 1, 8-12s for follow-ups)
+- **Templates:** 6 emails inline on the queue record. Personalization variables: `First`, `City`, `credential_label`, `new_client_value` (per credential: EA `$15,000-$90,000/yr`, CPA `$22,500-$120,000/yr`, ATTY `$18,000-$150,000/yr`), `slug`.
+- **Batch source:** the daily campaign router (`handleDailyBatchGeneration`).
+- **Master mutation on enqueue:** the router sets `vlp_email_1_prepared_at` on the source record.
+
+## WLVLP Email Send Pipeline
+
+6-email Website Lotto outreach (extended from the previous 2-email
+flow). Templates target conversion-leak messaging and a site preview
+asset page (`websitelotto.virtuallaunch.pro/asset/{slug}`).
+
+- **Queue R2 key:** `vlp-scale/wlvlp-send-queue/email1-pending.json`
+- **Archive R2 key:** `vlp-scale/wlvlp-send-queue/sent-{YYYY-MM-DD}.json`
+- **Worker entrypoint:** `handleWlvlpEmailSend(env)` → `runStagedSendQueue(env, ...)` in `workers/src/index.js`
+- **Cron:** 14:00 UTC daily (third handler in the unified send block)
+- **Schedule:** identical compressed 10-day cadence as TTMP (Day 0, +2, +4, +6, +8, +10)
+- **Templates:** 6 emails inline on the queue record (was 2 — extended in this batch). Emails 1 and 2 no longer reference per-site crawl scores; the new router uses static templates so it can scale to 200 records/day without crawling each domain.
+- **Batch source:** the daily campaign router (`handleDailyBatchGeneration`). The previous `handleWlvlpBatchGeneration` site-crawler is no longer scheduled. Per-prospect site crawl + leak score + bespoke leak report are dropped in favor of static templates.
+- **Asset pages:** the router writes a minimal `vlp-scale/wlvlp-asset-pages/{slug}.json` for each routed record so the email's preview link resolves.
 
 ## Deploy Policy
 

@@ -13382,77 +13382,95 @@ websitelotto.virtuallaunch.pro
 // ---------------------------------------------------------------------------
 
 async function handleWlvlpEmailSend(env) {
-  const timestamp = new Date().toISOString();
-  const today = timestamp.slice(0, 10);
+  return runStagedSendQueue(env, {
+    label: 'WLVLP',
+    queueKey: 'vlp-scale/wlvlp-send-queue/email1-pending.json',
+    archivePrefix: 'vlp-scale/wlvlp-send-queue/sent-',
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Shared 6-stage send-queue runner — used by TTMP, VLP, and WLVLP send
+// handlers. Walks each queued record through emails 1..6, sending whenever the
+// previous email is sent and the per-email scheduled_for date is today or
+// earlier. Records with all 6 sent are moved to the daily archive object.
+// ---------------------------------------------------------------------------
+async function runStagedSendQueue(env, opts) {
+  const { label, queueKey, archivePrefix } = opts;
+  const today = new Date().toISOString().slice(0, 10);
   const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const sentCounts = { email_1: 0, email_2: 0, email_3: 0, email_4: 0, email_5: 0, email_6: 0 };
+  const errors = [];
 
-  let email1Sent = 0;
-  let email2Sent = 0;
-
-  const queueKey = 'vlp-scale/wlvlp-send-queue/email1-pending.json';
   let queue;
   try {
     const obj = await env.R2_VIRTUAL_LAUNCH.get(queueKey);
     if (!obj) {
-      console.log('WLVLP email send: no queue file');
-      return { email1_sent: 0, email2_sent: 0 };
+      console.log(`${label} email send: no queue file`);
+      return { ...sentCounts, queue_size: 0 };
     }
     queue = await obj.json();
   } catch (e) {
-    console.error('WLVLP email send: failed to read queue:', e);
-    return { email1_sent: 0, email2_sent: 0, error: 'queue_read_failed' };
+    console.error(`${label} email send: failed to read queue:`, e);
+    return { ...sentCounts, error: 'queue_read_failed' };
   }
-
   if (!Array.isArray(queue) || queue.length === 0) {
-    console.log('WLVLP email send: queue empty');
-    return { email1_sent: 0, email2_sent: 0 };
+    console.log(`${label} email send: queue empty`);
+    return { ...sentCounts, queue_size: 0 };
   }
 
-  // Email 1: send to all records where email_1_sent_at is null
-  const toSendEmail1 = queue.filter(r => !r.email_1_sent_at);
-  for (const record of toSendEmail1) {
+  // Email 1
+  for (const record of queue) {
+    if (record.email_1_sent_at) continue;
+    if (record.status && record.status !== 'pending' && record.status !== 'email_1_failed') continue;
     try {
-      const delayMs = 45000 + Math.random() * 45000;
-      await delay(delayMs);
-
+      await delay(10000 + Math.random() * 5000);
       await sendGmailMessage(env, record.email, record.subject, record.body);
-
       record.email_1_sent_at = new Date().toISOString();
-      const d = new Date();
-      d.setDate(d.getDate() + 3);
-      record.email_2_scheduled_for = d.toISOString().split('T')[0];
-      email1Sent++;
+      record.status = 'email_1_sent';
+      sentCounts.email_1++;
     } catch (e) {
-      console.error(`WLVLP email 1 send failed for ${record.slug}/${record.email}:`, e.message);
+      console.error(`${label} email 1 send failed for ${record.slug}/${record.email}:`, e.message);
+      record.status = 'email_1_failed';
+      record.last_error = e.message;
+      errors.push({ slug: record.slug, email: record.email, step: 'email_1', error: e.message });
     }
   }
 
-  // Email 2: send where scheduled_for <= today AND email_2_sent_at is null
-  const toSendEmail2 = queue.filter(r =>
-    r.email_1_sent_at &&
-    !r.email_2_sent_at &&
-    r.email_2_scheduled_for &&
-    r.email_2_scheduled_for <= today &&
-    r.email_2_subject &&
-    r.email_2_body
-  );
-  for (const record of toSendEmail2) {
-    try {
-      const delayMs = 30000 + Math.random() * 30000;
-      await delay(delayMs);
-
-      await sendGmailMessage(env, record.email, record.email_2_subject, record.email_2_body);
-      record.email_2_sent_at = new Date().toISOString();
-      email2Sent++;
-    } catch (e) {
-      console.error(`WLVLP email 2 send failed for ${record.slug}/${record.email}:`, e.message);
+  const stages = [
+    { n: 2, prevSent: 'email_1_sent_at', sentAt: 'email_2_sent_at', sched: 'email_2_scheduled_for', subjK: 'email_2_subject', bodyK: 'email_2_body', okStatus: 'email_2_sent', failStatus: 'email_2_failed', countKey: 'email_2' },
+    { n: 3, prevSent: 'email_2_sent_at', sentAt: 'email_3_sent_at', sched: 'email_3_scheduled_for', subjK: 'email_3_subject', bodyK: 'email_3_body', okStatus: 'email_3_sent', failStatus: 'email_3_failed', countKey: 'email_3' },
+    { n: 4, prevSent: 'email_3_sent_at', sentAt: 'email_4_sent_at', sched: 'email_4_scheduled_for', subjK: 'email_4_subject', bodyK: 'email_4_body', okStatus: 'email_4_sent', failStatus: 'email_4_failed', countKey: 'email_4' },
+    { n: 5, prevSent: 'email_4_sent_at', sentAt: 'email_5_sent_at', sched: 'email_5_scheduled_for', subjK: 'email_5_subject', bodyK: 'email_5_body', okStatus: 'email_5_sent', failStatus: 'email_5_failed', countKey: 'email_5' },
+    { n: 6, prevSent: 'email_5_sent_at', sentAt: 'email_6_sent_at', sched: 'email_6_scheduled_for', subjK: 'email_6_subject', bodyK: 'email_6_body', okStatus: 'email_6_sent', failStatus: 'email_6_failed', countKey: 'email_6' },
+  ];
+  for (const stage of stages) {
+    const todo = queue.filter(r =>
+      r[stage.prevSent] &&
+      !r[stage.sentAt] &&
+      r[stage.sched] &&
+      r[stage.sched] <= today &&
+      r[stage.subjK] &&
+      r[stage.bodyK]
+    );
+    for (const record of todo) {
+      try {
+        await delay(8000 + Math.random() * 4000);
+        await sendGmailMessage(env, record.email, record[stage.subjK], record[stage.bodyK]);
+        record[stage.sentAt] = new Date().toISOString();
+        record.status = stage.okStatus;
+        sentCounts[stage.countKey]++;
+      } catch (e) {
+        console.error(`${label} email ${stage.n} send failed for ${record.slug}/${record.email}:`, e.message);
+        record.status = stage.failStatus;
+        record.last_error = e.message;
+        errors.push({ slug: record.slug, email: record.email, step: `email_${stage.n}`, error: e.message });
+      }
     }
   }
 
-  // Archive fully-sent records: move them out of pending when both emails are done.
-  const stillPending = queue.filter(r => !r.email_1_sent_at || (r.email_2_scheduled_for && !r.email_2_sent_at));
-  const completed = queue.filter(r => r.email_1_sent_at && r.email_2_sent_at);
-
+  const completed = queue.filter(r => r.email_6_sent_at);
+  const stillPending = queue.filter(r => !r.email_6_sent_at);
   try {
     await env.R2_VIRTUAL_LAUNCH.put(
       queueKey,
@@ -13460,7 +13478,7 @@ async function handleWlvlpEmailSend(env) {
       { httpMetadata: { contentType: 'application/json' } }
     );
     if (completed.length > 0) {
-      const archiveKey = `vlp-scale/wlvlp-send-queue/sent-${today}.json`;
+      const archiveKey = `${archivePrefix}${today}.json`;
       let existingArchive = [];
       try {
         const a = await env.R2_VIRTUAL_LAUNCH.get(archiveKey);
@@ -13474,12 +13492,19 @@ async function handleWlvlpEmailSend(env) {
       );
     }
   } catch (e) {
-    console.error('WLVLP email send: failed to write back queue:', e);
+    console.error(`${label} email send: failed to write back queue:`, e);
   }
 
-  console.log(`WLVLP Email 1: sent ${email1Sent} emails`);
-  console.log(`WLVLP Email 2: sent ${email2Sent} emails`);
-  return { email1_sent: email1Sent, email2_sent: email2Sent };
+  console.log(`${label} email send: ${JSON.stringify(sentCounts)} (queue size ${queue.length}, errors ${errors.length})`);
+  return { ...sentCounts, queue_size: queue.length, completed: completed.length, errors };
+}
+
+async function handleVlpEmailSend(env) {
+  return runStagedSendQueue(env, {
+    label: 'VLP',
+    queueKey: 'vlp-scale/vlp-send-queue/email1-pending.json',
+    archivePrefix: 'vlp-scale/vlp-send-queue/sent-',
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -13496,117 +13521,11 @@ async function handleWlvlpEmailSend(env) {
 // ---------------------------------------------------------------------------
 
 async function handleTtmpEmailSend(env) {
-  const timestamp = new Date().toISOString();
-  const today = timestamp.slice(0, 10);
-  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-  const queueKey = 'vlp-scale/ttmp-send-queue/email1-pending.json';
-  const sentCounts = { email_1: 0, email_2: 0, email_3: 0, email_4: 0, email_5: 0, email_6: 0 };
-  const errors = [];
-
-  let queue;
-  try {
-    const obj = await env.R2_VIRTUAL_LAUNCH.get(queueKey);
-    if (!obj) {
-      console.log('TTMP email send: no queue file');
-      return { ...sentCounts, queue_size: 0 };
-    }
-    queue = await obj.json();
-  } catch (e) {
-    console.error('TTMP email send: failed to read queue:', e);
-    return { ...sentCounts, error: 'queue_read_failed' };
-  }
-
-  if (!Array.isArray(queue) || queue.length === 0) {
-    console.log('TTMP email send: queue empty');
-    return { ...sentCounts, queue_size: 0 };
-  }
-
-  // Email 1: send to all records where status is "pending" and email_1_sent_at not set
-  for (const record of queue) {
-    if (record.email_1_sent_at) continue;
-    if (record.status && record.status !== 'pending' && record.status !== 'email_1_failed') continue;
-    try {
-      // First batch — increase to 45-90s when daily volume exceeds 200.
-      const delayMs = 10000 + Math.random() * 5000;
-      await delay(delayMs);
-      await sendGmailMessage(env, record.email, record.subject, record.body);
-      record.email_1_sent_at = new Date().toISOString();
-      record.status = 'email_1_sent';
-      sentCounts.email_1++;
-    } catch (e) {
-      console.error(`TTMP email 1 send failed for ${record.slug}/${record.email}:`, e.message);
-      record.status = 'email_1_failed';
-      record.last_error = e.message;
-      errors.push({ slug: record.slug, email: record.email, step: 'email_1', error: e.message });
-    }
-  }
-
-  // Emails 2..6 — staged: each requires the previous one sent and its scheduled date <= today
-  const stages = [
-    { n: 2, prevSent: 'email_1_sent_at', sentAt: 'email_2_sent_at', sched: 'email_2_scheduled_for', subjK: 'email_2_subject', bodyK: 'email_2_body', okStatus: 'email_2_sent', failStatus: 'email_2_failed', countKey: 'email_2' },
-    { n: 3, prevSent: 'email_2_sent_at', sentAt: 'email_3_sent_at', sched: 'email_3_scheduled_for', subjK: 'email_3_subject', bodyK: 'email_3_body', okStatus: 'email_3_sent', failStatus: 'email_3_failed', countKey: 'email_3' },
-    { n: 4, prevSent: 'email_3_sent_at', sentAt: 'email_4_sent_at', sched: 'email_4_scheduled_for', subjK: 'email_4_subject', bodyK: 'email_4_body', okStatus: 'email_4_sent', failStatus: 'email_4_failed', countKey: 'email_4' },
-    { n: 5, prevSent: 'email_4_sent_at', sentAt: 'email_5_sent_at', sched: 'email_5_scheduled_for', subjK: 'email_5_subject', bodyK: 'email_5_body', okStatus: 'email_5_sent', failStatus: 'email_5_failed', countKey: 'email_5' },
-    { n: 6, prevSent: 'email_5_sent_at', sentAt: 'email_6_sent_at', sched: 'email_6_scheduled_for', subjK: 'email_6_subject', bodyK: 'email_6_body', okStatus: 'email_6_sent', failStatus: 'email_6_failed', countKey: 'email_6' },
-  ];
-
-  for (const stage of stages) {
-    const todo = queue.filter(r =>
-      r[stage.prevSent] &&
-      !r[stage.sentAt] &&
-      r[stage.sched] &&
-      r[stage.sched] <= today &&
-      r[stage.subjK] &&
-      r[stage.bodyK]
-    );
-    for (const record of todo) {
-      try {
-        const delayMs = 8000 + Math.random() * 4000;
-        await delay(delayMs);
-        await sendGmailMessage(env, record.email, record[stage.subjK], record[stage.bodyK]);
-        record[stage.sentAt] = new Date().toISOString();
-        record.status = stage.okStatus;
-        sentCounts[stage.countKey]++;
-      } catch (e) {
-        console.error(`TTMP email ${stage.n} send failed for ${record.slug}/${record.email}:`, e.message);
-        record.status = stage.failStatus;
-        record.last_error = e.message;
-        errors.push({ slug: record.slug, email: record.email, step: `email_${stage.n}`, error: e.message });
-      }
-    }
-  }
-
-  // Archive fully-completed records (all 6 emails sent)
-  const completed = queue.filter(r => r.email_6_sent_at);
-  const stillPending = queue.filter(r => !r.email_6_sent_at);
-
-  try {
-    await env.R2_VIRTUAL_LAUNCH.put(
-      queueKey,
-      JSON.stringify(stillPending),
-      { httpMetadata: { contentType: 'application/json' } }
-    );
-    if (completed.length > 0) {
-      const archiveKey = `vlp-scale/ttmp-send-queue/sent-${today}.json`;
-      let existingArchive = [];
-      try {
-        const a = await env.R2_VIRTUAL_LAUNCH.get(archiveKey);
-        if (a) existingArchive = await a.json();
-        if (!Array.isArray(existingArchive)) existingArchive = [];
-      } catch {}
-      await env.R2_VIRTUAL_LAUNCH.put(
-        archiveKey,
-        JSON.stringify(existingArchive.concat(completed)),
-        { httpMetadata: { contentType: 'application/json' } }
-      );
-    }
-  } catch (e) {
-    console.error('TTMP email send: failed to write back queue:', e);
-  }
-
-  console.log(`TTMP email send: ${JSON.stringify(sentCounts)} (queue size ${queue.length}, errors ${errors.length})`);
-  return { ...sentCounts, queue_size: queue.length, completed: completed.length, errors };
+  return runStagedSendQueue(env, {
+    label: 'TTMP',
+    queueKey: 'vlp-scale/ttmp-send-queue/email1-pending.json',
+    archivePrefix: 'vlp-scale/ttmp-send-queue/sent-',
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -13663,6 +13582,865 @@ async function handleWlvlpSite(slug, request, env) {
       'Cache-Control': 'no-store',
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// Daily Campaign Router — handleDailyBatchGeneration
+// ---------------------------------------------------------------------------
+// Runs at 12:00 UTC daily. Reads the NDJSON master file, filters records that
+// already have a usable email and have not yet entered any campaign, then
+// routes each one into TTMP / VLP / WLVLP using a weighted random
+// assignment (65 / 25 / 10). For every routed record it generates a full
+// 6-email queue entry with all subjects/bodies inline plus per-email
+// scheduled_for dates, then appends to the matching campaign send queue.
+// The master file is updated in place with the {ttmp|vlp|wlvlp}_email_1_prepared_at
+// timestamp so the same record cannot be re-routed on a future day.
+// ---------------------------------------------------------------------------
+
+const DAILY_BATCH_CAP = 200;
+const DAILY_ROUTE_TTMP = 0.65;
+const DAILY_ROUTE_VLP  = 0.90; // upper bound (0.65..0.90 = VLP, 0.90..1 = WLVLP)
+const ALLOWED_SEND_STATUSES = new Set(['valid', 'pattern_match', 'catch_all', 'pattern_unvalidated']);
+
+const DAILY_CRED = {
+  EA:   { label: 'enrolled agent', billing: '$100-300', weekly: '6.7 hours', annual: '322 hours', revenue: '$27,300-$72,800', new_client_value: '$15,000-$90,000/yr' },
+  CPA:  { label: 'CPA',            billing: '$150-400', weekly: '5 hours',   annual: '240 hours', revenue: '$36,000-$96,000', new_client_value: '$22,500-$120,000/yr' },
+  ATTY: { label: 'tax attorney',   billing: '$200-500', weekly: '4 hours',   annual: '192 hours', revenue: '$38,400-$96,000', new_client_value: '$18,000-$150,000/yr' },
+};
+
+function dailyTitleCaseFirst(s) {
+  if (!s) return '';
+  const t = String(s).trim().split(/\s+/)[0].toLowerCase();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+function dailyTitleCase(s) {
+  if (!s) return '';
+  return String(s).trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+function dailySanitizeNamePart(s) {
+  if (!s) return '';
+  return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/g, '').trim();
+}
+function dailyMakeSlug(first, last, city, state) {
+  return [first, last, city, state]
+    .map(p => String(p || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''))
+    .filter(Boolean)
+    .join('-');
+}
+function dailyPlusDays(baseDate, n) {
+  const d = new Date(baseDate);
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function dailyNormalizeCred(profession) {
+  const p = String(profession || '').toUpperCase().trim();
+  if (p.includes('CPA')) return 'CPA';
+  if (p === 'EA' || p.includes('ENROLLED')) return 'EA';
+  if (p.includes('ATTY') || p.includes('ATTORNEY') || p === 'JD' || p.includes('LAWYER')) return 'ATTY';
+  return 'EA'; // default
+}
+
+// ---- TTMP templates (mirror of scale/build-ttmp-batch.js) -------------------
+function ttmpEmail1(first, c) {
+  return {
+    subject: `${first} — you're spending 3+ hours/week translating IRS codes by hand`,
+    body:
+`Hello ${first},
+
+Every transcript that hits your desk costs you about 20 minutes
+of manual code lookup. At ${c.billing}/hr, that's
+real revenue sitting in a task that should take 30 seconds.
+
+${first}, Transcript Tax Monitor Pro parses IRS transcript PDFs
+into plain-English reports automatically. Upload the PDF, get a
+client-ready report with every transaction code explained.
+
+Try the free IRS code lookup tool — no account needed:
+https://transcript.taxmonitor.pro/resources
+
+When you're ready for full transcript parsing:
+https://transcript.taxmonitor.pro/pricing
+10 analyses for $19.
+
+—
+Jamie L Williams, EA
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro
+`
+  };
+}
+function ttmpEmail2(first, c, slug) {
+  return {
+    subject: `Quick practice analysis for your firm, ${first} — ${c.annual}/yr on the table`,
+    body:
+`Hello ${first},
+
+I sent you a note a couple days ago about transcript automation.
+Wanted to follow up with something specific.
+
+${first}, I put together a quick practice analysis for your firm
+based on typical ${c.label} transcript volume:
+
+https://transcript.taxmonitor.pro/asset/${slug}
+
+It breaks down estimated time savings, revenue recovery, and
+how the tool fits into your current workflow. Takes about
+60 seconds to review.
+
+If you want to see it work live on a real transcript, I'm
+happy to walk through it:
+https://cal.com/vlp/ttmp-discovery
+
+—
+Jamie L Williams, EA
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro
+`
+  };
+}
+function ttmpEmail3(first, c, city) {
+  return {
+    subject: `${first} — what ${c.annual} unbilled hours cost your ${city} practice`,
+    body:
+`Hello ${first},
+
+Quick math for a ${c.label} in ${city}:
+
+${first}, ${c.weekly}/week on manual transcript work
+x 48 working weeks
+= ${c.annual}/year
+
+At your billing range, that's ${c.revenue} in time
+you could be spending on client work instead of decoding
+IRS transaction codes.
+
+The tool runs locally in your browser — no data leaves your
+machine. Upload a transcript PDF, get a report in seconds.
+
+https://transcript.taxmonitor.pro/pricing
+Starts at 10 analyses for $19.
+
+—
+Jamie L Williams, EA
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro
+`
+  };
+}
+function ttmpEmail4(first) {
+  return {
+    subject: `${first} — I built this because I got tired of the same 20-minute task`,
+    body:
+`Hello ${first},
+
+I'm an enrolled agent. Over the past two years I worked
+1,200+ client cases across 5 firms — installment agreements,
+offers in compromise, CDP hearings, multi-state compliance,
+and a lot of transcript reviews.
+
+Every case started the same way: pull the transcript, look up
+the codes, translate them into something the client understands.
+Twenty minutes, every time.
+
+${first}, I built Transcript Tax Monitor Pro to eliminate that step.
+Upload the PDF, get a plain-English report with every code
+explained and recommendations included.
+
+Here's my background if you want to verify who's behind this:
+https://www.linkedin.com/in/virtuallaunchpro
+
+And here's the tool:
+https://transcript.taxmonitor.pro
+
+No pitch. If you work with transcripts regularly, you'll see
+the value in about 30 seconds.
+
+—
+Jamie L Williams, EA
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro
+`
+  };
+}
+function ttmpEmail5(first) {
+  return {
+    subject: `${first} — quick question`,
+    body:
+`Hello ${first},
+
+I've sent you a few emails about automating IRS transcript
+analysis. ${first}, wanted to ask directly:
+
+Is manual transcript work something that takes up meaningful
+time in your practice?
+
+If yes — the tool is at transcript.taxmonitor.pro and starts
+at $19 for 10 analyses. Happy to do a quick walkthrough if
+that's more useful:
+https://cal.com/vlp/ttmp-discovery
+
+If not — no worries at all, and I'll stop reaching out.
+
+—
+Jamie L Williams, EA
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro
+`
+  };
+}
+function ttmpEmail6(first) {
+  return {
+    subject: `Last note from me, ${first}`,
+    body:
+`Hello ${first},
+
+This is my last email on this. I know your inbox is busy.
+
+${first}, if you ever need to parse an IRS transcript quickly,
+the tool is here:
+https://transcript.taxmonitor.pro
+
+Free IRS code lookup (no account):
+https://transcript.taxmonitor.pro/resources
+
+10 full transcript analyses for $19:
+https://transcript.taxmonitor.pro/pricing
+
+I hope it saves you some time when you need it.
+
+—
+Jamie L Williams, EA
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro
+`
+  };
+}
+
+// ---- VLP templates ----------------------------------------------------------
+function vlpEmail1(first, city, c, slug) {
+  return {
+    subject: `${first} — taxpayers in ${city} are searching for help you're not showing up for`,
+    body:
+`Hello ${first},
+
+Taxpayers in ${city} search online for tax help every day.
+Most never find you because you're not listed in the places
+they're looking.
+
+${first}, the Tax Monitor Pro network puts ${c.label}s
+in front of taxpayers who need exactly what you offer. Your
+profile shows up when someone in ${city} searches for help
+with the types of cases you handle.
+
+Listings start at $79/mo and include transcript automation
+tokens so your practice gets more efficient at the same time.
+
+I put together a quick practice analysis for your firm:
+https://virtuallaunch.pro/asset/${slug}
+
+Takes about 60 seconds to review.
+
+—
+Jamie L Williams, EA
+Virtual Launch Pro
+virtuallaunch.pro
+`
+  };
+}
+function vlpEmail2(first, city, c, slug) {
+  return {
+    subject: `${first} — ${c.new_client_value} from 5 new clients. Here's the math.`,
+    body:
+`Hello ${first},
+
+Quick math on what a directory listing is worth for a
+${c.label} in ${city}:
+
+5 new clients/year at your billing range = ${c.new_client_value}
+
+${first}, that's the conservative estimate from your practice
+analysis:
+https://virtuallaunch.pro/asset/${slug}
+
+The Active tier is $79/mo ($948/yr). If the listing generates
+even 2 new clients, the ROI is significant.
+
+Every tier also includes transcript automation tokens —
+the same tool that turns IRS transcript PDFs into
+client-ready reports in seconds.
+
+See all tiers:
+https://virtuallaunch.pro/pricing
+
+—
+Jamie L Williams, EA
+Virtual Launch Pro
+virtuallaunch.pro
+`
+  };
+}
+function vlpEmail3(first, city, c) {
+  return {
+    subject: `${first} — what happens when referrals slow down`,
+    body:
+`Hello ${first},
+
+Most ${c.label}s I've worked with rely on referrals
+for new clients. That works until it doesn't — when a
+referring partner retires, moves, or just stops sending
+people your way.
+
+${first}, a directory listing is a second pipeline that runs
+whether referrals are flowing or not. Taxpayers searching
+for help in ${city} find your profile, see your credentials,
+and reach out directly.
+
+No SEO to manage. No ads to run. Your profile is live and
+searchable as long as you're a member.
+
+https://virtuallaunch.pro/pricing
+
+Not ready for a membership? Try the transcript automation
+tool first — no commitment:
+https://transcript.taxmonitor.pro/pricing
+10 analyses for $19.
+
+—
+Jamie L Williams, EA
+Virtual Launch Pro
+virtuallaunch.pro
+`
+  };
+}
+function vlpEmail4(first, c, slug) {
+  return {
+    subject: `${first} — why I built this (from one EA to another)`,
+    body:
+`Hello ${first},
+
+I'm an enrolled agent. Over the past two years I worked
+1,200+ client cases across 5 firms — OICs, installment
+agreements, CDP hearings, multi-state compliance.
+
+The biggest problem I saw wasn't the technical work. It was
+client acquisition. Good ${c.label}s with real
+expertise, invisible to the taxpayers who needed them most.
+
+${first}, I built the Virtual Launch Pro network to fix that.
+One listing puts your practice in front of taxpayers actively
+searching for help — with tools included to make your
+workflow faster at the same time.
+
+Here's my background:
+https://www.linkedin.com/in/virtuallaunchpro
+
+Here's your practice analysis:
+https://virtuallaunch.pro/asset/${slug}
+
+—
+Jamie L Williams, EA
+Virtual Launch Pro
+virtuallaunch.pro
+`
+  };
+}
+function vlpEmail5(first, slug) {
+  return {
+    subject: `${first} — quick question about your client pipeline`,
+    body:
+`Hello ${first},
+
+I've sent a few emails about listing your practice on the
+Tax Monitor Pro network. ${first}, wanted to ask directly:
+
+Are you actively looking for new clients right now?
+
+If yes — your practice analysis is here:
+https://virtuallaunch.pro/asset/${slug}
+
+Listings start at $79/mo. Happy to walk through what the
+listing looks like and how taxpayers find you:
+https://cal.com/tax-monitor-pro/discovery
+
+If your pipeline is full — that's a good problem to have.
+No more emails from me.
+
+—
+Jamie L Williams, EA
+Virtual Launch Pro
+virtuallaunch.pro
+`
+  };
+}
+function vlpEmail6(first, city) {
+  return {
+    subject: `Last note from me, ${first}`,
+    body:
+`Hello ${first},
+
+This is my last email about the Tax Monitor Pro network.
+
+${first}, if you ever want to list your practice and get in
+front of taxpayers searching in ${city}:
+https://virtuallaunch.pro/pricing
+
+And if a full membership isn't the right fit right now, the
+transcript automation tool works standalone — no membership
+needed:
+https://transcript.taxmonitor.pro/pricing
+10 IRS transcript analyses for $19.
+
+Either way, I hope one of these tools saves you some time.
+
+—
+Jamie L Williams, EA
+Virtual Launch Pro
+virtuallaunch.pro
+`
+  };
+}
+
+// ---- WLVLP templates (router-friendly, no crawl) ----------------------------
+function wlvlpRouterEmail1(first, city, c, slug) {
+  return {
+    subject: `${first} — your ${city || 'local'} practice site, scored on conversion`,
+    body:
+`Hello ${first},
+
+Your clients check your website before they ever pick up the
+phone. Most tax practice sites lose more leads than they convert
+— slow load times, missing CTAs, intake forms that ask too much.
+
+${first}, I put together a free Conversion Leak Report and a
+preview of what a modern, conversion-optimized site for your
+practice could look like:
+
+https://websitelotto.virtuallaunch.pro/asset/${slug}
+
+Templates start at $249. Takes about 60 seconds to review.
+
+—
+Jamie L Williams, EA
+Website Lotto by Virtual Launch Pro
+websitelotto.virtuallaunch.pro
+`
+  };
+}
+function wlvlpRouterEmail2(first, city, c, slug) {
+  return {
+    subject: `${first} — a new ${city || 'local'} ${c.label} site, ready when you are`,
+    body:
+`Hello ${first},
+
+Following up on the practice site preview I sent over.
+
+${first}, I built this specifically for ${c.label}s — clean
+layout, fast load, intake form that converts, mobile-first.
+You can preview the full thing here:
+
+https://websitelotto.virtuallaunch.pro/asset/${slug}
+
+If you want to walk through it live (15 minutes):
+https://cal.com/vlp/wlvlp-discovery
+
+—
+Jamie L Williams, EA
+Website Lotto by Virtual Launch Pro
+websitelotto.virtuallaunch.pro
+`
+  };
+}
+function wlvlpRouterEmail3(first, city, c, slug) {
+  return {
+    subject: `${first} — how many ${city} prospects bounced from your site last month`,
+    body:
+`Hello ${first},
+
+Here's something most tax professionals don't track:
+
+A taxpayer finds you through a Google search or referral.
+They visit your website. It loads slow, looks dated, or
+doesn't make it clear how to contact you.
+
+They leave. They find the next ${c.label} in
+${city} with a better site. That firm gets the call.
+
+${first}, you never know it happened.
+
+A conversion-optimized site doesn't just look better —
+it turns visitors into clients. Here's what yours could
+look like:
+https://websitelotto.virtuallaunch.pro/asset/${slug}
+
+—
+Jamie L Williams, EA
+Website Lotto by Virtual Launch Pro
+websitelotto.virtuallaunch.pro
+`
+  };
+}
+function wlvlpRouterEmail4(first, slug) {
+  return {
+    subject: `${first} — an EA's take on why your website matters more than you think`,
+    body:
+`Hello ${first},
+
+When I was working cases at ClearStart Tax and Stafford,
+I watched firms lose prospects before they ever picked
+up the phone — because their website didn't look like a
+firm you'd trust with a $50,000 tax liability.
+
+The technical work was excellent. The first impression
+wasn't.
+
+${first}, I built Website Lotto to give tax professionals
+a site that matches the quality of their actual work. Not
+a generic template — a site designed for how taxpayers
+evaluate and choose their representation.
+
+Here's my background:
+https://www.linkedin.com/in/virtuallaunchpro
+
+Here's your preview:
+https://websitelotto.virtuallaunch.pro/asset/${slug}
+
+—
+Jamie L Williams, EA
+Website Lotto by Virtual Launch Pro
+websitelotto.virtuallaunch.pro
+`
+  };
+}
+function wlvlpRouterEmail5(first, slug) {
+  return {
+    subject: `${first} — is your website something you've been meaning to fix`,
+    body:
+`Hello ${first},
+
+I've sent a few emails about a site redesign for your
+practice. ${first}, simple question:
+
+Is updating your website something that's been on the
+back burner?
+
+If yes — your preview is ready:
+https://websitelotto.virtuallaunch.pro/asset/${slug}
+
+Templates start at $249. Happy to walk through it:
+https://cal.com/vlp/wlvlp-discovery
+
+If your site is already where you want it — no more
+emails from me.
+
+—
+Jamie L Williams, EA
+Website Lotto by Virtual Launch Pro
+websitelotto.virtuallaunch.pro
+`
+  };
+}
+function wlvlpRouterEmail6(first, slug) {
+  return {
+    subject: `Last note from me, ${first}`,
+    body:
+`Hello ${first},
+
+This is my last email about your website. ${first}, if you
+ever want to see what a modern version looks like:
+https://websitelotto.virtuallaunch.pro/asset/${slug}
+
+And if your website isn't the priority right now but you
+work with IRS transcripts, this might save you real time:
+https://transcript.taxmonitor.pro/pricing
+10 transcript analyses for $19 — no commitment.
+
+—
+Jamie L Williams, EA
+Website Lotto by Virtual Launch Pro
+websitelotto.virtuallaunch.pro
+`
+  };
+}
+
+function buildTtmpQueueRecord(rec, ctx) {
+  const { first, lastDisplay, firstDisplay, city, state, slug, email, profession, cred, todayIso, baseDate, domain } = ctx;
+  const e1 = ttmpEmail1(firstDisplay, cred);
+  const e2 = ttmpEmail2(firstDisplay, cred, slug);
+  const e3 = ttmpEmail3(firstDisplay, cred, city);
+  const e4 = ttmpEmail4(firstDisplay);
+  const e5 = ttmpEmail5(firstDisplay);
+  const e6 = ttmpEmail6(firstDisplay);
+  return {
+    slug, email,
+    first_name: firstDisplay, last_name: lastDisplay,
+    profession, city, state, domain,
+    subject: e1.subject, body: e1.body,
+    email_2_subject: e2.subject, email_2_body: e2.body,
+    email_3_subject: e3.subject, email_3_body: e3.body,
+    email_4_subject: e4.subject, email_4_body: e4.body,
+    email_5_subject: e5.subject, email_5_body: e5.body,
+    email_6_subject: e6.subject, email_6_body: e6.body,
+    status: 'pending',
+    created_at: todayIso,
+    email_2_scheduled_for: dailyPlusDays(baseDate, 2),
+    email_3_scheduled_for: dailyPlusDays(baseDate, 4),
+    email_4_scheduled_for: dailyPlusDays(baseDate, 6),
+    email_5_scheduled_for: dailyPlusDays(baseDate, 8),
+    email_6_scheduled_for: dailyPlusDays(baseDate, 10),
+  };
+}
+function buildVlpQueueRecord(rec, ctx) {
+  const { firstDisplay, lastDisplay, city, state, slug, email, profession, cred, todayIso, baseDate, domain } = ctx;
+  const e1 = vlpEmail1(firstDisplay, city || 'your area', cred, slug);
+  const e2 = vlpEmail2(firstDisplay, city || 'your area', cred, slug);
+  const e3 = vlpEmail3(firstDisplay, city || 'your area', cred);
+  const e4 = vlpEmail4(firstDisplay, cred, slug);
+  const e5 = vlpEmail5(firstDisplay, slug);
+  const e6 = vlpEmail6(firstDisplay, city || 'your area');
+  return {
+    slug, email,
+    first_name: firstDisplay, last_name: lastDisplay,
+    profession, city, state, domain,
+    subject: e1.subject, body: e1.body,
+    email_2_subject: e2.subject, email_2_body: e2.body,
+    email_3_subject: e3.subject, email_3_body: e3.body,
+    email_4_subject: e4.subject, email_4_body: e4.body,
+    email_5_subject: e5.subject, email_5_body: e5.body,
+    email_6_subject: e6.subject, email_6_body: e6.body,
+    status: 'pending',
+    created_at: todayIso,
+    email_2_scheduled_for: dailyPlusDays(baseDate, 2),
+    email_3_scheduled_for: dailyPlusDays(baseDate, 4),
+    email_4_scheduled_for: dailyPlusDays(baseDate, 6),
+    email_5_scheduled_for: dailyPlusDays(baseDate, 8),
+    email_6_scheduled_for: dailyPlusDays(baseDate, 10),
+  };
+}
+function buildWlvlpQueueRecord(rec, ctx) {
+  const { firstDisplay, lastDisplay, city, state, slug, email, profession, cred, todayIso, baseDate, domain } = ctx;
+  const e1 = wlvlpRouterEmail1(firstDisplay, city, cred, slug);
+  const e2 = wlvlpRouterEmail2(firstDisplay, city, cred, slug);
+  const e3 = wlvlpRouterEmail3(firstDisplay, city || 'your area', cred, slug);
+  const e4 = wlvlpRouterEmail4(firstDisplay, slug);
+  const e5 = wlvlpRouterEmail5(firstDisplay, slug);
+  const e6 = wlvlpRouterEmail6(firstDisplay, slug);
+  return {
+    slug, email,
+    first_name: firstDisplay, last_name: lastDisplay,
+    profession, city, state, domain,
+    subject: e1.subject, body: e1.body,
+    email_2_subject: e2.subject, email_2_body: e2.body,
+    email_3_subject: e3.subject, email_3_body: e3.body,
+    email_4_subject: e4.subject, email_4_body: e4.body,
+    email_5_subject: e5.subject, email_5_body: e5.body,
+    email_6_subject: e6.subject, email_6_body: e6.body,
+    status: 'pending',
+    created_at: todayIso,
+    email_2_scheduled_for: dailyPlusDays(baseDate, 2),
+    email_3_scheduled_for: dailyPlusDays(baseDate, 4),
+    email_4_scheduled_for: dailyPlusDays(baseDate, 6),
+    email_5_scheduled_for: dailyPlusDays(baseDate, 8),
+    email_6_scheduled_for: dailyPlusDays(baseDate, 10),
+  };
+}
+
+async function appendToCampaignQueue(env, queueKey, newRecords) {
+  if (newRecords.length === 0) return 0;
+  let existing = [];
+  try {
+    const obj = await env.R2_VIRTUAL_LAUNCH.get(queueKey);
+    if (obj) existing = await obj.json();
+    if (!Array.isArray(existing)) existing = [];
+  } catch (e) {
+    console.error(`appendToCampaignQueue: failed to read ${queueKey}:`, e);
+    existing = [];
+  }
+  const merged = existing.concat(newRecords);
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      queueKey,
+      JSON.stringify(merged),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch (e) {
+    console.error(`appendToCampaignQueue: failed to write ${queueKey}:`, e);
+  }
+  return merged.length;
+}
+
+async function handleDailyBatchGeneration(env) {
+  const startedAt = new Date();
+  const todayIso = startedAt.toISOString();
+  const dateKey = todayIso.slice(0, 10);
+
+  // 1. Read NDJSON master
+  let records;
+  try {
+    const obj = await env.R2_VIRTUAL_LAUNCH.get(ENRICHMENT_R2_KEY);
+    if (!obj) {
+      console.error('Daily batch: master file not found');
+      return { ok: false, reason: 'no_master_file' };
+    }
+    const text = await obj.text();
+    records = text.split('\n').filter(l => l.trim().length > 0).map(l => {
+      try { return JSON.parse(l); } catch { return null; }
+    }).filter(r => r !== null);
+    console.log(`Daily batch: loaded ${records.length} records from master`);
+  } catch (e) {
+    console.error('Daily batch: failed to read master:', e);
+    return { ok: false, reason: 'master_read_failed', error: String(e && e.message || e) };
+  }
+
+  // 2. Filter to send-eligible
+  const eligibleIdx = [];
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    const ef = r.email_found && String(r.email_found).trim();
+    const es = r.email_status && String(r.email_status).trim().toLowerCase();
+    if (!ef) continue;
+    if (!es || !ALLOWED_SEND_STATUSES.has(es)) continue;
+    if (r.ttmp_email_1_prepared_at && String(r.ttmp_email_1_prepared_at).trim()) continue;
+    if (r.vlp_email_1_prepared_at && String(r.vlp_email_1_prepared_at).trim()) continue;
+    if (r.wlvlp_email_1_prepared_at && String(r.wlvlp_email_1_prepared_at).trim()) continue;
+    eligibleIdx.push(i);
+  }
+  const totalEligible = eligibleIdx.length;
+  console.log(`Daily batch: ${totalEligible} eligible records`);
+
+  // 3. Cap at DAILY_BATCH_CAP
+  const selectedIdx = eligibleIdx.slice(0, DAILY_BATCH_CAP);
+
+  // 4. Route + build queue records
+  const usedSlugs = new Map();
+  function uniqueSlug(base) {
+    let s = base || 'prospect';
+    let n = 1;
+    while (usedSlugs.has(s)) { n++; s = `${base}-${n}`; }
+    usedSlugs.set(s, true);
+    return s;
+  }
+
+  const ttmpRecs = [];
+  const vlpRecs = [];
+  const wlvlpRecs = [];
+  const wlvlpAssetWrites = [];
+
+  for (const i of selectedIdx) {
+    const r = records[i];
+    const profession = String(r.PROFESSION || '').toUpperCase();
+    const credKey = dailyNormalizeCred(profession);
+    const cred = DAILY_CRED[credKey] || DAILY_CRED.EA;
+    const firstDisplay = dailyTitleCaseFirst(r.First_NAME) || 'Friend';
+    const lastDisplay = dailyTitleCase(r.LAST_NAME);
+    const city = dailyTitleCase(r.BUS_ADDR_CITY);
+    const state = String(r.BUS_ST_CODE || '').toUpperCase().trim();
+    const baseSlug = dailyMakeSlug(
+      dailySanitizeNamePart(r.First_NAME),
+      dailySanitizeNamePart(r.LAST_NAME),
+      r.BUS_ADDR_CITY,
+      r.BUS_ST_CODE
+    );
+    const slug = uniqueSlug(baseSlug);
+    const email = String(r.email_found || '').trim();
+    const domain = String(r.domain_clean || '').trim();
+    const ctx = {
+      first: dailySanitizeNamePart(r.First_NAME),
+      firstDisplay, lastDisplay, city, state, slug, email,
+      profession, cred, todayIso, baseDate: startedAt, domain,
+    };
+
+    const roll = Math.random();
+    let dest;
+    if (roll < DAILY_ROUTE_TTMP) dest = 'ttmp';
+    else if (roll < DAILY_ROUTE_VLP) dest = 'vlp';
+    else dest = 'wlvlp';
+
+    if (dest === 'ttmp') {
+      ttmpRecs.push(buildTtmpQueueRecord(r, ctx));
+      r.ttmp_email_1_prepared_at = todayIso;
+    } else if (dest === 'vlp') {
+      vlpRecs.push(buildVlpQueueRecord(r, ctx));
+      r.vlp_email_1_prepared_at = todayIso;
+    } else {
+      wlvlpRecs.push(buildWlvlpQueueRecord(r, ctx));
+      r.wlvlp_email_1_prepared_at = todayIso;
+      // Minimal asset page so the /asset/{slug} link resolves
+      wlvlpAssetWrites.push({
+        slug,
+        page: {
+          slug,
+          headline: `${firstDisplay}, your ${city || 'local'} practice site preview`,
+          subheadline: `A modern, conversion-optimized template for ${cred.label}s — ready to customize.`,
+          practice_type: credKey,
+          city, state,
+          firm: r.DBA || `${firstDisplay} ${lastDisplay}`.trim(),
+          cta_claim_url: 'https://websitelotto.virtuallaunch.pro/templates',
+          cta_booking_url: 'https://cal.com/vlp/wlvlp-discovery',
+          generated_at: todayIso,
+        },
+      });
+    }
+  }
+
+  // 5. Write WLVLP minimal asset pages
+  for (const a of wlvlpAssetWrites) {
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/wlvlp-asset-pages/${a.slug}.json`,
+        JSON.stringify(a.page),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      console.error(`Daily batch: asset page write failed ${a.slug}:`, e);
+    }
+  }
+
+  // 6. Append to each campaign queue (read existing, merge, write back)
+  const ttmpQueueSize  = await appendToCampaignQueue(env, 'vlp-scale/ttmp-send-queue/email1-pending.json',  ttmpRecs);
+  const vlpQueueSize   = await appendToCampaignQueue(env, 'vlp-scale/vlp-send-queue/email1-pending.json',   vlpRecs);
+  const wlvlpQueueSize = await appendToCampaignQueue(env, 'vlp-scale/wlvlp-send-queue/email1-pending.json', wlvlpRecs);
+
+  // 7. Write master file back as NDJSON
+  try {
+    const ndjson = records.map(r => JSON.stringify(r)).join('\n') + '\n';
+    await env.R2_VIRTUAL_LAUNCH.put(ENRICHMENT_R2_KEY, ndjson, {
+      httpMetadata: { contentType: 'application/x-ndjson' },
+    });
+  } catch (e) {
+    console.error('Daily batch: failed to write master back:', e);
+  }
+
+  // 8. Daily batch log
+  const batchSize = ttmpRecs.length + vlpRecs.length + wlvlpRecs.length;
+  const remaining = totalEligible - batchSize;
+  const log = {
+    date: dateKey,
+    eligible_records: totalEligible,
+    batch_size: batchSize,
+    routed_ttmp: ttmpRecs.length,
+    routed_vlp: vlpRecs.length,
+    routed_wlvlp: wlvlpRecs.length,
+    records_remaining_eligible: remaining,
+    queue_sizes: {
+      ttmp: ttmpQueueSize,
+      vlp: vlpQueueSize,
+      wlvlp: wlvlpQueueSize,
+    },
+    started_at: todayIso,
+    finished_at: new Date().toISOString(),
+  };
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      `vlp-scale/batch-logs/${dateKey}.json`,
+      JSON.stringify(log),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch (e) {
+    console.error('Daily batch: failed to write log:', e);
+  }
+
+  console.log('Daily batch complete:', JSON.stringify(log));
+  return log;
 }
 
 // ---------------------------------------------------------------------------
@@ -14140,6 +14918,54 @@ export default {
       }
     }
 
+    // Internal manual trigger for the daily campaign router.
+    // Protected by INTERNAL_TEST_KEY secret.
+    if (pathname === '/internal/test-daily-batch' && method === 'POST') {
+      const providedKey = request.headers.get('X-Internal-Key') || '';
+      if (!env.INTERNAL_TEST_KEY || providedKey !== env.INTERNAL_TEST_KEY) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      }
+      try {
+        const stats = await handleDailyBatchGeneration(env);
+        return new Response(JSON.stringify(stats, null, 2), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: String(e && e.message || e) }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      }
+    }
+
+    // Internal manual trigger for the VLP email send pipeline.
+    // Protected by INTERNAL_TEST_KEY secret.
+    if (pathname === '/internal/test-vlp-send' && method === 'POST') {
+      const providedKey = request.headers.get('X-Internal-Key') || '';
+      if (!env.INTERNAL_TEST_KEY || providedKey !== env.INTERNAL_TEST_KEY) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      }
+      try {
+        const stats = await handleVlpEmailSend(env);
+        return new Response(JSON.stringify(stats, null, 2), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      } catch (e) {
+        return new Response(JSON.stringify({ error: String(e && e.message || e) }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      }
+    }
+
     // Internal manual trigger for the enrichment pipeline (kept for ad-hoc testing).
     // Protected by INTERNAL_TEST_KEY secret.
     if (pathname === '/internal/test-enrichment' && method === 'POST') {
@@ -14200,15 +15026,18 @@ export default {
       return;
     }
 
-    // WLVLP SCALE Batch Generation Cron — 12:00 UTC.
-    // Reads prospects from R2, crawls sites, scores, generates email copy,
-    // writes asset pages + send queue. Fully automated, no Claude usage.
+    // Daily Campaign Router Cron — 12:00 UTC.
+    // Reads NDJSON master, filters send-eligible enriched leads, routes them
+    // into TTMP / VLP / WLVLP send queues with full 6-email content inline,
+    // capped at DAILY_BATCH_CAP per day. Replaces the legacy
+    // handleWlvlpBatchGeneration crawler — WLVLP records now use static
+    // templates and minimal asset pages instead of per-site crawls/scoring.
     if (event && event.cron === '0 12 * * *') {
       try {
-        const stats = await handleWlvlpBatchGeneration(env, ctx);
-        console.log('WLVLP batch cron:', JSON.stringify(stats));
+        const stats = await handleDailyBatchGeneration(env);
+        console.log('Daily batch cron:', JSON.stringify(stats));
       } catch (e) {
-        console.error('WLVLP batch cron failed:', e);
+        console.error('Daily batch cron failed:', e);
       }
       return;
     }
@@ -14552,23 +15381,30 @@ export default {
       }
     }
 
-    // WLVLP Email Send Cron (runs alongside SCALE at 14:00 UTC)
+    // Unified Send Cron — 14:00 UTC.
+    // Runs TTMP, VLP, and WLVLP send handlers in sequence. Each reads its
+    // own queue and processes pending email_1 plus any scheduled follow-ups
+    // (email_2..6) whose scheduled_for date is today or earlier. If the
+    // Worker times out before completing all three, the unsent records stay
+    // in their queue and the next day's run picks up where it left off.
     if (event && event.cron === '0 14 * * *') {
       try {
-        const stats = await handleWlvlpEmailSend(env);
-        console.log('WLVLP email send cron:', JSON.stringify(stats));
-      } catch (e) {
-        console.error('WLVLP email send cron failed:', e);
-      }
-    }
-
-    // TTMP Email Send Cron (runs alongside WLVLP at 14:00 UTC)
-    if (event && event.cron === '0 14 * * *') {
-      try {
-        const stats = await handleTtmpEmailSend(env);
-        console.log('TTMP email send cron:', JSON.stringify(stats));
+        const ttmpStats = await handleTtmpEmailSend(env);
+        console.log('TTMP email send cron:', JSON.stringify(ttmpStats));
       } catch (e) {
         console.error('TTMP email send cron failed:', e);
+      }
+      try {
+        const vlpStats = await handleVlpEmailSend(env);
+        console.log('VLP email send cron:', JSON.stringify(vlpStats));
+      } catch (e) {
+        console.error('VLP email send cron failed:', e);
+      }
+      try {
+        const wlvlpStats = await handleWlvlpEmailSend(env);
+        console.log('WLVLP email send cron:', JSON.stringify(wlvlpStats));
+      } catch (e) {
+        console.error('WLVLP email send cron failed:', e);
       }
     }
 

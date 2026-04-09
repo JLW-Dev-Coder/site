@@ -4,6 +4,34 @@ Repo: C:\Users\eimaj\virtuallaunch.pro\scale\WORKFLOW.md
 Owner: Jamie L Williams
 Last updated: 2026-04-08
 
+## Unified Daily Loop (fully automated)
+
+The Worker now runs the full SCALE pipeline end-to-end via three crons. No
+manual batch generation, no Hunter.io, no Claude in the loop. The only
+human inputs are: (1) refilling the FOIA master file when it runs dry, and
+(2) reviewing daily batch logs.
+
+| Cron (UTC) | Handler | What it does |
+|------------|---------|-------------|
+| 10:00 | `handleEnrichmentBatch(env)` | MX → catch-all → pattern reuse (KV) → pattern generation → Reoon validation. Writes `email_found` / `email_status` back to NDJSON master. Capped at 450 Reoon credits/day. |
+| 12:00 | `handleDailyBatchGeneration(env)` | Filters send-eligible records (have an email, no campaign yet), takes up to 200/day, routes each by weighted random into TTMP (65%) / VLP (25%) / WLVLP (10%), generates a full 6-email queue entry per record, appends to the per-campaign queue, stamps the master with the campaign's `prepared_at`, writes a daily batch log. |
+| 14:00 | `handleTtmpEmailSend` → `handleVlpEmailSend` → `handleWlvlpEmailSend` | Each handler walks its queue and sends every record where the next email's scheduled date is today or earlier. Worker timeouts are non-fatal — unsent records stay in the queue and the next day's run resumes from the same point. |
+
+**Compressed 10-day cadence (every campaign):** Email 1 = Day 0, Email 2 = +2,
+Email 3 = +4, Email 4 = +6, Email 5 = +8, Email 6 = +10. After Email 6 is
+sent the record moves to `vlp-scale/{campaign}-send-queue/sent-{YYYY-MM-DD}.json`.
+
+**Daily batch logs:** `vlp-scale/batch-logs/{YYYY-MM-DD}.json` records
+eligible count, batch size, per-campaign routing counts, and remaining
+eligible count.
+
+**Manual triggers (all behind `INTERNAL_TEST_KEY`):**
+- `POST /internal/test-enrichment`
+- `POST /internal/test-daily-batch`
+- `POST /internal/test-ttmp-send`
+- `POST /internal/test-vlp-send`
+
+
 ## TTMP Send Pipeline (pattern-unvalidated)
 
 Independent of the Hunter.io VLP send rail. The Worker now drives a 6-email
