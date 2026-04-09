@@ -1313,8 +1313,13 @@ const CF_ROOT_DOMAINS = new Set(['vlp', 'tmp']);
 //     by `cacheStatus_in`, and threats via `firewallEventsAdaptiveGroups`.
 //   - Page views are not available on adaptive groups. We expose `count` as
 //     the closest proxy in the response so the frontend keeps working.
-//   - `uniq { uniques }` IS available on httpRequestsAdaptiveGroups (the
-//     working /v1/scale/analytics route uses it the same way).
+//   - `uniq { uniques }` is NOT available on httpRequestsAdaptiveGroups in
+//     this account/zone — it errors with "unknown field". The only dataset
+//     that exposes it is `httpRequests1dGroups`, which (a) doesn't support
+//     per-host filtering and (b) uses a different (Date, not Time) filter
+//     shape, so we can't reuse the same variables. For now we set
+//     unique_visitors to 0 across the board and surface request count as
+//     the traffic metric. Revisit if we need true uniques.
 //   - orderBy uses `count_DESC` for totals, `datetimeHour_ASC` for timeseries.
 async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = {}) {
   const includeTimeseries = opts.includeTimeseries !== false;
@@ -1345,7 +1350,6 @@ async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = 
         ) {
           count
           sum { edgeResponseBytes }
-          uniq { uniques }
         }
         cachedTotals: httpRequestsAdaptiveGroups(
           filter: ${cachedFilter}
@@ -1468,7 +1472,8 @@ async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = 
     // page_views: adaptive groups doesn't expose pageViews — use request count
     // as the closest proxy so the frontend response shape stays stable.
     page_views: totalRequests,
-    unique_visitors: totalsRow?.uniq?.uniques || 0,
+    // TODO: unique visitors requires httpRequests1dGroups dataset (no per-host filter).
+    unique_visitors: 0,
     threats: firewallTotalsRow?.count || 0,
   };
 
