@@ -1303,6 +1303,19 @@ const CF_ROOT_DOMAINS = new Set(['vlp', 'tmp']);
 
 // Fetch a single platform's analytics from the Cloudflare GraphQL API.
 // Returns { ok, data } on success, or { ok: false, error } on failure.
+//
+// Schema notes (httpRequestsAdaptiveGroups — the only dataset that supports
+// per-host filtering, which we need because most platforms share zones):
+//   - Total request count is the top-level `count` field, NOT `sum.requests`.
+//   - Bytes are `sum.edgeResponseBytes`, NOT `sum.bytes`.
+//   - There is no `sum.cachedRequests` / `sum.cachedBytes` / `sum.pageViews` /
+//     `sum.threats`. We compute cached counts via a sibling sub-query filtered
+//     by `cacheStatus_in`, and threats via `firewallEventsAdaptiveGroups`.
+//   - Page views are not available on adaptive groups. We expose `count` as
+//     the closest proxy in the response so the frontend keeps working.
+//   - `uniq { uniques }` IS available on httpRequestsAdaptiveGroups (the
+//     working /v1/scale/analytics route uses it the same way).
+//   - orderBy uses `count_DESC` for totals, `datetimeHour_ASC` for timeseries.
 async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = {}) {
   const includeTimeseries = opts.includeTimeseries !== false;
   const zoneTag = CF_ZONE_MAP[platform];
@@ -1316,55 +1329,13 @@ async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = 
   }
 
   const isRoot = CF_ROOT_DOMAINS.has(platform);
-  // Subdomain platforms scope every httpRequestsAdaptiveGroups query by clientRequestHTTPHost.
-  const httpFilter = isRoot
-    ? `{ datetime_geq: $since, datetime_leq: $until }`
-    : `{ datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $hostname }`;
-
-  const timeseriesBlock = includeTimeseries ? `
-        timeseries: httpRequestsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 1000
-          orderBy: [datetime_ASC]
-        ) {
-          dimensions { datetime }
-          sum { requests cachedRequests bytes cachedBytes pageViews threats }
-          uniq { uniques }
-        }` : '';
-
-  const detailBlocks = includeTimeseries ? `
-        statusCodes: httpRequestsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 100
-          orderBy: [sum_requests_DESC]
-        ) {
-          dimensions { edgeResponseStatus }
-          sum { requests }
-        }
-        topPaths: httpRequestsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 20
-          orderBy: [sum_requests_DESC]
-        ) {
-          dimensions { clientRequestPath }
-          sum { requests pageViews }
-        }
-        topCountries: httpRequestsAdaptiveGroups(
-          filter: ${httpFilter}
-          limit: 10
-          orderBy: [sum_requests_DESC]
-        ) {
-          dimensions { clientCountryName }
-          sum { requests }
-        }
-        firewall: firewallEventsAdaptiveGroups(
-          filter: { datetime_geq: $since, datetime_leq: $until }
-          limit: 100
-          orderBy: [count_DESC]
-        ) {
-          dimensions { action }
-          count
-        }` : '';
+  // Subdomain platforms scope every query by clientRequestHTTPHost.
+  const baseFilter = isRoot
+    ? `datetime_geq: $since, datetime_leq: $until`
+    : `datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $hostname`;
+  const httpFilter = `{ ${baseFilter} }`;
+  // Cloudflare cache statuses considered "served from cache".
+  const cachedFilter = `{ ${baseFilter}, cacheStatus_in: ["hit","stream_hit","revalidated","updating"] }`;
 
   // Totals are always fetched (single bucket, no datetime dimension).
   const totalsBlock = `
@@ -1372,9 +1343,76 @@ async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = 
           filter: ${httpFilter}
           limit: 1
         ) {
-          sum { requests cachedRequests bytes cachedBytes pageViews threats }
+          count
+          sum { edgeResponseBytes }
           uniq { uniques }
+        }
+        cachedTotals: httpRequestsAdaptiveGroups(
+          filter: ${cachedFilter}
+          limit: 1
+        ) {
+          count
+          sum { edgeResponseBytes }
+        }
+        firewallTotals: firewallEventsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 1
+        ) {
+          count
         }`;
+
+  const timeseriesBlock = includeTimeseries ? `
+        timeseries: httpRequestsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 1000
+          orderBy: [datetimeHour_ASC]
+        ) {
+          count
+          sum { edgeResponseBytes }
+          dimensions { datetimeHour }
+        }
+        cachedTimeseries: httpRequestsAdaptiveGroups(
+          filter: ${cachedFilter}
+          limit: 1000
+          orderBy: [datetimeHour_ASC]
+        ) {
+          count
+          dimensions { datetimeHour }
+        }` : '';
+
+  const detailBlocks = includeTimeseries ? `
+        statusCodes: httpRequestsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 100
+          orderBy: [count_DESC]
+        ) {
+          count
+          dimensions { edgeResponseStatus }
+        }
+        topPaths: httpRequestsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 20
+          orderBy: [count_DESC]
+        ) {
+          count
+          dimensions { clientRequestPath }
+        }
+        topCountries: httpRequestsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 10
+          orderBy: [count_DESC]
+        ) {
+          count
+          dimensions { clientCountryName }
+        }
+        firewall: firewallEventsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 100
+          orderBy: [count_DESC]
+        ) {
+          count
+          dimensions { action }
+        }` : '';
 
   const query = `
     query ($zoneTag: String!, $since: Time!, $until: Time!${isRoot ? '' : ', $hostname: String!'}) {
@@ -1418,42 +1456,58 @@ async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = 
 
   // Aggregate the totals bucket.
   const totalsRow = (zone.totals && zone.totals[0]) || null;
+  const cachedRow = (zone.cachedTotals && zone.cachedTotals[0]) || null;
+  const firewallTotalsRow = (zone.firewallTotals && zone.firewallTotals[0]) || null;
+
+  const totalRequests = totalsRow?.count || 0;
   const totals = {
-    total_requests: totalsRow?.sum?.requests || 0,
-    cached_requests: totalsRow?.sum?.cachedRequests || 0,
-    total_bytes: totalsRow?.sum?.bytes || 0,
-    cached_bytes: totalsRow?.sum?.cachedBytes || 0,
-    page_views: totalsRow?.sum?.pageViews || 0,
+    total_requests: totalRequests,
+    cached_requests: cachedRow?.count || 0,
+    total_bytes: totalsRow?.sum?.edgeResponseBytes || 0,
+    cached_bytes: cachedRow?.sum?.edgeResponseBytes || 0,
+    // page_views: adaptive groups doesn't expose pageViews — use request count
+    // as the closest proxy so the frontend response shape stays stable.
+    page_views: totalRequests,
     unique_visitors: totalsRow?.uniq?.uniques || 0,
-    threats: totalsRow?.sum?.threats || 0,
+    threats: firewallTotalsRow?.count || 0,
   };
 
   if (!includeTimeseries) {
     return { ok: true, data: totals };
   }
 
-  const timeseries = (zone.timeseries || []).map((row) => ({
-    datetime: row.dimensions?.datetime,
-    requests: row.sum?.requests || 0,
-    cached: row.sum?.cachedRequests || 0,
-    bytes: row.sum?.bytes || 0,
-    pageViews: row.sum?.pageViews || 0,
-  }));
+  // Build a hour -> cached count lookup so we can join into the timeseries.
+  const cachedByHour = new Map();
+  for (const row of (zone.cachedTimeseries || [])) {
+    cachedByHour.set(row.dimensions?.datetimeHour, row.count || 0);
+  }
+
+  const timeseries = (zone.timeseries || []).map((row) => {
+    const hour = row.dimensions?.datetimeHour;
+    const reqs = row.count || 0;
+    return {
+      datetime: hour,
+      requests: reqs,
+      cached: cachedByHour.get(hour) || 0,
+      bytes: row.sum?.edgeResponseBytes || 0,
+      pageViews: reqs,
+    };
+  });
 
   const statusCodes = (zone.statusCodes || []).map((row) => ({
     status: row.dimensions?.edgeResponseStatus,
-    count: row.sum?.requests || 0,
+    count: row.count || 0,
   }));
 
   const topPaths = (zone.topPaths || []).map((row) => ({
     path: row.dimensions?.clientRequestPath,
-    requests: row.sum?.requests || 0,
-    pageViews: row.sum?.pageViews || 0,
+    requests: row.count || 0,
+    pageViews: row.count || 0,
   }));
 
   const topCountries = (zone.topCountries || []).map((row) => ({
     country: row.dimensions?.clientCountryName,
-    requests: row.sum?.requests || 0,
+    requests: row.count || 0,
   }));
 
   const firewall = (zone.firewall || []).map((row) => ({
