@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-07
+Last updated: 2026-04-08
 
 ---
 
@@ -546,6 +546,8 @@ sessions receive `403 FORBIDDEN`.
 | GET   | `/v1/admin/accounts/:account_id` | Single-account drill-down. Returns `{ ok, account: { id, account_id, email, name, platform, status, created_at, updated_at }, memberships[], tokens: { transcript_total, tax_game_total, updated_at }, tickets[], payments[] }`. The `payments` field calls Stripe `/v1/payment_intents?customer={id}` if the account has a `stripe_customer_id` in `billing_customers` (or on a membership row); otherwise it falls back to `/v1/payment_intents/search?query=receipt_email:"…"`. Tries the VLP Stripe key first, then the TMP key. Returns an empty array on lookup failure. |
 | GET   | `/v1/admin/support/tickets` | Returns up to 100 cross-platform tickets (joined to `accounts` for `email` + `platform`), with `messages[]` hydrated from R2 (`support_tickets/{id}.json`). Initial user message is seeded from the D1 row when no R2 thread exists yet. |
 | PATCH | `/v1/admin/support/tickets/:ticket_id` | Body: `{ message?, status? }`. Appends an operator reply (`author: 'support'`) to the R2 ticket's `messages[]` thread, sets status to `awaiting` (or the supplied status), updates the D1 projection, and returns the full updated ticket. R2 is authoritative; D1 mirrors `status` / `updated_at`. |
+| GET   | `/v1/admin/analytics/all` | Cloudflare Analytics summary across all 8 platforms. Query params: `since` (ISO, default `now - 7d`), `until` (ISO, default `now`). Calls Cloudflare GraphQL Analytics API in parallel via `Promise.allSettled` (one query per platform, totals only — no timeseries). Returns `{ ok, since, until, platforms: { vlp: { domain, total_requests, page_views, unique_visitors, bandwidth_bytes, threats, cache_hit_ratio }, tmp: {...}, ttmp: {...}, tttmp: {...}, dvlp: {...}, gvlp: {...}, tcvlp: {...}, wlvlp: {...} } }`. Per-platform errors surface as `{ domain, error }` instead of failing the whole response. Subdomain platforms (TTMP, TTTMP, DVLP, GVLP, TCVLP, WLVLP) filter the GraphQL query by `clientRequestHTTPHost` to isolate traffic on shared zones. Uses bearer token `env.CF_API_TOKEN`. |
+| GET   | `/v1/admin/analytics/:platform` | Per-platform analytics deep-dive. `:platform` ∈ `{vlp, tmp, ttmp, tttmp, dvlp, gvlp, tcvlp, wlvlp}`. Same `since`/`until` query params. Returns `{ ok, platform, domain, since, until, traffic: { total_requests, cached_requests, total_bytes, cached_bytes, page_views, unique_visitors, threats, timeseries: [{ datetime, requests, cached, bytes, pageViews }] }, status_codes: [{ status, count }], top_paths: [{ path, requests, pageViews }], top_countries: [{ country, requests }], firewall: [{ action, count }] }`. Issues a single batched GraphQL request hitting `httpRequestsAdaptiveGroups` (5 sub-queries: totals, timeseries, status codes, top paths, top countries) and `firewallEventsAdaptiveGroups`. On GraphQL failure returns `{ ok: false, error }` with HTTP 502. |
 
 Frontend usage: the SCALE operator console (`/scale/support`) reads from
 `GET /v1/admin/support/tickets` and submits replies via

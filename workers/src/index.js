@@ -1271,6 +1271,208 @@ const IRS_843_MAILING_ADDRESSES = {
   'VI': 'Internal Revenue Service, Austin, TX 73301-0030',
 };
 
+// Cloudflare GraphQL Analytics — zone + domain mapping
+// Public zone IDs (not secrets). Token lives in env.CF_API_TOKEN.
+const CF_ACCOUNT_ID = 'b14e124b2f5dd7e86dfb1546f9ed6e91';
+
+const CF_ZONE_MAP = {
+  vlp:   'dc402def9a745a2a65fc9b829b72c6f3',
+  tmp:   '7b7a3d2bde921c3de1451a2315ab9242',
+  ttmp:  '7b7a3d2bde921c3de1451a2315ab9242',
+  tttmp: '7b7a3d2bde921c3de1451a2315ab9242',
+  dvlp:  'dc402def9a745a2a65fc9b829b72c6f3',
+  gvlp:  'dc402def9a745a2a65fc9b829b72c6f3',
+  tcvlp: 'dc402def9a745a2a65fc9b829b72c6f3',
+  wlvlp: 'dc402def9a745a2a65fc9b829b72c6f3',
+};
+
+const CF_DOMAIN_MAP = {
+  vlp:   'virtuallaunch.pro',
+  tmp:   'taxmonitor.pro',
+  ttmp:  'transcript.taxmonitor.pro',
+  tttmp: 'taxtools.taxmonitor.pro',
+  dvlp:  'developers.virtuallaunch.pro',
+  gvlp:  'games.virtuallaunch.pro',
+  tcvlp: 'taxclaim.virtuallaunch.pro',
+  wlvlp: 'websitelotto.virtuallaunch.pro',
+};
+
+// Subdomain platforms must filter GraphQL requests by clientRequestHTTPHost.
+// Root domains (vlp, tmp) don't need a host filter — the whole zone is them.
+const CF_ROOT_DOMAINS = new Set(['vlp', 'tmp']);
+
+// Fetch a single platform's analytics from the Cloudflare GraphQL API.
+// Returns { ok, data } on success, or { ok: false, error } on failure.
+async function fetchPlatformAnalytics(env, platform, sinceIso, untilIso, opts = {}) {
+  const includeTimeseries = opts.includeTimeseries !== false;
+  const zoneTag = CF_ZONE_MAP[platform];
+  const hostname = CF_DOMAIN_MAP[platform];
+  if (!zoneTag || !hostname) {
+    return { ok: false, error: `unknown platform: ${platform}` };
+  }
+  const token = env.CF_API_TOKEN;
+  if (!token) {
+    return { ok: false, error: 'missing CF_API_TOKEN' };
+  }
+
+  const isRoot = CF_ROOT_DOMAINS.has(platform);
+  // Subdomain platforms scope every httpRequestsAdaptiveGroups query by clientRequestHTTPHost.
+  const httpFilter = isRoot
+    ? `{ datetime_geq: $since, datetime_leq: $until }`
+    : `{ datetime_geq: $since, datetime_leq: $until, clientRequestHTTPHost: $hostname }`;
+
+  const timeseriesBlock = includeTimeseries ? `
+        timeseries: httpRequestsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 1000
+          orderBy: [datetime_ASC]
+        ) {
+          dimensions { datetime }
+          sum { requests cachedRequests bytes cachedBytes pageViews threats }
+          uniq { uniques }
+        }` : '';
+
+  const detailBlocks = includeTimeseries ? `
+        statusCodes: httpRequestsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 100
+          orderBy: [sum_requests_DESC]
+        ) {
+          dimensions { edgeResponseStatus }
+          sum { requests }
+        }
+        topPaths: httpRequestsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 20
+          orderBy: [sum_requests_DESC]
+        ) {
+          dimensions { clientRequestPath }
+          sum { requests pageViews }
+        }
+        topCountries: httpRequestsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 10
+          orderBy: [sum_requests_DESC]
+        ) {
+          dimensions { clientCountryName }
+          sum { requests }
+        }
+        firewall: firewallEventsAdaptiveGroups(
+          filter: { datetime_geq: $since, datetime_leq: $until }
+          limit: 100
+          orderBy: [count_DESC]
+        ) {
+          dimensions { action }
+          count
+        }` : '';
+
+  // Totals are always fetched (single bucket, no datetime dimension).
+  const totalsBlock = `
+        totals: httpRequestsAdaptiveGroups(
+          filter: ${httpFilter}
+          limit: 1
+        ) {
+          sum { requests cachedRequests bytes cachedBytes pageViews threats }
+          uniq { uniques }
+        }`;
+
+  const query = `
+    query ($zoneTag: String!, $since: Time!, $until: Time!${isRoot ? '' : ', $hostname: String!'}) {
+      viewer {
+        zones(filter: { zoneTag: $zoneTag }) {${totalsBlock}${timeseriesBlock}${detailBlocks}
+        }
+      }
+    }
+  `;
+
+  const variables = { zoneTag, since: sinceIso, until: untilIso };
+  if (!isRoot) variables.hostname = hostname;
+
+  let resp;
+  try {
+    resp = await fetch('https://api.cloudflare.com/client/v4/graphql', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+  } catch (e) {
+    return { ok: false, error: `network: ${e.message}` };
+  }
+
+  if (!resp.ok) {
+    const text = await resp.text().catch(() => '');
+    return { ok: false, error: `graphql ${resp.status}: ${text.slice(0, 200)}` };
+  }
+
+  const body = await resp.json().catch(() => null);
+  if (!body) return { ok: false, error: 'graphql: invalid json' };
+  if (body.errors && body.errors.length) {
+    return { ok: false, error: `graphql: ${body.errors.map((e) => e.message).join('; ')}` };
+  }
+
+  const zone = body?.data?.viewer?.zones?.[0];
+  if (!zone) return { ok: false, error: 'graphql: zone not found' };
+
+  // Aggregate the totals bucket.
+  const totalsRow = (zone.totals && zone.totals[0]) || null;
+  const totals = {
+    total_requests: totalsRow?.sum?.requests || 0,
+    cached_requests: totalsRow?.sum?.cachedRequests || 0,
+    total_bytes: totalsRow?.sum?.bytes || 0,
+    cached_bytes: totalsRow?.sum?.cachedBytes || 0,
+    page_views: totalsRow?.sum?.pageViews || 0,
+    unique_visitors: totalsRow?.uniq?.uniques || 0,
+    threats: totalsRow?.sum?.threats || 0,
+  };
+
+  if (!includeTimeseries) {
+    return { ok: true, data: totals };
+  }
+
+  const timeseries = (zone.timeseries || []).map((row) => ({
+    datetime: row.dimensions?.datetime,
+    requests: row.sum?.requests || 0,
+    cached: row.sum?.cachedRequests || 0,
+    bytes: row.sum?.bytes || 0,
+    pageViews: row.sum?.pageViews || 0,
+  }));
+
+  const statusCodes = (zone.statusCodes || []).map((row) => ({
+    status: row.dimensions?.edgeResponseStatus,
+    count: row.sum?.requests || 0,
+  }));
+
+  const topPaths = (zone.topPaths || []).map((row) => ({
+    path: row.dimensions?.clientRequestPath,
+    requests: row.sum?.requests || 0,
+    pageViews: row.sum?.pageViews || 0,
+  }));
+
+  const topCountries = (zone.topCountries || []).map((row) => ({
+    country: row.dimensions?.clientCountryName,
+    requests: row.sum?.requests || 0,
+  }));
+
+  const firewall = (zone.firewall || []).map((row) => ({
+    action: row.dimensions?.action,
+    count: row.count || 0,
+  }));
+
+  return {
+    ok: true,
+    data: {
+      traffic: { ...totals, timeseries },
+      status_codes: statusCodes,
+      top_paths: topPaths,
+      top_countries: topCountries,
+      firewall,
+    },
+  };
+}
+
 // WLVLP Business Rules (hardcoded)
 const WLVLP_SCRATCH_PRIZES = [
   { prize_type: 'free_month',    prize_value: 'Free 1-month claim',      weight: 2  },
@@ -5384,6 +5586,106 @@ const ROUTES = [
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 500, request)
       }
+    },
+  },
+
+  // ---------------------------------------------------------------------------
+  // Cloudflare Analytics — admin-gated, queries Cloudflare GraphQL Analytics API
+  // Token: env.CF_API_TOKEN (Analytics:Read on all zones)
+  // ---------------------------------------------------------------------------
+  // NOTE: /all must come before /:platform so the literal path isn't captured
+  // by the param pattern.
+  {
+    method: 'GET', pattern: '/v1/admin/analytics/all',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      const url = new URL(request.url)
+      const now = new Date()
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const sinceIso = url.searchParams.get('since') || sevenDaysAgo.toISOString()
+      const untilIso = url.searchParams.get('until') || now.toISOString()
+
+      const platformKeys = Object.keys(CF_ZONE_MAP)
+      const results = await Promise.allSettled(
+        platformKeys.map((p) => fetchPlatformAnalytics(env, p, sinceIso, untilIso, { includeTimeseries: false }))
+      )
+
+      const platforms = {}
+      for (let i = 0; i < platformKeys.length; i++) {
+        const key = platformKeys[i]
+        const settled = results[i]
+        const domain = CF_DOMAIN_MAP[key]
+        if (settled.status !== 'fulfilled' || !settled.value.ok) {
+          const err = settled.status === 'rejected'
+            ? (settled.reason && settled.reason.message) || String(settled.reason)
+            : settled.value.error
+          platforms[key] = { domain, error: err }
+          continue
+        }
+        const t = settled.value.data
+        const cacheHit = t.total_requests > 0 ? t.cached_requests / t.total_requests : 0
+        platforms[key] = {
+          domain,
+          total_requests: t.total_requests,
+          page_views: t.page_views,
+          unique_visitors: t.unique_visitors,
+          bandwidth_bytes: t.total_bytes,
+          threats: t.threats,
+          cache_hit_ratio: Number(cacheHit.toFixed(4)),
+        }
+      }
+
+      return json({
+        ok: true,
+        since: sinceIso,
+        until: untilIso,
+        platforms,
+      }, 200, request)
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/admin/analytics/:platform',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      const platform = (params.platform || '').toLowerCase()
+      if (!CF_ZONE_MAP[platform]) {
+        return json({ ok: false, error: 'VALIDATION', message: `unknown platform: ${platform}` }, 400, request)
+      }
+
+      const url = new URL(request.url)
+      const now = new Date()
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+      const sinceIso = url.searchParams.get('since') || sevenDaysAgo.toISOString()
+      const untilIso = url.searchParams.get('until') || now.toISOString()
+
+      const result = await fetchPlatformAnalytics(env, platform, sinceIso, untilIso, { includeTimeseries: true })
+      if (!result.ok) {
+        return json({ ok: false, error: result.error }, 502, request)
+      }
+
+      return json({
+        ok: true,
+        platform,
+        domain: CF_DOMAIN_MAP[platform],
+        since: sinceIso,
+        until: untilIso,
+        ...result.data,
+      }, 200, request)
     },
   },
 
