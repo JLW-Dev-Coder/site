@@ -565,8 +565,11 @@ async function sendGmailMessage(env, to, subject, body) {
       body
     ].join('\r\n');
 
-    // Base64url encode message
-    const encodedMessage = btoa(message).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    // Base64url encode message (UTF-8 safe — btoa() only handles Latin1)
+    const messageBytes = new TextEncoder().encode(message);
+    let binary = '';
+    for (let i = 0; i < messageBytes.length; i++) binary += String.fromCharCode(messageBytes[i]);
+    const encodedMessage = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
     // Send via Gmail API
     const sendResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
