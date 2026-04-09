@@ -571,25 +571,39 @@ async function sendGmailMessage(env, to, subject, body) {
     for (let i = 0; i < messageBytes.length; i++) binary += String.fromCharCode(messageBytes[i]);
     const encodedMessage = btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 
-    // Send via Gmail API
-    const sendResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${tokenData.access_token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ raw: encodedMessage })
-    });
+    // Send via Gmail API — retry up to 3 times on HTTP 429 (rate limit)
+    const maxRetries = 3;
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      const sendResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ raw: encodedMessage })
+      });
 
-    if (!sendResponse.ok) {
+      if (sendResponse.ok) {
+        const sendData = await sendResponse.json();
+        return { messageId: sendData.id };
+      }
+
+      if (sendResponse.status === 429) {
+        if (attempt < maxRetries) {
+          console.log(`Gmail rate limit hit — pausing 60 seconds (retry ${attempt + 1}/${maxRetries})`);
+          await new Promise(r => setTimeout(r, 60000));
+          continue;
+        }
+        throw new Error('gmail_rate_limited');
+      }
+
+      // Any non-429 error: do not retry
       const sendError = await sendResponse.text();
       throw new Error(`Gmail send failed: ${sendResponse.status} ${sendError}`);
     }
 
-    const sendData = await sendResponse.json();
-    return { messageId: sendData.id };
-
   } catch (error) {
+    if (error.message === 'gmail_rate_limited') throw error;
     throw new Error(`Gmail send error: ${error.message}`);
   }
 }
@@ -13398,7 +13412,8 @@ async function handleWlvlpEmailSend(env) {
 async function runStagedSendQueue(env, opts) {
   const { label, queueKey, archivePrefix } = opts;
   const today = new Date().toISOString().slice(0, 10);
-  const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  const startedAt = new Date();
+  console.log(`${label} email send: started at ${startedAt.toISOString()}`);
   const sentCounts = { email_1: 0, email_2: 0, email_3: 0, email_4: 0, email_5: 0, email_6: 0 };
   const errors = [];
 
@@ -13407,16 +13422,19 @@ async function runStagedSendQueue(env, opts) {
     const obj = await env.R2_VIRTUAL_LAUNCH.get(queueKey);
     if (!obj) {
       console.log(`${label} email send: no queue file`);
-      return { ...sentCounts, queue_size: 0 };
+      const endedAt = new Date();
+      return { ...sentCounts, queue_size: 0, started_at: startedAt.toISOString(), ended_at: endedAt.toISOString(), duration_ms: endedAt - startedAt };
     }
     queue = await obj.json();
   } catch (e) {
     console.error(`${label} email send: failed to read queue:`, e);
-    return { ...sentCounts, error: 'queue_read_failed' };
+    const endedAt = new Date();
+    return { ...sentCounts, error: 'queue_read_failed', started_at: startedAt.toISOString(), ended_at: endedAt.toISOString(), duration_ms: endedAt - startedAt };
   }
   if (!Array.isArray(queue) || queue.length === 0) {
     console.log(`${label} email send: queue empty`);
-    return { ...sentCounts, queue_size: 0 };
+    const endedAt = new Date();
+    return { ...sentCounts, queue_size: 0, started_at: startedAt.toISOString(), ended_at: endedAt.toISOString(), duration_ms: endedAt - startedAt };
   }
 
   // Email 1
@@ -13424,7 +13442,6 @@ async function runStagedSendQueue(env, opts) {
     if (record.email_1_sent_at) continue;
     if (record.status && record.status !== 'pending' && record.status !== 'email_1_failed') continue;
     try {
-      await delay(10000 + Math.random() * 5000);
       await sendGmailMessage(env, record.email, record.subject, record.body);
       record.email_1_sent_at = new Date().toISOString();
       record.status = 'email_1_sent';
@@ -13455,7 +13472,6 @@ async function runStagedSendQueue(env, opts) {
     );
     for (const record of todo) {
       try {
-        await delay(8000 + Math.random() * 4000);
         await sendGmailMessage(env, record.email, record[stage.subjK], record[stage.bodyK]);
         record[stage.sentAt] = new Date().toISOString();
         record.status = stage.okStatus;
@@ -13495,8 +13511,20 @@ async function runStagedSendQueue(env, opts) {
     console.error(`${label} email send: failed to write back queue:`, e);
   }
 
-  console.log(`${label} email send: ${JSON.stringify(sentCounts)} (queue size ${queue.length}, errors ${errors.length})`);
-  return { ...sentCounts, queue_size: queue.length, completed: completed.length, errors };
+  const endedAt = new Date();
+  const durationMs = endedAt - startedAt;
+  const totalSent = sentCounts.email_1 + sentCounts.email_2 + sentCounts.email_3 + sentCounts.email_4 + sentCounts.email_5 + sentCounts.email_6;
+  console.log(`${label} email send: ended at ${endedAt.toISOString()} — duration ${durationMs}ms, total sent ${totalSent}, ${JSON.stringify(sentCounts)} (queue size ${queue.length}, errors ${errors.length})`);
+  return {
+    ...sentCounts,
+    total_sent: totalSent,
+    queue_size: queue.length,
+    completed: completed.length,
+    errors,
+    started_at: startedAt.toISOString(),
+    ended_at: endedAt.toISOString(),
+    duration_ms: durationMs,
+  };
 }
 
 async function handleVlpEmailSend(env) {
