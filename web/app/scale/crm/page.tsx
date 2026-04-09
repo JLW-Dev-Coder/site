@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import Card from '@/components/ui/Card'
 
 interface Pipeline {
@@ -22,8 +23,8 @@ interface QueueRecord {
   email: string
   slug: string
   name: string
-  email_1_sent_at?: string
-  email_2_sent_at?: string
+  email_1_sent_at?: unknown
+  email_2_sent_at?: unknown
 }
 
 interface DashboardData {
@@ -37,6 +38,21 @@ interface DashboardData {
   }
 }
 
+interface AdminStatsClient {
+  account_id: string
+  name: string
+  email: string
+  platform: string
+  created_at: string
+}
+
+interface AdminStatsData {
+  ok: boolean
+  total_accounts?: number
+  paid_accounts?: number
+  clients?: AdminStatsClient[]
+}
+
 const PLATFORMS = [
   { key: 'vlp', label: 'VLP', color: 'from-orange-500 to-amber-500' },
   { key: 'tmp', label: 'TMP', color: 'from-blue-500 to-cyan-500' },
@@ -48,16 +64,36 @@ const PLATFORMS = [
   { key: 'wlvlp', label: 'WLVLP', color: 'from-teal-500 to-cyan-500' },
 ]
 
+// Robust "is sent" check: handles boolean true, "true"/"True", ISO timestamps, Date objects.
+function isSent(val: unknown): boolean {
+  if (!val) return false
+  if (val === true) return true
+  if (val instanceof Date) return true
+  if (typeof val === 'string') {
+    const s = val.trim()
+    if (!s) return false
+    if (s.toLowerCase() === 'true') return true
+    if (/^\d{4}-/.test(s)) return true // ISO date prefix
+    return true // any non-empty timestamp-ish string counts as sent
+  }
+  return false
+}
+
 export default function ScaleCRMPage() {
+  const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
+  const [stats, setStats] = useState<AdminStatsData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activePlatform, setActivePlatform] = useState<string>('all')
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch('https://api.virtuallaunch.pro/v1/scale/dashboard', { credentials: 'include' })
-        if (res.ok) setData(await res.json())
+        const [dashRes, statsRes] = await Promise.all([
+          fetch('https://api.virtuallaunch.pro/v1/scale/dashboard', { credentials: 'include' }),
+          fetch('https://api.virtuallaunch.pro/v1/admin/stats', { credentials: 'include' }),
+        ])
+        if (dashRes.ok) setData(await dashRes.json())
+        if (statsRes.ok) setStats(await statsRes.json())
       } catch {/* ignore */} finally {
         setLoading(false)
       }
@@ -69,17 +105,22 @@ export default function ScaleCRMPage() {
     ? [...data.batch_history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
     : null
 
-  const allQueue = [...(data?.email1_queue ?? []), ...(data?.email2_queue ?? [])]
-  const sent1 = (data?.email1_queue ?? []).filter((r) => r.email_1_sent_at).length
-  const sent2 = (data?.email2_queue ?? []).filter((r) => r.email_2_sent_at).length
-  const totalSent = sent1 + sent2
+  const sent1 = (data?.email1_queue ?? []).filter((r) => isSent(r.email_1_sent_at)).length
+  const sent2 = (data?.email2_queue ?? []).filter((r) => isSent(r.email_2_sent_at)).length
+
+  const paidTotal = stats?.paid_accounts ?? 0
+  const platformCounts: Record<string, number> = {}
+  for (const c of stats?.clients ?? []) {
+    const key = (c.platform || '').toLowerCase()
+    if (key) platformCounts[key] = (platformCounts[key] ?? 0) + 1
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-white">CRM</h1>
-          <p className="mt-1 text-sm text-slate-400">Prospect pipeline across all platforms</p>
+          <p className="mt-1 text-sm text-slate-400">Paid clients across all platforms</p>
         </div>
         <Link
           href="/scale"
@@ -89,36 +130,35 @@ export default function ScaleCRMPage() {
         </Link>
       </div>
 
-      {/* Platform summary cards (clickable) */}
+      {/* Platform summary cards (clickable — navigate to client list) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <button
           type="button"
-          onClick={() => setActivePlatform('all')}
-          className={`text-left rounded-2xl border bg-slate-900 p-4 transition ${
-            activePlatform === 'all' ? 'border-orange-500/60' : 'border-slate-800/60 hover:border-slate-700'
-          }`}
+          onClick={() => router.push('/scale/crm/clients')}
+          className="text-left rounded-2xl border bg-slate-900 p-4 transition border-slate-800/60 hover:border-orange-500/60"
         >
           <div className="text-xs uppercase tracking-wide text-slate-400">All Clients</div>
-          <div className="mt-2 text-3xl font-bold text-white">{(data?.pipeline?.total ?? 0).toLocaleString()}</div>
-          <div className="mt-1 text-xs text-slate-500">Across all platforms</div>
+          <div className="mt-2 text-3xl font-bold text-white">{paidTotal.toLocaleString()}</div>
+          <div className="mt-1 text-xs text-slate-500">Paid accounts only</div>
         </button>
-        {PLATFORMS.map((p) => (
-          <button
-            key={p.key}
-            type="button"
-            onClick={() => setActivePlatform(p.key)}
-            className={`text-left rounded-2xl border bg-slate-900 p-4 transition ${
-              activePlatform === p.key ? 'border-orange-500/60' : 'border-slate-800/60 hover:border-slate-700'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <span className={`h-2 w-2 rounded-full bg-gradient-to-r ${p.color}`} />
-              <div className="text-xs uppercase tracking-wide text-slate-400">{p.label}</div>
-            </div>
-            <div className="mt-2 text-2xl font-bold text-white">{p.key === 'vlp' ? (data?.pipeline?.total ?? 0).toLocaleString() : '—'}</div>
-            <div className="mt-1 text-xs text-slate-500">{p.key === 'vlp' ? 'live' : 'placeholder'}</div>
-          </button>
-        ))}
+        {PLATFORMS.map((p) => {
+          const count = platformCounts[p.key] ?? 0
+          return (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => router.push(`/scale/crm/clients?platform=${p.key}`)}
+              className="text-left rounded-2xl border bg-slate-900 p-4 transition border-slate-800/60 hover:border-orange-500/60"
+            >
+              <div className="flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full bg-gradient-to-r ${p.color}`} />
+                <div className="text-xs uppercase tracking-wide text-slate-400">{p.label}</div>
+              </div>
+              <div className="mt-2 text-2xl font-bold text-white">{count.toLocaleString()}</div>
+              <div className="mt-1 text-xs text-slate-500">View clients →</div>
+            </button>
+          )
+        })}
       </div>
 
       {/* Pipeline funnel */}
@@ -177,46 +217,6 @@ export default function ScaleCRMPage() {
         ) : (
           <div className="text-slate-500 py-4 text-center text-sm">No batches generated yet.</div>
         )}
-      </Card>
-
-      {/* Client list */}
-      <Card>
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4">
-          {activePlatform === 'all' ? 'All Clients' : `${activePlatform.toUpperCase()} Clients`} ({allQueue.length})
-        </div>
-        {activePlatform !== 'all' && activePlatform !== 'vlp' ? (
-          <div className="text-slate-500 py-8 text-center text-sm">
-            Per-platform client lists not yet wired. Add an admin endpoint to surface clients per platform.
-          </div>
-        ) : allQueue.length === 0 ? (
-          <div className="text-slate-500 py-8 text-center text-sm">No prospects in pipeline.</div>
-        ) : (
-          <div className="divide-y divide-slate-800/60 max-h-96 overflow-y-auto">
-            {allQueue.slice(0, 100).map((r, i) => (
-              <div key={`${r.email}-${i}`} className="flex items-center justify-between px-2 py-3 text-sm">
-                <div className="min-w-0">
-                  <div className="font-medium text-white truncate">{r.name}</div>
-                  <div className="text-xs text-slate-500 truncate">{r.email}</div>
-                </div>
-                <div className="flex shrink-0 items-center gap-2 text-xs">
-                  {r.email_1_sent_at && <span className="rounded bg-emerald-900/60 px-2 py-0.5 text-emerald-300">E1</span>}
-                  {r.email_2_sent_at && <span className="rounded bg-emerald-900/60 px-2 py-0.5 text-emerald-300">E2</span>}
-                  {r.slug && (
-                    <a href={`/asset/${r.slug}`} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:text-amber-300">
-                      asset →
-                    </a>
-                  )}
-                </div>
-              </div>
-            ))}
-            {allQueue.length > 100 && (
-              <div className="px-2 py-3 text-xs text-slate-500">+{allQueue.length - 100} more…</div>
-            )}
-          </div>
-        )}
-        <div className="mt-3 text-xs text-slate-600">
-          Total emails sent: {totalSent.toLocaleString()}
-        </div>
       </Card>
     </div>
   )

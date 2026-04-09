@@ -5043,9 +5043,23 @@ const ROUTES = [
       }
 
       try {
+        const url = new URL(request.url)
+        const includeClients = (url.searchParams.get('include') || '')
+          .split(',')
+          .map((s) => s.trim())
+          .includes('clients')
+
         // Total accounts
         const accountsRow = await env.DB.prepare(
           `SELECT COUNT(*) AS total FROM accounts`
+        ).first()
+
+        // Paid accounts: distinct accounts with at least one active membership
+        const paidRow = await env.DB.prepare(
+          `SELECT COUNT(DISTINCT a.account_id) AS paid
+             FROM accounts a
+            INNER JOIN memberships m ON a.account_id = m.account_id
+            WHERE m.status = 'active'`
         ).first()
 
         // Active memberships grouped by plan_key
@@ -5177,9 +5191,33 @@ const ROUTES = [
         // Sort newest first across both accounts
         stripeTransactions.sort((a, b) => (b.created || 0) - (a.created || 0))
 
-        return json({
+        // Optional: full client list (account_id, name, email, platform, created_at)
+        let clients = undefined
+        if (includeClients) {
+          const clientRows = await env.DB.prepare(
+            `SELECT a.account_id, a.email, a.first_name, a.last_name, a.platform, a.created_at,
+                    p.display_name AS profile_display_name
+               FROM accounts a
+               LEFT JOIN profiles p ON p.account_id = a.account_id
+              ORDER BY a.created_at DESC`
+          ).all()
+          clients = (clientRows.results || []).map((r) => {
+            const fullName = [r.first_name, r.last_name].filter(Boolean).join(' ').trim()
+            const name = fullName || r.profile_display_name || (r.email ? r.email.split('@')[0] : '')
+            return {
+              account_id: r.account_id,
+              name,
+              email: r.email,
+              platform: r.platform,
+              created_at: r.created_at,
+            }
+          })
+        }
+
+        const responseBody = {
           ok: true,
           total_accounts: accountsRow?.total || 0,
+          paid_accounts: paidRow?.paid || 0,
           memberships_by_tier: membershipsByTier,
           tokens: {
             transcript_total: tokenRow?.transcript_total || 0,
@@ -5189,6 +5227,159 @@ const ROUTES = [
           recent_transactions: recentTransactions,
           stripe_transactions: stripeTransactions,
           stripe_errors: stripeErrors,
+        }
+        if (clients !== undefined) responseBody.clients = clients
+        return json(responseBody, 200, request)
+      } catch (e) {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 500, request)
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/admin/accounts/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      const accountId = params.account_id
+      if (!accountId) {
+        return json({ ok: false, error: 'VALIDATION', message: 'account_id required' }, 400, request)
+      }
+
+      try {
+        const accountRow = await env.DB.prepare(
+          `SELECT account_id, email, first_name, last_name, platform, status, created_at, updated_at
+             FROM accounts
+            WHERE account_id = ?`
+        ).bind(accountId).first()
+        if (!accountRow) {
+          return json({ ok: false, error: 'NOT_FOUND' }, 404, request)
+        }
+
+        const fullName = [accountRow.first_name, accountRow.last_name].filter(Boolean).join(' ').trim()
+        const accountOut = {
+          id: accountRow.account_id,
+          account_id: accountRow.account_id,
+          email: accountRow.email,
+          name: fullName || (accountRow.email ? accountRow.email.split('@')[0] : ''),
+          platform: accountRow.platform,
+          status: accountRow.status,
+          created_at: accountRow.created_at,
+          updated_at: accountRow.updated_at,
+        }
+
+        const membershipRows = await env.DB.prepare(
+          `SELECT membership_id, plan_key, billing_interval, status, stripe_customer_id, stripe_subscription_id, created_at, updated_at
+             FROM memberships
+            WHERE account_id = ?
+            ORDER BY created_at DESC`
+        ).bind(accountId).all()
+        const memberships = (membershipRows.results || []).map((m) => ({
+          membership_id: m.membership_id,
+          plan_key: m.plan_key,
+          billing_interval: m.billing_interval,
+          status: m.status,
+          created_at: m.created_at,
+          updated_at: m.updated_at,
+        }))
+
+        const tokenRow = await env.DB.prepare(
+          `SELECT transcript_tokens, tax_game_tokens, updated_at
+             FROM tokens
+            WHERE account_id = ?`
+        ).bind(accountId).first()
+        const tokens = {
+          transcript_total: tokenRow?.transcript_tokens || 0,
+          tax_game_total: tokenRow?.tax_game_tokens || 0,
+          updated_at: tokenRow?.updated_at || null,
+        }
+
+        const ticketRows = await env.DB.prepare(
+          `SELECT ticket_id, subject, priority, status, created_at, updated_at
+             FROM support_tickets
+            WHERE account_id = ?
+            ORDER BY created_at DESC
+            LIMIT 50`
+        ).bind(accountId).all()
+        const tickets = (ticketRows.results || []).map((t) => ({
+          id: t.ticket_id,
+          ticket_id: t.ticket_id,
+          subject: t.subject,
+          priority: t.priority,
+          status: t.status,
+          created_at: t.created_at,
+          updated_at: t.updated_at,
+        }))
+
+        // Resolve a Stripe customer id (prefer billing_customers, fall back to memberships)
+        let stripeCustomerId = null
+        try {
+          const billingRow = await env.DB.prepare(
+            `SELECT stripe_customer_id FROM billing_customers WHERE account_id = ?`
+          ).bind(accountId).first()
+          if (billingRow?.stripe_customer_id) stripeCustomerId = billingRow.stripe_customer_id
+        } catch {/* ignore */}
+        if (!stripeCustomerId) {
+          for (const m of (membershipRows.results || [])) {
+            if (m.stripe_customer_id) { stripeCustomerId = m.stripe_customer_id; break }
+          }
+        }
+
+        // Stripe payment history — try VLP key first, then TMP. Fall back to receipt_email search.
+        const payments = []
+        const stripeKeys = [
+          { label: 'vlp', key: env.STRIPE_SECRET_KEY_VLP },
+          { label: 'tmp', key: env.STRIPE_SECRET_KEY },
+        ]
+        for (const acct of stripeKeys) {
+          if (!acct.key) continue
+          let url = ''
+          if (stripeCustomerId) {
+            url = `https://api.stripe.com/v1/payment_intents?customer=${encodeURIComponent(stripeCustomerId)}&limit=25`
+          } else if (accountRow.email) {
+            // Stripe doesn't support direct receipt_email filter on /v1/payment_intents,
+            // but search API does.
+            const query = encodeURIComponent(`receipt_email:"${accountRow.email}"`)
+            url = `https://api.stripe.com/v1/payment_intents/search?query=${query}&limit=25`
+          } else {
+            continue
+          }
+          try {
+            const resp = await fetch(url, {
+              headers: { 'Authorization': `Bearer ${acct.key}` },
+            })
+            if (!resp.ok) continue
+            const body = await resp.json()
+            for (const pi of (body.data || [])) {
+              payments.push({
+                id: pi.id,
+                amount: pi.amount,
+                currency: pi.currency,
+                status: pi.status,
+                description: pi.description || '',
+                email: pi.receipt_email || (pi.metadata && pi.metadata.email) || '',
+                customer: pi.customer || '',
+                created: pi.created,
+                platform: acct.label,
+              })
+            }
+          } catch {/* skip on error */}
+        }
+        payments.sort((a, b) => (b.created || 0) - (a.created || 0))
+
+        return json({
+          ok: true,
+          account: accountOut,
+          memberships,
+          tokens,
+          tickets,
+          payments,
         }, 200, request)
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: e.message }, 500, request)
