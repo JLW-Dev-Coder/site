@@ -1,3 +1,334 @@
+/* ---------------------------------------------------------------------- */
+/* Tabs                                                                    */
+/* ---------------------------------------------------------------------- */
+.tabBar {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(10px);
+}
+
+.tabButton {
+  padding: 0.5rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.9);
+  background: transparent;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tabButton:hover {
+  color: rgba(255, 255, 255, 0.95);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.tabButtonActive {
+  color: rgb(15, 23, 42);
+  background: linear-gradient(to right, rgb(249, 115, 22), rgb(245, 158, 11));
+}
+
+.tabButtonActive:hover {
+  background: linear-gradient(to right, rgb(249, 115, 22), rgb(245, 158, 11));
+  color: rgb(15, 23, 42);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Summary card                                                            */
+/* ---------------------------------------------------------------------- */
+.summaryCard {
+  background-color: rgba(255, 255, 255, 0.04) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.summaryHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.summaryTitle {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 1);
+}
+
+.summarySubtitle {
+  margin-top: 0.25rem;
+  font-size: 0.7rem;
+  color: rgba(148, 163, 184, 0.7);
+}
+
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .summaryGrid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
+
+.summaryStat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.summaryStatValue {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.1;
+}
+
+.summaryStatLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Repo grid + cards                                                       */
+/* ---------------------------------------------------------------------- */
+.repoGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+}
+
+@media (min-width: 640px) {
+  .repoGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .repoGrid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.repoCard {
+  display: block;
+  padding: 1.25rem;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(10px);
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.repoCard:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(249, 115, 22, 0.4);
+  transform: translateY(-1px);
+}
+
+.repoCardHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.repoCardLabel {
+  font-family: 'Raleway', system-ui, sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: 0.03em;
+}
+
+.repoCardDomain {
+  font-size: 0.7rem;
+  color: rgba(148, 163, 184, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.repoCardKpis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.repoCardKpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.repoCardKpiValue {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.1;
+}
+
+.repoCardKpiLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.repoCardCacheBar {
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.repoCardCacheBarFill {
+  height: 100%;
+  background: linear-gradient(to right, rgb(249, 115, 22), rgb(245, 158, 11));
+  transition: width 0.3s;
+}
+
+.repoCardCacheLabel {
+  margin-top: 0.4rem;
+  font-size: 0.65rem;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.repoCardThreats {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgb(248, 113, 113);
+}
+
+.repoCardSharedZone {
+  margin-top: 0.5rem;
+  font-size: 0.65rem;
+  font-style: italic;
+  color: rgba(148, 163, 184, 0.6);
+}
+
+.repoCardError {
+  font-size: 0.8rem;
+  color: rgba(248, 113, 113, 0.9);
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.repoSkeleton {
+  height: 200px;
+  background: linear-gradient(90deg, rgba(148, 163, 184, 0.06) 25%, rgba(148, 163, 184, 0.12) 50%, rgba(148, 163, 184, 0.06) 75%);
+  background-size: 200% 100%;
+  border-radius: 0.75rem;
+  animation: shimmer 2s infinite;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Metric sections (collapsible)                                           */
+/* ---------------------------------------------------------------------- */
+.metricSections {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.metricSection {
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.metricSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 1rem 1.25rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.metricSectionHeader:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.metricSectionTitle {
+  font-family: 'Raleway', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.metricSectionChevron {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.9);
+  width: 1.5rem;
+  text-align: center;
+}
+
+.metricSectionBody {
+  padding: 0.5rem 1.25rem 1.25rem 1.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.metricRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.85rem;
+}
+
+.metricRow:last-child {
+  border-bottom: none;
+}
+
+.metricRowLabel {
+  color: rgba(148, 163, 184, 0.85);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.metricRowValue {
+  color: rgba(255, 255, 255, 0.92);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.metricNote {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed rgba(148, 163, 184, 0.15);
+  font-size: 0.7rem;
+  font-style: italic;
+  color: rgba(148, 163, 184, 0.6);
+}
+
 /* Status colors */
 .statusGreen {
   color: rgb(52, 211, 153); /* emerald-400 */
