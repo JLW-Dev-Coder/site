@@ -1301,6 +1301,36 @@ const CF_DOMAIN_MAP = {
 // Root domains (vlp, tmp) don't need a host filter — the whole zone is them.
 const CF_ROOT_DOMAINS = new Set(['vlp', 'tmp']);
 
+// Cal.com event types grouped by platform
+const CAL_EVENT_TYPES = {
+  dvlp: [
+    { slug: 'dvlp-onboarding', label: 'Developers Virtual Launch Pro Onboarding' },
+    { slug: 'dvlp-intro', label: 'Developers Virtual Launch Pro Intro' },
+    { slug: 'dvlp-support', label: 'Developers Virtual Launch Pro Support' },
+  ],
+  tcvlp: [
+    { slug: 'tcvlp-intro', label: 'Tax Claim Virtual Launch Pro Intro' },
+    { slug: 'tcvlp-support', label: 'Tax Claim Virtual Launch Pro Support' },
+  ],
+  tmp: [
+    { slug: 'tmp-intro', label: 'Tax Monitor Pro Intro' },
+    { slug: 'tmp-support', label: 'Tax Monitor Pro Support' },
+  ],
+  tttmp: [
+    { slug: 'tttmp-intro', label: 'Tax Tools Tax Monitor Pro Intro' },
+    { slug: 'tttmp-support', label: 'Tax Tools Tax Monitor Pro Support' },
+  ],
+  ttmp: [
+    { slug: 'ttmp-discovery', label: 'Transcript Tax Monitor Pro Discovery Call' },
+    { slug: 'ttmp-intro', label: 'Transcript Tax Monitor Pro Intro' },
+    { slug: 'ttmp-support', label: 'Transcript Tax Monitor Pro Support' },
+  ],
+  vlp: [
+    { slug: 'vlp-intro', label: 'Virtual Launch Pro Intro' },
+    { slug: 'vlp-support', label: 'Virtual Launch Pro Support' },
+  ],
+};
+
 // Fetch a single platform's analytics from the Cloudflare GraphQL API
 // (httpRequests1dGroups dataset — Free plan compatible).
 //
@@ -5826,6 +5856,112 @@ const ROUTES = [
           ...corsHeaders,
         },
       })
+    },
+  },
+
+  // ── Cal.com bookings (admin, cached 5min in KV) ────────────────────────
+  {
+    method: 'GET', pattern: '/v1/admin/bookings',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      // Check KV cache first (5 min TTL)
+      const KV_CACHE_KEY = 'cal_bookings_cache'
+      try {
+        const cached = await env.ENRICHMENT_KV.get(KV_CACHE_KEY)
+        if (cached) {
+          return json(JSON.parse(cached), 200, request)
+        }
+      } catch { /* cache miss or parse error — fetch fresh */ }
+
+      if (!env.CAL_API_KEY) {
+        return json({ ok: false, error: 'CAL_API_KEY not configured' }, 500, request)
+      }
+
+      let rawBookings = []
+      let apiVersion = 'v2'
+
+      // Try Cal.com v2 first
+      try {
+        const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,pending,rescheduled&take=250', {
+          headers: {
+            'Authorization': `Bearer ${env.CAL_API_KEY}`,
+            'cal-api-version': '2024-08-13',
+          },
+        })
+        if (v2Res.ok) {
+          const v2Data = await v2Res.json()
+          rawBookings = v2Data.data || v2Data.bookings || []
+        } else {
+          throw new Error(`v2 ${v2Res.status}`)
+        }
+      } catch {
+        // Fall back to Cal.com v1
+        apiVersion = 'v1'
+        try {
+          const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${env.CAL_API_KEY}`)
+          if (v1Res.ok) {
+            const v1Data = await v1Res.json()
+            rawBookings = v1Data.bookings || v1Data || []
+          } else {
+            return json({ ok: false, error: 'Cal.com API error', api_version: 'v1', status: v1Res.status }, 502, request)
+          }
+        } catch (e) {
+          return json({ ok: false, error: 'Cal.com API unreachable', detail: e.message }, 502, request)
+        }
+      }
+
+      // Normalize bookings to a consistent shape
+      const now = Date.now()
+      const bookings = rawBookings.map(b => {
+        const start = b.startTime || b.start || b.start_time || ''
+        const end = b.endTime || b.end || b.end_time || ''
+        const status = (b.status || '').toLowerCase()
+        const attendees = b.attendees || b.guests || []
+        const firstAttendee = Array.isArray(attendees) && attendees.length > 0 ? attendees[0] : {}
+
+        return {
+          id: b.id || b.uid || b.bookingId,
+          title: b.title || b.eventType?.title || '',
+          status,
+          start,
+          end,
+          attendee_name: firstAttendee.name || b.attendeeName || b.responses?.name || '',
+          attendee_email: firstAttendee.email || b.attendeeEmail || b.responses?.email || '',
+          event_type_slug: b.eventType?.slug || b.eventTypeSlug || '',
+          created_at: b.createdAt || b.created_at || '',
+        }
+      })
+
+      // Derive counts
+      const counts = { all: bookings.length, cancelled: 0, completed: 0, confirmed: 0, pending: 0, rescheduled: 0, upcoming: 0 }
+      for (const b of bookings) {
+        const startMs = new Date(b.start).getTime()
+        const endMs = new Date(b.end).getTime()
+
+        if (b.status === 'cancelled') counts.cancelled++
+        else if ((b.status === 'accepted' || b.status === 'attended') && endMs < now) counts.completed++
+        else if (b.status === 'accepted' && startMs > now) counts.confirmed++
+        else if (b.status === 'pending') counts.pending++
+        else if (b.status === 'rescheduled') counts.rescheduled++
+
+        if (startMs > now && b.status !== 'cancelled') counts.upcoming++
+      }
+
+      const result = { ok: true, bookings, counts, api_version: apiVersion, event_types: CAL_EVENT_TYPES }
+
+      // Cache in KV for 5 minutes
+      try {
+        await env.ENRICHMENT_KV.put(KV_CACHE_KEY, JSON.stringify(result), { expirationTtl: 300 })
+      } catch { /* non-fatal */ }
+
+      return json(result, 200, request)
     },
   },
 

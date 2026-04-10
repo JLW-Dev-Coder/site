@@ -223,6 +223,9 @@ export default function ScaleAnalyticsPage() {
   // Admin stats (for SALES)
   const [stats, setStats] = useState<AdminStats | null>(null)
 
+  // Cal.com bookings summary
+  const [bookingCounts, setBookingCounts] = useState<{ upcoming: number; completed: number } | null>(null)
+
   const [refreshing, setRefreshing] = useState(false)
 
   const fetchPipeline = async () => {
@@ -266,12 +269,28 @@ export default function ScaleAnalyticsPage() {
     }
   }
 
+  const fetchBookings = async () => {
+    try {
+      const res = await fetch('https://api.virtuallaunch.pro/v1/admin/bookings', {
+        credentials: 'include',
+      })
+      if (!res.ok) return
+      const json = await res.json()
+      if (json.ok && json.counts) {
+        setBookingCounts({ upcoming: json.counts.upcoming, completed: json.counts.completed })
+      }
+    } catch {
+      /* non-critical */
+    }
+  }
+
   useEffect(() => {
     const run = async () => {
       await Promise.allSettled([
         fetchPipeline().finally(() => setPipelineLoading(false)),
         fetchAllAnalytics().finally(() => setAllAnalyticsLoading(false)),
         fetchStats(),
+        fetchBookings(),
       ])
     }
     run()
@@ -279,7 +298,7 @@ export default function ScaleAnalyticsPage() {
 
   const handleRefresh = async () => {
     setRefreshing(true)
-    await Promise.allSettled([fetchPipeline(), fetchAllAnalytics(), fetchStats()])
+    await Promise.allSettled([fetchPipeline(), fetchAllAnalytics(), fetchStats(), fetchBookings()])
     setRefreshing(false)
   }
 
@@ -374,6 +393,7 @@ export default function ScaleAnalyticsPage() {
           data={pipeline}
           summary={summary}
           stats={stats}
+          bookingCounts={bookingCounts}
         />
       )}
     </div>
@@ -536,12 +556,14 @@ function PipelineView({
   data,
   summary,
   stats,
+  bookingCounts,
 }: {
   loading: boolean
   error: string | null
   data: DashboardData | null
   summary: { requests: number; page_views: number; uniques: number; bytes: number; threats: number }
   stats: AdminStats | null
+  bookingCounts: { upcoming: number; completed: number } | null
 }) {
   const memberships = stats?.paid_accounts ?? 0
   const purchases = data?.responses?.purchases?.count ?? 0
@@ -666,14 +688,32 @@ function PipelineView({
 
       {/* Row 3: BOOKINGS + FORMS (placeholder) */}
       <div className="grid gap-6 sm:grid-cols-2">
-        <GlassCard className={styles.glassCardDimmed}>
+        <GlassCard>
           <GlassCardTitle>Bookings</GlassCardTitle>
-          <div className={styles.glassCardPlaceholder}>
-            <svg className="w-8 h-8 text-slate-600 mb-2" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span className={styles.glassCardMuted}>Connect Cal.com API to display booking analytics</span>
-          </div>
+          {bookingCounts ? (
+            <div>
+              <div className="flex gap-6 mb-4">
+                <div>
+                  <div className={`${styles.kpiNumber} text-emerald-400`} style={{ fontSize: '1.75rem' }}>{bookingCounts.upcoming}</div>
+                  <div className={styles.kpiLabel}>Upcoming</div>
+                </div>
+                <div>
+                  <div className={`${styles.kpiNumber} text-blue-400`} style={{ fontSize: '1.75rem' }}>{bookingCounts.completed}</div>
+                  <div className={styles.kpiLabel}>Completed</div>
+                </div>
+              </div>
+              <Link href="/scale/calendar" className="text-xs font-semibold text-blue-400 hover:text-blue-300 transition">
+                View all bookings &rarr;
+              </Link>
+            </div>
+          ) : (
+            <div className={styles.glassCardPlaceholder}>
+              <svg className="w-8 h-8 text-slate-600 mb-2" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span className={styles.glassCardMuted}>Connect Cal.com API to display booking analytics</span>
+            </div>
+          )}
         </GlassCard>
 
         <GlassCard className={styles.glassCardDimmed}>
