@@ -4271,18 +4271,46 @@ const ROUTES = [
         return json({ ok: false, error: 'MISSING_FIELDS', message: 'professionalId and displayName required' }, 400, request);
       }
       const now = new Date().toISOString();
+      // Store the full onboarding form data in R2 (authoritative)
       const profile = {
-        professionalId, accountId: session.account_id,
-        displayName, title: body.title ?? null, bio: body.bio ?? null,
-        specialties: body.specialties ?? null, availability: body.availability ?? 'available',
+        professionalId, accountId: session.account_id, displayName,
+        fullName: body.fullName ?? null, initials: body.initials ?? null,
+        bioShort: body.bioShort ?? null,
+        yearsExperience: body.yearsExperience ?? null,
+        state: body.state ?? null, city: body.city ?? null,
+        firmName: body.firmName ?? null,
+        professions: body.professions ?? [],
+        otherProfession: body.otherProfession ?? null,
+        aboutHeading: body.aboutHeading ?? null,
+        bio1: body.bio1 ?? null, bio2: body.bio2 ?? null, bio3: body.bio3 ?? null,
+        servicesHeading: body.servicesHeading ?? null,
+        primaryService: body.primaryService ?? null,
+        additionalServices: body.additionalServices ?? [],
+        credentialsHeading: body.credentialsHeading ?? null,
+        primaryCredential: body.primaryCredential ?? null,
+        additionalCredentials: body.additionalCredentials ?? null,
+        email: body.email ?? null, phone: body.phone ?? null,
+        languages: body.languages ?? [],
+        availabilityText: body.availabilityText ?? null,
+        weeklyAvailability: body.weeklyAvailability ?? null,
+        calBookingUrl: body.calBookingUrl ?? null,
+        status: 'active',
         createdAt: now, updatedAt: now,
       };
       await r2Put(env.R2_VIRTUAL_LAUNCH, `profiles/${professionalId}.json`, profile);
-      await d1Run(env.DB,
-        `INSERT INTO profiles (professional_id, account_id, display_name, title, bio, specialties, availability, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [professionalId, session.account_id, displayName, profile.title, profile.bio, profile.specialties, profile.availability, now, now]
-      );
+      // D1 projection — only columns that exist in the table
+      const bio = [body.bio1, body.bio2, body.bio3].filter(Boolean).join('\n\n');
+      const specialties = (body.additionalServices ?? []).join(', ');
+      try {
+        await d1Run(env.DB,
+          `INSERT INTO profiles (professional_id, account_id, display_name, bio, specialties, cal_booking_url, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [professionalId, session.account_id, displayName, bio || null, specialties || null, body.calBookingUrl || null, 'active', now, now]
+        );
+      } catch (e) {
+        // If D1 insert fails (e.g. duplicate), still return success since R2 is authoritative
+        console.error('D1 profile insert error:', e);
+      }
       return json({ ok: true, profile }, 201, request);
     },
   },
@@ -4318,16 +4346,28 @@ const ROUTES = [
       if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404, request);
       const existing = await obj.json();
       const now = new Date().toISOString();
-      const updated = { ...existing, updatedAt: now };
+      // Merge all fields from body into existing R2 profile
+      const updated = { ...existing, ...body, updatedAt: now };
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `profiles/${params.professional_id}.json`, updated);
+      // D1 projection — only update columns that exist
       const setClauses = ['updated_at = ?'];
       const vals = [now];
-      if (body?.displayName)  { updated.displayName = body.displayName;   setClauses.unshift('display_name = ?');  vals.unshift(body.displayName); }
-      if (body?.title)        { updated.title = body.title;               setClauses.unshift('title = ?');         vals.unshift(body.title); }
-      if (body?.bio)          { updated.bio = body.bio;                   setClauses.unshift('bio = ?');           vals.unshift(body.bio); }
-      if (body?.specialties)  { updated.specialties = body.specialties;   setClauses.unshift('specialties = ?');   vals.unshift(body.specialties); }
-      if (body?.availability) { updated.availability = body.availability; setClauses.unshift('availability = ?');  vals.unshift(body.availability); }
-      await r2Put(env.R2_VIRTUAL_LAUNCH, `profiles/${params.professional_id}.json`, updated);
-      await d1Run(env.DB, `UPDATE profiles SET ${setClauses.join(', ')} WHERE professional_id = ?`, [...vals, params.professional_id]);
+      if (body?.displayName)  { setClauses.unshift('display_name = ?');  vals.unshift(body.displayName); }
+      if (body?.bio1 || body?.bio2 || body?.bio3) {
+        const bio = [body.bio1 ?? existing.bio1, body.bio2 ?? existing.bio2, body.bio3 ?? existing.bio3].filter(Boolean).join('\n\n');
+        setClauses.unshift('bio = ?'); vals.unshift(bio);
+      }
+      if (body?.additionalServices) {
+        setClauses.unshift('specialties = ?'); vals.unshift(body.additionalServices.join(', '));
+      }
+      if (body?.calBookingUrl !== undefined) {
+        setClauses.unshift('cal_booking_url = ?'); vals.unshift(body.calBookingUrl || null);
+      }
+      try {
+        await d1Run(env.DB, `UPDATE profiles SET ${setClauses.join(', ')} WHERE professional_id = ?`, [...vals, params.professional_id]);
+      } catch (e) {
+        console.error('D1 profile update error:', e);
+      }
       return json({ ok: true, profile: updated }, 200, request);
     },
   },

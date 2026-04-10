@@ -14,7 +14,17 @@ const US_STATES = [
   'Virginia','Washington','West Virginia','Wisconsin','Wyoming',
 ]
 
-const PROFESSIONS = ['Attorney', 'CPA', 'Enrolled Agent', 'Enrolled Actuary', 'ERPA']
+const PROFESSIONS = [
+  'CPA (Certified Public Accountant)',
+  'EA (Enrolled Agent)',
+  'Tax Attorney / JD',
+  'AFSP (Annual Filing Season Program)',
+  'RTRP (Registered Tax Return Preparer)',
+  'Tax Preparer (unlicensed)',
+  'Bookkeeper',
+  'Financial Advisor / Planner',
+  'Other',
+]
 
 const SERVICES = [
   'Tax Litigation','Audit Defense','Tax Planning','Appeals','Compliance','Consulting',
@@ -61,6 +71,7 @@ interface FormData {
   availabilityText: string
   weeklyAvailability: Record<string, { enabled: boolean; start: string; end: string }>
   calBookingUrl: string
+  otherProfession: string
 }
 
 const defaultAvailability = Object.fromEntries(
@@ -76,6 +87,7 @@ const INITIAL: FormData = {
   email: '', phone: '', languages: [], availabilityText: '',
   weeklyAvailability: defaultAvailability,
   calBookingUrl: '',
+  otherProfession: '',
 }
 
 const STEP_LABELS = [
@@ -222,14 +234,18 @@ function Step2({ form, set }: { form: FormData; set: (k: keyof FormData, v: unkn
           </div>
           <div>
             <Label>State</Label>
-            <select
-              className="w-full rounded-xl border border-slate-800/60 bg-slate-900/60 px-4 py-2.5 text-sm text-white focus:border-orange-500/60 focus:outline-none"
-              value={form.state}
-              onChange={(e) => set('state', e.target.value)}
-            >
-              <option value="">Select state…</option>
-              {US_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            <div className="relative">
+              <select
+                className="w-full appearance-none rounded-[0.625rem] border border-white/15 bg-white/[0.08] px-4 py-3 text-sm text-white focus:border-orange-500 focus:outline-none"
+                style={{ backgroundImage: 'none' }}
+                value={form.state}
+                onChange={(e) => set('state', e.target.value)}
+              >
+                <option value="" className="bg-[#0f1420] text-white">Select state...</option>
+                {US_STATES.map((s) => <option key={s} value={s} className="bg-[#0f1420] text-white">{s}</option>)}
+              </select>
+              <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+            </div>
           </div>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -245,6 +261,11 @@ function Step2({ form, set }: { form: FormData; set: (k: keyof FormData, v: unkn
         <div>
           <Label>Profession (select all that apply)</Label>
           <MultiSelect options={PROFESSIONS} selected={form.professions} onChange={(v) => set('professions', v)} />
+          {form.professions.includes('Other') && (
+            <div className="mt-2">
+              <Input value={form.otherProfession} onChange={(v) => set('otherProfession', v)} placeholder="Please specify your profession" />
+            </div>
+          )}
         </div>
       </div>
     </FormCard>
@@ -289,14 +310,18 @@ function Step4({ form, set }: { form: FormData; set: (k: keyof FormData, v: unkn
         </div>
         <div>
           <Label>Primary Service</Label>
-          <select
-            className="w-full rounded-xl border border-slate-800/60 bg-slate-900/60 px-4 py-2.5 text-sm text-white focus:border-orange-500/60 focus:outline-none"
-            value={form.primaryService}
-            onChange={(e) => set('primaryService', e.target.value)}
-          >
-            <option value="">Select primary service…</option>
-            {SERVICES.map((s) => <option key={s} value={s}>{s}</option>)}
-          </select>
+          <div className="relative">
+            <select
+              className="w-full appearance-none rounded-[0.625rem] border border-white/15 bg-white/[0.08] px-4 py-3 text-sm text-white focus:border-orange-500 focus:outline-none"
+              style={{ backgroundImage: 'none' }}
+              value={form.primaryService}
+              onChange={(e) => set('primaryService', e.target.value)}
+            >
+              <option value="" className="bg-[#0f1420] text-white">Select primary service...</option>
+              {SERVICES.map((s) => <option key={s} value={s} className="bg-[#0f1420] text-white">{s}</option>)}
+            </select>
+            <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/60" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+          </div>
         </div>
         <div>
           <Label>Additional Services</Label>
@@ -634,6 +659,7 @@ function ProfilePreview({ form }: { form: FormData }) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 const PROFILE_COMPLETED_KEY = 'vlp_profile_completed'
+const DRAFT_KEY = 'vlp_onboarding_draft'
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -644,6 +670,27 @@ export default function OnboardingPage() {
   const [calProConnected, setCalProConnected] = useState(false)
   const [calConnecting, setCalConnecting] = useState(false)
   const [isFirstSignin, setIsFirstSignin] = useState(false)
+  const [savedProfileId, setSavedProfileId] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  // Load saved draft on mount
+  useEffect(() => {
+    const draft = localStorage.getItem(DRAFT_KEY)
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft)
+        setForm((prev) => ({ ...prev, ...parsed }))
+      } catch { /* ignore corrupt draft */ }
+    }
+  }, [])
+
+  // Auto-save form to localStorage (debounced 300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(form))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [form])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -679,7 +726,10 @@ export default function OnboardingPage() {
 
   const next = () => setStep((s) => Math.min(s + 1, 5))
   const back = () => setStep((s) => Math.max(s - 1, 0))
-  const skip = () => router.push('/dashboard')
+  const skip = () => {
+    localStorage.setItem(PROFILE_COMPLETED_KEY, '1')
+    router.push('/dashboard')
+  }
 
   async function save() {
     setSaving(true)
@@ -711,7 +761,9 @@ export default function OnboardingPage() {
       const data = await res.json().catch(() => ({})) as { profile?: { professionalId?: string } }
       const savedId = data.profile?.professionalId || professionalId
       localStorage.setItem(PROFILE_COMPLETED_KEY, '1')
-      router.push(`/directory?profile=${encodeURIComponent(savedId)}`)
+      localStorage.setItem('vlp_professional_id', savedId)
+      localStorage.removeItem(DRAFT_KEY)
+      setSavedProfileId(savedId)
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -719,8 +771,88 @@ export default function OnboardingPage() {
     }
   }
 
-  // On mobile show preview only on step 6; on lg+ always show
-  const showPreviewColumn = step === 5
+  const profileUrl = savedProfileId ? `https://virtuallaunch.pro/profile/${savedProfileId}` : ''
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(profileUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // Show success screen after save
+  if (savedProfileId) {
+    return (
+      <div className="mx-auto max-w-2xl py-16 px-6 text-center">
+        <div className="flex items-center justify-center mb-6">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-green-500 text-2xl font-bold text-white">
+            &#10003;
+          </div>
+        </div>
+        <h1 className="text-2xl font-bold text-white">Profile Saved!</h1>
+        <p className="mt-2 text-sm text-slate-400">Your directory profile is now live.</p>
+
+        <div className="mt-8 rounded-2xl border border-slate-800/60 bg-slate-900/60 p-6 text-left">
+          <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-orange-400">Share My Profile</h3>
+          <div className="flex items-center gap-3">
+            <input
+              readOnly
+              value={profileUrl}
+              className="flex-1 rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2 text-sm text-slate-300"
+            />
+            <button
+              onClick={handleCopy}
+              className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                copied
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-gradient-to-r from-orange-500 to-amber-500 text-slate-950 hover:from-orange-400 hover:to-amber-400'
+              }`}
+            >
+              {copied ? 'Copied!' : 'Copy Link'}
+            </button>
+          </div>
+          <div className="mt-3 flex gap-3">
+            <a
+              href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(profileUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-300 hover:text-white transition"
+            >
+              LinkedIn
+            </a>
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(profileUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-300 hover:text-white transition"
+            >
+              Facebook
+            </a>
+            <a
+              href={`mailto:?subject=${encodeURIComponent('Check out my profile on Virtual Launch Pro')}&body=${encodeURIComponent(`View my professional profile: ${profileUrl}`)}`}
+              className="rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-300 hover:text-white transition"
+            >
+              Email
+            </a>
+          </div>
+        </div>
+
+        <div className="mt-6 flex items-center justify-center gap-4">
+          <button
+            onClick={() => router.push(`/profile/${savedProfileId}`)}
+            className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-2.5 text-sm font-bold text-slate-950 hover:from-orange-400 hover:to-amber-400 transition"
+          >
+            View My Profile in Directory
+          </button>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="rounded-xl border border-slate-700 bg-slate-900/60 px-5 py-2.5 text-sm font-semibold text-slate-300 hover:text-white transition"
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const wrapperClass = isFirstSignin
     ? 'fixed inset-0 z-50 overflow-y-auto bg-slate-950 px-6 py-8'

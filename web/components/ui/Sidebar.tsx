@@ -1,5 +1,6 @@
 ﻿'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import SignOutButton from '@/components/auth/SignOutButton'
@@ -114,6 +115,12 @@ const NAV_ITEMS = [
 export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
   const pathname = usePathname()
   const isOperator = OPERATOR_EMAILS.includes((userEmail || '').toLowerCase())
+  const [professionalId, setProfessionalId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setProfessionalId(localStorage.getItem('vlp_professional_id'))
+  }, [])
+
   const navItems = NAV_ITEMS.filter((item) => item.href !== '/scale' || isOperator)
 
   return (
@@ -148,6 +155,22 @@ export default function Sidebar({ userEmail }: { userEmail?: string | null }) {
             </Link>
           )
         })}
+        {professionalId && (
+          <Link
+            href={`/profile/${professionalId}`}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+              pathname.startsWith('/profile/')
+                ? 'bg-slate-800 text-white'
+                : 'text-slate-400 hover:bg-slate-900 hover:text-white'
+            }`}
+          >
+            <svg className="h-5 w-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={1.75} viewBox="0 0 24 24" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+            My Profile
+          </Link>
+        )}
       </nav>
 
       {/* Footer */}
