@@ -348,6 +348,31 @@ function Step4({ form, set }: { form: FormData; set: (k: keyof FormData, v: unkn
   )
 }
 
+function deriveAvailabilityText(weeklyAvailability: Record<string, { enabled: boolean; start: string; end: string }>): string {
+  const enabled = DAYS.filter((d) => weeklyAvailability[d]?.enabled)
+  if (enabled.length === 0) return ''
+  const fmt = (t: string) => {
+    const [h, m] = t.split(':').map(Number)
+    const ampm = h >= 12 ? 'PM' : 'AM'
+    const hr = h === 0 ? 12 : h > 12 ? h - 12 : h
+    return `${hr}:${m.toString().padStart(2, '0')} ${ampm}`
+  }
+  const groups: { days: string[]; start: string; end: string }[] = []
+  for (const d of enabled) {
+    const { start, end } = weeklyAvailability[d]
+    const last = groups[groups.length - 1]
+    if (last && last.start === start && last.end === end) {
+      last.days.push(d)
+    } else {
+      groups.push({ days: [d], start, end })
+    }
+  }
+  return groups.map((g) => {
+    const label = g.days.length === 1 ? g.days[0] : `${g.days[0]}-${g.days[g.days.length - 1]}`
+    return `${label}: ${fmt(g.start)} - ${fmt(g.end)}`
+  }).join(', ')
+}
+
 function normalizePhone(value: string): string {
   const digits = value.replace(/\D/g, '').slice(0, 10)
   if (digits.length === 0) return ''
@@ -386,8 +411,7 @@ function Step5({ form, set, calProConnected, calConnecting, onCalConnect }: {
             <input
               className="w-full rounded-xl border border-slate-800/60 bg-slate-900/60 px-4 py-2.5 text-sm text-white placeholder-slate-500 focus:border-orange-500/60 focus:outline-none"
               value={form.phone}
-              onChange={(e) => set('phone', e.target.value)}
-              onBlur={(e) => set('phone', normalizePhone(e.target.value))}
+              onChange={(e) => set('phone', normalizePhone(e.target.value))}
               placeholder="(555) 000-0000"
             />
           </div>
@@ -397,8 +421,10 @@ function Step5({ form, set, calProConnected, calConnecting, onCalConnect }: {
           <MultiSelect options={LANGUAGES} selected={form.languages} onChange={(v) => set('languages', v)} />
         </div>
         <div>
-          <Label>Availability Display Text</Label>
-          <Input value={form.availabilityText} onChange={(v) => set('availabilityText', v)} placeholder="Mon–Fri, 9am–5pm CST" />
+          <Label>Availability (derived from schedule below)</Label>
+          <div className="w-full rounded-xl border border-slate-800/40 bg-slate-800/30 px-4 py-2.5 text-sm text-slate-400">
+            {deriveAvailabilityText(form.weeklyAvailability) || 'No hours set — select days below'}
+          </div>
         </div>
         <div>
           <Label>Weekly Availability</Label>
@@ -747,11 +773,12 @@ export default function OnboardingPage() {
       const slug = displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
       const professionalId = `pro-${slug}-${Math.random().toString(36).slice(2, 8)}`
 
+      const availabilityText = deriveAvailabilityText(form.weeklyAvailability)
       const res = await fetch('https://api.virtuallaunch.pro/v1/profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ ...form, professionalId, displayName }),
+        body: JSON.stringify({ ...form, professionalId, displayName, availabilityText }),
       })
       if (!res.ok) {
         const data = await res.json().catch(() => ({}))
@@ -771,7 +798,7 @@ export default function OnboardingPage() {
     }
   }
 
-  const profileUrl = savedProfileId ? `https://virtuallaunch.pro/profile/${savedProfileId}` : ''
+  const profileUrl = savedProfileId ? `https://taxmonitor.pro/directory/${savedProfileId}` : ''
 
   const handleCopy = () => {
     navigator.clipboard.writeText(profileUrl)
@@ -828,7 +855,7 @@ export default function OnboardingPage() {
               Facebook
             </a>
             <a
-              href={`mailto:?subject=${encodeURIComponent('Check out my profile on Virtual Launch Pro')}&body=${encodeURIComponent(`View my professional profile: ${profileUrl}`)}`}
+              href={`mailto:?subject=${encodeURIComponent('Check out my tax professional profile')}&body=${encodeURIComponent(`View my profile on Tax Monitor Pro: ${profileUrl}`)}`}
               className="rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-300 hover:text-white transition"
             >
               Email

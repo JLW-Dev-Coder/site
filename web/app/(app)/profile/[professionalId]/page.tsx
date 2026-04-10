@@ -41,7 +41,7 @@ export default function ProfileViewPage() {
   const [copied, setCopied] = useState(false)
 
   const isOwner = typeof window !== 'undefined' && localStorage.getItem('vlp_professional_id') === professionalId
-  const profileUrl = `https://virtuallaunch.pro/profile/${professionalId}`
+  const profileUrl = `https://taxmonitor.pro/directory/${professionalId}`
 
   useEffect(() => {
     async function load() {
@@ -214,7 +214,7 @@ export default function ProfileViewPage() {
               Facebook
             </a>
             <a
-              href={`mailto:?subject=${encodeURIComponent(`Check out my profile on Virtual Launch Pro`)}&body=${encodeURIComponent(`View my professional profile: ${profileUrl}`)}`}
+              href={`mailto:?subject=${encodeURIComponent('Check out my tax professional profile')}&body=${encodeURIComponent(`View my profile on Tax Monitor Pro: ${profileUrl}`)}`}
               className="rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-300 hover:text-white transition"
             >
               Email
