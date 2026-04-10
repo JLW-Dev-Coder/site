@@ -72,8 +72,7 @@
 ## 17. Canonicals Enforcement (mandatory on every task)
 
 Before writing any file, check whether the file type has a canonical template.
-Canonical templates live in `.claude/canonicals/` in the VLP repo and define
-the required structure for each file type across all 8 repos.
+Canonical templates live in `.claude/canonicals/` in every repo. The VLP repo is the primary source. When a canonical is updated in VLP, copy the updated file to all 7 other repos.
 
 | File type | Canonical template | Check before... |
 |-----------|-------------------|-----------------|
@@ -100,6 +99,4 @@ the required structure for each file type across all 8 repos.
 5. After completing the task, verify the output against the canonical checklist
 
 ### Cross-repo canonical source of truth
-Canonical templates live in the VLP repo only (`virtuallaunch.pro/.claude/canonicals/`).
-Other repos reference them via their CLAUDE.md but do not maintain local copies.
-The Principal Engineer is responsible for ensuring compliance across all 8 repos.
+Canonical templates live in `.claude/canonicals/` in every repo. The VLP repo is the primary source. When a canonical is updated in VLP, copy the updated file to all 7 other repos. The Principal Engineer is responsible for ensuring compliance across all 8 repos.
