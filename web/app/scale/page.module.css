@@ -926,3 +926,218 @@
     padding: 0.75rem;
   }
 }
+
+/* ---------------------------------------------------------------------- */
+/* Glass cards (Canva-style)                                               */
+/* ---------------------------------------------------------------------- */
+.glassCard {
+  padding: 1.5rem;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(10px);
+}
+
+.glassCardDimmed {
+  opacity: 0.7;
+}
+
+.glassCardTitle {
+  font-family: 'Raleway', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 1);
+  margin-bottom: 1.25rem;
+}
+
+.glassCardMuted {
+  font-size: 0.8rem;
+  color: rgba(148, 163, 184, 0.6);
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.glassCardPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem 0;
+}
+
+/* ---------------------------------------------------------------------- */
+/* Glass table (Canva data-table style)                                    */
+/* ---------------------------------------------------------------------- */
+.glassTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.glassTable thead tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.glassTable th {
+  text-align: left;
+  padding: 0.6rem 0.75rem;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(148, 163, 184, 0.9);
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.glassTable td {
+  padding: 0.55rem 0.75rem;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.glassTable tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.glassTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.glassTable tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* ---------------------------------------------------------------------- */
+/* Funnel / bar chart                                                      */
+/* ---------------------------------------------------------------------- */
+.funnelContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.funnelRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.funnelLabel {
+  width: 4.5rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(148, 163, 184, 0.85);
+  flex-shrink: 0;
+}
+
+.funnelBarTrack {
+  flex: 1;
+  height: 1.25rem;
+  background-color: rgba(255, 255, 255, 0.06);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.funnelBarFill {
+  height: 100%;
+  border-radius: 0.375rem;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+
+.funnelValue {
+  width: 3.5rem;
+  text-align: right;
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.92);
+  flex-shrink: 0;
+}
+
+.funnelStats {
+  display: flex;
+  gap: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.funnelStatItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.funnelStatLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: rgba(148, 163, 184, 0.7);
+}
+
+.funnelStatValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+/* ---------------------------------------------------------------------- */
+/* KPI blocks                                                              */
+/* ---------------------------------------------------------------------- */
+.kpiRow {
+  display: flex;
+  gap: 2rem;
+}
+
+.kpiBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.kpiNumber {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.kpiLabel {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(148, 163, 184, 0.85);
+}
+
+.kpiNote {
+  font-size: 0.6rem;
+  font-style: italic;
+  color: rgba(148, 163, 184, 0.5);
+  margin-top: 0.25rem;
+}
+
+@media (max-width: 640px) {
+  .funnelStats {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .kpiRow {
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .kpiNumber {
+    font-size: 1.5rem;
+  }
+}

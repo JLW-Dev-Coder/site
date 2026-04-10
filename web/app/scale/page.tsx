@@ -142,45 +142,6 @@ function formatNumber(n: number | undefined): string {
 }
 
 // ---------------------------------------------------------------------------
-// Collapsible metric section
-// ---------------------------------------------------------------------------
-interface MetricSectionProps {
-  title: string
-  defaultOpen?: boolean
-  children: React.ReactNode
-}
-
-function MetricSection({ title, defaultOpen = false, children }: MetricSectionProps) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div className={styles.metricSection}>
-      <button
-        type="button"
-        className={styles.metricSectionHeader}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        <span className={styles.metricSectionTitle}>{title}</span>
-        <span className={styles.metricSectionChevron} aria-hidden>
-          {open ? '−' : '+'}
-        </span>
-      </button>
-      {open && <div className={styles.metricSectionBody}>{children}</div>}
-    </div>
-  )
-}
-
-// Single label-value row used inside metric sections
-function MetricRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className={styles.metricRow}>
-      <span className={styles.metricRowLabel}>{label}</span>
-      <span className={styles.metricRowValue}>{value}</span>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Repo card
 // ---------------------------------------------------------------------------
 function RepoCard({ platform, data }: { platform: PlatformKey; data: PlatformAnalytics | undefined }) {
@@ -357,7 +318,7 @@ export default function ScaleAnalyticsPage() {
           <p className="mt-1 text-sm text-slate-400">
             {tab === 'all-repos'
               ? 'Cloudflare traffic across all 8 VLP repos'
-              : 'Outreach pipeline metrics, manual triggers, and workflow reference'}
+              : 'Outreach pipeline metrics and live data'}
           </p>
         </div>
         <button
@@ -503,7 +464,6 @@ const PIPELINE_ACTIONS: Array<{ label: string; endpoint: string }> = [
 ]
 
 function PipelineActionButtons() {
-  // TODO: wire to /internal/test-* endpoints with INTERNAL_TEST_KEY header
   return (
     <div className={styles.actionButtonRow}>
       {PIPELINE_ACTIONS.map((a) => (
@@ -524,260 +484,51 @@ function PipelineActionButtons() {
 }
 
 // ---------------------------------------------------------------------------
-// Workflow section — fetches WORKFLOW.md from R2 and renders it
+// Glass card wrapper
 // ---------------------------------------------------------------------------
-function WorkflowSection() {
-  const [open, setOpen] = useState(false)
-  const [markdown, setMarkdown] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!open || markdown !== null || loading) return
-    let cancelled = false
-    setLoading(true)
-    setError(null)
-    fetch('https://api.virtuallaunch.pro/v1/admin/scale/workflow', { credentials: 'include' })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.text()
-      })
-      .then((text) => {
-        if (cancelled) return
-        setMarkdown(text)
-      })
-      .catch((e) => {
-        if (cancelled) return
-        setError(e instanceof Error ? e.message : 'Failed to load WORKFLOW.md')
-      })
-      .finally(() => {
-        if (cancelled) return
-        setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [open, markdown, loading])
-
+function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={styles.metricSection}>
-      <button
-        type="button"
-        className={styles.metricSectionHeader}
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-      >
-        <span className={styles.metricSectionTitle}>Workflow</span>
-        <span className={styles.metricSectionChevron} aria-hidden>
-          {open ? '−' : '+'}
-        </span>
-      </button>
-      <div className={styles.workflowNote}>
-        Synced from <code>scale/WORKFLOW.md</code> — push updates via <code>node scale/push-workflow.js</code>
-      </div>
-      {open && (
-        <div className={styles.workflowBody}>
-          {loading && <div className={styles.workflowLoading}>Loading WORKFLOW.md from R2…</div>}
-          {error && <div className={styles.workflowError}>Error: {error}</div>}
-          {!loading && !error && markdown !== null && (
-            <div
-              className={styles.workflowMarkdown}
-              dangerouslySetInnerHTML={{ __html: renderMarkdown(markdown) }}
-            />
-          )}
-        </div>
-      )}
+    <div className={`${styles.glassCard} ${className}`}>
+      {children}
+    </div>
+  )
+}
+
+function GlassCardTitle({ children }: { children: React.ReactNode }) {
+  return <div className={styles.glassCardTitle}>{children}</div>
+}
+
+function KpiNumber({ value, label, accent }: { value: string | number; label: string; accent?: 'green' | 'red' | 'yellow' }) {
+  const accentClass = accent === 'green' ? styles.statusGreen : accent === 'red' ? styles.statusRed : accent === 'yellow' ? styles.statusYellow : ''
+  return (
+    <div className={styles.kpiBlock}>
+      <div className={`${styles.kpiNumber} ${accentClass}`}>{value}</div>
+      <div className={styles.kpiLabel}>{label}</div>
     </div>
   )
 }
 
 // ---------------------------------------------------------------------------
-// Lightweight markdown renderer
-// Handles: headings (#-######), bold/italic, code (``` and inline `),
-// tables, links, ordered/unordered lists, horizontal rules, blockquotes.
+// Funnel bar component
 // ---------------------------------------------------------------------------
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
-
-function renderInline(text: string): string {
-  let out = escapeHtml(text)
-  // inline code first (so other patterns inside don't get processed)
-  out = out.replace(/`([^`]+)`/g, (_m, code) => `<code>${code}</code>`)
-  // links [text](url)
-  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, url) => {
-    const safeUrl = url.replace(/"/g, '%22')
-    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${label}</a>`
-  })
-  // bold **text** or __text__
-  out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  out = out.replace(/__([^_]+)__/g, '<strong>$1</strong>')
-  // italic *text* or _text_
-  out = out.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
-  out = out.replace(/(^|[^_])_([^_\n]+)_/g, '$1<em>$2</em>')
-  return out
-}
-
-function renderMarkdown(src: string): string {
-  const lines = src.replace(/\r\n/g, '\n').split('\n')
-  const out: string[] = []
-  let i = 0
-
-  // List/blockquote/paragraph state
-  let inUl = false
-  let inOl = false
-  let inBq = false
-  let paraBuf: string[] = []
-
-  const flushPara = () => {
-    if (paraBuf.length === 0) return
-    out.push(`<p>${renderInline(paraBuf.join(' '))}</p>`)
-    paraBuf = []
-  }
-  const closeLists = () => {
-    if (inUl) { out.push('</ul>'); inUl = false }
-    if (inOl) { out.push('</ol>'); inOl = false }
-  }
-  const closeBq = () => {
-    if (inBq) { out.push('</blockquote>'); inBq = false }
-  }
-  const closeAll = () => {
-    flushPara()
-    closeLists()
-    closeBq()
-  }
-
-  while (i < lines.length) {
-    const line = lines[i]
-
-    // Fenced code block
-    const fence = line.match(/^```(\w*)\s*$/)
-    if (fence) {
-      closeAll()
-      const lang = fence[1] || ''
-      const codeLines: string[] = []
-      i++
-      while (i < lines.length && !/^```\s*$/.test(lines[i])) {
-        codeLines.push(lines[i])
-        i++
-      }
-      i++ // skip closing fence
-      const langClass = lang ? ` class="lang-${lang}"` : ''
-      out.push(`<pre><code${langClass}>${escapeHtml(codeLines.join('\n'))}</code></pre>`)
-      continue
-    }
-
-    // Horizontal rule
-    if (/^\s*(\*\s*){3,}\s*$/.test(line) || /^\s*(-\s*){3,}\s*$/.test(line) || /^\s*(_\s*){3,}\s*$/.test(line)) {
-      closeAll()
-      out.push('<hr />')
-      i++
-      continue
-    }
-
-    // Heading
-    const h = line.match(/^(#{1,6})\s+(.*)$/)
-    if (h) {
-      closeAll()
-      const level = h[1].length
-      out.push(`<h${level}>${renderInline(h[2].trim())}</h${level}>`)
-      i++
-      continue
-    }
-
-    // Table — header line followed by separator |---|---|
-    if (/\|/.test(line) && i + 1 < lines.length && /^\s*\|?\s*:?-{2,}/.test(lines[i + 1])) {
-      closeAll()
-      const splitRow = (row: string) =>
-        row.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map((c) => c.trim())
-      const headers = splitRow(line)
-      i += 2 // skip header + separator
-      const rows: string[][] = []
-      while (i < lines.length && /\|/.test(lines[i]) && lines[i].trim() !== '') {
-        rows.push(splitRow(lines[i]))
-        i++
-      }
-      out.push('<table><thead><tr>')
-      for (const h of headers) out.push(`<th>${renderInline(h)}</th>`)
-      out.push('</tr></thead><tbody>')
-      for (const r of rows) {
-        out.push('<tr>')
-        for (const c of r) out.push(`<td>${renderInline(c)}</td>`)
-        out.push('</tr>')
-      }
-      out.push('</tbody></table>')
-      continue
-    }
-
-    // Blockquote
-    const bq = line.match(/^>\s?(.*)$/)
-    if (bq) {
-      flushPara()
-      closeLists()
-      if (!inBq) {
-        out.push('<blockquote>')
-        inBq = true
-      }
-      out.push(`<p>${renderInline(bq[1])}</p>`)
-      i++
-      continue
-    } else if (inBq && line.trim() === '') {
-      closeBq()
-      i++
-      continue
-    }
-
-    // Unordered list
-    const ul = line.match(/^\s*[-*+]\s+(.*)$/)
-    if (ul) {
-      flushPara()
-      closeBq()
-      if (inOl) { out.push('</ol>'); inOl = false }
-      if (!inUl) { out.push('<ul>'); inUl = true }
-      out.push(`<li>${renderInline(ul[1])}</li>`)
-      i++
-      continue
-    }
-
-    // Ordered list
-    const ol = line.match(/^\s*\d+\.\s+(.*)$/)
-    if (ol) {
-      flushPara()
-      closeBq()
-      if (inUl) { out.push('</ul>'); inUl = false }
-      if (!inOl) { out.push('<ol>'); inOl = true }
-      out.push(`<li>${renderInline(ol[1])}</li>`)
-      i++
-      continue
-    }
-
-    // Blank line — paragraph break
-    if (line.trim() === '') {
-      flushPara()
-      closeLists()
-      closeBq()
-      i++
-      continue
-    }
-
-    // Default: paragraph text
-    closeLists()
-    closeBq()
-    paraBuf.push(line.trim())
-    i++
-  }
-
-  closeAll()
-  return out.join('\n')
+function FunnelBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
+  return (
+    <div className={styles.funnelRow}>
+      <div className={styles.funnelLabel}>{label}</div>
+      <div className={styles.funnelBarTrack}>
+        <div
+          className={styles.funnelBarFill}
+          style={{ width: `${pct}%`, background: color }}
+        />
+      </div>
+      <div className={styles.funnelValue}>{value.toLocaleString()}</div>
+    </div>
+  )
 }
 
 // ---------------------------------------------------------------------------
-// Pipeline view
+// Pipeline view — Canva-style glass-card charts
 // ---------------------------------------------------------------------------
 function PipelineView({
   loading,
@@ -792,102 +543,24 @@ function PipelineView({
   summary: { requests: number; page_views: number; uniques: number; bytes: number; threats: number }
   stats: AdminStats | null
 }) {
-  const formatCurrencyLocal = (n: number) =>
-    new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
-
-  const getPipelineAccentClass = (value: number, thresholds: { red: number; yellow: number }): string => {
-    if (value < thresholds.red) return styles.statusRed
-    if (value < thresholds.yellow) return styles.statusYellow
-    return styles.statusGreen
-  }
-
-  const getDaysRemainingAccentClass = (days: number): string => {
-    if (days < 7) return styles.statusRed
-    if (days <= 14) return styles.statusYellow
-    return styles.statusGreen
-  }
-
-  // ---- Metric hierarchy fallbacks ----------------------------------------
   const memberships = stats?.paid_accounts ?? 0
   const purchases = data?.responses?.purchases?.count ?? 0
-  const latestBatch = data?.batch_history && data.batch_history.length > 0
-    ? [...data.batch_history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
-    : null
   const email1Sent = (data?.email1_queue ?? []).filter((r) => r.email_1_sent_at).length
   const email1Queued = (data?.email1_queue ?? []).length
-  const email2Scheduled = (data?.email2_queue ?? []).filter((r) => r.email_2_scheduled_for).length
-  const email2Sent = (data?.email2_queue ?? []).filter((r) => r.email_2_sent_at).length
+  const email2Queued = (data?.email2_queue ?? []).length
   const eligible = data?.pipeline?.eligible ?? 0
   const daysRemaining = data?.pipeline?.days_remaining ?? 0
+  const totalSent = email1Sent + (data?.email2_queue ?? []).filter((r) => r.email_2_sent_at).length
+  const funnelMax = Math.max(eligible, email1Queued + email2Queued, totalSent, 1)
 
-  // Metric sections + action buttons + workflow render even when the
-  // dashboard endpoint is loading or errored — they're independent.
-  const headerBlock = (
-    <>
-      {/* Metric hierarchy */}
-      <div className={styles.metricSections}>
-        <MetricSection title="BOOKINGS">
-          <MetricRow label="ALL" value={0} />
-          <MetricRow label="CANCELLED" value={data?.responses?.bookings?.cancelled ?? 0} />
-          <MetricRow label="COMPLETED" value={0} />
-          <MetricRow label="CONFIRMED" value={0} />
-          <MetricRow label="PENDING" value={0} />
-          <MetricRow label="RESCHEDULED" value={data?.responses?.bookings?.rescheduled ?? 0} />
-          <MetricRow label="UPCOMING" value={0} />
-          <div className={styles.metricNote}>No bookings endpoint wired yet</div>
-        </MetricSection>
-
-        <MetricSection title="EMAILS">
-          <MetricRow label="BATCHES" value={data?.batch_history?.length ?? 0} />
-          <MetricRow label="BATCH DATE" value={latestBatch ? new Date(latestBatch.date).toLocaleDateString() : '—'} />
-          <MetricRow label="RECORD COUNT" value={latestBatch?.record_count ?? 0} />
-          <MetricRow label="EMAIL 1 PUSHED" value={latestBatch?.email1_pushed ?? 0} />
-          <MetricRow label="ASSET PAGES PUSHED" value={latestBatch?.asset_pages_pushed ?? 0} />
-          <MetricRow label="BOUNCED" value={0} />
-          <MetricRow label="DAYS REMAINING" value={daysRemaining} />
-          <MetricRow label="DELIVERED" value={email1Sent + email2Sent} />
-          <MetricRow label="ELIGIBLE" value={eligible} />
-          <MetricRow label="OPENED" value={0} />
-          <MetricRow label="REPLIED" value={0} />
-          <MetricRow label="QUEUED" value={email1Queued} />
-          <MetricRow label="EMAIL 1" value={email1Queued} />
-          <MetricRow label="EMAIL 2" value={(data?.email2_queue ?? []).length} />
-          <MetricRow label="SCHEDULED" value={email2Scheduled} />
-          <MetricRow label="SENT" value={email1Sent + email2Sent} />
-          <MetricRow label="SUCCESSFUL" value={email1Sent + email2Sent} />
-          <MetricRow label="UNSUBSCRIBED" value={0} />
-        </MetricSection>
-
-        <MetricSection title="FORMS">
-          <MetricRow label="SUBMITTED" value={0} />
-          <div className={styles.metricNote}>No forms endpoint wired yet</div>
-        </MetricSection>
-
-        <MetricSection title="PAGES" defaultOpen>
-          <MetricRow label="SITE VIEWED" value={formatNumber(summary.page_views)} />
-          <MetricRow label="CTA CLICKED" value={0} />
-          <div className={styles.metricNote}>SITE VIEWED = aggregate page views across both zones · CTA CLICKED requires per-event tracking</div>
-        </MetricSection>
-
-        <MetricSection title="SALES">
-          <MetricRow label="MEMBERSHIPS" value={formatNumber(memberships)} />
-          <MetricRow label="PURCHASES" value={formatNumber(purchases)} />
-        </MetricSection>
-      </div>
-
-      {/* Manual trigger buttons */}
-      <PipelineActionButtons />
-
-      {/* Workflow markdown viewer */}
-      <WorkflowSection />
-    </>
-  )
+  const sortedBatches = data?.batch_history && data.batch_history.length > 0
+    ? [...data.batch_history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    : []
 
   if (loading) {
     return (
-      <div className="space-y-8">
-        {headerBlock}
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="space-y-6">
+        <div className="grid gap-6 sm:grid-cols-2">
           {[...Array(4)].map((_, i) => (
             <div key={i} className={styles.skeletonCard}></div>
           ))}
@@ -898,32 +571,124 @@ function PipelineView({
 
   if (error && !data) {
     return (
-      <div className="space-y-8">
-        {headerBlock}
-        <Card>
-          <div className="text-slate-400 text-center py-8">{error}</div>
-        </Card>
-      </div>
+      <Card>
+        <div className="text-slate-400 text-center py-8">{error}</div>
+      </Card>
     )
   }
 
-  if (!data) {
-    return <div className="space-y-8">{headerBlock}</div>
-  }
-
   return (
-    <div className="space-y-8">
-      {headerBlock}
-
-      {/* Pipeline overview */}
-      {!data.pipeline ? (
-        <Card>
-          <div className="text-center py-8">
-            <div className="text-slate-500 mb-2">Pipeline data unavailable</div>
-            <div className="text-xs text-slate-600">Prospect CSV file not found or could not be parsed</div>
+    <div className="space-y-6">
+      {/* Row 1: EMAILS — 2 glass cards */}
+      <div className="grid gap-6 sm:grid-cols-2">
+        {/* Email Pipeline funnel */}
+        <GlassCard>
+          <GlassCardTitle>Email Pipeline</GlassCardTitle>
+          <div className={styles.funnelContainer}>
+            <FunnelBar label="Eligible" value={eligible} max={funnelMax} color="linear-gradient(to right, #f97316, #f59e0b)" />
+            <FunnelBar label="Queued" value={email1Queued + email2Queued} max={funnelMax} color="linear-gradient(to right, #3b82f6, #6366f1)" />
+            <FunnelBar label="Sent" value={totalSent} max={funnelMax} color="linear-gradient(to right, #22c55e, #14b8a6)" />
           </div>
-        </Card>
-      ) : (
+          <div className={styles.funnelStats}>
+            <div className={styles.funnelStatItem}>
+              <span className={styles.funnelStatLabel}>Days Remaining</span>
+              <span className={`${styles.funnelStatValue} ${daysRemaining < 7 ? styles.statusRed : daysRemaining <= 14 ? styles.statusYellow : styles.statusGreen}`}>
+                {daysRemaining}
+              </span>
+            </div>
+            <div className={styles.funnelStatItem}>
+              <span className={styles.funnelStatLabel}>Email 1 Queue</span>
+              <span className={styles.funnelStatValue}>{email1Queued}</span>
+            </div>
+            <div className={styles.funnelStatItem}>
+              <span className={styles.funnelStatLabel}>Email 2 Queue</span>
+              <span className={styles.funnelStatValue}>{email2Queued}</span>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Batch History table */}
+        <GlassCard>
+          <GlassCardTitle>Batch History</GlassCardTitle>
+          {sortedBatches.length > 0 ? (
+            <div className={styles.tableContainer}>
+              <table className={styles.glassTable}>
+                <thead>
+                  <tr>
+                    <th>Batch Date</th>
+                    <th>Records</th>
+                    <th>Email 1</th>
+                    <th>Pages</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedBatches.map((batch, i) => (
+                    <tr key={i}>
+                      <td>{new Date(batch.date).toLocaleDateString()}</td>
+                      <td>{batch.record_count.toLocaleString()}</td>
+                      <td>{batch.email1_pushed.toLocaleString()}</td>
+                      <td>{batch.asset_pages_pushed.toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className={styles.glassCardMuted}>No batches generated yet</div>
+          )}
+        </GlassCard>
+      </div>
+
+      {/* Row 2: PAGES + SALES */}
+      <div className="grid gap-6 sm:grid-cols-2">
+        {/* Site Analytics */}
+        <GlassCard>
+          <GlassCardTitle>Site Analytics</GlassCardTitle>
+          <div className={styles.kpiRow}>
+            <KpiNumber value={formatNumber(summary.page_views)} label="Site Viewed" />
+            <div className={styles.kpiBlock}>
+              <div className={`${styles.kpiNumber} text-slate-600`}>0</div>
+              <div className={styles.kpiLabel}>CTA Clicked</div>
+              <div className={styles.kpiNote}>Requires per-event tracking in Worker</div>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* Revenue */}
+        <GlassCard>
+          <GlassCardTitle>Revenue</GlassCardTitle>
+          <div className={styles.kpiRow}>
+            <KpiNumber value={formatNumber(memberships)} label="Memberships" accent={memberships > 0 ? 'green' : undefined} />
+            <KpiNumber value={formatNumber(purchases)} label="Purchases" accent={purchases > 0 ? 'green' : undefined} />
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* Row 3: BOOKINGS + FORMS (placeholder) */}
+      <div className="grid gap-6 sm:grid-cols-2">
+        <GlassCard className={styles.glassCardDimmed}>
+          <GlassCardTitle>Bookings</GlassCardTitle>
+          <div className={styles.glassCardPlaceholder}>
+            <svg className="w-8 h-8 text-slate-600 mb-2" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className={styles.glassCardMuted}>Connect Cal.com API to display booking analytics</span>
+          </div>
+        </GlassCard>
+
+        <GlassCard className={styles.glassCardDimmed}>
+          <GlassCardTitle>Forms</GlassCardTitle>
+          <div className={styles.glassCardPlaceholder}>
+            <svg className="w-8 h-8 text-slate-600 mb-2" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span className={styles.glassCardMuted}>No form submission tracking wired yet</span>
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* Pipeline overview cards (existing) */}
+      {data?.pipeline && (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Card>
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
@@ -931,191 +696,167 @@ function PipelineView({
               <Tooltip text="Total rows in the master prospect CSV, including those with and without valid email addresses." />
             </div>
             <div className="mt-2 text-3xl font-bold text-white">
-              {(data.pipeline?.total ?? 0).toLocaleString()}
+              {(data.pipeline.total ?? 0).toLocaleString()}
             </div>
           </Card>
 
           <Card>
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
               Eligible
-              <Tooltip text="Prospects with a valid email address who haven't had Email 1 prepared yet. These are available for the next batch." />
+              <Tooltip text="Prospects with a valid email address who haven't had Email 1 prepared yet." />
             </div>
-            <div className={`mt-2 text-3xl font-bold ${getPipelineAccentClass(data.pipeline?.eligible ?? 0, { red: 50, yellow: 100 })}`}>
-              {(data.pipeline?.eligible ?? 0).toLocaleString()}
+            <div className={`mt-2 text-3xl font-bold ${eligible < 50 ? styles.statusRed : eligible < 100 ? styles.statusYellow : styles.statusGreen}`}>
+              {eligible.toLocaleString()}
             </div>
           </Card>
 
           <Card>
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
               Email 1 Prepared
-              <Tooltip text="Prospects who have had Email 1 copy generated and queued for delivery. This count reflects batch generation, not confirmed sends." />
+              <Tooltip text="Prospects who have had Email 1 copy generated and queued for delivery." />
             </div>
             <div className="mt-2 text-3xl font-bold text-white">
-              {(data.pipeline?.exhausted ?? 0).toLocaleString()}
+              {(data.pipeline.exhausted ?? 0).toLocaleString()}
             </div>
           </Card>
 
           <Card>
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
               Days Remaining
-              <Tooltip text="Estimated days until eligible prospects run out, based on generating 50 prospects per batch." />
+              <Tooltip text="Estimated days until eligible prospects run out, based on 50 per batch." />
             </div>
-            <div className={`mt-2 text-3xl font-bold ${getDaysRemainingAccentClass(data.pipeline?.days_remaining ?? 0)}`}>
-              {data.pipeline?.days_remaining ?? 0}
+            <div className={`mt-2 text-3xl font-bold ${daysRemaining < 7 ? styles.statusRed : daysRemaining <= 14 ? styles.statusYellow : styles.statusGreen}`}>
+              {daysRemaining}
             </div>
           </Card>
         </div>
       )}
 
       {/* Send queue status */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-            Email 1 Queue
-            <Tooltip text="Total Email 1 messages pushed to the R2 send queue across all batches. Includes pending, sent, and failed." />
-          </div>
-          <div className="mt-2 text-3xl font-bold text-white">
-            {(data.email1_queue ?? []).length.toLocaleString()}
-          </div>
-          <div className="mt-4 space-y-2">
-            {(data.email1_queue ?? []).length === 0 ? (
-              <div className="text-slate-500 text-center py-4">No emails in queue</div>
-            ) : (
-              <>
-                {(data.email1_queue ?? []).slice(0, 10).map((record, i) => (
-                  <div key={i} className={styles.queueRecord}>
-                    <span className="text-slate-200">{record.name}</span>
-                    <span className="text-xs text-slate-500">{record.email}</span>
-                    <span className={record.email_1_sent_at ? styles.statusSent : styles.statusPending}>
-                      {record.email_1_sent_at ? 'Sent' : 'Pending'}
-                    </span>
-                  </div>
-                ))}
-                {(data.email1_queue ?? []).length > 10 && (
-                  <div className="text-xs text-slate-500">+{(data.email1_queue ?? []).length - 10} more</div>
-                )}
-              </>
-            )}
-          </div>
-        </Card>
+      {data && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
+              Email 1 Queue
+              <Tooltip text="Total Email 1 messages pushed to the R2 send queue across all batches." />
+            </div>
+            <div className="mt-2 text-3xl font-bold text-white">
+              {email1Queued.toLocaleString()}
+            </div>
+            <div className="mt-4 space-y-2">
+              {email1Queued === 0 ? (
+                <div className="text-slate-500 text-center py-4">No emails in queue</div>
+              ) : (
+                <>
+                  {(data.email1_queue ?? []).slice(0, 10).map((record, i) => (
+                    <div key={i} className={styles.queueRecord}>
+                      <span className="text-slate-200">{record.name}</span>
+                      <span className="text-xs text-slate-500">{record.email}</span>
+                      <span className={record.email_1_sent_at ? styles.statusSent : styles.statusPending}>
+                        {record.email_1_sent_at ? 'Sent' : 'Pending'}
+                      </span>
+                    </div>
+                  ))}
+                  {email1Queued > 10 && (
+                    <div className="text-xs text-slate-500">+{email1Queued - 10} more</div>
+                  )}
+                </>
+              )}
+            </div>
+          </Card>
 
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-            Email 2 Queue
-            <Tooltip text="Prospects scheduled for Email 2 follow-up, typically 2-3 days after Email 1 was sent." />
-          </div>
-          <div className="mt-2 text-3xl font-bold text-white">
-            {(data.email2_queue ?? []).length.toLocaleString()}
-          </div>
-          <div className="mt-4 space-y-2">
-            {(data.email2_queue ?? []).length === 0 ? (
-              <div className="text-slate-500 text-center py-4">No emails in queue</div>
-            ) : (
-              <>
-                {(data.email2_queue ?? []).slice(0, 10).map((record, i) => (
-                  <div key={i} className={styles.queueRecord}>
-                    <span className="text-slate-200">{record.name}</span>
-                    <span className="text-xs text-slate-500">{record.email}</span>
-                    <span className={record.email_2_sent_at ? styles.statusSent : record.email_2_scheduled_for ? styles.statusScheduled : styles.statusWaiting}>
-                      {record.email_2_sent_at ? 'Sent' : record.email_2_scheduled_for ? 'Scheduled' : 'Waiting'}
-                    </span>
-                  </div>
-                ))}
-                {(data.email2_queue ?? []).length > 10 && (
-                  <div className="text-xs text-slate-500">+{(data.email2_queue ?? []).length - 10} more</div>
-                )}
-              </>
-            )}
-          </div>
-        </Card>
-      </div>
-
-      {/* Batch history */}
-      <Card>
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 mb-4 flex items-center gap-1">
-          Batch History
-          <Tooltip text="Log of all batch generation runs with record counts and R2 push status." />
+          <Card>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
+              Email 2 Queue
+              <Tooltip text="Prospects scheduled for Email 2 follow-up, typically 2-3 days after Email 1." />
+            </div>
+            <div className="mt-2 text-3xl font-bold text-white">
+              {email2Queued.toLocaleString()}
+            </div>
+            <div className="mt-4 space-y-2">
+              {email2Queued === 0 ? (
+                <div className="text-slate-500 text-center py-4">No emails in queue</div>
+              ) : (
+                <>
+                  {(data.email2_queue ?? []).slice(0, 10).map((record, i) => (
+                    <div key={i} className={styles.queueRecord}>
+                      <span className="text-slate-200">{record.name}</span>
+                      <span className="text-xs text-slate-500">{record.email}</span>
+                      <span className={record.email_2_sent_at ? styles.statusSent : record.email_2_scheduled_for ? styles.statusScheduled : styles.statusWaiting}>
+                        {record.email_2_sent_at ? 'Sent' : record.email_2_scheduled_for ? 'Scheduled' : 'Waiting'}
+                      </span>
+                    </div>
+                  ))}
+                  {email2Queued > 10 && (
+                    <div className="text-xs text-slate-500">+{email2Queued - 10} more</div>
+                  )}
+                </>
+              )}
+            </div>
+          </Card>
         </div>
-        {data.batch_history && data.batch_history.length > 0 ? (
-          <div className={styles.tableContainer}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Record Count</th>
-                  <th>Email 1 Pushed</th>
-                  <th>Asset Pages Pushed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...(data.batch_history ?? [])].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((batch, i) => (
-                  <tr key={i}>
-                    <td>{new Date(batch.date).toLocaleDateString()}</td>
-                    <td>{batch.record_count.toLocaleString()}</td>
-                    <td>{batch.email1_pushed.toLocaleString()}</td>
-                    <td>{batch.asset_pages_pushed.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="text-slate-500 text-center py-8">No batches generated yet</div>
-        )}
-      </Card>
+      )}
 
       {/* Response tracking */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-            Bookings
-            <Tooltip text="Cal.com discovery call bookings attributed to SCALE prospects via the slug parameter in booking URLs." />
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-4">
-            <div>
-              <div className="text-lg font-bold text-white">{data.responses?.bookings?.created ?? 0}</div>
-              <div className="text-xs text-slate-500">Created</div>
+      {data && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
+              Bookings
+              <Tooltip text="Cal.com discovery call bookings attributed to SCALE prospects via the slug parameter." />
             </div>
-            <div>
-              <div className="text-lg font-bold text-white">{data.responses?.bookings?.cancelled ?? 0}</div>
-              <div className="text-xs text-slate-500">Cancelled</div>
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div>
+                <div className="text-lg font-bold text-white">{data.responses?.bookings?.created ?? 0}</div>
+                <div className="text-xs text-slate-500">Created</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-white">{data.responses?.bookings?.cancelled ?? 0}</div>
+                <div className="text-xs text-slate-500">Cancelled</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-white">{data.responses?.bookings?.rescheduled ?? 0}</div>
+                <div className="text-xs text-slate-500">Rescheduled</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold text-white">{data.responses?.bookings?.no_show ?? 0}</div>
+                <div className="text-xs text-slate-500">No Show</div>
+              </div>
             </div>
-            <div>
-              <div className="text-lg font-bold text-white">{data.responses?.bookings?.rescheduled ?? 0}</div>
-              <div className="text-xs text-slate-500">Rescheduled</div>
+            <div className="mt-4 pt-4 border-t border-slate-800">
+              <div className="text-2xl font-bold text-emerald-400">{data.responses?.bookings?.paid ?? 0}</div>
+              <div className="text-xs text-slate-400">Paid Conversions</div>
             </div>
-            <div>
-              <div className="text-lg font-bold text-white">{data.responses?.bookings?.no_show ?? 0}</div>
-              <div className="text-xs text-slate-500">No Show</div>
-            </div>
-          </div>
-          <div className="mt-4 pt-4 border-t border-slate-800">
-            <div className="text-2xl font-bold text-emerald-400">{data.responses?.bookings?.paid ?? 0}</div>
-            <div className="text-xs text-slate-400">Paid Conversions</div>
-          </div>
-        </Card>
+          </Card>
 
-        <Card>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-            Purchases
-            <Tooltip text="Stripe token purchases attributed to SCALE prospects by matching the buyer's email to the prospect index." />
-          </div>
-          {(data.responses?.purchases?.count ?? 0) > 0 ? (
-            <div className="mt-4">
-              <div className="text-2xl font-bold text-emerald-400">
-                {formatCurrencyLocal(data.responses?.purchases?.total_revenue ?? 0)}
-              </div>
-              <div className="text-xs text-slate-400 mt-1">
-                {data.responses?.purchases?.count ?? 0} purchase{(data.responses?.purchases?.count ?? 0) !== 1 ? 's' : ''}
-              </div>
+          <Card>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
+              Purchases
+              <Tooltip text="Stripe token purchases attributed to SCALE prospects by matching buyer email." />
             </div>
-          ) : (
-            <div className="mt-4">
-              <div className="text-lg font-bold text-slate-500">$0.00</div>
-              <div className="text-xs text-slate-500">No SCALE-attributed purchases yet</div>
-            </div>
-          )}
-        </Card>
+            {purchases > 0 ? (
+              <div className="mt-4">
+                <div className="text-2xl font-bold text-emerald-400">
+                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(data?.responses?.purchases?.total_revenue ?? 0)}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">
+                  {purchases} purchase{purchases !== 1 ? 's' : ''}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4">
+                <div className="text-lg font-bold text-slate-500">$0.00</div>
+                <div className="text-xs text-slate-500">No SCALE-attributed purchases yet</div>
+              </div>
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* Manual trigger buttons — at the bottom */}
+      <div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Manual Triggers</div>
+        <PipelineActionButtons />
       </div>
     </div>
   )
