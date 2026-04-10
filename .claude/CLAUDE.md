@@ -823,6 +823,7 @@ SETTINGS (footer)
 | `/tokens` | Tokens | Shell |
 | `/affiliate` | Affiliate | Shell |
 | `/client-pool` | Client Pool | Shell |
+| `/client-pool/[clientId]` | Client Record | Built |
 | `/payouts` | Payouts | Shell |
 | `/account` | Account | Shell |
 | `/account/payments` | Payments | Shell |
@@ -847,6 +848,32 @@ CSS custom properties in `globals.css`:
 - `--member-hero-bg-end: #1c0a00` — hero card gradient end
 
 Active nav state: orange left border (`border-brand-orange`) + orange background tint (`bg-brand-orange/10`).
+
+### Client Record (`/client-pool/[clientId]`)
+
+Case management view for a single TMP client through the 4-phase compliance workflow. Three-zone layout:
+
+- **Zone A (top):** `PhaseProgressBar` — horizontal progress pills showing Phase 0-3 status
+- **Zone B (left 2/3):** Mind map — phase sections with `StepCard` grids, phase connectors, and cross-phase support
+- **Zone C (right 1/3, sticky):** `StepDetailPanel` — selected step details, form preview or operator checklist, action buttons
+
+Components at `web/app/(member)/client-pool/[clientId]/components/`:
+| Component | Description |
+|-----------|-------------|
+| `PhaseProgressBar.tsx` | Horizontal phase pills with connector lines |
+| `StepCard.tsx` | Individual step card (icon, status pill, name, description) |
+| `StepDetailPanel.tsx` | Right panel with step details, info grid, action button |
+| `FormPreview.tsx` | Form field list with completion checkmarks |
+| `OperatorChecklist.tsx` | Numbered checklist for operator steps with time estimate |
+
+Privacy: PII fields gated by `consentGranted` boolean — shows "[Consent required]" when false.
+
+4 phases, 15 steps total:
+- Phase 0: Triage & Payment (5 steps)
+- Phase 1: ESign 2848 / Review (4 steps)
+- Phase 2: Processing / Due Diligence (2 operator steps)
+- Phase 3: Results (3 steps)
+- Cross-phase: Support Ticket
 
 ### Replaced `(app)` route group
 
