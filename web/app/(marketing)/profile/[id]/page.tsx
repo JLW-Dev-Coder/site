@@ -2,41 +2,130 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import Link from 'next/link'
 
 /* ------------------------------------------------------------------ */
-/*  Types                                                             */
+/*  Types (nested profile shape per vlp.profile.public.v1)            */
 /* ------------------------------------------------------------------ */
+
+interface ProfileAvatar {
+  upload_type: string
+  initials_fallback: boolean
+  display_dimensions: { width: number; height: number }
+  file: { file_type: string; width: number; height: number } | null
+}
+
+interface ProfileSection {
+  name: string
+  slug: string
+  status: string
+  status_badge_label?: string
+  profile_type: string
+  initials: string
+  avatar: ProfileAvatar
+}
+
+interface ProfessionalSection {
+  profession: string[]
+  credentials: string[]
+  firm_name: string | null
+  years_experience: number
+}
+
+interface HeroSection {
+  headline: string
+  location_label: string
+  rating_label: string
+  years_experience_label: string
+  credential_badges: { label: string; style_key: string }[]
+}
+
+interface LocationSection {
+  city: string
+  state: string
+  country: string
+  zip: string | null
+}
+
+interface BioSection {
+  bio_short: string
+  bio_full_paragraphs: string[]
+}
+
+interface ContactSection {
+  contact_email: string | null
+  phone: string | null
+  website: string | null
+  availability_display: string | null
+  timezone: string | null
+  languages: string[]
+  weekly_availability: { day: string; enabled: boolean; start_time: string | null; end_time: string | null }[]
+}
+
+interface ServiceItem {
+  title: string
+  description: string
+  icon: string
+}
+
+interface ButtonConfig {
+  show: boolean
+  active: boolean
+  label: string
+  mode: string
+  url: string | null
+}
+
+interface ScheduleButton extends ButtonConfig {
+  provider_label: string
+  behavior_phrase: string
+  description: string | null
+  description_mode: string
+  event_type_label: string | null
+  event_type_duration_minutes: number | null
+}
+
+interface QuickStat {
+  label: string
+  value: string
+}
+
+interface ReviewsSummary {
+  average_rating: number
+  review_count: number
+}
+
+interface ReviewItem {
+  name: string
+  rating: number
+  text: string
+}
 
 interface Profile {
   professionalId: string
-  displayName: string
-  fullName?: string
-  initials?: string
-  bioShort?: string
-  yearsExperience?: string
-  state?: string
-  city?: string
-  firmName?: string
-  professions?: string[]
-  otherProfession?: string
-  aboutHeading?: string
-  bio1?: string
-  bio2?: string
-  bio3?: string
-  servicesHeading?: string
-  primaryService?: string
-  additionalServices?: string[]
-  credentialsHeading?: string
-  primaryCredential?: string
-  additionalCredentials?: string
-  email?: string
-  phone?: string
-  languages?: string[]
-  availabilityText?: string
-  calBookingUrl?: string
-  website?: string
-  status?: string
+  profile: ProfileSection
+  professional: ProfessionalSection
+  hero: HeroSection
+  location: LocationSection
+  bio: BioSection
+  contact: ContactSection
+  services_offered: { items: ServiceItem[] }
+  specializations: { client_types: string[] }
+  credentials_experience: {
+    licenses_certifications: { title: string; subtitle?: string | null }[]
+    background_items: { title: string; date_label: string; description: string }[]
+  }
+  quick_stats: QuickStat[]
+  reviews: {
+    enabled: boolean
+    allow_submission: boolean
+    summary: ReviewsSummary
+    items: ReviewItem[]
+  }
+  buttons: {
+    schedule_button: ScheduleButton
+    contact_button: ButtonConfig
+    review_button: ButtonConfig
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -52,31 +141,6 @@ function getInitials(name: string): string {
     .slice(0, 2)
 }
 
-function StarRating({ rating }: { rating: number }) {
-  return (
-    <span className="flex items-center gap-0.5">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <svg
-          key={i}
-          className={i < rating ? 'text-brand-amber' : 'text-white/20'}
-          fill={i < rating ? 'currentColor' : 'none'}
-          stroke="currentColor"
-          strokeWidth={2}
-          viewBox="0 0 24 24"
-          width="14"
-          height="14"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
-          />
-        </svg>
-      ))}
-    </span>
-  )
-}
-
 function getCredentialColor(label: string): string {
   const l = label.toLowerCase()
   if (l.includes('attorney') || l === 'jd') return 'bg-purple-500/20 text-purple-300 border-purple-500/30'
@@ -85,6 +149,14 @@ function getCredentialColor(label: string): string {
   if (l.includes('erpa')) return 'bg-teal-500/20 text-teal-300 border-teal-500/30'
   if (l.includes('actuary')) return 'bg-pink-500/20 text-pink-300 border-pink-500/30'
   return 'bg-brand-orange/20 text-orange-300 border-brand-orange/30'
+}
+
+function getStyleKeyColor(key: string): string {
+  if (key === 'attorney') return 'bg-purple-500/20 text-purple-300 border-purple-500/30'
+  if (key === 'cpa') return 'bg-blue-500/20 text-blue-300 border-blue-500/30'
+  if (key === 'ea') return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
+  if (key === 'featured') return 'bg-brand-orange/20 text-orange-300 border-brand-orange/30'
+  return 'bg-white/10 text-white/60 border-white/20'
 }
 
 /* ------------------------------------------------------------------ */
@@ -169,31 +241,36 @@ export default function PublicProfilePage() {
   if (loading) return <LoadingSkeleton />
   if (error || !profile) return <ErrorState message={error || 'Profile not found.'} />
 
-  /* Derived data */
-  const name = profile.displayName || profile.fullName || 'Unknown'
-  const initials = profile.initials || getInitials(name)
-  const location = [profile.city, profile.state].filter(Boolean).join(', ')
-  const bios = [profile.bio1, profile.bio2, profile.bio3].filter(Boolean)
-  const professions = profile.professions || []
-  const services = [
-    ...(profile.primaryService ? [profile.primaryService] : []),
-    ...(profile.additionalServices || []),
-  ]
-  const credentials = [
-    profile.primaryCredential,
-    ...(profile.additionalCredentials ? profile.additionalCredentials.split(',').map((s) => s.trim()) : []),
-  ].filter(Boolean) as string[]
-  const languages = profile.languages || []
-  const verified = profile.status === 'active'
-  const headline = profile.primaryService || professions[0] || profile.bioShort || ''
+  /* Derived data from nested sections */
+  const name = profile.profile.name || 'Unknown'
+  const initials = profile.profile.initials || getInitials(name)
+  const locationLabel = profile.hero.location_label || [profile.location.city, profile.location.state].filter(Boolean).join(', ')
+  const bios = profile.bio.bio_full_paragraphs || []
+  const professions = profile.professional.profession || []
+  const services = (profile.services_offered.items || []).map((i) => i.title)
+  const credentials = profile.professional.credentials || []
+  const languages = profile.contact.languages || []
+  const verified = profile.profile.status === 'standard' || profile.profile.status === 'featured'
+  const headline = profile.hero.headline || profile.bio.bio_short || ''
+  const credentialBadges = profile.hero.credential_badges || []
+  const clientTypes = profile.specializations.client_types || []
+  const yearsExp = profile.professional.years_experience
+  const contactEmail = profile.contact.contact_email
+  const phone = profile.contact.phone
+  const website = profile.contact.website
+  const firmName = profile.professional.firm_name
+  const availabilityDisplay = profile.contact.availability_display
+  const scheduleButton = profile.buttons.schedule_button
+  const contactButton = profile.buttons.contact_button
 
-  /* Stat cards — show skeleton for missing data */
-  const stats = [
-    { label: 'Years Experience', value: profile.yearsExperience || '--' },
-    { label: 'Returns Filed', value: '--' },
-    { label: 'Client Reviews', value: '--' },
-    { label: 'Specialty Cases', value: '--' },
-  ]
+  const stats = profile.quick_stats.length > 0
+    ? profile.quick_stats
+    : [
+        { label: 'Years Experience', value: yearsExp > 0 ? `${yearsExp}+` : '--' },
+        { label: 'Returns Filed', value: '--' },
+        { label: 'Client Reviews', value: '--' },
+        { label: 'Specialty Cases', value: '--' },
+      ]
 
   return (
     <div className="min-h-screen bg-[--bg]">
@@ -245,35 +322,35 @@ export default function PublicProfilePage() {
                   <p className="mt-1 text-[--muted]">{headline}</p>
                 )}
 
-                {/* Credential badges */}
-                {professions.length > 0 && (
+                {/* Credential badges from hero section */}
+                {credentialBadges.length > 0 && (
                   <div className="mt-3 flex flex-wrap justify-center gap-2 md:justify-start">
-                    {professions.map((p) => (
+                    {credentialBadges.map((badge) => (
                       <span
-                        key={p}
-                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${getCredentialColor(p)}`}
+                        key={badge.label}
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${getStyleKeyColor(badge.style_key)}`}
                       >
-                        {p === 'Other' && profile.otherProfession ? profile.otherProfession : p}
+                        {badge.label}
                       </span>
                     ))}
                   </div>
                 )}
 
-                {/* Location + experience + rating */}
+                {/* Location + experience */}
                 <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-sm text-[--muted] md:justify-start">
-                  {location && (
+                  {locationLabel && (
                     <span className="flex items-center gap-1">
                       <svg fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width="16" height="16">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
-                      {location}
+                      {locationLabel}
                     </span>
                   )}
-                  {profile.yearsExperience && (
+                  {profile.hero.years_experience_label && (
                     <>
                       <span className="text-white/20">|</span>
-                      <span>{profile.yearsExperience} years experience</span>
+                      <span>{profile.hero.years_experience_label}</span>
                     </>
                   )}
                 </div>
@@ -282,12 +359,12 @@ export default function PublicProfilePage() {
 
             {/* Right: hero action buttons */}
             <div className="flex flex-col items-center gap-3 md:items-end">
-              {profile.email ? (
+              {contactButton.active && contactButton.url ? (
                 <a
-                  href={`mailto:${profile.email}`}
+                  href={contactButton.url}
                   className="w-full rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber px-6 py-3 text-center text-sm font-bold text-slate-950 transition hover:opacity-90 md:w-auto"
                 >
-                  Contact This Professional
+                  {contactButton.label}
                 </a>
               ) : (
                 <button
@@ -297,14 +374,14 @@ export default function PublicProfilePage() {
                   Contact This Professional
                 </button>
               )}
-              {profile.calBookingUrl ? (
+              {scheduleButton.active && scheduleButton.url ? (
                 <a
-                  href={profile.calBookingUrl}
+                  href={scheduleButton.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full rounded-xl border border-[--line] px-6 py-3 text-center text-sm font-semibold text-[--fg] transition hover:bg-[--card] md:w-auto"
                 >
-                  Schedule Consultation
+                  {scheduleButton.label}
                 </a>
               ) : (
                 <button
@@ -345,7 +422,7 @@ export default function PublicProfilePage() {
                 <svg fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width="18" height="18">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
-                {profile.aboutHeading || 'About'}
+                About
               </h2>
               {bios.length > 0 ? (
                 bios.map((text, i) => (
@@ -362,7 +439,7 @@ export default function PublicProfilePage() {
                 <svg fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width="18" height="18">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                {profile.servicesHeading || 'Services Offered'}
+                Services Offered
               </h2>
               {services.length > 0 ? (
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -398,7 +475,7 @@ export default function PublicProfilePage() {
                 <div className="flex flex-wrap gap-2">
                   {professions.map((s) => (
                     <span key={s} className={`rounded-full border px-3 py-1 text-xs font-semibold ${getCredentialColor(s)}`}>
-                      {s === 'Other' && profile.otherProfession ? profile.otherProfession : s}
+                      {s}
                     </span>
                   ))}
                 </div>
@@ -406,29 +483,28 @@ export default function PublicProfilePage() {
                 <EmptySection label="specialties" />
               )}
 
-              {/* Client Types — placeholder */}
+              {/* Client Types */}
               <h3 className="mb-2 mt-6 text-xs font-semibold uppercase tracking-wider text-[--muted]">Client Types</h3>
-              <EmptySection label="client types" />
+              {clientTypes.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {clientTypes.map((ct) => (
+                    <span key={ct} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-[--fg]">
+                      {ct}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <EmptySection label="client types" />
+              )}
             </div>
 
-            {/* Experience Timeline — placeholder */}
-            <div className="rounded-2xl border border-[--line] bg-[--card] p-6">
-              <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-brand-orange">
-                <svg fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width="18" height="18">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Experience
-              </h2>
-              <EmptySection label="experience" />
-            </div>
-
-            {/* Licenses & Credentials */}
+            {/* Credentials & Experience */}
             <div className="rounded-2xl border border-[--line] bg-[--card] p-6">
               <h2 className="mb-4 flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-brand-orange">
                 <svg fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24" width="18" height="18">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                 </svg>
-                {profile.credentialsHeading || 'Licenses & Credentials'}
+                Licenses & Credentials
               </h2>
               {credentials.length > 0 ? (
                 <div className="space-y-3">
@@ -444,9 +520,29 @@ export default function PublicProfilePage() {
               ) : (
                 <EmptySection label="credentials" />
               )}
+
+              {/* Background / Experience timeline */}
+              {profile.credentials_experience.background_items.length > 0 && (
+                <>
+                  <h3 className="mb-3 mt-6 text-xs font-semibold uppercase tracking-wider text-[--muted]">Experience</h3>
+                  <div className="space-y-3">
+                    {profile.credentials_experience.background_items.map((item, i) => (
+                      <div key={i} className="rounded-xl border border-[--line] bg-white/[0.02] p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-[--fg]">{item.title}</span>
+                          <span className="text-xs text-[--muted]">{item.date_label}</span>
+                        </div>
+                        {item.description && (
+                          <p className="mt-1 text-xs text-[--muted]">{item.description}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* Client Reviews — placeholder */}
+            {/* Client Reviews */}
             <div className="rounded-2xl border border-[--line] bg-[--card] p-6">
               <div className="flex items-center justify-between">
                 <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-brand-orange">
@@ -455,9 +551,26 @@ export default function PublicProfilePage() {
                   </svg>
                   Client Reviews
                 </h2>
+                {profile.reviews.summary.review_count > 0 && (
+                  <span className="text-xs text-[--muted]">{profile.reviews.summary.review_count} reviews</span>
+                )}
               </div>
               <div className="mt-4">
-                <EmptySection label="reviews" />
+                {profile.reviews.items.length > 0 ? (
+                  <div className="space-y-4">
+                    {profile.reviews.items.map((review, i) => (
+                      <div key={i} className="rounded-xl border border-[--line] bg-white/[0.02] p-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-[--fg]">{review.name}</span>
+                          <span className="text-xs text-brand-amber">{'★'.repeat(review.rating)}{'☆'.repeat(5 - review.rating)}</span>
+                        </div>
+                        <p className="mt-2 text-xs text-[--muted]">{review.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <EmptySection label="reviews" />
+                )}
               </div>
             </div>
           </div>
@@ -469,34 +582,34 @@ export default function PublicProfilePage() {
                 <h3 className="mb-5 text-sm font-bold uppercase tracking-wider text-brand-orange">Contact Information</h3>
 
                 <div className="space-y-4">
-                  {location && (
+                  {locationLabel && (
                     <div>
                       <span className="block text-xs font-semibold uppercase tracking-wider text-[--muted]">Location</span>
-                      <span className="mt-0.5 block text-sm text-[--fg]">{location}</span>
+                      <span className="mt-0.5 block text-sm text-[--fg]">{locationLabel}</span>
                     </div>
                   )}
-                  {profile.firmName && (
+                  {firmName && (
                     <div>
                       <span className="block text-xs font-semibold uppercase tracking-wider text-[--muted]">Firm</span>
-                      <span className="mt-0.5 block text-sm text-[--fg]">{profile.firmName}</span>
+                      <span className="mt-0.5 block text-sm text-[--fg]">{firmName}</span>
                     </div>
                   )}
-                  {profile.phone && (
+                  {phone && (
                     <div>
                       <span className="block text-xs font-semibold uppercase tracking-wider text-[--muted]">Phone</span>
-                      <a href={`tel:${profile.phone}`} className="mt-0.5 block text-sm text-[--fg] hover:text-brand-orange transition">{profile.phone}</a>
+                      <a href={`tel:${phone}`} className="mt-0.5 block text-sm text-[--fg] hover:text-brand-orange transition">{phone}</a>
                     </div>
                   )}
-                  {profile.email && (
+                  {contactEmail && (
                     <div>
                       <span className="block text-xs font-semibold uppercase tracking-wider text-[--muted]">Email</span>
-                      <a href={`mailto:${profile.email}`} className="mt-0.5 block text-sm text-[--fg] hover:text-brand-orange transition">{profile.email}</a>
+                      <a href={`mailto:${contactEmail}`} className="mt-0.5 block text-sm text-[--fg] hover:text-brand-orange transition">{contactEmail}</a>
                     </div>
                   )}
-                  {profile.availabilityText && (
+                  {availabilityDisplay && (
                     <div>
                       <span className="block text-xs font-semibold uppercase tracking-wider text-[--muted]">Availability</span>
-                      <span className="mt-0.5 block text-sm text-[--fg]">{profile.availabilityText}</span>
+                      <span className="mt-0.5 block text-sm text-[--fg]">{availabilityDisplay}</span>
                     </div>
                   )}
                   {languages.length > 0 && (
@@ -509,35 +622,35 @@ export default function PublicProfilePage() {
 
                 {/* Sidebar buttons */}
                 <div className="mt-6 space-y-3">
-                  {profile.email ? (
+                  {contactButton.active && contactButton.url ? (
                     <a
-                      href={`mailto:${profile.email}`}
+                      href={contactButton.url}
                       className="block w-full rounded-xl bg-gradient-to-r from-brand-orange to-brand-amber py-3 text-center text-sm font-bold text-slate-950 transition hover:opacity-90"
                     >
-                      Contact Now
+                      {contactButton.label}
                     </a>
                   ) : (
                     <button disabled className="block w-full cursor-not-allowed rounded-xl bg-white/10 py-3 text-center text-sm font-bold text-white/40">
                       Contact Now
                     </button>
                   )}
-                  {profile.calBookingUrl ? (
+                  {scheduleButton.active && scheduleButton.url ? (
                     <a
-                      href={profile.calBookingUrl}
+                      href={scheduleButton.url}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block w-full rounded-xl border border-[--line] py-3 text-center text-sm font-semibold text-[--fg] transition hover:bg-[--card]"
                     >
-                      Schedule Consultation
+                      {scheduleButton.label}
                     </a>
                   ) : (
                     <button disabled className="block w-full cursor-not-allowed rounded-xl border border-white/10 py-3 text-center text-sm font-semibold text-white/30">
                       Schedule Consultation
                     </button>
                   )}
-                  {profile.website && (
+                  {website && (
                     <a
-                      href={profile.website}
+                      href={website}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="block w-full text-center text-sm text-[--muted] transition hover:text-brand-orange"

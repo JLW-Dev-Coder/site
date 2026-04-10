@@ -217,6 +217,52 @@ async function d1Run(db, sql, params) {
   return db.prepare(sql).bind(...params).run();
 }
 
+// Map a D1 profiles row → nested card shape (vlp.profiles.list.v1 contract)
+// Fields not yet in D1 use safe defaults; a D1 migration will backfill them.
+function d1RowToProfileCard(row) {
+  const professions = row.profession ? row.profession.split(', ').filter(Boolean) : [];
+  const specialtiesList = row.specialties ? row.specialties.split(', ').filter(Boolean) : [];
+  return {
+    profile: {
+      name: row.display_name || '',
+      slug: row.professional_id,
+      status: 'standard',
+    },
+    professional: {
+      profession: professions,
+      years_experience: 0,
+    },
+    location: {
+      city: row.city || '',
+      state: row.state || '',
+    },
+    bio: {
+      bio_short: row.bio ? row.bio.substring(0, 220) : '',
+    },
+    hero: {
+      credential_badges: professions.map(p => ({
+        label: p,
+        style_key: p.toLowerCase() === 'cpa' ? 'cpa'
+          : p.toLowerCase() === 'enrolled agent' ? 'ea'
+          : p.toLowerCase() === 'attorney' ? 'attorney'
+          : 'custom',
+      })),
+    },
+    services_offered: {
+      items: specialtiesList.map(s => ({ title: s })),
+    },
+    specializations: {
+      client_types: [],
+    },
+    contact: {
+      languages: [],
+    },
+    reviews: {
+      summary: { average_rating: 0, review_count: 0 },
+    },
+  };
+}
+
 // Get current token balance for an account (R2 canonical, D1 fallback)
 async function getCurrentTokenBalance(env, accountId) {
   // Try R2 first (canonical)
@@ -4261,38 +4307,60 @@ const ROUTES = [
   // PROFILES
   // -------------------------------------------------------------------------
 
-  // GET /v1/profiles — public list of all active profiles for directory
+  // GET /v1/profiles — directory listing (vlp.profiles.list.v1 contract shape)
   {
     method: 'GET', pattern: '/v1/profiles',
     handler: async (_method, _pattern, _params, request, env) => {
       try {
+        const url = new URL(request.url);
+        const stateFilter = url.searchParams.get('state') || null;
+        const professionFilter = url.searchParams.get('profession') || null;
+        const serviceFilter = url.searchParams.get('service') || null;
+        // client_type and language filters require D1 projection columns (pending migration)
+        const q = url.searchParams.get('q') || null;
+        const page = Math.max(1, parseInt(url.searchParams.get('page')) || 1);
+        const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit')) || 20));
+        const offset = (page - 1) * limit;
+
+        let where = `WHERE status = 'active'`;
+        const filterParams = [];
+
+        if (stateFilter) {
+          where += ` AND LOWER(state) = LOWER(?)`;
+          filterParams.push(stateFilter);
+        }
+        if (professionFilter) {
+          where += ` AND LOWER(profession) LIKE LOWER(?)`;
+          filterParams.push(`%${professionFilter}%`);
+        }
+        if (serviceFilter) {
+          where += ` AND LOWER(specialties) LIKE LOWER(?)`;
+          filterParams.push(`%${serviceFilter}%`);
+        }
+        if (q) {
+          where += ` AND (LOWER(display_name) LIKE LOWER(?) OR LOWER(bio) LIKE LOWER(?) OR LOWER(specialties) LIKE LOWER(?))`;
+          filterParams.push(`%${q}%`, `%${q}%`, `%${q}%`);
+        }
+
+        const countResult = await env.DB.prepare(
+          `SELECT COUNT(*) as total FROM profiles ${where}`
+        ).bind(...filterParams).first();
+        const total = countResult?.total || 0;
+
         const result = await env.DB.prepare(
-          `SELECT professional_id, display_name, bio, specialties, profession, phone,
-                  availability_text, business_hours, cal_booking_url, website, firm_name,
-                  city, state, zip, created_at
-           FROM profiles
-           WHERE status = 'active'
-           ORDER BY created_at DESC`
-        ).all();
+          `SELECT professional_id, display_name, bio, specialties, profession,
+                  firm_name, city, state, status, created_at
+           FROM profiles ${where}
+           ORDER BY created_at DESC LIMIT ? OFFSET ?`
+        ).bind(...filterParams, limit, offset).all();
 
-        const profiles = (result.results || []).map(p => ({
-          professional_id: p.professional_id,
-          display_name: p.display_name,
-          bio: p.bio ? p.bio.substring(0, 200) : null,
-          specialties: p.specialties,
-          profession: p.profession,
-          phone: p.phone,
-          availability_text: p.availability_text,
-          business_hours: p.business_hours ? JSON.parse(p.business_hours) : null,
-          cal_booking_url: p.cal_booking_url,
-          website: p.website,
-          firm_name: p.firm_name,
-          city: p.city,
-          state: p.state,
-          zip: p.zip,
-        }));
+        const profiles = (result.results || []).map(row => d1RowToProfileCard(row));
 
-        return json({ ok: true, profiles }, 200, request);
+        return json({
+          ok: true,
+          profiles,
+          pagination: { page, limit, total, total_pages: Math.ceil(total / limit) },
+        }, 200, request);
       } catch (error) {
         console.error('Profile list error:', error);
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Internal server error' }, 500, request);
@@ -4368,7 +4436,9 @@ const ROUTES = [
     handler: async (_method, _pattern, params, _request, env) => {
       const obj = await env.R2_VIRTUAL_LAUNCH.get(`profiles/${params.professional_id}.json`);
       if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404, _request);
-      const { accountId: _accountId, ...publicProfile } = await obj.json();
+      const data = await obj.json();
+      // Strip private fields — R2 stores nested profile sections + accountId
+      const { accountId: _a, account_id: _b, ...publicProfile } = data;
       return json({ ok: true, profile: publicProfile }, 200, _request);
     },
   },
@@ -8725,107 +8795,46 @@ TTMP Support Team
   {
     method: 'GET', pattern: '/v1/tmp/directory',
     handler: async (_method, _pattern, _params, request, env) => {
-      // Parse query parameters
       const url = new URL(request.url);
       const specialty = url.searchParams.get('specialty') || null;
       const city = url.searchParams.get('city') || null;
       const state = url.searchParams.get('state') || null;
       const zip = url.searchParams.get('zip') || null;
       const page = Math.max(1, Math.min(100, parseInt(url.searchParams.get('page')) || 1));
-
-      // Build query
-      let query = `SELECT professional_id, display_name, bio, specialties, profession, phone,
-                          cal_booking_url, availability_text, website, firm_name, city, state, zip
-                   FROM profiles
-                   WHERE status = 'active'`;
-      const params = [];
-
-      // Filter by specialty if provided (case-insensitive)
-      if (specialty) {
-        query += ` AND LOWER(specialties) LIKE LOWER(?)`;
-        params.push(`%${specialty}%`);
-      }
-
-      // Filter by city if provided (case-insensitive)
-      if (city) {
-        query += ` AND LOWER(city) LIKE LOWER(?)`;
-        params.push(`%${city}%`);
-      }
-
-      // Filter by state if provided (case-insensitive)
-      if (state) {
-        query += ` AND LOWER(state) LIKE LOWER(?)`;
-        params.push(`%${state}%`);
-      }
-
-      // Filter by zip if provided (case-insensitive)
-      if (zip) {
-        query += ` AND LOWER(zip) LIKE LOWER(?)`;
-        params.push(`%${zip}%`);
-      }
-
-      // Pagination
       const limit = 20;
       const offset = (page - 1) * limit;
-      query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
-      params.push(limit, offset);
+
+      let where = `WHERE status = 'active'`;
+      const filterParams = [];
+
+      if (specialty) { where += ` AND LOWER(specialties) LIKE LOWER(?)`; filterParams.push(`%${specialty}%`); }
+      if (city)      { where += ` AND LOWER(city) LIKE LOWER(?)`; filterParams.push(`%${city}%`); }
+      if (state)     { where += ` AND LOWER(state) LIKE LOWER(?)`; filterParams.push(`%${state}%`); }
+      if (zip)       { where += ` AND LOWER(zip) LIKE LOWER(?)`; filterParams.push(`%${zip}%`); }
 
       try {
-        // Execute query
-        const result = await env.DB.prepare(query).bind(...params).all();
-
-        // Get total count for pagination
-        let countQuery = `SELECT COUNT(*) as total FROM profiles WHERE status = 'active'`;
-        const countParams = [];
-        if (specialty) {
-          countQuery += ` AND LOWER(specialties) LIKE LOWER(?)`;
-          countParams.push(`%${specialty}%`);
-        }
-        if (city) {
-          countQuery += ` AND LOWER(city) LIKE LOWER(?)`;
-          countParams.push(`%${city}%`);
-        }
-        if (state) {
-          countQuery += ` AND LOWER(state) LIKE LOWER(?)`;
-          countParams.push(`%${state}%`);
-        }
-        if (zip) {
-          countQuery += ` AND LOWER(zip) LIKE LOWER(?)`;
-          countParams.push(`%${zip}%`);
-        }
-        const countResult = await env.DB.prepare(countQuery).bind(...countParams).first();
+        const countResult = await env.DB.prepare(
+          `SELECT COUNT(*) as total FROM profiles ${where}`
+        ).bind(...filterParams).first();
         const total = countResult?.total || 0;
 
-        // Process results - truncate bio and remove account_id
-        const professionals = result.results.map(prof => ({
-          professional_id: prof.professional_id,
-          display_name: prof.display_name,
-          bio: prof.bio ? prof.bio.substring(0, 200) : null,
-          specialties: prof.specialties,
-          profession: prof.profession || null,
-          phone: prof.phone || null,
-          cal_booking_url: prof.cal_booking_url,
-          availability_text: prof.availability_text || null,
-          website: prof.website || null,
-          firm_name: prof.firm_name || null,
-          city: prof.city,
-          state: prof.state,
-          zip: prof.zip
-        }));
+        const result = await env.DB.prepare(
+          `SELECT professional_id, display_name, bio, specialties, profession,
+                  firm_name, city, state, status, created_at
+           FROM profiles ${where}
+           ORDER BY created_at DESC LIMIT ? OFFSET ?`
+        ).bind(...filterParams, limit, offset).all();
+
+        const profiles = (result.results || []).map(row => d1RowToProfileCard(row));
 
         return json({
           ok: true,
-          professionals,
-          page,
-          total
+          profiles,
+          pagination: { page, limit, total, total_pages: Math.ceil(total / limit) },
         }, 200, request);
       } catch (error) {
         console.error('Directory listing error:', error);
-        return json({
-          ok: false,
-          error: 'INTERNAL_ERROR',
-          message: 'Internal server error'
-        }, 500, request);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Internal server error' }, 500, request);
       }
     },
   },
