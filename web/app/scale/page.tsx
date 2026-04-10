@@ -516,7 +516,7 @@ function FunnelBar({ label, value, max, color }: { label: string; value: number;
           style={{ width: `${pct}%`, background: color }}
         />
       </div>
-      <div className={styles.funnelValue}>{value.toLocaleString()}</div>
+      <div className={styles.funnelValue}>{(value ?? 0).toLocaleString()}</div>
     </div>
   )
 }
@@ -570,7 +570,7 @@ function PipelineView({
   // Show non-cumulative counts for the bar (how many at exactly this step)
   const stepBar = stepData.map((s, i) => ({
     ...s,
-    segment: i < stepData.length - 1 ? s.count - stepData[i + 1].count : s.count,
+    segment: Math.max(0, i < stepData.length - 1 ? s.count - stepData[i + 1].count : s.count),
   }))
   const barTotal = (stepData[0]?.count ?? 0) + pendingCount
 

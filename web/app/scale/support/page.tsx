@@ -271,7 +271,7 @@ export default function ScaleSupportPage() {
                       }`}>
                         <p className="leading-relaxed whitespace-pre-wrap">{msg.body}</p>
                         <p className={`mt-1 text-xs ${msg.author === 'support' ? 'text-amber-400/60' : 'text-slate-500'}`}>
-                          {new Date(msg.createdAt).toLocaleString()}
+                          {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ''}
                         </p>
                       </div>
                     </div>

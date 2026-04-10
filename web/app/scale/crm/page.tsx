@@ -84,22 +84,26 @@ export default function ScaleCRMPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [stats, setStats] = useState<AdminStatsData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [dashRes, statsRes] = await Promise.all([
-          fetch('https://api.virtuallaunch.pro/v1/scale/dashboard', { credentials: 'include' }),
-          fetch('https://api.virtuallaunch.pro/v1/admin/stats', { credentials: 'include' }),
-        ])
-        if (dashRes.ok) setData(await dashRes.json())
-        if (statsRes.ok) setStats(await statsRes.json())
-      } catch {/* ignore */} finally {
-        setLoading(false)
-      }
+  const load = async () => {
+    setError(null)
+    setLoading(true)
+    try {
+      const [dashRes, statsRes] = await Promise.all([
+        fetch('https://api.virtuallaunch.pro/v1/scale/dashboard', { credentials: 'include' }),
+        fetch('https://api.virtuallaunch.pro/v1/admin/stats', { credentials: 'include' }),
+      ])
+      if (dashRes.ok) setData(await dashRes.json())
+      if (statsRes.ok) setStats(await statsRes.json())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load CRM data')
+    } finally {
+      setLoading(false)
     }
-    load()
-  }, [])
+  }
+
+  useEffect(() => { load() }, [])
 
   const lastBatch = data?.batch_history && data.batch_history.length > 0
     ? [...data.batch_history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0]
@@ -113,6 +117,23 @@ export default function ScaleCRMPage() {
   for (const c of stats?.clients ?? []) {
     const key = (c.platform || '').toLowerCase()
     if (key) platformCounts[key] = (platformCounts[key] ?? 0) + 1
+  }
+
+  if (error && !loading && !data && !stats) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-semibold text-white">CRM</h1>
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-900 p-8 text-center">
+          <p className="text-sm text-slate-400">Failed to load CRM data. {error}</p>
+          <button
+            onClick={load}
+            className="mt-4 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2 text-sm font-bold text-slate-950 hover:from-orange-400 hover:to-amber-400 transition"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -203,15 +224,15 @@ export default function ScaleCRMPage() {
             </div>
             <div>
               <div className="text-xs uppercase text-slate-500">Records</div>
-              <div className="mt-1 text-lg font-bold text-white">{lastBatch.record_count.toLocaleString()}</div>
+              <div className="mt-1 text-lg font-bold text-white">{(lastBatch.record_count ?? 0).toLocaleString()}</div>
             </div>
             <div>
               <div className="text-xs uppercase text-slate-500">Email 1 Pushed</div>
-              <div className="mt-1 text-lg font-bold text-white">{lastBatch.email1_pushed.toLocaleString()}</div>
+              <div className="mt-1 text-lg font-bold text-white">{(lastBatch.email1_pushed ?? 0).toLocaleString()}</div>
             </div>
             <div>
               <div className="text-xs uppercase text-slate-500">Asset Pages Pushed</div>
-              <div className="mt-1 text-lg font-bold text-white">{lastBatch.asset_pages_pushed.toLocaleString()}</div>
+              <div className="mt-1 text-lg font-bold text-white">{(lastBatch.asset_pages_pushed ?? 0).toLocaleString()}</div>
             </div>
           </div>
         ) : (

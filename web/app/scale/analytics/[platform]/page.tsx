@@ -85,17 +85,19 @@ const PLATFORM_ABBREV: Record<string, string> = {
 // Utility functions
 // ---------------------------------------------------------------------------
 function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B'
+  const b = bytes ?? 0
+  if (!b || b <= 0) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  const val = bytes / Math.pow(1024, i)
+  const i = Math.floor(Math.log(b) / Math.log(1024))
+  const val = b / Math.pow(1024, i)
   return `${val < 10 ? val.toFixed(2) : val < 100 ? val.toFixed(1) : Math.round(val)} ${units[i]}`
 }
 
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-  if (n >= 10_000) return `${(n / 1_000).toFixed(1)}K`
-  return n.toLocaleString()
+function formatNumber(n: number | undefined | null): string {
+  const v = n ?? 0
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+  if (v >= 10_000) return `${(v / 1_000).toFixed(1)}K`
+  return v.toLocaleString()
 }
 
 function pct(part: number, total: number): string {
@@ -256,7 +258,7 @@ function BarChart({
 
 /** Semicircular gauge for cache ratio */
 function CacheGauge({ ratio }: { ratio: number }) {
-  const pctVal = ratio * 100
+  const pctVal = (ratio ?? 0) * 100
   const angle = -90 + (pctVal / 100) * 180
   const color = pctVal > 50 ? '#22c55e' : pctVal > 20 ? '#f59e0b' : '#ef4444'
   const label = pctVal > 50 ? 'Optimal performance' : pctVal > 20 ? 'Acceptable' : 'Needs improvement'
@@ -438,8 +440,22 @@ export default function PlatformAnalyticsDetailPage() {
     )
   }
 
-  // Destructure data
-  const { traffic, status_codes, top_countries, firewall, shared_zone, shared_with } = data
+  // Destructure data with safe defaults
+  const { traffic: rawTraffic, status_codes: rawStatusCodes, top_countries: rawCountries, firewall: rawFirewall, shared_zone, shared_with } = data
+  const traffic = {
+    total_requests: rawTraffic?.total_requests ?? 0,
+    cached_requests: rawTraffic?.cached_requests ?? 0,
+    total_bytes: rawTraffic?.total_bytes ?? 0,
+    cached_bytes: rawTraffic?.cached_bytes ?? 0,
+    page_views: rawTraffic?.page_views ?? 0,
+    unique_visitors: rawTraffic?.unique_visitors ?? 0,
+    threats: rawTraffic?.threats ?? 0,
+    cache_hit_ratio: rawTraffic?.cache_hit_ratio ?? 0,
+    timeseries: rawTraffic?.timeseries ?? [],
+  }
+  const status_codes = rawStatusCodes ?? []
+  const top_countries = rawCountries ?? []
+  const firewall = rawFirewall ?? []
   const uncached = traffic.total_requests - traffic.cached_requests
   const cachedPct = pct(traffic.cached_requests, traffic.total_requests)
   const uncachedPct = pct(uncached, traffic.total_requests)

@@ -5880,10 +5880,14 @@ const ROUTES = [
         }
       } catch { /* cache miss or parse error — fetch fresh */ }
 
+      const EMPTY_COUNTS = { all: 0, cancelled: 0, completed: 0, confirmed: 0, pending: 0, rescheduled: 0, upcoming: 0 }
+
       if (!env.CAL_API_KEY) {
-        return json({ ok: false, error: 'CAL_API_KEY not configured' }, 500, request)
+        console.log('[bookings] CAL_API_KEY not configured')
+        return json({ ok: true, bookings: [], counts: EMPTY_COUNTS, api_version: 'none', event_types: CAL_EVENT_TYPES, warning: 'CAL_API_KEY not configured' }, 200, request)
       }
 
+      try {
       let rawBookings = []
       let apiVersion = 'v2'
 
@@ -5899,9 +5903,11 @@ const ROUTES = [
           const v2Data = await v2Res.json()
           rawBookings = v2Data.data || v2Data.bookings || []
         } else {
+          const v2Body = await v2Res.text().catch(() => '')
+          console.log(`[bookings] Cal.com v2 failed: ${v2Res.status} ${v2Body.slice(0, 500)}`)
           throw new Error(`v2 ${v2Res.status}`)
         }
-      } catch {
+      } catch (v2Err) {
         // Fall back to Cal.com v1
         apiVersion = 'v1'
         try {
@@ -5910,10 +5916,13 @@ const ROUTES = [
             const v1Data = await v1Res.json()
             rawBookings = v1Data.bookings || v1Data || []
           } else {
-            return json({ ok: false, error: 'Cal.com API error', api_version: 'v1', status: v1Res.status }, 502, request)
+            const v1Body = await v1Res.text().catch(() => '')
+            console.log(`[bookings] Cal.com v1 failed: ${v1Res.status} ${v1Body.slice(0, 500)}`)
+            return json({ ok: true, bookings: [], counts: EMPTY_COUNTS, api_version: 'v1', event_types: CAL_EVENT_TYPES, warning: `Cal.com v1 returned ${v1Res.status}` }, 200, request)
           }
         } catch (e) {
-          return json({ ok: false, error: 'Cal.com API unreachable', detail: e.message }, 502, request)
+          console.log(`[bookings] Cal.com v1 unreachable: ${e.message}`)
+          return json({ ok: true, bookings: [], counts: EMPTY_COUNTS, api_version: 'v1', event_types: CAL_EVENT_TYPES, warning: `Cal.com unreachable: ${e.message}` }, 200, request)
         }
       }
 
@@ -5962,6 +5971,11 @@ const ROUTES = [
       } catch { /* non-fatal */ }
 
       return json(result, 200, request)
+
+      } catch (err) {
+        console.log(`[bookings] Unexpected error: ${err.message}`, err.stack)
+        return json({ ok: true, bookings: [], counts: EMPTY_COUNTS, api_version: 'error', event_types: CAL_EVENT_TYPES, warning: err.message }, 200, request)
+      }
     },
   },
 
