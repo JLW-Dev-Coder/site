@@ -11,6 +11,8 @@ interface Client {
   email: string
   platform: string
   created_at: string
+  plan_key?: string | null
+  membership_status?: string | null
 }
 
 interface StatsResponse {
@@ -19,6 +21,27 @@ interface StatsResponse {
 }
 
 const PLATFORMS = ['vlp', 'tmp', 'ttmp', 'tttmp', 'dvlp', 'gvlp', 'tcvlp', 'wlvlp']
+
+const PLAN_LABELS: Record<string, string> = {
+  vlp_free: 'Listed',
+  vlp_starter: 'Active',
+  vlp_scale: 'Featured',
+  vlp_pro: 'Featured',
+  vlp_advanced: 'Premier',
+}
+
+function membershipBadge(client: Client) {
+  const status = client.membership_status
+  const plan = client.plan_key
+  if (status === 'active' && plan) {
+    const label = PLAN_LABELS[plan] || plan
+    return <span className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-400">Active — {label}</span>
+  }
+  if (status && status !== 'active' && plan) {
+    return <span className="inline-block rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400">{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+  }
+  return <span className="inline-block rounded-full bg-slate-500/20 px-2 py-0.5 text-xs font-semibold text-slate-500">Free</span>
+}
 
 type SortKey = 'name' | 'created_at'
 type SortDir = 'asc' | 'desc'
@@ -146,6 +169,7 @@ function ClientsListInner() {
                     </button>
                   </th>
                   <th className="px-3 py-2">Platform</th>
+                  <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">
                     <button type="button" onClick={() => toggleSort('created_at')} className="hover:text-orange-400">
                       Date Added{sortIndicator('created_at')}
@@ -165,6 +189,7 @@ function ClientsListInner() {
                       <div className="text-xs text-slate-500">{c.email}</div>
                     </td>
                     <td className="px-3 py-3 text-slate-300">{(c.platform || '').toUpperCase() || '—'}</td>
+                    <td className="px-3 py-3">{membershipBadge(c)}</td>
                     <td className="px-3 py-3 text-slate-400">
                       {c.created_at ? new Date(c.created_at).toLocaleDateString() : '—'}
                     </td>

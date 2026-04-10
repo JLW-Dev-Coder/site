@@ -5500,14 +5500,16 @@ const ROUTES = [
         // Sort newest first across both accounts
         stripeTransactions.sort((a, b) => (b.created || 0) - (a.created || 0))
 
-        // Optional: full client list (account_id, name, email, platform, created_at)
+        // Optional: full client list (account_id, name, email, platform, created_at, membership)
         let clients = undefined
         if (includeClients) {
           const clientRows = await env.DB.prepare(
             `SELECT a.account_id, a.email, a.first_name, a.last_name, a.platform, a.created_at,
-                    p.display_name AS profile_display_name
+                    p.display_name AS profile_display_name,
+                    m.plan_key, m.status AS membership_status
                FROM accounts a
                LEFT JOIN profiles p ON p.account_id = a.account_id
+               LEFT JOIN memberships m ON a.account_id = m.account_id
               ORDER BY a.created_at DESC`
           ).all()
           clients = (clientRows.results || []).map((r) => {
@@ -5519,6 +5521,8 @@ const ROUTES = [
               email: r.email,
               platform: r.platform,
               created_at: r.created_at,
+              plan_key: r.plan_key || null,
+              membership_status: r.membership_status || null,
             }
           })
         }

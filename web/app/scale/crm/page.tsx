@@ -159,8 +159,10 @@ export default function ScaleCRMPage() {
           className="text-left rounded-2xl border bg-slate-900 p-4 transition border-slate-800/60 hover:border-orange-500/60"
         >
           <div className="text-xs uppercase tracking-wide text-slate-400">All Clients</div>
-          <div className="mt-2 text-3xl font-bold text-white">{paidTotal.toLocaleString()}</div>
-          <div className="mt-1 text-xs text-slate-500">Paid accounts only</div>
+          <div className="mt-2 text-3xl font-bold text-white">{(stats?.total_accounts ?? 0).toLocaleString()}</div>
+          <div className="mt-1 text-xs text-slate-500">
+            {paidTotal.toLocaleString()} Paid · {((stats?.total_accounts ?? 0) - paidTotal).toLocaleString()} Free
+          </div>
         </button>
         {PLATFORMS.map((p) => {
           const count = platformCounts[p.key] ?? 0

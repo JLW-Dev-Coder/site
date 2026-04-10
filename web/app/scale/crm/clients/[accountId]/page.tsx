@@ -63,6 +63,28 @@ interface DetailResponse {
   error?: string
 }
 
+const PLAN_DISPLAY: Record<string, { label: string; price: string }> = {
+  vlp_free: { label: 'Listed', price: '$0/mo' },
+  vlp_starter: { label: 'Active', price: '$79/mo' },
+  vlp_scale: { label: 'Featured', price: '$199/mo' },
+  vlp_pro: { label: 'Featured', price: '$199/mo' },
+  vlp_advanced: { label: 'Premier', price: '$399/mo' },
+}
+
+function tierLabel(planKey: string | undefined) {
+  if (!planKey) return null
+  return PLAN_DISPLAY[planKey] ?? { label: planKey, price: '' }
+}
+
+function statusBadge(status: string) {
+  const s = status.toLowerCase()
+  if (s === 'active') return <span className="inline-block rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-semibold text-emerald-400">Active</span>
+  if (s === 'cancelled' || s === 'canceled') return <span className="inline-block rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400">Cancelled</span>
+  if (s === 'expired') return <span className="inline-block rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-semibold text-red-400">Expired</span>
+  if (s === 'past_due') return <span className="inline-block rounded-full bg-yellow-500/20 px-2 py-0.5 text-xs font-semibold text-yellow-400">Past Due</span>
+  return <span className="inline-block rounded-full bg-slate-500/20 px-2 py-0.5 text-xs font-semibold text-slate-400">{status}</span>
+}
+
 function fmtMoney(amount: number, currency: string) {
   if (typeof amount !== 'number') return '—'
   const dollars = amount / 100
@@ -135,12 +157,34 @@ export default function ClientDetailPage() {
           <div className="grid gap-4 sm:grid-cols-3">
             <Card>
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Membership</div>
-              <div className="mt-2 text-lg font-bold text-white">
-                {activeMembership ? activeMembership.plan_key : 'None'}
-              </div>
-              <div className="mt-1 text-xs text-slate-500">
-                {activeMembership ? `Status: ${activeMembership.status}` : 'No membership'}
-              </div>
+              {activeMembership ? (() => {
+                const tier = tierLabel(activeMembership.plan_key)
+                return (
+                  <>
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-lg font-bold text-white">
+                        {tier ? `${tier.label}` : activeMembership.plan_key}
+                        {tier?.price ? <span className="ml-1 text-sm font-normal text-slate-400">— {tier.price}</span> : null}
+                      </span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2">
+                      {statusBadge(activeMembership.status)}
+                      {activeMembership.created_at && (
+                        <span className="text-xs text-slate-500">since {new Date(activeMembership.created_at).toLocaleDateString()}</span>
+                      )}
+                    </div>
+                  </>
+                )
+              })() : (
+                <>
+                  <div className="mt-2 text-lg font-bold text-white">Free Account</div>
+                  <div className="mt-1 text-xs text-slate-500">
+                    No membership purchased
+                    {account?.created_at && <> · signed up {new Date(account.created_at).toLocaleDateString()}</>}
+                    {account?.platform && <> · {account.platform.toUpperCase()}</>}
+                  </div>
+                </>
+              )}
             </Card>
             <Card>
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Token Balance</div>
@@ -179,9 +223,9 @@ export default function ClientDetailPage() {
                   <tbody>
                     {memberships.map((m) => (
                       <tr key={m.membership_id} className="border-b border-slate-800/60">
-                        <td className="px-3 py-3 font-medium text-white">{m.plan_key}</td>
+                        <td className="px-3 py-3 font-medium text-white">{tierLabel(m.plan_key)?.label || m.plan_key}{tierLabel(m.plan_key)?.price ? <span className="ml-1 text-xs text-slate-400">{tierLabel(m.plan_key)?.price}</span> : null}</td>
                         <td className="px-3 py-3 text-slate-400">{m.billing_interval || '—'}</td>
-                        <td className="px-3 py-3 text-slate-300">{m.status}</td>
+                        <td className="px-3 py-3">{statusBadge(m.status)}</td>
                         <td className="px-3 py-3 text-slate-400">{m.created_at ? new Date(m.created_at).toLocaleDateString() : '—'}</td>
                         <td className="px-3 py-3 text-slate-400">{m.updated_at ? new Date(m.updated_at).toLocaleDateString() : '—'}</td>
                       </tr>
