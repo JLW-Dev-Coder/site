@@ -4260,6 +4260,45 @@ const ROUTES = [
   // PROFILES
   // -------------------------------------------------------------------------
 
+  // GET /v1/profiles — public list of all active profiles for directory
+  {
+    method: 'GET', pattern: '/v1/profiles',
+    handler: async (_method, _pattern, _params, request, env) => {
+      try {
+        const result = await env.DB.prepare(
+          `SELECT professional_id, display_name, bio, specialties, profession, phone,
+                  availability_text, business_hours, cal_booking_url, website, firm_name,
+                  city, state, zip, created_at
+           FROM profiles
+           WHERE status = 'active'
+           ORDER BY created_at DESC`
+        ).all();
+
+        const profiles = (result.results || []).map(p => ({
+          professional_id: p.professional_id,
+          display_name: p.display_name,
+          bio: p.bio ? p.bio.substring(0, 200) : null,
+          specialties: p.specialties,
+          profession: p.profession,
+          phone: p.phone,
+          availability_text: p.availability_text,
+          business_hours: p.business_hours ? JSON.parse(p.business_hours) : null,
+          cal_booking_url: p.cal_booking_url,
+          website: p.website,
+          firm_name: p.firm_name,
+          city: p.city,
+          state: p.state,
+          zip: p.zip,
+        }));
+
+        return json({ ok: true, profiles }, 200, request);
+      } catch (error) {
+        console.error('Profile list error:', error);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Internal server error' }, 500, request);
+      }
+    },
+  },
+
   {
     method: 'POST', pattern: '/v1/profiles',
     handler: async (_method, _pattern, _params, request, env) => {
@@ -4278,6 +4317,7 @@ const ROUTES = [
         bioShort: body.bioShort ?? null,
         yearsExperience: body.yearsExperience ?? null,
         state: body.state ?? null, city: body.city ?? null,
+        zip: body.zip ?? null,
         firmName: body.firmName ?? null,
         professions: body.professions ?? [],
         otherProfession: body.otherProfession ?? null,
@@ -4290,6 +4330,7 @@ const ROUTES = [
         primaryCredential: body.primaryCredential ?? null,
         additionalCredentials: body.additionalCredentials ?? null,
         email: body.email ?? null, phone: body.phone ?? null,
+        website: body.website ?? null,
         languages: body.languages ?? [],
         availabilityText: body.availabilityText ?? null,
         weeklyAvailability: body.weeklyAvailability ?? null,
@@ -4298,14 +4339,20 @@ const ROUTES = [
         createdAt: now, updatedAt: now,
       };
       await r2Put(env.R2_VIRTUAL_LAUNCH, `profiles/${professionalId}.json`, profile);
-      // D1 projection — only columns that exist in the table
+      // D1 projection
       const bio = [body.bio1, body.bio2, body.bio3].filter(Boolean).join('\n\n');
       const specialties = (body.additionalServices ?? []).join(', ');
+      const profession = (body.professions ?? []).join(', ');
+      const phone = body.phone ?? null;
+      const availabilityText = body.availabilityText ?? null;
+      const businessHours = body.weeklyAvailability ? JSON.stringify(body.weeklyAvailability) : null;
+      const firmName = body.firmName ?? null;
+      const website = body.website ?? null;
       try {
         await d1Run(env.DB,
-          `INSERT INTO profiles (professional_id, account_id, display_name, bio, specialties, cal_booking_url, status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [professionalId, session.account_id, displayName, bio || null, specialties || null, body.calBookingUrl || null, 'active', now, now]
+          `INSERT INTO profiles (professional_id, account_id, display_name, bio, specialties, profession, phone, availability_text, business_hours, cal_booking_url, website, firm_name, city, state, zip, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [professionalId, session.account_id, displayName, bio || null, specialties || null, profession || null, phone || null, availabilityText || null, businessHours, body.calBookingUrl || null, website, firmName, body.city || null, body.state || null, body.zip || null, 'active', now, now]
         );
       } catch (e) {
         // If D1 insert fails (e.g. duplicate), still return success since R2 is authoritative
@@ -4362,6 +4409,33 @@ const ROUTES = [
       }
       if (body?.calBookingUrl !== undefined) {
         setClauses.unshift('cal_booking_url = ?'); vals.unshift(body.calBookingUrl || null);
+      }
+      if (body?.professions) {
+        setClauses.unshift('profession = ?'); vals.unshift(body.professions.join(', '));
+      }
+      if (body?.phone !== undefined) {
+        setClauses.unshift('phone = ?'); vals.unshift(body.phone || null);
+      }
+      if (body?.availabilityText !== undefined) {
+        setClauses.unshift('availability_text = ?'); vals.unshift(body.availabilityText || null);
+      }
+      if (body?.city !== undefined) {
+        setClauses.unshift('city = ?'); vals.unshift(body.city || null);
+      }
+      if (body?.state !== undefined) {
+        setClauses.unshift('state = ?'); vals.unshift(body.state || null);
+      }
+      if (body?.zip !== undefined) {
+        setClauses.unshift('zip = ?'); vals.unshift(body.zip || null);
+      }
+      if (body?.firmName !== undefined) {
+        setClauses.unshift('firm_name = ?'); vals.unshift(body.firmName || null);
+      }
+      if (body?.weeklyAvailability !== undefined) {
+        setClauses.unshift('business_hours = ?'); vals.unshift(body.weeklyAvailability ? JSON.stringify(body.weeklyAvailability) : null);
+      }
+      if (body?.website !== undefined) {
+        setClauses.unshift('website = ?'); vals.unshift(body.website || null);
       }
       try {
         await d1Run(env.DB, `UPDATE profiles SET ${setClauses.join(', ')} WHERE professional_id = ?`, [...vals, params.professional_id]);
