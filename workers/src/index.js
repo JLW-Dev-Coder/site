@@ -126,6 +126,7 @@ const ALLOWED_ORIGINS = [
 
 function getCorsHeaders(request) {
   const origin = request?.headers?.get('Origin') || '';
+  console.log('CORS DEBUG — Origin:', JSON.stringify(origin), 'Match:', ALLOWED_ORIGINS.includes(origin));
   const allowedOrigin = ALLOWED_ORIGINS.includes(origin)
     ? origin
     : 'https://virtuallaunch.pro';
@@ -3789,7 +3790,7 @@ const ROUTES = [
     },
   },
 
-  { method: 'POST', pattern: '/v1/webhooks/twilio', handler: () => json({ ok: true, received: true }) },
+  { method: 'POST', pattern: '/v1/webhooks/twilio', handler: (_method, _pattern, _params, request) => json({ ok: true, received: true }, 200, request) },
 
   {
     method: 'POST', pattern: '/v1/webhooks/cal',
@@ -6525,7 +6526,7 @@ const ROUTES = [
           return json({ ok: true, preferences: {
             accountId: params.account_id, appearance: 'system', timezone: null,
             defaultDashboard: null, accentColor: null, inAppEnabled: true, smsEnabled: false,
-          }, accountId: params.account_id });
+          }, accountId: params.account_id }, 200, request);
         }
         return json({ ok: true, preferences: {
           accountId: params.account_id,
@@ -6535,7 +6536,7 @@ const ROUTES = [
           accentColor: row.accent_color ?? null,
           inAppEnabled: row.in_app_enabled === 1,
           smsEnabled: row.sms_enabled === 1,
-        }, accountId: params.account_id });
+        }, accountId: params.account_id }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch VLP preferences' }, 500, request);
       }
@@ -7063,7 +7064,7 @@ const ROUTES = [
           message: 'Duplicate request detected — returning cached result',
           original_event_id: existingEvent.event_id,
           pdf_url: `https://r2.virtuallaunch.pro/tttmp/tool_results/${accountId}/${existingEvent.event_id}.pdf`,
-        });
+        }, 200, request);
       }
 
       // Form tools are free with paid subscription - no token consumption
@@ -7133,7 +7134,7 @@ const ROUTES = [
         tokens_debited: 1,
         token_type: 'tax_game',
         pdf_url: pdfUrl,
-      });
+      }, 200, request);
     },
   },
 
@@ -7355,7 +7356,7 @@ const ROUTES = [
         tokens_remaining: updatedTranscriptTokens,
         tokens_debited: 1,
         token_type: 'transcript',
-      });
+      }, 200, request);
     },
   },
 
@@ -7580,7 +7581,7 @@ const ROUTES = [
         job_id: jobId,
         extracted_data: extractedData,
         preview,
-      });
+      }, 200, request);
     },
   },
 
@@ -8005,7 +8006,7 @@ const ROUTES = [
             ok: true,
             report_id: reportId,
             short_url: linkData.short_url
-          });
+          }, 200, request);
         }
 
         // Create new short link
@@ -8024,7 +8025,7 @@ const ROUTES = [
           ok: true,
           report_id: reportId,
           short_url: shortUrl
-        });
+        }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to generate report link' }, 500, request);
       }
@@ -8208,7 +8209,7 @@ TTMP Support Team
           ok: true,
           report_id: reportId,
           short_url: shortUrl
-        });
+        }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to send report email' }, 500, request);
       }
@@ -8317,7 +8318,7 @@ TTMP Support Team
         return json({
           ok: true,
           prices
-        });
+        }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to fetch transcript pricing' }, 500, request);
       }
@@ -8542,7 +8543,7 @@ TTMP Support Team
           ok: true,
           session_id: checkoutSession.id,
           checkout_url: checkoutSession.url
-        });
+        }, 200, request);
       } catch (e) {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to create checkout session' }, 500, request);
       }
@@ -8817,7 +8818,7 @@ TTMP Support Team
           professionals,
           page,
           total
-        });
+        }, 200, request);
       } catch (error) {
         console.error('Directory listing error:', error);
         return json({
@@ -16358,7 +16359,18 @@ export default {
       return notFound(pathname, request);
     }
 
-    return result.handler(method, result.pattern, result.params, request, env, ctx);
+    const response = await result.handler(method, result.pattern, result.params, request, env, ctx);
+
+    // CORS safety net: if the handler forgot to pass `request` to json(),
+    // getCorsHeaders() defaults to virtuallaunch.pro. Overwrite with the
+    // correct origin so cross-origin callers (TMP, TTMP, etc.) aren't blocked.
+    const incomingOrigin = request.headers.get('Origin') || '';
+    if (ALLOWED_ORIGINS.includes(incomingOrigin)) {
+      const patched = new Response(response.body, response);
+      patched.headers.set('Access-Control-Allow-Origin', incomingOrigin);
+      return patched;
+    }
+    return response;
   },
 
   async scheduled(event, env, ctx) {
