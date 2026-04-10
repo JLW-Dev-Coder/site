@@ -5971,175 +5971,188 @@ const ROUTES = [
       const { session, error } = await requireSession(request, env)
       if (error) return error
 
-      // Only allow VLP admin accounts
       const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
       if (!adminEmails.includes(session.email)) {
         return json({ ok: false, error: 'forbidden' }, 403, request)
       }
 
       const nowIso = new Date().toISOString()
+      const todayKey = nowIso.slice(0, 10)
+      const yesterdayKey = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
 
-      // Read existing R2 objects plus additional ones for expanded dashboard
-      const [email1Obj, email2Obj, sendStateObj, batchHistoryObj, prospectsCSVObj, prospectIndexObj] = await Promise.all([
-        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email1-pending.json'),
-        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email2-pending.json'),
-        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-state.json'),
-        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/batch-history.json'),
+      // Build batch log keys for last 7 days
+      const batchLogKeys = []
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10)
+        batchLogKeys.push('vlp-scale/batch-logs/' + d + '.json')
+      }
+
+      // --- Parallel fetch: 3 pending queues + CSV + 3 sent-archive listings + batch logs ---
+      const [
+        ttmpQueueObj, vlpQueueObj, wlvlpQueueObj,
+        prospectsCSVObj,
+        ttmpSentList, vlpSentList, wlvlpSentList,
+        ...batchLogObjs
+      ] = await Promise.all([
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/ttmp-send-queue/email1-pending.json'),
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/vlp-send-queue/email1-pending.json'),
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/wlvlp-send-queue/email1-pending.json'),
         env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.csv'),
-        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospect-index.json')
+        env.R2_VIRTUAL_LAUNCH.list({ prefix: 'vlp-scale/ttmp-send-queue/sent-' }),
+        env.R2_VIRTUAL_LAUNCH.list({ prefix: 'vlp-scale/vlp-send-queue/sent-' }),
+        env.R2_VIRTUAL_LAUNCH.list({ prefix: 'vlp-scale/wlvlp-send-queue/sent-' }),
+        ...batchLogKeys.map(k => env.R2_VIRTUAL_LAUNCH.get(k)),
       ])
 
-      // Parse objects or use empty fallbacks
-      let email1Queue = []
-      let email2Queue = []
-      let sendState = {}
-      let batchHistory = []
-      let prospectCount = 0
+      // --- Parse pending queues ---
+      async function parseJsonArr(obj) {
+        if (!obj) return []
+        try { const d = await obj.json(); return Array.isArray(d) ? d : [] }
+        catch { return [] }
+      }
+
+      const ttmpQueue = await parseJsonArr(ttmpQueueObj)
+      const vlpQueue = await parseJsonArr(vlpQueueObj)
+      const wlvlpQueue = await parseJsonArr(wlvlpQueueObj)
+      const allPending = [...ttmpQueue, ...vlpQueue, ...wlvlpQueue]
+
+      // --- Count sent records from archives ---
+      async function countSentArchive(sentList, r2) {
+        let total = 0, todayCount = 0, yesterdayCount = 0
+        for (const obj of (sentList.objects || [])) {
+          try {
+            const archiveObj = await r2.get(obj.key)
+            if (!archiveObj) continue
+            const recs = await archiveObj.json()
+            const cnt = Array.isArray(recs) ? recs.length : 0
+            total += cnt
+            if (obj.key.includes('sent-' + todayKey)) todayCount = cnt
+            if (obj.key.includes('sent-' + yesterdayKey)) yesterdayCount = cnt
+          } catch { continue }
+        }
+        return { total, today: todayCount, yesterday: yesterdayCount }
+      }
+
+      const [ttmpSent, vlpSent, wlvlpSent] = await Promise.all([
+        countSentArchive(ttmpSentList, env.R2_VIRTUAL_LAUNCH),
+        countSentArchive(vlpSentList, env.R2_VIRTUAL_LAUNCH),
+        countSentArchive(wlvlpSentList, env.R2_VIRTUAL_LAUNCH),
+      ])
+
+      const totalArchived = ttmpSent.total + vlpSent.total + wlvlpSent.total
+
+      // --- Count per-email-step status (cumulative) ---
+      const statusOrder = ['pending', 'email_1_sent', 'email_2_sent', 'email_3_sent', 'email_4_sent', 'email_5_sent', 'email_6_sent']
+      const sentByEmail = { email_1_sent: 0, email_2_sent: 0, email_3_sent: 0, email_4_sent: 0, email_5_sent: 0, email_6_sent: 0, pending: 0 }
+
+      for (const rec of allPending) {
+        const status = rec.status || 'pending'
+        if (status === 'pending' || status === 'unsubscribed') { sentByEmail.pending++; continue }
+        const match = status.match(/^email_(\d+)_(sent|failed)$/)
+        if (!match) { sentByEmail.pending++; continue }
+        const emailNum = parseInt(match[1])
+        const result = match[2]
+        const sentCount = result === 'sent' ? emailNum : emailNum - 1
+        if (sentCount === 0) { sentByEmail.pending++; continue }
+        for (let i = 1; i <= sentCount; i++) sentByEmail['email_' + i + '_sent']++
+      }
+      // All archived records completed all 6 emails
+      for (let i = 1; i <= 6; i++) sentByEmail['email_' + i + '_sent'] += totalArchived
+
+      // --- Parse pipeline from CSV ---
       let pipeline = null
-
-      try {
-        if (email1Obj) {
-          email1Queue = await email1Obj.json()
-        }
-      } catch (e) {
-        // If JSON parsing fails, use empty array
-        email1Queue = []
-      }
-
-      try {
-        if (email2Obj) {
-          email2Queue = await email2Obj.json()
-        }
-      } catch (e) {
-        // If JSON parsing fails, use empty array
-        email2Queue = []
-      }
-
-      try {
-        if (sendStateObj) {
-          sendState = await sendStateObj.json()
-        }
-      } catch (e) {
-        // If JSON parsing fails, use empty object
-        sendState = {}
-      }
-
-      try {
-        if (batchHistoryObj) {
-          batchHistory = await batchHistoryObj.json()
-        }
-      } catch (e) {
-        batchHistory = []
-      }
-
-      // Parse prospect index for count
-      try {
-        if (prospectIndexObj) {
-          const prospectIndex = await prospectIndexObj.json()
-          prospectCount = Object.keys(prospectIndex).length
-        }
-      } catch (e) {
-        prospectCount = 0
-      }
-
-      // Parse CSV for pipeline stats
       try {
         if (prospectsCSVObj) {
           const csvText = await prospectsCSVObj.text()
-          const lines = csvText.split('\n').filter(line => line.trim())
-
-          if (lines.length > 1) { // Has header + data
-            const header = lines[0].split(',').map(col => col.trim().replace(/"/g, ''))
-
-            // Find column indices
+          const lines = csvText.split('\n').filter(l => l.trim())
+          if (lines.length > 1) {
+            const header = lines[0].split(',').map(c => c.trim().replace(/"/g, ''))
             const emailFoundIdx = header.indexOf('email_found')
             const emailStatusIdx = header.indexOf('email_status')
             const email1PreparedIdx = header.indexOf('email_1_prepared_at')
-
-            let total = 0
-            let eligible = 0
-            let exhausted = 0
-
+            let total = 0, eligible = 0, exhausted = 0
             for (let i = 1; i < lines.length; i++) {
-              const cols = lines[i].split(',').map(col => col.trim().replace(/"/g, ''))
+              const cols = lines[i].split(',').map(c => c.trim().replace(/"/g, ''))
               if (cols.length >= Math.max(emailFoundIdx, emailStatusIdx, email1PreparedIdx) + 1) {
                 total++
-
                 const emailFound = cols[emailFoundIdx] || ''
                 const emailStatus = cols[emailStatusIdx] || ''
                 const email1Prepared = cols[email1PreparedIdx] || ''
-
-                if (email1Prepared) {
-                  exhausted++
-                } else if (emailFound && emailStatus !== 'invalid') {
-                  eligible++
-                }
+                if (email1Prepared) exhausted++
+                else if (emailFound && emailStatus !== 'invalid') eligible++
               }
             }
-
-            const daysRemaining = eligible > 0 ? Math.ceil(eligible / 50) : 0
-            pipeline = { total, eligible, exhausted, days_remaining: daysRemaining }
+            pipeline = { total, eligible, exhausted, days_remaining: eligible > 0 ? Math.ceil(eligible / 50) : 0 }
           }
         }
-      } catch (e) {
-        // If CSV parsing fails, leave pipeline as null
-        pipeline = null
-      }
+      } catch { pipeline = null }
 
-      // Aggregate responses from vlp-scale/responses/ prefix
+      // --- Parse batch logs (last 7 days) ---
+      const batchHistory = []
+      for (const obj of batchLogObjs) {
+        if (!obj) continue
+        try {
+          const log = await obj.json()
+          batchHistory.push({
+            date: log.date || '',
+            batch_size: log.batch_size || 0,
+            routed_ttmp: log.routed_ttmp || 0,
+            routed_vlp: log.routed_vlp || 0,
+            routed_wlvlp: log.routed_wlvlp || 0,
+            queue_sizes: log.queue_sizes || {},
+          })
+        } catch { continue }
+      }
+      batchHistory.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+
+      // --- Aggregate responses from vlp-scale/responses/ prefix ---
       const responses = {
         bookings: { created: 0, cancelled: 0, rescheduled: 0, paid: 0, no_show: 0 },
         purchases: { count: 0, total_revenue: 0 }
       }
-
       try {
-        const responsesList = await env.R2_VIRTUAL_LAUNCH.list({
-          prefix: 'vlp-scale/responses/'
-        })
-
-        if (responsesList.objects) {
-          for (const obj of responsesList.objects) {
-            try {
-              const responseObj = await env.R2_VIRTUAL_LAUNCH.get(obj.key)
-              if (responseObj) {
-                const data = await responseObj.json()
-
-                if (obj.key.includes('/bookings/')) {
-                  // Booking event
-                  const eventType = data.event_type || data.raw_trigger || ''
-                  if (eventType.includes('CREATED')) responses.bookings.created++
-                  else if (eventType.includes('CANCELLED')) responses.bookings.cancelled++
-                  else if (eventType.includes('RESCHEDULED')) responses.bookings.rescheduled++
-                  else if (eventType.includes('PAID')) responses.bookings.paid++
-                  else if (eventType.includes('NO_SHOW')) responses.bookings.no_show++
-                } else if (obj.key.includes('/purchases/')) {
-                  // Purchase event
-                  responses.purchases.count++
-                  if (data.amount) {
-                    responses.purchases.total_revenue += data.amount
-                  }
-                }
-              }
-            } catch (e) {
-              // Skip individual response files that fail to parse
-              continue
+        const responsesList = await env.R2_VIRTUAL_LAUNCH.list({ prefix: 'vlp-scale/responses/' })
+        for (const obj of (responsesList.objects || [])) {
+          try {
+            const rObj = await env.R2_VIRTUAL_LAUNCH.get(obj.key)
+            if (!rObj) continue
+            const data = await rObj.json()
+            if (obj.key.includes('/bookings/')) {
+              const et = data.event_type || data.raw_trigger || ''
+              if (et.includes('CREATED')) responses.bookings.created++
+              else if (et.includes('CANCELLED')) responses.bookings.cancelled++
+              else if (et.includes('RESCHEDULED')) responses.bookings.rescheduled++
+              else if (et.includes('PAID')) responses.bookings.paid++
+              else if (et.includes('NO_SHOW')) responses.bookings.no_show++
+            } else if (obj.key.includes('/purchases/')) {
+              responses.purchases.count++
+              if (data.amount) responses.purchases.total_revenue += data.amount
             }
-          }
+          } catch { continue }
         }
-      } catch (e) {
-        // If responses aggregation fails, use zeroed counts (already set above)
-      }
+      } catch {}
 
+      // --- Build response ---
       return json({
-        email1_queue: email1Queue,
-        email2_queue: email2Queue,
-        send_state: sendState,
+        pipeline: pipeline ? {
+          ...pipeline,
+          queued: {
+            ttmp: ttmpQueue.length,
+            vlp: vlpQueue.length,
+            wlvlp: wlvlpQueue.length,
+            all: allPending.length,
+          },
+          sent: {
+            ttmp: { total: ttmpSent.total, today: ttmpSent.today, yesterday: ttmpSent.yesterday },
+            vlp: { total: vlpSent.total, today: vlpSent.today, yesterday: vlpSent.yesterday },
+            wlvlp: { total: wlvlpSent.total, today: wlvlpSent.today, yesterday: wlvlpSent.yesterday },
+            all: totalArchived,
+          },
+          sent_by_email: sentByEmail,
+        } : null,
         batch_history: batchHistory,
-        pipeline: pipeline,
-        prospect_count: prospectCount,
         responses: responses,
-        analytics: null,
-        fetched_at: nowIso
+        fetched_at: nowIso,
       }, 200, request)
     },
   },

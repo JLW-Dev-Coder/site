@@ -20,31 +20,37 @@ function Tooltip({ text }: { text: string }) {
 // ---------------------------------------------------------------------------
 // Types — SCALE Pipeline (existing /v1/scale/dashboard)
 // ---------------------------------------------------------------------------
+interface CampaignSent {
+  total: number
+  today: number
+  yesterday: number
+}
+
 interface Pipeline {
   total: number
   eligible: number
   exhausted: number
   days_remaining: number
-}
-
-interface QueueRecord {
-  email: string
-  slug: string
-  name: string
-  subject: string
-  body: string
-  queued_at?: string
-  email_1_sent_at?: string
-  email_2_sent_at?: string
-  email_2_scheduled_for?: string
-  status?: string
+  queued: { ttmp: number; vlp: number; wlvlp: number; all: number }
+  sent: { ttmp: CampaignSent; vlp: CampaignSent; wlvlp: CampaignSent; all: number }
+  sent_by_email: {
+    email_1_sent: number
+    email_2_sent: number
+    email_3_sent: number
+    email_4_sent: number
+    email_5_sent: number
+    email_6_sent: number
+    pending: number
+  }
 }
 
 interface BatchHistory {
   date: string
-  record_count: number
-  email1_pushed: number
-  asset_pages_pushed: number
+  batch_size: number
+  routed_ttmp: number
+  routed_vlp: number
+  routed_wlvlp: number
+  queue_sizes: Record<string, number>
 }
 
 interface Responses {
@@ -62,9 +68,7 @@ interface Responses {
 }
 
 interface DashboardData {
-  email1_queue: QueueRecord[]
-  email2_queue: QueueRecord[]
-  pipeline: Pipeline
+  pipeline: Pipeline | null
   batch_history: BatchHistory[] | null
   responses: Responses
   fetched_at: string
@@ -474,36 +478,6 @@ function SummaryStat({ label, value, accent }: { label: string; value: string; a
 }
 
 // ---------------------------------------------------------------------------
-// Action buttons — manual /internal/test-* triggers (placeholders for now)
-// ---------------------------------------------------------------------------
-const PIPELINE_ACTIONS: Array<{ label: string; endpoint: string }> = [
-  { label: 'Run Enrichment', endpoint: 'POST /internal/test-enrichment' },
-  { label: 'Run Daily Batch', endpoint: 'POST /internal/test-daily-batch' },
-  { label: 'Run TTMP Send', endpoint: 'POST /internal/test-ttmp-send' },
-  { label: 'Run VLP Send', endpoint: 'POST /internal/test-vlp-send' },
-]
-
-function PipelineActionButtons() {
-  return (
-    <div className={styles.actionButtonRow}>
-      {PIPELINE_ACTIONS.map((a) => (
-        <button
-          key={a.endpoint}
-          type="button"
-          className={styles.actionButton}
-          title="Manual trigger — requires INTERNAL_TEST_KEY"
-          aria-disabled
-          disabled
-        >
-          <span>{a.label}</span>
-          <span className={styles.actionButtonBadge}>Soon</span>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Glass card wrapper
 // ---------------------------------------------------------------------------
 function GlassCard({ children, className = '' }: { children: React.ReactNode; className?: string }) {
@@ -567,17 +541,38 @@ function PipelineView({
 }) {
   const memberships = stats?.paid_accounts ?? 0
   const purchases = data?.responses?.purchases?.count ?? 0
-  const email1Sent = (data?.email1_queue ?? []).filter((r) => r.email_1_sent_at).length
-  const email1Queued = (data?.email1_queue ?? []).length
-  const email2Queued = (data?.email2_queue ?? []).length
-  const eligible = data?.pipeline?.eligible ?? 0
-  const daysRemaining = data?.pipeline?.days_remaining ?? 0
-  const totalSent = email1Sent + (data?.email2_queue ?? []).filter((r) => r.email_2_sent_at).length
-  const funnelMax = Math.max(eligible, email1Queued + email2Queued, totalSent, 1)
+  const p = data?.pipeline
+  const eligible = p?.eligible ?? 0
+  const daysRemaining = p?.days_remaining ?? 0
+  const queued = p?.queued?.all ?? 0
+  const sentAll = p?.sent?.all ?? 0
+  const sentEmail1 = p?.sent_by_email?.email_1_sent ?? 0
+  const funnelMax = Math.max(eligible, queued, sentEmail1, 1)
+
+  const sentToday = (p?.sent?.ttmp?.today ?? 0) + (p?.sent?.vlp?.today ?? 0) + (p?.sent?.wlvlp?.today ?? 0)
+  const sentYesterday = (p?.sent?.ttmp?.yesterday ?? 0) + (p?.sent?.vlp?.yesterday ?? 0) + (p?.sent?.wlvlp?.yesterday ?? 0)
 
   const sortedBatches = data?.batch_history && data.batch_history.length > 0
-    ? [...data.batch_history].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    ? [...data.batch_history].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
     : []
+
+  // Per-email progress bar data
+  const emailSteps = p?.sent_by_email
+  const pendingCount = emailSteps?.pending ?? 0
+  const stepData = [
+    { label: 'Email 1', count: emailSteps?.email_1_sent ?? 0, color: '#3b82f6' },
+    { label: 'Email 2', count: emailSteps?.email_2_sent ?? 0, color: '#6366f1' },
+    { label: 'Email 3', count: emailSteps?.email_3_sent ?? 0, color: '#8b5cf6' },
+    { label: 'Email 4', count: emailSteps?.email_4_sent ?? 0, color: '#a78bfa' },
+    { label: 'Email 5', count: emailSteps?.email_5_sent ?? 0, color: '#c4b5fd' },
+    { label: 'Email 6', count: emailSteps?.email_6_sent ?? 0, color: '#ddd6fe' },
+  ]
+  // Show non-cumulative counts for the bar (how many at exactly this step)
+  const stepBar = stepData.map((s, i) => ({
+    ...s,
+    segment: i < stepData.length - 1 ? s.count - stepData[i + 1].count : s.count,
+  }))
+  const barTotal = (stepData[0]?.count ?? 0) + pendingCount
 
   if (loading) {
     return (
@@ -601,15 +596,15 @@ function PipelineView({
 
   return (
     <div className="space-y-6">
-      {/* Row 1: EMAILS — 2 glass cards */}
+      {/* Row 1: EMAIL PIPELINE + BATCH HISTORY */}
       <div className="grid gap-6 sm:grid-cols-2">
         {/* Email Pipeline funnel */}
         <GlassCard>
           <GlassCardTitle>Email Pipeline</GlassCardTitle>
           <div className={styles.funnelContainer}>
             <FunnelBar label="Eligible" value={eligible} max={funnelMax} color="linear-gradient(to right, #f97316, #f59e0b)" />
-            <FunnelBar label="Queued" value={email1Queued + email2Queued} max={funnelMax} color="linear-gradient(to right, #3b82f6, #6366f1)" />
-            <FunnelBar label="Sent" value={totalSent} max={funnelMax} color="linear-gradient(to right, #22c55e, #14b8a6)" />
+            <FunnelBar label="Queued" value={queued} max={funnelMax} color="linear-gradient(to right, #3b82f6, #6366f1)" />
+            <FunnelBar label="Sent" value={sentEmail1} max={funnelMax} color="linear-gradient(to right, #22c55e, #14b8a6)" />
           </div>
           <div className={styles.funnelStats}>
             <div className={styles.funnelStatItem}>
@@ -619,13 +614,21 @@ function PipelineView({
               </span>
             </div>
             <div className={styles.funnelStatItem}>
-              <span className={styles.funnelStatLabel}>Email 1 Queue</span>
-              <span className={styles.funnelStatValue}>{email1Queued}</span>
+              <span className={styles.funnelStatLabel}>Completed</span>
+              <span className={styles.funnelStatValue}>{sentAll}</span>
             </div>
             <div className={styles.funnelStatItem}>
-              <span className={styles.funnelStatLabel}>Email 2 Queue</span>
-              <span className={styles.funnelStatValue}>{email2Queued}</span>
+              <span className={styles.funnelStatLabel}>Pending</span>
+              <span className={styles.funnelStatValue}>{pendingCount}</span>
             </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-white/5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
+            <span>Today: {sentToday}</span>
+            <span>Yesterday: {sentYesterday}</span>
+            <span className="text-slate-600">|</span>
+            <span>TTMP: {p?.sent?.ttmp?.total ?? 0}</span>
+            <span>VLP: {p?.sent?.vlp?.total ?? 0}</span>
+            <span>WLVLP: {p?.sent?.wlvlp?.total ?? 0}</span>
           </div>
         </GlassCard>
 
@@ -637,19 +640,21 @@ function PipelineView({
               <table className={styles.glassTable}>
                 <thead>
                   <tr>
-                    <th>Batch Date</th>
-                    <th>Records</th>
-                    <th>Email 1</th>
-                    <th>Pages</th>
+                    <th>Date</th>
+                    <th>Batch</th>
+                    <th>TTMP</th>
+                    <th>VLP</th>
+                    <th>WLVLP</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedBatches.map((batch, i) => (
                     <tr key={i}>
-                      <td>{new Date(batch.date).toLocaleDateString()}</td>
-                      <td>{batch.record_count.toLocaleString()}</td>
-                      <td>{batch.email1_pushed.toLocaleString()}</td>
-                      <td>{batch.asset_pages_pushed.toLocaleString()}</td>
+                      <td>{new Date(batch.date + 'T00:00:00').toLocaleDateString()}</td>
+                      <td>{(batch.batch_size ?? 0).toLocaleString()}</td>
+                      <td>{(batch.routed_ttmp ?? 0).toLocaleString()}</td>
+                      <td>{(batch.routed_vlp ?? 0).toLocaleString()}</td>
+                      <td>{(batch.routed_wlvlp ?? 0).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -661,9 +666,46 @@ function PipelineView({
         </GlassCard>
       </div>
 
+      {/* Row 1b: Per-email cadence progress */}
+      {emailSteps && barTotal > 0 && (
+        <GlassCard>
+          <GlassCardTitle>Email Cadence Progress</GlassCardTitle>
+          {/* Stacked horizontal bar */}
+          <div className="flex h-6 rounded-md overflow-hidden bg-white/5 mt-2">
+            {stepBar.map((s, i) => s.segment > 0 ? (
+              <div
+                key={i}
+                title={`${s.label}: ${s.segment.toLocaleString()}`}
+                style={{ width: `${(s.segment / barTotal) * 100}%`, backgroundColor: s.color }}
+                className="transition-all duration-500"
+              />
+            ) : null)}
+            {pendingCount > 0 && (
+              <div
+                title={`Pending: ${pendingCount.toLocaleString()}`}
+                style={{ width: `${(pendingCount / barTotal) * 100}%` }}
+                className="bg-slate-700 transition-all duration-500"
+              />
+            )}
+          </div>
+          {/* Legend */}
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 text-xs text-slate-400">
+            {stepBar.map((s) => (
+              <span key={s.label} className="flex items-center gap-1.5">
+                <span className="inline-block w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: s.color }} />
+                {s.label}: {s.count.toLocaleString()}
+              </span>
+            ))}
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-2.5 h-2.5 rounded-sm bg-slate-700" />
+              Pending: {pendingCount.toLocaleString()}
+            </span>
+          </div>
+        </GlassCard>
+      )}
+
       {/* Row 2: PAGES + SALES */}
       <div className="grid gap-6 sm:grid-cols-2">
-        {/* Site Analytics */}
         <GlassCard>
           <GlassCardTitle>Site Analytics</GlassCardTitle>
           <div className={styles.kpiRow}>
@@ -676,7 +718,6 @@ function PipelineView({
           </div>
         </GlassCard>
 
-        {/* Revenue */}
         <GlassCard>
           <GlassCardTitle>Revenue</GlassCardTitle>
           <div className={styles.kpiRow}>
@@ -686,7 +727,7 @@ function PipelineView({
         </GlassCard>
       </div>
 
-      {/* Row 3: BOOKINGS + FORMS (placeholder) */}
+      {/* Row 3: BOOKINGS + FORMS */}
       <div className="grid gap-6 sm:grid-cols-2">
         <GlassCard>
           <GlassCardTitle>Bookings</GlassCardTitle>
@@ -711,7 +752,7 @@ function PipelineView({
               <svg className="w-8 h-8 text-slate-600 mb-2" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span className={styles.glassCardMuted}>Connect Cal.com API to display booking analytics</span>
+              <span className={styles.glassCardMuted}>Loading booking data...</span>
             </div>
           )}
         </GlassCard>
@@ -725,178 +766,6 @@ function PipelineView({
             <span className={styles.glassCardMuted}>No form submission tracking wired yet</span>
           </div>
         </GlassCard>
-      </div>
-
-      {/* Pipeline overview cards (existing) */}
-      {data?.pipeline && (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-              Total Prospects
-              <Tooltip text="Total rows in the master prospect CSV, including those with and without valid email addresses." />
-            </div>
-            <div className="mt-2 text-3xl font-bold text-white">
-              {(data.pipeline.total ?? 0).toLocaleString()}
-            </div>
-          </Card>
-
-          <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-              Eligible
-              <Tooltip text="Prospects with a valid email address who haven't had Email 1 prepared yet." />
-            </div>
-            <div className={`mt-2 text-3xl font-bold ${eligible < 50 ? styles.statusRed : eligible < 100 ? styles.statusYellow : styles.statusGreen}`}>
-              {eligible.toLocaleString()}
-            </div>
-          </Card>
-
-          <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-              Email 1 Prepared
-              <Tooltip text="Prospects who have had Email 1 copy generated and queued for delivery." />
-            </div>
-            <div className="mt-2 text-3xl font-bold text-white">
-              {(data.pipeline.exhausted ?? 0).toLocaleString()}
-            </div>
-          </Card>
-
-          <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-              Days Remaining
-              <Tooltip text="Estimated days until eligible prospects run out, based on 50 per batch." />
-            </div>
-            <div className={`mt-2 text-3xl font-bold ${daysRemaining < 7 ? styles.statusRed : daysRemaining <= 14 ? styles.statusYellow : styles.statusGreen}`}>
-              {daysRemaining}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Send queue status */}
-      {data && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-              Email 1 Queue
-              <Tooltip text="Total Email 1 messages pushed to the R2 send queue across all batches." />
-            </div>
-            <div className="mt-2 text-3xl font-bold text-white">
-              {email1Queued.toLocaleString()}
-            </div>
-            <div className="mt-4 space-y-2">
-              {email1Queued === 0 ? (
-                <div className="text-slate-500 text-center py-4">No emails in queue</div>
-              ) : (
-                <>
-                  {(data.email1_queue ?? []).slice(0, 10).map((record, i) => (
-                    <div key={i} className={styles.queueRecord}>
-                      <span className="text-slate-200">{record.name}</span>
-                      <span className="text-xs text-slate-500">{record.email}</span>
-                      <span className={record.email_1_sent_at ? styles.statusSent : styles.statusPending}>
-                        {record.email_1_sent_at ? 'Sent' : 'Pending'}
-                      </span>
-                    </div>
-                  ))}
-                  {email1Queued > 10 && (
-                    <div className="text-xs text-slate-500">+{email1Queued - 10} more</div>
-                  )}
-                </>
-              )}
-            </div>
-          </Card>
-
-          <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-              Email 2 Queue
-              <Tooltip text="Prospects scheduled for Email 2 follow-up, typically 2-3 days after Email 1." />
-            </div>
-            <div className="mt-2 text-3xl font-bold text-white">
-              {email2Queued.toLocaleString()}
-            </div>
-            <div className="mt-4 space-y-2">
-              {email2Queued === 0 ? (
-                <div className="text-slate-500 text-center py-4">No emails in queue</div>
-              ) : (
-                <>
-                  {(data.email2_queue ?? []).slice(0, 10).map((record, i) => (
-                    <div key={i} className={styles.queueRecord}>
-                      <span className="text-slate-200">{record.name}</span>
-                      <span className="text-xs text-slate-500">{record.email}</span>
-                      <span className={record.email_2_sent_at ? styles.statusSent : record.email_2_scheduled_for ? styles.statusScheduled : styles.statusWaiting}>
-                        {record.email_2_sent_at ? 'Sent' : record.email_2_scheduled_for ? 'Scheduled' : 'Waiting'}
-                      </span>
-                    </div>
-                  ))}
-                  {email2Queued > 10 && (
-                    <div className="text-xs text-slate-500">+{email2Queued - 10} more</div>
-                  )}
-                </>
-              )}
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Response tracking */}
-      {data && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-              Bookings
-              <Tooltip text="Cal.com discovery call bookings attributed to SCALE prospects via the slug parameter." />
-            </div>
-            <div className="mt-4 grid grid-cols-2 gap-4">
-              <div>
-                <div className="text-lg font-bold text-white">{data.responses?.bookings?.created ?? 0}</div>
-                <div className="text-xs text-slate-500">Created</div>
-              </div>
-              <div>
-                <div className="text-lg font-bold text-white">{data.responses?.bookings?.cancelled ?? 0}</div>
-                <div className="text-xs text-slate-500">Cancelled</div>
-              </div>
-              <div>
-                <div className="text-lg font-bold text-white">{data.responses?.bookings?.rescheduled ?? 0}</div>
-                <div className="text-xs text-slate-500">Rescheduled</div>
-              </div>
-              <div>
-                <div className="text-lg font-bold text-white">{data.responses?.bookings?.no_show ?? 0}</div>
-                <div className="text-xs text-slate-500">No Show</div>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-slate-800">
-              <div className="text-2xl font-bold text-emerald-400">{data.responses?.bookings?.paid ?? 0}</div>
-              <div className="text-xs text-slate-400">Paid Conversions</div>
-            </div>
-          </Card>
-
-          <Card>
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 flex items-center gap-1">
-              Purchases
-              <Tooltip text="Stripe token purchases attributed to SCALE prospects by matching buyer email." />
-            </div>
-            {purchases > 0 ? (
-              <div className="mt-4">
-                <div className="text-2xl font-bold text-emerald-400">
-                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(data?.responses?.purchases?.total_revenue ?? 0)}
-                </div>
-                <div className="text-xs text-slate-400 mt-1">
-                  {purchases} purchase{purchases !== 1 ? 's' : ''}
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4">
-                <div className="text-lg font-bold text-slate-500">$0.00</div>
-                <div className="text-xs text-slate-500">No SCALE-attributed purchases yet</div>
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
-
-      {/* Manual trigger buttons — at the bottom */}
-      <div>
-        <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-3">Manual Triggers</div>
-        <PipelineActionButtons />
       </div>
     </div>
   )
