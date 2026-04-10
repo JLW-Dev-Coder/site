@@ -1,5 +1,7 @@
 # canonical-contract.json
 
+_canonical: This is the required structure for all contract files across all 8 VLP ecosystem repos. Every section below is mandatory. See CLAUDE.md 'Canonicals Enforcement' for rules.
+
 Required top-level sections (all 7 must be present):
 - auth: required, trustClientIdentityFields, type
 - contract: authority, governs, path, source, title, usedOnPages, validation, version

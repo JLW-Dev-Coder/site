@@ -68,3 +68,38 @@
 
 ## 16. Related Systems / Repos
 - Paths, responsibilities, boundaries
+
+## 17. Canonicals Enforcement (mandatory on every task)
+
+Before writing any file, check whether the file type has a canonical template.
+Canonical templates live in `.claude/canonicals/` in the VLP repo and define
+the required structure for each file type across all 8 repos.
+
+| File type | Canonical template | Check before... |
+|-----------|-------------------|-----------------|
+| CLAUDE.md | canonical-claude.md | Editing any CLAUDE.md |
+| Contract JSON | canonical-contract.json | Creating or modifying any contract |
+| Contract registry | canonical-contract-registry.json | Adding registry entries |
+| index.html (landing) | canonical-index.html | Creating landing pages |
+| MARKET.md | canonical-market.md | Editing marketing copy |
+| README.md | canonical-readme.md | Editing any README |
+| ROLES.md | canonical-roles.md | Editing role definitions |
+| SCALE.md | canonical-scale.md | Editing pipeline docs |
+| SKILL.md | canonical-skill.md | Editing skill files |
+| STYLE.md | canonical-style.md | Editing style guides |
+| Workflow docs | canonical-workflow.md | Editing workflow docs |
+| wrangler.toml | canonical-wrangler.toml | Editing Worker config |
+
+### Rules
+1. If a canonical exists for the file type, read it BEFORE making changes
+2. The output must contain every required section listed in the canonical
+3. If the canonical defines required keys (e.g., `usedOnPages` in contracts),
+   those keys must be present — never omit them
+4. If a task would create a new file type not covered by a canonical,
+   stop and report to Principal Engineer before proceeding
+5. After completing the task, verify the output against the canonical checklist
+
+### Cross-repo canonical source of truth
+Canonical templates live in the VLP repo only (`virtuallaunch.pro/.claude/canonicals/`).
+Other repos reference them via their CLAUDE.md but do not maintain local copies.
+The Principal Engineer is responsible for ensuring compliance across all 8 repos.

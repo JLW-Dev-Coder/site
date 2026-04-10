@@ -156,3 +156,17 @@ Confirm each item before marking done:
 - [ ] No PII written to KV
 - [ ] Response does not expose stack traces or internal IDs
 - [ ] CORS header locked to `https://virtuallaunch.pro`
+
+## Step 7 — Canonical validation (mandatory)
+
+Before committing, verify the new contract against canonical-contract.json:
+- [ ] All 7 sections present (auth, contract, delivery, effects, payload, response, schema)
+- [ ] `contract.path` matches actual file path
+- [ ] `contract.usedOnPages` is populated (not empty array)
+- [ ] `delivery.endpoint` is absolute URL format
+- [ ] `effects.writeOrder` lists receiptAppend before canonicalUpsert
+- [ ] `response` has success, error, and deduped shapes
+- [ ] `schema.name` and `schema.version` present
+- [ ] Entry added to platform registry AND contract-registry.json
+
+If any check fails, fix before committing. Do not skip.
