@@ -687,6 +687,40 @@ function ProfilePreview({ form }: { form: FormData }) {
 const PROFILE_COMPLETED_KEY = 'vlp_profile_completed'
 const DRAFT_KEY = 'vlp_onboarding_draft'
 
+function mapProfileToForm(profile: Record<string, unknown>): Partial<FormData> {
+  const s = (v: unknown) => (typeof v === 'string' ? v : '')
+  const a = (v: unknown) => (Array.isArray(v) ? v : [])
+  return {
+    fullName: s(profile.fullName) || s(profile.displayName),
+    initials: s(profile.initials),
+    bioShort: s(profile.bioShort),
+    yearsExperience: s(profile.yearsExperience),
+    state: s(profile.state),
+    city: s(profile.city),
+    firmName: s(profile.firmName),
+    professions: a(profile.professions),
+    otherProfession: s(profile.otherProfession),
+    aboutHeading: s(profile.aboutHeading) || 'About Me',
+    bio1: s(profile.bio1),
+    bio2: s(profile.bio2),
+    bio3: s(profile.bio3),
+    servicesHeading: s(profile.servicesHeading) || 'Services',
+    primaryService: s(profile.primaryService),
+    additionalServices: a(profile.additionalServices),
+    credentialsHeading: s(profile.credentialsHeading) || 'Credentials',
+    primaryCredential: s(profile.primaryCredential),
+    additionalCredentials: s(profile.additionalCredentials),
+    email: s(profile.email),
+    phone: s(profile.phone),
+    languages: a(profile.languages),
+    availabilityText: s(profile.availabilityText),
+    weeklyAvailability: profile.weeklyAvailability && typeof profile.weeklyAvailability === 'object'
+      ? (profile.weeklyAvailability as FormData['weeklyAvailability'])
+      : defaultAvailability,
+    calBookingUrl: s(profile.calBookingUrl),
+  }
+}
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(0)
@@ -698,16 +732,40 @@ export default function OnboardingPage() {
   const [isFirstSignin, setIsFirstSignin] = useState(false)
   const [savedProfileId, setSavedProfileId] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [existingProfileId, setExistingProfileId] = useState<string | null>(null)
+  const [loadingProfile, setLoadingProfile] = useState(true)
 
-  // Load saved draft on mount
+  // Load existing profile from API (priority) or fall back to localStorage draft
   useEffect(() => {
-    const draft = localStorage.getItem(DRAFT_KEY)
-    if (draft) {
-      try {
-        const parsed = JSON.parse(draft)
-        setForm((prev) => ({ ...prev, ...parsed }))
-      } catch { /* ignore corrupt draft */ }
+    async function loadProfile() {
+      const profId = localStorage.getItem('vlp_professional_id')
+      if (profId) {
+        try {
+          const res = await fetch(`https://api.virtuallaunch.pro/v1/profiles/${profId}`, { credentials: 'include' })
+          if (res.ok) {
+            const data = await res.json()
+            if (data.ok && data.profile) {
+              setForm((prev) => ({ ...prev, ...mapProfileToForm(data.profile) }))
+              setIsEditing(true)
+              setExistingProfileId(profId)
+              setLoadingProfile(false)
+              return
+            }
+          }
+        } catch { /* fall through to draft */ }
+      }
+      // No server profile — fall back to localStorage draft
+      const draft = localStorage.getItem(DRAFT_KEY)
+      if (draft) {
+        try {
+          const parsed = JSON.parse(draft)
+          setForm((prev) => ({ ...prev, ...parsed }))
+        } catch { /* ignore corrupt draft */ }
+      }
+      setLoadingProfile(false)
     }
+    loadProfile()
   }, [])
 
   // Auto-save form to localStorage (debounced 300ms)
@@ -761,7 +819,6 @@ export default function OnboardingPage() {
     setSaving(true)
     setError(null)
     try {
-      // Required fields gate — must match backend POST /v1/profiles
       const displayName = form.fullName.trim()
       if (!displayName) {
         setError('Full name is required.')
@@ -769,28 +826,46 @@ export default function OnboardingPage() {
         setSaving(false)
         return
       }
-      // Derive a deterministic professionalId from the display name
-      const slug = displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-      const professionalId = `pro-${slug}-${Math.random().toString(36).slice(2, 8)}`
-
       const availabilityText = deriveAvailabilityText(form.weeklyAvailability)
-      const res = await fetch('https://api.virtuallaunch.pro/v1/profiles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ ...form, professionalId, displayName, availabilityText }),
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        setError((data as { message?: string }).message || 'Save failed. Please try again.')
-        return
+
+      if (isEditing && existingProfileId) {
+        // Update existing profile via PATCH
+        const res = await fetch(`https://api.virtuallaunch.pro/v1/profiles/${existingProfileId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ ...form, displayName, availabilityText }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          setError((data as { message?: string }).message || 'Update failed. Please try again.')
+          return
+        }
+        localStorage.setItem(PROFILE_COMPLETED_KEY, '1')
+        localStorage.removeItem(DRAFT_KEY)
+        setSavedProfileId(existingProfileId)
+      } else {
+        // Create new profile via POST
+        const slug = displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+        const professionalId = `pro-${slug}-${Math.random().toString(36).slice(2, 8)}`
+        const res = await fetch('https://api.virtuallaunch.pro/v1/profiles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ ...form, professionalId, displayName, availabilityText }),
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          setError((data as { message?: string }).message || 'Save failed. Please try again.')
+          return
+        }
+        const data = await res.json().catch(() => ({})) as { profile?: { professionalId?: string } }
+        const savedId = data.profile?.professionalId || professionalId
+        localStorage.setItem(PROFILE_COMPLETED_KEY, '1')
+        localStorage.setItem('vlp_professional_id', savedId)
+        localStorage.removeItem(DRAFT_KEY)
+        setSavedProfileId(savedId)
       }
-      const data = await res.json().catch(() => ({})) as { profile?: { professionalId?: string } }
-      const savedId = data.profile?.professionalId || professionalId
-      localStorage.setItem(PROFILE_COMPLETED_KEY, '1')
-      localStorage.setItem('vlp_professional_id', savedId)
-      localStorage.removeItem(DRAFT_KEY)
-      setSavedProfileId(savedId)
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -889,10 +964,16 @@ export default function OnboardingPage() {
   return (
     <div className={wrapperClass}>
     <div className={innerClass}>
+      {isEditing && !loadingProfile && (
+        <div className="mb-4 rounded-xl border border-teal-500/30 bg-teal-500/5 px-4 py-2.5">
+          <p className="text-sm text-teal-300">Editing your saved profile</p>
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-white">Directory Profile</h1>
-          <p className="mt-1 text-sm text-slate-400">Build your public Tax Monitor network profile.</p>
+          <p className="mt-1 text-sm text-slate-400">{isEditing ? 'Update your public Tax Monitor network profile.' : 'Build your public Tax Monitor network profile.'}</p>
         </div>
         {isFirstSignin && (
           <button
@@ -955,7 +1036,7 @@ export default function OnboardingPage() {
                 disabled={saving}
                 className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-6 py-2.5 text-sm font-bold text-slate-950 hover:from-orange-400 hover:to-amber-400 transition disabled:opacity-60"
               >
-                {saving ? 'Saving…' : 'Save Profile'}
+                {saving ? 'Saving…' : isEditing ? 'Update Profile' : 'Save Profile'}
               </button>
             )}
           </div>
