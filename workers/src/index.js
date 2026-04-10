@@ -131,7 +131,7 @@ function getCorsHeaders(request) {
     : 'https://virtuallaunch.pro';
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, Cookie',
     'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400',
@@ -8733,7 +8733,8 @@ TTMP Support Team
       const page = Math.max(1, Math.min(100, parseInt(url.searchParams.get('page')) || 1));
 
       // Build query
-      let query = `SELECT professional_id, display_name, bio, specialties, cal_booking_url, city, state, zip
+      let query = `SELECT professional_id, display_name, bio, specialties, profession, phone,
+                          cal_booking_url, availability_text, website, firm_name, city, state, zip
                    FROM profiles
                    WHERE status = 'active'`;
       const params = [];
@@ -8800,7 +8801,12 @@ TTMP Support Team
           display_name: prof.display_name,
           bio: prof.bio ? prof.bio.substring(0, 200) : null,
           specialties: prof.specialties,
+          profession: prof.profession || null,
+          phone: prof.phone || null,
           cal_booking_url: prof.cal_booking_url,
+          availability_text: prof.availability_text || null,
+          website: prof.website || null,
+          firm_name: prof.firm_name || null,
           city: prof.city,
           state: prof.state,
           zip: prof.zip
