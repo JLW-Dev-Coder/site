@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-08
+Last updated: 2026-04-10
 
 ---
 
@@ -758,6 +758,89 @@ footer with physical mailing address and a per-recipient unsubscribe link.
 - **Router skip:** `handleDailyBatchGeneration` filters out records where `unsubscribed_at` is set when building the eligibility list.
 - **Footer generation:** `canspamTtmpFooter`, `canspamVlpFooter`, `canspamWlvlpFooter` in `workers/src/index.js`. Appended to all 6 email bodies inside `buildTtmpQueueRecord` / `buildVlpQueueRecord` / `buildWlvlpQueueRecord`. The standalone `scale/build-ttmp-batch.js` builder applies the same footer.
 - **One-shot backfill route:** `POST /internal/backfill-canspam-footer` (requires `X-Internal-Key`) — idempotently appends the footer to any queue record body that doesn't already contain `1175 Avocado Avenue`.
+
+## 22. Member App
+
+### Overview
+
+The member app is the authenticated dashboard experience for VLP members. It lives under the `(member)` Next.js route group at `web/app/(member)/`. All routes require auth via `vlp_session` cookie (enforced by middleware + `requireAuth()` in the layout).
+
+### Layout
+
+- **Sidebar:** 280px fixed width, scrollable nav — `web/components/member/MemberSidebar.tsx`
+- **Topbar:** 80px fixed height, search + notifications + help + avatar dropdown — `web/components/member/MemberTopbar.tsx`
+- **Layout:** `web/app/(member)/layout.tsx` — wraps all member pages
+- **Background:** `#0a0e27` (Canva-adapted dark theme with VLP orange accents)
+- **Icons:** lucide-react
+
+### Sidebar structure
+
+```
+WORKSPACE
+  Dashboard        /dashboard
+  Analytics        /analytics
+  Calendar         /calendar
+  Inquiries        /inquiries
+  Reports          /reports
+  Tokens           /tokens
+
+EARNINGS
+  Affiliate        /affiliate
+  Client Pool      /client-pool (expandable → Client Record)
+  Payouts          /payouts
+
+SETUP
+  Account          /account (sub: Payments → /account/payments)
+  Profile          /profile (sub: Onboarding → /profile/onboarding, Preview → /profile/preview)
+  Support          /support
+  Usage            /usage
+
+SETTINGS (footer)
+  Account, Profile, Back to site, Sign out
+```
+
+### Routes (17 pages)
+
+| Path | Page | Status |
+|------|------|--------|
+| `/dashboard` | Dashboard | Shell |
+| `/analytics` | Analytics | Shell |
+| `/calendar` | Calendar | Shell |
+| `/inquiries` | Inquiries | Shell |
+| `/reports` | Reports | Shell |
+| `/tokens` | Tokens | Shell |
+| `/affiliate` | Affiliate | Shell |
+| `/client-pool` | Client Pool | Shell |
+| `/payouts` | Payouts | Shell |
+| `/account` | Account | Shell |
+| `/account/payments` | Payments | Shell |
+| `/profile` | Profile | Shell |
+| `/profile/onboarding` | Onboarding | Shell |
+| `/profile/preview` | Profile Preview | Shell |
+| `/support` | Support | Shell |
+| `/usage` | Usage | Shell |
+| `/notifications` | Notifications | Shell |
+
+**Note:** `/help` is served by the `(marketing)` route group's existing help center page. The topbar help icon links there.
+
+### Design system (member app tokens)
+
+CSS custom properties in `globals.css`:
+- `--member-bg: #0a0e27` — background
+- `--member-card: rgba(255, 255, 255, 0.04)` — card surfaces
+- `--member-border: rgba(255, 255, 255, 0.08)` — borders
+- `--member-accent: rgba(249, 115, 22, 0.1)` — orange active tint
+- `--member-accent-strong: rgba(249, 115, 22, 0.2)` — orange hover tint
+- `--member-hero-bg: #451a03` — hero card gradient start
+- `--member-hero-bg-end: #1c0a00` — hero card gradient end
+
+Active nav state: orange left border (`border-brand-orange`) + orange background tint (`bg-brand-orange/10`).
+
+### Replaced `(app)` route group
+
+The `(member)` route group replaces the previous `(app)` route group. The old `(app)` layout, sidebar (`components/ui/Sidebar.tsx`), and topbar (`components/ui/Topbar.tsx`) are no longer used by any layout but remain in the repo. The old page code is recoverable from git history.
+
+---
 
 ## Deploy Policy
 

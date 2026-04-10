@@ -9,6 +9,16 @@
     --muted: rgba(255, 255, 255, 0.66);
     --card: rgba(255, 255, 255, 0.06);
     --line: rgba(255, 255, 255, 0.12);
+
+    /* Member app design tokens (Canva layout adapted to VLP orange) */
+    --member-bg: #0a0e27;
+    --member-card: rgba(255, 255, 255, 0.04);
+    --member-card-hover: rgba(255, 255, 255, 0.06);
+    --member-border: rgba(255, 255, 255, 0.08);
+    --member-accent: rgba(249, 115, 22, 0.1);
+    --member-accent-strong: rgba(249, 115, 22, 0.2);
+    --member-hero-bg: #451a03;
+    --member-hero-bg-end: #1c0a00;
   }
 
   html {
