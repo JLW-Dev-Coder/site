@@ -872,9 +872,9 @@
       "addedDate": "2026-03-29"
     },
     {
-      "id": "profile_public_get",
-      "path": "/contracts/profile/profile.public.get.v1.json",
-      "endpoint": "https://api.virtuallaunch.pro/v1/profiles/public/{professionalId}",
+      "id": "profile_public",
+      "path": "/contracts/vlp/vlp.profile.public.v1.json",
+      "endpoint": "https://api.virtuallaunch.pro/v1/profiles/public/:professional_id",
       "method": "GET",
       "status": "active",
       "category": "read-model",
@@ -883,10 +883,30 @@
       "dedupeKey": "N/A",
       "receiptSource": "N/A",
       "receiptKeyPattern": "N/A",
-      "usedOnPages": ["/features/public-profile.html"],
+      "usedOnPages": ["/directory/{slug}", "/profile/preview"],
       "version": 1,
       "writes": [],
-      "addedDate": "2026-03-29"
+      "addedDate": "2026-04-10",
+      "replaces": "profile_public_get",
+      "notes": "Canonical profile contract — full nested schema aligned with TMP directory-profile.v1.json"
+    },
+    {
+      "id": "profiles_list",
+      "path": "/contracts/vlp/vlp.profiles.list.v1.json",
+      "endpoint": "https://api.virtuallaunch.pro/v1/profiles",
+      "method": "GET",
+      "status": "active",
+      "category": "read-model",
+      "authRequired": false,
+      "signatureRequired": false,
+      "dedupeKey": "N/A",
+      "receiptSource": "N/A",
+      "receiptKeyPattern": "N/A",
+      "usedOnPages": ["/directory"],
+      "version": 1,
+      "writes": [],
+      "addedDate": "2026-04-10",
+      "notes": "Truncated profile cards for directory listing, search, and filtering"
     },
     {
       "id": "profile_update",

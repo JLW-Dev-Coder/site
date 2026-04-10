@@ -180,6 +180,18 @@ R2 is always authoritative. D1 is always a queryable projection.
 
 **Cross-platform writes:** TMP, TTMP, TTTMP, and others may read shared records. All writes to shared records go through VLP API routes — never direct.
 
+### Canonical Profile Contracts
+
+| Contract | Path | Endpoint |
+|----------|------|----------|
+| Public profile (full) | `/contracts/vlp/vlp.profile.public.v1.json` | `GET /v1/profiles/public/:professional_id` |
+| Directory listing (truncated) | `/contracts/vlp/vlp.profiles.list.v1.json` | `GET /v1/profiles` |
+
+- `vlp.profile.public.v1.json` is the **single source of truth** for the full nested profile schema across all 8 platforms. Its field structure is aligned with and replaces the TMP `directory-profile.v1.json` rendering reference.
+- The TMP repo's `contracts/directory-profile.v1.json` is a **rendering reference only** — it documents how TMP renders profile data on its directory pages. The VLP contract is authoritative for the API shape.
+- `vlp.profiles.list.v1.json` returns truncated card-level fields for directory search, filtering, and listing.
+- The old `contracts/profile/profile.public.get.v1.json` is deleted. The registry entry `profile_public` (in `vlp-registry.json`) replaces the former `profile_public_get`.
+
 ---
 
 ## 11. Contracts

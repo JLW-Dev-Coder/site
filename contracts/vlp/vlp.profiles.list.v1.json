@@ -1,0 +1,132 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Directory listing — truncated profiles for search, filtering, and card display",
+    "path": "/contracts/vlp/vlp.profiles.list.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Profile Directory Listing",
+    "usedOnPages": [
+      "/directory"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/profiles",
+    "method": "GET",
+    "receiptKeyPattern": "N/A",
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    },
+    "category": "read-model"
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": null,
+    "readFrom": ["profiles/"],
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "state": { "type": "string", "description": "Optional filter by US state" },
+      "profession": { "type": "string", "description": "Optional filter by profession (Attorney, CPA, etc.)" },
+      "service": { "type": "string", "description": "Optional filter by service title" },
+      "client_type": { "type": "string", "description": "Optional filter by client type specialization" },
+      "language": { "type": "string", "description": "Optional filter by spoken language" },
+      "q": { "type": "string", "description": "Optional free-text search across name, bio, services" },
+      "page": { "type": "number", "description": "Pagination page number (default 1)" },
+      "limit": { "type": "number", "description": "Results per page (default 20, max 50)" }
+    },
+    "required": [],
+    "type": "object"
+  },
+  "response": {
+    "success": {
+      "ok": true,
+      "profiles": [
+        {
+          "profile": {
+            "name": { "type": "string", "max_length": 80 },
+            "slug": { "type": "string", "max_length": 120 },
+            "status": { "type": "string", "enum": ["featured", "standard"] }
+          },
+          "professional": {
+            "profession": { "type": "array", "items": { "type": "string" } },
+            "years_experience": { "type": "number" }
+          },
+          "location": {
+            "city": { "type": "string" },
+            "state": { "type": "string" }
+          },
+          "bio": {
+            "bio_short": { "type": "string", "max_length": 220 }
+          },
+          "hero": {
+            "credential_badges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "fields": {
+                  "label": { "type": "string" },
+                  "style_key": { "type": "string" }
+                }
+              }
+            }
+          },
+          "services_offered": {
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "fields": {
+                  "title": { "type": "string" }
+                }
+              }
+            }
+          },
+          "specializations": {
+            "client_types": { "type": "array", "items": { "type": "string" } }
+          },
+          "contact": {
+            "languages": { "type": "array", "items": { "type": "string" } }
+          },
+          "reviews": {
+            "summary": {
+              "average_rating": { "type": "number" },
+              "review_count": { "type": "number" }
+            }
+          }
+        }
+      ],
+      "pagination": {
+        "page": { "type": "number" },
+        "limit": { "type": "number" },
+        "total": { "type": "number" },
+        "total_pages": { "type": "number" }
+      }
+    },
+    "error": {
+      "ok": false,
+      "error": "INVALID_FILTER"
+    },
+    "deduped": null
+  },
+  "schema": {
+    "name": "vlp_profiles_list",
+    "version": 1
+  }
+}

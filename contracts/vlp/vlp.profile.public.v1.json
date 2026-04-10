@@ -1,0 +1,308 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": ["R2_VIRTUAL_LAUNCH"],
+    "governs": "Canonical public profile retrieval — single source of truth for all platforms",
+    "path": "/contracts/vlp/vlp.profile.public.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Public Profile (Canonical)",
+    "usedOnPages": [
+      "/directory/{slug}",
+      "/profile/preview"
+    ],
+    "validation": {
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "requireJsonContentType": false
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/profiles/public/:professional_id",
+    "method": "GET",
+    "receiptKeyPattern": "N/A",
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    },
+    "category": "read-model"
+  },
+  "effects": {
+    "dedupeKey": null,
+    "eventIdFrom": null,
+    "readFrom": ["profiles/{professional_id}.json"],
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "professional_id": {
+        "description": "URL path parameter — the professional's unique ID",
+        "minLength": 1,
+        "type": "string"
+      }
+    },
+    "required": ["professional_id"],
+    "type": "object"
+  },
+  "response": {
+    "success": {
+      "ok": true,
+      "profile": {
+        "profile": {
+          "type": "object",
+          "fields": {
+            "name": { "type": "string", "max_length": 80 },
+            "slug": { "type": "string", "max_length": 120, "pattern": "^[a-z0-9-]+$" },
+            "status": { "type": "string", "enum": ["featured", "hidden", "standard"] },
+            "status_badge_label": { "type": "string", "enum": ["Featured", "Hidden", "Standard", "Verified"], "nullable": true },
+            "profile_type": { "type": "string", "enum": ["live", "sample"] },
+            "initials": { "type": "string", "max_length": 4 },
+            "avatar": {
+              "type": "object",
+              "fields": {
+                "upload_type": { "type": "string", "enum": ["firm_logo", "initials_only", "profile_photo"] },
+                "initials_fallback": { "type": "boolean" },
+                "display_dimensions": {
+                  "type": "object",
+                  "fields": {
+                    "width": { "type": "number", "enum": [96, 128] },
+                    "height": { "type": "number", "enum": [96, 128] }
+                  }
+                },
+                "file": {
+                  "type": "object",
+                  "nullable": true,
+                  "fields": {
+                    "file_type": { "type": "string", "enum": ["jpeg", "jpg", "png", "svg", "webp"] },
+                    "width": { "type": "number", "min_value": 128, "max_value": 2000 },
+                    "height": { "type": "number", "min_value": 128, "max_value": 2000 }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "professional": {
+          "type": "object",
+          "fields": {
+            "profession": { "type": "array", "items": { "type": "string", "enum": ["Attorney", "CPA", "Enrolled Actuary", "Enrolled Agent", "ERPA"] }, "min_items": 1, "max_items": 4 },
+            "credentials": { "type": "array", "items": { "type": "string", "max_length": 80 }, "max_items": 20 },
+            "firm_name": { "type": "string", "max_length": 100, "nullable": true },
+            "years_experience": { "type": "number", "min_value": 0, "max_value": 80 }
+          }
+        },
+        "hero": {
+          "type": "object",
+          "fields": {
+            "headline": { "type": "string", "max_length": 120 },
+            "location_label": { "type": "string", "max_length": 80 },
+            "rating_label": { "type": "string", "max_length": 60 },
+            "years_experience_label": { "type": "string", "max_length": 60 },
+            "credential_badges": {
+              "type": "array",
+              "max_items": 6,
+              "items": {
+                "type": "object",
+                "fields": {
+                  "label": { "type": "string", "max_length": 30 },
+                  "style_key": { "type": "string", "enum": ["attorney", "cpa", "custom", "ea", "featured"] }
+                }
+              }
+            }
+          }
+        },
+        "location": {
+          "type": "object",
+          "fields": {
+            "city": { "type": "string", "max_length": 80 },
+            "state": { "type": "string", "enum": ["Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming"] },
+            "country": { "type": "string", "max_length": 80 },
+            "zip": { "type": "string", "max_length": 10, "nullable": true }
+          }
+        },
+        "bio": {
+          "type": "object",
+          "fields": {
+            "bio_short": { "type": "string", "max_length": 220 },
+            "bio_full_paragraphs": { "type": "array", "items": { "type": "string", "max_length": 1200 }, "min_items": 1, "max_items": 6 }
+          }
+        },
+        "contact": {
+          "type": "object",
+          "fields": {
+            "contact_email": { "type": "string", "format_hint": "email", "max_length": 254, "nullable": true },
+            "phone": { "type": "string", "format_hint": "phone", "max_length": 30, "nullable": true },
+            "website": { "type": "string", "format_hint": "absolute_url", "max_length": 500, "nullable": true },
+            "availability_display": { "type": "string", "max_length": 80, "nullable": true },
+            "timezone": { "type": "string", "enum": ["America/Anchorage","America/Chicago","America/Denver","America/Detroit","America/Indiana/Indianapolis","America/Los_Angeles","America/New_York","America/Phoenix","Pacific/Honolulu"], "nullable": true },
+            "languages": { "type": "array", "items": { "type": "string", "enum": ["Arabic","Chinese","English","French","German","Hindi","Japanese","Korean","Portuguese","Russian","Spanish","Tagalog","Vietnamese"] }, "max_items": 8 },
+            "weekly_availability": {
+              "type": "array",
+              "max_items": 7,
+              "items": {
+                "type": "object",
+                "fields": {
+                  "day": { "type": "string", "enum": ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"] },
+                  "enabled": { "type": "boolean" },
+                  "start_time": { "type": "string", "format_hint": "HH:MM_24_hour", "nullable": true },
+                  "end_time": { "type": "string", "format_hint": "HH:MM_24_hour", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "services_offered": {
+          "type": "object",
+          "fields": {
+            "items": {
+              "type": "array",
+              "min_items": 1,
+              "max_items": 16,
+              "items": {
+                "type": "object",
+                "fields": {
+                  "title": { "type": "string", "max_length": 60, "enum": ["Appeals","Audit Defense","Business Tax Advisory","Compliance","Consulting","Estate & Trust Tax","Expert Witness","Foreign Reporting (FBAR/FATCA)","IRS Collections Defense","Offer in Compromise","Payroll Tax Defense","Penalty Abatement","Tax Litigation","Tax Monitoring","Tax Planning","Tax Preparation","Tax Resolution","Trust Fund Recovery Defense"] },
+                  "description": { "type": "string", "max_length": 220 },
+                  "icon": { "type": "string", "enum": ["book-open","briefcase","calculator","file-check","gavel","globe","scale-3","shield-check","target","users"] }
+                }
+              }
+            }
+          }
+        },
+        "specializations": {
+          "type": "object",
+          "fields": {
+            "client_types": {
+              "type": "array",
+              "max_items": 16,
+              "items": { "type": "string", "enum": ["Businesses","C Corporations","Executives","Individuals","LLCs","Nonprofits","Partnerships","S Corporations"] }
+            }
+          }
+        },
+        "credentials_experience": {
+          "type": "object",
+          "fields": {
+            "licenses_certifications": {
+              "type": "array",
+              "max_items": 20,
+              "items": {
+                "type": "object",
+                "fields": {
+                  "title": { "type": "string", "max_length": 100 },
+                  "subtitle": { "type": "string", "max_length": 180, "nullable": true }
+                }
+              }
+            },
+            "background_items": {
+              "type": "array",
+              "max_items": 12,
+              "items": {
+                "type": "object",
+                "fields": {
+                  "title": { "type": "string", "max_length": 100 },
+                  "date_label": { "type": "string", "max_length": 40 },
+                  "description": { "type": "string", "max_length": 280 }
+                }
+              }
+            }
+          }
+        },
+        "quick_stats": {
+          "type": "array",
+          "max_items": 4,
+          "items": {
+            "type": "object",
+            "fields": {
+              "label": { "type": "string", "max_length": 50 },
+              "value": { "type": "string", "max_length": 20 }
+            }
+          }
+        },
+        "reviews": {
+          "type": "object",
+          "fields": {
+            "enabled": { "type": "boolean" },
+            "allow_submission": { "type": "boolean" },
+            "summary": {
+              "type": "object",
+              "fields": {
+                "average_rating": { "type": "number", "min_value": 0, "max_value": 5 },
+                "review_count": { "type": "number", "min_value": 0, "max_value": 100000 }
+              }
+            },
+            "items": {
+              "type": "array",
+              "max_items": 100,
+              "items": {
+                "type": "object",
+                "fields": {
+                  "name": { "type": "string", "max_length": 60 },
+                  "rating": { "type": "number", "enum": [1, 2, 3, 4, 5] },
+                  "text": { "type": "string", "max_length": 500 }
+                }
+              }
+            }
+          }
+        },
+        "buttons": {
+          "type": "object",
+          "fields": {
+            "schedule_button": {
+              "type": "object",
+              "fields": {
+                "show": { "type": "boolean" },
+                "active": { "type": "boolean" },
+                "label": { "type": "string", "enum": ["Schedule Consultation", "Schedule Now"] },
+                "mode": { "type": "string", "enum": ["cal_com", "custom_booking_link", "none"] },
+                "url": { "type": "string", "max_length": 500, "nullable": true },
+                "provider_label": { "type": "string", "enum": ["Cal.com", "Custom", "None"] },
+                "behavior_phrase": { "type": "string", "enum": ["No, I have not connected Cal.com or my own booking link, keep button inactive", "Yes, I have connected my own booking link, use my booking link", "Yes, I have created/connected my Cal.com account, use my Cal.com link"] },
+                "description": { "type": "string", "max_length": 180, "nullable": true },
+                "description_mode": { "type": "string", "enum": ["custom", "derived"] },
+                "event_type_label": { "type": "string", "max_length": 80, "nullable": true },
+                "event_type_duration_minutes": { "type": "number", "min_value": 0, "max_value": 480, "nullable": true }
+              }
+            },
+            "contact_button": {
+              "type": "object",
+              "fields": {
+                "show": { "type": "boolean" },
+                "active": { "type": "boolean" },
+                "label": { "type": "string", "enum": ["Contact Now", "Get In Touch"] },
+                "mode": { "type": "string", "enum": ["email", "external_link", "inactive"] },
+                "url": { "type": "string", "max_length": 500, "nullable": true }
+              }
+            },
+            "review_button": {
+              "type": "object",
+              "fields": {
+                "show": { "type": "boolean" },
+                "active": { "type": "boolean" },
+                "label": { "type": "string", "enum": ["Add Your Review"] },
+                "mode": { "type": "string", "enum": ["external_link", "inactive", "modal"] },
+                "url": { "type": "string", "max_length": 500, "nullable": true }
+              }
+            }
+          }
+        }
+      }
+    },
+    "error": {
+      "ok": false,
+      "error": "NOT_FOUND"
+    },
+    "deduped": null
+  },
+  "schema": {
+    "name": "vlp_profile_public",
+    "version": 1
+  }
+}
