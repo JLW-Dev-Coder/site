@@ -939,13 +939,15 @@ Reusable domain modules that sit outside the Worker handler but are imported by 
 - **Location:** `tools/2848/`
 - **Source:** Migrated from `JLW-Dev-Coder/2848` (browser HTML → ESM module)
 - **Purpose:** Generates filled IRS Form 2848 Page 1 (Power of Attorney) from structured input by stamping text onto the official IRS PDF template with `pdf-lib`
-- **Entry point:** `tools/2848/generator.js` — exports `generate2848Pdf(input, templateBytes)` and `buildFilename(input)`
-- **Template:** `tools/2848/template/f2848.pdf` — official IRS Form 2848 PDF
+- **Source-of-truth module:** `tools/2848/generator.js` — exports `generate2848Pdf(input, templateBytes)` and `buildFilename(input)`. The Worker does NOT import this file directly — the helpers are inlined into `workers/src/index.js` (prefixed `f2848_*` / `F2848_*`) because the Worker is a single bundled file. Sync any changes here back to the source module.
+- **Template:** `tools/2848/template/f2848.pdf` — official IRS Form 2848 PDF. Uploaded to R2 at key `tools/2848/f2848.pdf` via `node scripts/upload-2848-template.js`. The Worker fetches the template from R2 once per isolate and caches it in `FORM_2848_TEMPLATE_CACHE`.
 - **Used by:** Client-facing eSign flow (TMP), Staff-facing generation (VLP member app Client Record page)
-- **Contract:** `contracts/tmp/tmp.tool.2848.v1.json` (created in Prompt 7)
-- **Worker route:** `POST /v1/tools/2848/generate` (created in Prompt 7)
-- **Dependencies:** `pdf-lib` ^1.17.1 (already in root `package.json`)
-- **Build ID:** `2848-align-2026-01-22-h` — bump if IRS reissues the form and coordinates need re-aligning
+- **Contract:** `contracts/tmp/tmp.tool.2848.v1.json`
+- **Registry entry:** `tmp.tool.2848.v1` in `contracts/registries/tmp-registry.json` (category: `tool`)
+- **Worker route:** `POST /v1/tools/2848/generate` — session required, rate limited (5 req/min per account), returns `{ ok, pdf_base64, filename, event_id, build_id }`. Receipt pattern: `receipts/tmp/tools/2848/{taxpayer_tin_last4}-{timestamp}.json`. Write order: `receiptAppend` only (no canonical state — the PDF is regenerated on demand).
+- **Payload transform:** the contract uses consolidated fields (`taxpayer_name`, `taxpayer_address`, `tax_matters[]`). The Worker handler splits `taxpayer_name`/`rep_name` on whitespace and passes the full address string into `clientAddressLine1`/`repAddr1`. `tax_matters[0]` populates Line 3 (description / form / years). The inlined generator currently only renders the first `tax_matters` entry plus 4 of the Line 5a checkboxes (access IRS records, disclosure consent, substitute/add rep, sign a return); `line5a_sign_claim_refund`, `line5a_receive_refund`, `line5a_other`, and `line5a_other_text` are accepted by the contract but not yet rendered (no POS coordinates defined).
+- **Dependencies:** `pdf-lib` ^1.17.1 (already in root `package.json`). `workers/src/index.js` import widened to `import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'`.
+- **Build ID:** `2848-align-2026-01-22-h` — stored in `F2848_BUILD_ID` at the top of the inlined block. Bump if IRS reissues the form and coordinates need re-aligning; also re-upload the template to R2.
 
 ---
 

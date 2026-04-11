@@ -1,7 +1,7 @@
 {
   "platform": "tmp",
   "name": "Tax Monitor Pro",
-  "version": "1.0",
+  "version": "1.1",
   "lastUpdated": "2026-04-10",
   "contracts": [
     {
@@ -18,6 +18,23 @@
       "receiptSource": "tmp",
       "writes": ["client_pool"],
       "usedOnPages": ["/client-pool", "/client-pool/[clientId]"],
+      "version": 1,
+      "addedDate": "2026-04-10"
+    },
+    {
+      "id": "tmp.tool.2848.v1",
+      "path": "/contracts/tmp/tmp.tool.2848.v1.json",
+      "endpoint": "/v1/tools/2848/generate",
+      "method": "POST",
+      "status": "active",
+      "category": "tool",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "payload.taxpayer_tin+payload.rep_caf_number",
+      "receiptKeyPattern": "receipts/tmp/tools/2848/{taxpayer_tin_last4}-{timestamp}.json",
+      "receiptSource": "tmp",
+      "writes": ["receipts"],
+      "usedOnPages": ["/client-pool/[clientId]/2848", "taxmonitor.pro/app/forms/2848"],
       "version": 1,
       "addedDate": "2026-04-10"
     },

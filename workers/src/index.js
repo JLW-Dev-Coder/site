@@ -1,4 +1,4 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { FORM_843_BASE64 } from './form843-template.js';
 
 /**
@@ -1646,6 +1646,290 @@ function drawScratchPrize() {
     if (roll < cumulative) return prize;
   }
   return WLVLP_SCRATCH_PRIZES[WLVLP_SCRATCH_PRIZES.length - 1];
+}
+
+// ---------------------------------------------------------------------------
+// Form 2848 generator — source: tools/2848/generator.js
+// If updating, sync changes back to the source module.
+// Template bytes are fetched once per isolate from R2 key `tools/2848/f2848.pdf`
+// and cached in memory. Run `node scripts/upload-2848-template.js` to upload.
+// ---------------------------------------------------------------------------
+
+const F2848_BUILD_ID = '2848-align-2026-01-22-h';
+const F2848_IRS_TEXT_SIZE = 8.5;
+
+const F2848_POS = {
+  acts_desc_1: { x: 37,  y: 240, size: F2848_IRS_TEXT_SIZE },
+  acts_form_1: { x: 330, y: 240, size: F2848_IRS_TEXT_SIZE },
+  acts_year_1: { x: 474, y: 240, size: F2848_IRS_TEXT_SIZE },
+
+  acts_desc_2: { x: 40,  y: 205, size: F2848_IRS_TEXT_SIZE },
+  acts_form_2: { x: 330, y: 205, size: F2848_IRS_TEXT_SIZE },
+  acts_year_2: { x: 474, y: 205, size: F2848_IRS_TEXT_SIZE },
+
+  acts_desc_3: { x: 40,  y: 180, size: F2848_IRS_TEXT_SIZE },
+  acts_form_3: { x: 330, y: 180, size: F2848_IRS_TEXT_SIZE },
+  acts_year_3: { x: 474, y: 180, size: F2848_IRS_TEXT_SIZE },
+
+  line5aAccessISP_Check:           { x: 230, y: 137 },
+  line5aAuthorizeDisclosure_Check: { x: 55,  y: 130 },
+  line5aSignReturn_Check:          { x: 560, y: 130 },
+  line5aSubAddRep_Check:           { x: 230, y: 126 },
+
+  repBlock: { x: 40, y: 565, lineGap: 11, size: F2848_IRS_TEXT_SIZE },
+
+  repCAF:  { x: 395, y: 578, size: F2848_IRS_TEXT_SIZE },
+  repPTIN: { x: 396, y: 566, size: F2848_IRS_TEXT_SIZE },
+  repTel:  { x: 413, y: 554, size: F2848_IRS_TEXT_SIZE },
+  repFax:  { x: 405, y: 542, size: F2848_IRS_TEXT_SIZE },
+
+  taxpayerNameAddressBlock: { x: 40, y: 640, lineGap: 9, size: F2848_IRS_TEXT_SIZE },
+  taxpayerTIN: { x: 348, y: 640, size: F2848_IRS_TEXT_SIZE },
+};
+
+function f2848_clean(v) {
+  const s = String(v == null ? '' : v).trim();
+  if (!s) return '';
+  if (s.startsWith('{{') && s.endsWith('}}')) return '';
+  return s;
+}
+
+function f2848_formatTin(v) {
+  const raw = String(v || '').trim();
+  if (!raw) return '';
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 9) return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+  return raw;
+}
+
+function f2848_formatPeriod(yearFrom, yearTo) {
+  const a = String(yearFrom || '').trim();
+  const b = String(yearTo || '').trim();
+  if (a && b) return `${a} through ${b}`;
+  return a || b || '';
+}
+
+function f2848_splitMatter(s) {
+  const text = String(s || '').trim();
+  if (!text) return ['', ''];
+  const targetBreak = 'Estate';
+  const idx = text.indexOf(targetBreak);
+  if (idx > 0) {
+    const line1 = text.slice(0, idx).trim().replace(/,\s*$/, '') + ',';
+    const line2 = text.slice(idx).trim();
+    return [line1, line2];
+  }
+  const mid = Math.floor(text.length / 2);
+  const left = text.lastIndexOf(',', mid);
+  const right = text.indexOf(',', mid);
+  const cut = (right !== -1 && (mid - left) > (right - mid)) ? right : left;
+  if (cut > 0) return [text.slice(0, cut + 1).trim(), text.slice(cut + 1).trim()];
+  return [text, ''];
+}
+
+function f2848_splitForms(s) {
+  const text = String(s || '').trim();
+  if (!text) return ['', ''];
+  const line1 = '940, 941, 720';
+  const line2 = '1040, 1120, 1120S';
+  if (text.replace(/\s+/g, ' ') === `${line1}, ${line2}`) return [line1, line2];
+  const parts = text.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length <= 3) return [parts.join(', '), ''];
+  return [parts.slice(0, 3).join(', '), parts.slice(3).join(', ')];
+}
+
+function f2848_splitYears(s) {
+  const text = String(s || '').trim();
+  if (!text) return ['', ''];
+  const token = 'through';
+  const i = text.indexOf(token);
+  if (i !== -1) {
+    const a = text.slice(0, i).trim();
+    const b = text.slice(i + token.length).trim();
+    return [a, `through ${b}`.trim()];
+  }
+  return [text, ''];
+}
+
+function f2848_drawMultiline(page, text, x, y, size, lineGap, font) {
+  const lines = (text || '').split('\n').map((s) => s.trim()).filter(Boolean);
+  let cy = y;
+  for (const line of lines) {
+    page.drawText(line, { x, y: cy, size, font, color: rgb(0, 0, 0) });
+    cy -= lineGap;
+  }
+}
+
+function f2848_drawCheck(page, x, y, font) {
+  page.drawText('X', { x: x + 1, y: y - 3, size: 8, font, color: rgb(0, 0, 0) });
+}
+
+function f2848_todayTokenYYYY_MMDD() {
+  const d = new Date();
+  const y = String(d.getFullYear());
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}_${m}${dd}`;
+}
+
+function f2848_buildFilename(input) {
+  const last = f2848_clean(input.clientLastName) || 'ClientLastName';
+  const first = f2848_clean(input.clientFirstName) || 'ClientFirstName';
+  return `Form_2848_${last}_${first}_DateSigned_${f2848_todayTokenYYYY_MMDD()}_p1.pdf`;
+}
+
+async function f2848_generate(input, templateBytes) {
+  const data = {
+    TaxpayerSSNITIN: f2848_clean(input.TaxpayerSSNITIN),
+
+    clientAddressLine1: f2848_clean(input.clientAddressLine1),
+    clientAddressLine2: f2848_clean(input.clientAddressLine2),
+    clientAddressRegion: f2848_clean(input.clientAddressRegion),
+    clientAddressTown: f2848_clean(input.clientAddressTown),
+    clientAddressZip: f2848_clean(input.clientAddressZip),
+    clientFirstName: f2848_clean(input.clientFirstName),
+    clientLastName: f2848_clean(input.clientLastName),
+
+    line3DescriptionOfMatter:
+      f2848_clean(input.line3DescriptionOfMatter) ||
+      'Income, Employment, Payroll, Excise, Estate, Gift, Civil Penalty, Sec. 4980H Shared Responsibility Payment',
+    line3TaxFormNumber: f2848_clean(input.line3TaxFormNumber) || '940, 941, 720, 1040, 1120, 1120S',
+
+    line5aAccessRecords: input.line5aAccessRecords !== false,
+    line5aAuthorizeDisclosure: input.line5aAuthorizeDisclosure === true,
+    line5aSignReturn: input.line5aSignReturn === true,
+    line5aSubstituteOrAddRep: input.line5aSubstituteOrAddRep !== false,
+
+    repAddr1: f2848_clean(input.repAddr1),
+    repAddr2: f2848_clean(input.repAddr2),
+    repCAF: f2848_clean(input.repCAF),
+    repCity: f2848_clean(input.repCity),
+    repFax: f2848_clean(input.repFax),
+    repFirst: f2848_clean(input.repFirst),
+    repLast: f2848_clean(input.repLast),
+    repPTIN: f2848_clean(input.repPTIN),
+    repState: f2848_clean(input.repState),
+    repTel: f2848_clean(input.repTel),
+    repZip: f2848_clean(input.repZip),
+
+    yearFrom: f2848_clean(input.yearFrom),
+    yearTo: f2848_clean(input.yearTo),
+  };
+
+  const pdfDoc = await PDFDocument.load(templateBytes);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const page1 = pdfDoc.getPages()[0];
+  const { width, height } = page1.getSize();
+  page1.setCropBox(0, 0, width, height);
+
+  const taxpayerName = [data.clientFirstName, data.clientLastName].filter(Boolean).join(' ').trim();
+  const repName = [data.repFirst, data.repLast].filter(Boolean).join(' ').trim();
+
+  const repAddr12 = [data.repAddr1, data.repAddr2].filter(Boolean).join(' ').trim();
+  const repCityStateZip =
+    [data.repCity, data.repState].filter(Boolean).join(', ') + (data.repZip ? ' ' + data.repZip : '');
+  const repBlockText = [repName, repAddr12, repCityStateZip]
+    .map((s) => (s || '').trim())
+    .filter(Boolean)
+    .join('\n');
+
+  const taxpayerAddr12 = [data.clientAddressLine1, data.clientAddressLine2].filter(Boolean).join(' ').trim();
+  const taxpayerCityStateZip =
+    [data.clientAddressTown, data.clientAddressRegion].filter(Boolean).join(', ') +
+    (data.clientAddressZip ? ' ' + data.clientAddressZip : '');
+  const taxpayerNameAddress = [taxpayerName, taxpayerAddr12, taxpayerCityStateZip]
+    .map((s) => (s || '').trim())
+    .filter(Boolean)
+    .join('\n');
+
+  const periodText = f2848_formatPeriod(data.yearFrom, data.yearTo);
+
+  f2848_drawMultiline(
+    page1,
+    taxpayerNameAddress,
+    F2848_POS.taxpayerNameAddressBlock.x,
+    F2848_POS.taxpayerNameAddressBlock.y,
+    F2848_POS.taxpayerNameAddressBlock.size,
+    F2848_POS.taxpayerNameAddressBlock.lineGap,
+    font,
+  );
+
+  page1.drawText(f2848_formatTin(data.TaxpayerSSNITIN), {
+    x: F2848_POS.taxpayerTIN.x,
+    y: F2848_POS.taxpayerTIN.y,
+    size: F2848_POS.taxpayerTIN.size,
+    font,
+    color: rgb(0, 0, 0),
+  });
+
+  f2848_drawMultiline(
+    page1,
+    repBlockText,
+    F2848_POS.repBlock.x,
+    F2848_POS.repBlock.y,
+    F2848_POS.repBlock.size,
+    F2848_POS.repBlock.lineGap,
+    font,
+  );
+
+  page1.drawText(data.repCAF,  { x: F2848_POS.repCAF.x,  y: F2848_POS.repCAF.y,  size: F2848_POS.repCAF.size,  font, color: rgb(0, 0, 0) });
+  page1.drawText(data.repPTIN, { x: F2848_POS.repPTIN.x, y: F2848_POS.repPTIN.y, size: F2848_POS.repPTIN.size, font, color: rgb(0, 0, 0) });
+  page1.drawText(data.repTel,  { x: F2848_POS.repTel.x,  y: F2848_POS.repTel.y,  size: F2848_POS.repTel.size,  font, color: rgb(0, 0, 0) });
+  page1.drawText(data.repFax,  { x: F2848_POS.repFax.x,  y: F2848_POS.repFax.y,  size: F2848_POS.repFax.size,  font, color: rgb(0, 0, 0) });
+
+  const lineGap = 9;
+
+  const matterLines = f2848_splitMatter(data.line3DescriptionOfMatter);
+  if (matterLines[0]) page1.drawText(matterLines[0], { x: F2848_POS.acts_desc_1.x, y: F2848_POS.acts_desc_1.y,           size: F2848_POS.acts_desc_1.size, font, color: rgb(0, 0, 0) });
+  if (matterLines[1]) page1.drawText(matterLines[1], { x: F2848_POS.acts_desc_1.x, y: F2848_POS.acts_desc_1.y - lineGap, size: F2848_POS.acts_desc_1.size, font, color: rgb(0, 0, 0) });
+
+  const formLines = f2848_splitForms(data.line3TaxFormNumber);
+  if (formLines[0]) page1.drawText(formLines[0], { x: F2848_POS.acts_form_1.x, y: F2848_POS.acts_form_1.y,           size: F2848_POS.acts_form_1.size, font, color: rgb(0, 0, 0) });
+  if (formLines[1]) page1.drawText(formLines[1], { x: F2848_POS.acts_form_1.x, y: F2848_POS.acts_form_1.y - lineGap, size: F2848_POS.acts_form_1.size, font, color: rgb(0, 0, 0) });
+
+  const yearsLines = f2848_splitYears(periodText);
+  if (yearsLines[0]) page1.drawText(yearsLines[0], { x: F2848_POS.acts_year_1.x, y: F2848_POS.acts_year_1.y,           size: F2848_POS.acts_year_1.size, font, color: rgb(0, 0, 0) });
+  if (yearsLines[1]) page1.drawText(yearsLines[1], { x: F2848_POS.acts_year_1.x, y: F2848_POS.acts_year_1.y - lineGap, size: F2848_POS.acts_year_1.size, font, color: rgb(0, 0, 0) });
+
+  if (data.line5aAuthorizeDisclosure) f2848_drawCheck(page1, F2848_POS.line5aAuthorizeDisclosure_Check.x, F2848_POS.line5aAuthorizeDisclosure_Check.y, font);
+  if (data.line5aAccessRecords)       f2848_drawCheck(page1, F2848_POS.line5aAccessISP_Check.x,           F2848_POS.line5aAccessISP_Check.y,           font);
+  if (data.line5aSubstituteOrAddRep)  f2848_drawCheck(page1, F2848_POS.line5aSubAddRep_Check.x,           F2848_POS.line5aSubAddRep_Check.y,           font);
+  if (data.line5aSignReturn)          f2848_drawCheck(page1, F2848_POS.line5aSignReturn_Check.x,          F2848_POS.line5aSignReturn_Check.y,          font);
+
+  return pdfDoc.save();
+}
+
+// Module-level cache for the 2848 PDF template. Reused across requests
+// within the same Worker isolate. R2 fetch happens once per cold start.
+let FORM_2848_TEMPLATE_CACHE = null;
+
+async function load2848Template(env) {
+  if (FORM_2848_TEMPLATE_CACHE) return FORM_2848_TEMPLATE_CACHE;
+  const obj = await env.R2_VIRTUAL_LAUNCH.get('tools/2848/f2848.pdf');
+  if (!obj) return null;
+  const bytes = new Uint8Array(await obj.arrayBuffer());
+  FORM_2848_TEMPLATE_CACHE = bytes;
+  return bytes;
+}
+
+// Split "First Middle Last" → { first: "First", last: "Middle Last" }.
+// If only one token is provided, it is treated as the last name.
+function f2848_splitFullName(fullName) {
+  const s = String(fullName || '').trim();
+  if (!s) return { first: '', last: '' };
+  const parts = s.split(/\s+/);
+  if (parts.length === 1) return { first: '', last: parts[0] };
+  return { first: parts[0], last: parts.slice(1).join(' ') };
+}
+
+// Encode Uint8Array → base64 string (Worker-safe — no Buffer, no atob/btoa limits).
+function f2848_uint8ToBase64(bytes) {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
 }
 
 const ROUTES = [
@@ -7204,6 +7488,224 @@ const ROUTES = [
         tokens_debited: 1,
         token_type: 'tax_game',
         pdf_url: pdfUrl,
+      }, 200, request);
+    },
+  },
+
+
+  // -------------------------------------------------------------------------
+  // TMP — Form 2848 Generator (POA)
+  // Contract: contracts/tmp/tmp.tool.2848.v1.json
+  // Returns a filled IRS Form 2848 Page 1 as base64. Template lives in R2 at
+  // `tools/2848/f2848.pdf` — upload via `node scripts/upload-2848-template.js`.
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'POST', pattern: '/v1/tools/2848/generate',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      // Rate limit: 5 req/min per account
+      const rlKey = `rl:tools_2848:${session.account_id}`;
+      const rlObj = await env.R2_VIRTUAL_LAUNCH.get(rlKey);
+      if (rlObj) {
+        const rlData = await rlObj.json();
+        const windowStart = Date.now() - 60000;
+        const recentHits = (rlData.hits || []).filter((t) => t > windowStart);
+        if (recentHits.length >= 5) {
+          return json({ ok: false, error: 'RATE_LIMIT_EXCEEDED', message: 'Maximum 5 Form 2848 generations per minute' }, 429, request);
+        }
+        recentHits.push(Date.now());
+        await r2Put(env.R2_VIRTUAL_LAUNCH, rlKey, { hits: recentHits });
+      } else {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, rlKey, { hits: [Date.now()] });
+      }
+
+      const payload = await parseBody(request);
+      if (!payload || typeof payload !== 'object') {
+        return json({ ok: false, error: 'validation_failed', details: ['JSON body required'] }, 400, request);
+      }
+
+      // Whitelist top-level fields (enforces contract `additionalProperties: false`)
+      const allowedFields = new Set([
+        'taxpayer_name', 'taxpayer_address', 'taxpayer_tin', 'taxpayer_daytime_phone', 'taxpayer_plan_number',
+        'rep_name', 'rep_caf_number', 'rep_ptin', 'rep_phone', 'rep_fax', 'rep_address', 'rep_designation', 'rep_jurisdiction',
+        'tax_matters',
+        'line5a_access_irs_records', 'line5a_sign_consent_disclosure', 'line5a_substitute_return',
+        'line5a_sign_claim_refund', 'line5a_receive_refund', 'line5a_other', 'line5a_other_text',
+        'case_id', 'generated_by',
+      ]);
+      const extraFields = Object.keys(payload).filter((k) => !allowedFields.has(k));
+      if (extraFields.length > 0) {
+        return json({ ok: false, error: 'validation_failed', details: [`Unexpected fields: ${extraFields.join(', ')}`] }, 400, request);
+      }
+
+      // Required field validation
+      const requiredString = (name, max) => {
+        const v = payload[name];
+        if (typeof v !== 'string' || v.trim() === '') return `${name} is required`;
+        if (max && v.length > max) return `${name} exceeds max length ${max}`;
+        return null;
+      };
+      const errs = [];
+      [
+        ['taxpayer_name', 100],
+        ['taxpayer_address', 200],
+        ['taxpayer_tin', 11],
+        ['rep_name', 100],
+        ['rep_caf_number', 20],
+        ['rep_ptin', 20],
+        ['rep_phone', 20],
+        ['rep_address', 200],
+      ].forEach(([name, max]) => {
+        const e = requiredString(name, max);
+        if (e) errs.push(e);
+      });
+
+      if (!/^(\d{3}-\d{2}-\d{4}|\d{2}-\d{7}|\d{9})$/.test(String(payload.taxpayer_tin || ''))) {
+        errs.push('taxpayer_tin must be XXX-XX-XXXX, XX-XXXXXXX, or 9 digits');
+      }
+
+      const allowedDesignations = new Set([
+        'Attorney', 'CPA', 'Enrolled Agent', 'Officer', 'Full-Time Employee', 'Family Member',
+        'Enrolled Actuary', 'Enrolled Retirement Plan Agent', 'Registered Tax Return Preparer',
+        'Student Attorney', 'Other',
+      ]);
+      if (!allowedDesignations.has(payload.rep_designation)) {
+        errs.push('rep_designation must be one of the allowed values');
+      }
+
+      if (!Array.isArray(payload.tax_matters) || payload.tax_matters.length < 1 || payload.tax_matters.length > 4) {
+        errs.push('tax_matters must be an array with 1–4 entries');
+      } else {
+        payload.tax_matters.forEach((m, i) => {
+          if (!m || typeof m !== 'object') {
+            errs.push(`tax_matters[${i}] must be an object`);
+            return;
+          }
+          if (typeof m.description !== 'string' || m.description.trim() === '' || m.description.length > 100) {
+            errs.push(`tax_matters[${i}].description invalid`);
+          }
+          if (typeof m.tax_form !== 'string' || m.tax_form.trim() === '' || m.tax_form.length > 20) {
+            errs.push(`tax_matters[${i}].tax_form invalid`);
+          }
+          if (typeof m.years_or_periods !== 'string' || m.years_or_periods.trim() === '' || m.years_or_periods.length > 60) {
+            errs.push(`tax_matters[${i}].years_or_periods invalid`);
+          }
+        });
+      }
+
+      if (payload.generated_by !== 'client' && payload.generated_by !== 'staff') {
+        errs.push('generated_by must be "client" or "staff"');
+      }
+
+      if (errs.length > 0) {
+        return json({ ok: false, error: 'validation_failed', details: errs }, 400, request);
+      }
+
+      // Load template from R2 (cached per isolate)
+      const templateBytes = await load2848Template(env);
+      if (!templateBytes) {
+        return json({
+          ok: false,
+          error: 'template_not_found',
+          details: ['Form 2848 template not found in R2 at tools/2848/f2848.pdf. Run scripts/upload-2848-template.js to upload.'],
+        }, 500, request);
+      }
+
+      // Transform contract payload → generator input shape
+      const taxpayerNameParts = f2848_splitFullName(payload.taxpayer_name);
+      const repNameParts = f2848_splitFullName(payload.rep_name);
+      const firstMatter = payload.tax_matters[0];
+
+      const generatorInput = {
+        clientFirstName: taxpayerNameParts.first,
+        clientLastName: taxpayerNameParts.last,
+        clientAddressLine1: payload.taxpayer_address,
+        clientAddressLine2: '',
+        clientAddressTown: '',
+        clientAddressRegion: '',
+        clientAddressZip: '',
+        TaxpayerSSNITIN: payload.taxpayer_tin,
+
+        repFirst: repNameParts.first,
+        repLast: repNameParts.last,
+        repAddr1: payload.rep_address,
+        repAddr2: '',
+        repCity: '',
+        repState: '',
+        repZip: '',
+        repCAF: payload.rep_caf_number,
+        repPTIN: payload.rep_ptin,
+        repTel: payload.rep_phone,
+        repFax: payload.rep_fax || '',
+
+        line3DescriptionOfMatter: firstMatter.description,
+        line3TaxFormNumber: firstMatter.tax_form,
+        // The generator's formatPeriod expects yearFrom/yearTo; passing the
+        // full string through yearFrom preserves the contract's flexibility
+        // (e.g. "2020, 2021, 2022, 2023" or "2020 through 2023").
+        yearFrom: firstMatter.years_or_periods,
+        yearTo: '',
+
+        line5aAccessRecords: payload.line5a_access_irs_records !== false,
+        line5aAuthorizeDisclosure: payload.line5a_sign_consent_disclosure === true,
+        line5aSubstituteOrAddRep: false,
+        line5aSignReturn: payload.line5a_substitute_return === true,
+      };
+
+      let pdfBytes;
+      try {
+        pdfBytes = await f2848_generate(generatorInput, templateBytes);
+      } catch (e) {
+        return json({
+          ok: false,
+          error: 'pdf_generation_failed',
+          details: [String(e && e.message ? e.message : e)],
+        }, 500, request);
+      }
+
+      const pdfBase64 = f2848_uint8ToBase64(pdfBytes);
+      const filename = f2848_buildFilename(generatorInput);
+
+      // Receipt
+      const eventId = crypto.randomUUID();
+      const nowIso = new Date().toISOString();
+      const nowMs = Date.now();
+      const tinDigits = String(payload.taxpayer_tin || '').replace(/\D/g, '');
+      const tinLast4 = tinDigits.slice(-4) || '0000';
+      const dedupeKey = `${payload.taxpayer_tin}+${payload.rep_caf_number}`;
+
+      const receipt = {
+        event_id: eventId,
+        account_id: session.account_id,
+        dedupe_key: dedupeKey,
+        tool_name: '2848',
+        build_id: F2848_BUILD_ID,
+        generated_by: payload.generated_by,
+        case_id: payload.case_id || null,
+        filename,
+        created_at: nowIso,
+        // PII-safe: store structured summary, not the raw TIN
+        summary: {
+          taxpayer_name: payload.taxpayer_name,
+          taxpayer_tin_last4: tinLast4,
+          rep_name: payload.rep_name,
+          rep_caf_number: payload.rep_caf_number,
+          rep_designation: payload.rep_designation,
+          tax_matters_count: payload.tax_matters.length,
+        },
+      };
+      const receiptKey = `receipts/tmp/tools/2848/${tinLast4}-${nowMs}.json`;
+      await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, receipt);
+
+      return json({
+        ok: true,
+        pdf_base64: pdfBase64,
+        filename,
+        event_id: eventId,
+        build_id: F2848_BUILD_ID,
       }, 200, request);
     },
   },

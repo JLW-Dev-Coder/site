@@ -1,0 +1,230 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH"
+    ],
+    "governs": "Form 2848 (Power of Attorney) PDF generator — accepts structured taxpayer + representative input and returns a filled IRS Form 2848 Page 1 PDF. Used by client eSign flows and staff generation in the VLP member app Client Record page.",
+    "path": "/contracts/tmp/tmp.tool.2848.v1.json",
+    "source": "Tax Monitor Pro",
+    "title": "Tax Monitor Pro — Form 2848 Generator",
+    "usedOnPages": [
+      "/client-pool/[clientId]/2848",
+      "taxmonitor.pro/app/forms/2848"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true,
+      "requireJsonContentType": true,
+      "rateLimitPerMinute": 5,
+      "maxPayloadBytes": 32768
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tools/2848/generate",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/tmp/tools/2848/{taxpayer_tin_last4}-{timestamp}.json",
+    "receiptSource": "tmp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.taxpayer_tin+payload.rep_caf_number",
+    "eventIdFrom": "system.generated",
+    "writeOrder": [
+      "receiptAppend"
+    ],
+    "writes": [
+      "receipts"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "taxpayer_name",
+      "taxpayer_address",
+      "taxpayer_tin",
+      "rep_name",
+      "rep_caf_number",
+      "rep_ptin",
+      "rep_phone",
+      "rep_address",
+      "rep_designation",
+      "tax_matters",
+      "generated_by"
+    ],
+    "properties": {
+      "taxpayer_name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "taxpayer_address": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "taxpayer_tin": {
+        "type": "string",
+        "minLength": 9,
+        "maxLength": 11,
+        "pattern": "^(\\d{3}-\\d{2}-\\d{4}|\\d{2}-\\d{7}|\\d{9})$"
+      },
+      "taxpayer_daytime_phone": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "taxpayer_plan_number": {
+        "type": ["string", "null"],
+        "maxLength": 20
+      },
+      "rep_name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100
+      },
+      "rep_caf_number": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 20
+      },
+      "rep_ptin": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 20
+      },
+      "rep_phone": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 20
+      },
+      "rep_fax": {
+        "type": ["string", "null"],
+        "maxLength": 20
+      },
+      "rep_address": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 200
+      },
+      "rep_designation": {
+        "type": "string",
+        "enum": [
+          "Attorney",
+          "CPA",
+          "Enrolled Agent",
+          "Officer",
+          "Full-Time Employee",
+          "Family Member",
+          "Enrolled Actuary",
+          "Enrolled Retirement Plan Agent",
+          "Registered Tax Return Preparer",
+          "Student Attorney",
+          "Other"
+        ]
+      },
+      "rep_jurisdiction": {
+        "type": ["string", "null"],
+        "maxLength": 40
+      },
+      "tax_matters": {
+        "type": "array",
+        "minItems": 1,
+        "maxItems": 4,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "description",
+            "tax_form",
+            "years_or_periods"
+          ],
+          "properties": {
+            "description": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "tax_form": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20
+            },
+            "years_or_periods": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 60
+            }
+          }
+        }
+      },
+      "line5a_access_irs_records": {
+        "type": "boolean",
+        "default": true
+      },
+      "line5a_sign_consent_disclosure": {
+        "type": "boolean",
+        "default": true
+      },
+      "line5a_substitute_return": {
+        "type": "boolean",
+        "default": false
+      },
+      "line5a_sign_claim_refund": {
+        "type": "boolean",
+        "default": false
+      },
+      "line5a_receive_refund": {
+        "type": "boolean",
+        "default": false
+      },
+      "line5a_other": {
+        "type": "boolean",
+        "default": false
+      },
+      "line5a_other_text": {
+        "type": ["string", "null"],
+        "maxLength": 200
+      },
+      "case_id": {
+        "type": ["string", "null"]
+      },
+      "generated_by": {
+        "type": "string",
+        "enum": ["client", "staff"]
+      }
+    }
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true,
+      "pdf_base64": "{base64-encoded-pdf}",
+      "filename": "{filename}"
+    },
+    "error": {
+      "ok": false,
+      "error": "validation_failed",
+      "details": []
+    },
+    "success": {
+      "ok": true,
+      "pdf_base64": "{base64-encoded-pdf}",
+      "filename": "Form_2848_{LastName}_{FirstName}_DateSigned_{YYYY_MMDD}_p1.pdf",
+      "event_id": "{uuid}",
+      "build_id": "2848-align-2026-01-22-h"
+    }
+  },
+  "schema": {
+    "name": "tmp_tool_2848",
+    "version": 1
+  }
+}
