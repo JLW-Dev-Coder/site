@@ -1,0 +1,212 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH",
+      "D1_DB"
+    ],
+    "governs": "Taxpayer inquiry submission — the public TMP intake form that captures the prospect's contact info, need, and the matched pro(s) they were shown. Writes a canonical inquiry record to R2, appends a receipt, and best-effort projects into the D1 inquiries table. No auth: taxpayers submit before they have a VLP account.",
+    "path": "/contracts/tmp/tmp.inquiry.submit.v1.json",
+    "source": "Tax Monitor Pro",
+    "title": "Tax Monitor Pro — Taxpayer Inquiry Submit",
+    "usedOnPages": [
+      "taxmonitor.pro/inquiry"
+    ],
+    "validation": {
+      "requireJsonContentType": true,
+      "enumStrict": true,
+      "rejectUnknownValues": true,
+      "maxPayloadBytes": 8192
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tmp/inquiries",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/tmp/inquiries/{inquiry_id}.json",
+    "receiptSource": "tmp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "inquiry_id",
+    "eventIdFrom": "inquiry_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "inquiries"
+    ],
+    "canonicalUpsert": {
+      "target": "inquiries/{inquiry_id}.json"
+    }
+  },
+  "payload": {
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "name",
+      "email",
+      "state",
+      "service_needed",
+      "entity_type",
+      "source"
+    ],
+    "properties": {
+      "name": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 100,
+        "description": "Full name of the taxpayer submitting the inquiry."
+      },
+      "email": {
+        "type": "string",
+        "format": "email",
+        "maxLength": 254,
+        "description": "Contact email address for follow-up."
+      },
+      "phone": {
+        "type": ["string", "null"],
+        "maxLength": 20,
+        "description": "Optional phone number; free-form (not normalized server-side)."
+      },
+      "state": {
+        "type": "string",
+        "description": "Two-letter US state code where the taxpayer resides or needs representation.",
+        "enum": [
+          "AL","AK","AZ","AR","CA","CO","CT","DE","FL","GA",
+          "HI","ID","IL","IN","IA","KS","KY","LA","ME","MD",
+          "MA","MI","MN","MS","MO","MT","NE","NV","NH","NJ",
+          "NM","NY","NC","ND","OH","OK","OR","PA","RI","SC",
+          "SD","TN","TX","UT","VT","VA","WA","WV","WI","WY"
+        ]
+      },
+      "service_needed": {
+        "type": "string",
+        "description": "Primary service the taxpayer is seeking. Must match the canonical services_offered enum from vlp.profile.public.v1.",
+        "enum": [
+          "Appeals",
+          "Audit Defense",
+          "Business Tax Advisory",
+          "Compliance",
+          "Consulting",
+          "Estate & Trust Tax",
+          "Expert Witness",
+          "Foreign Reporting (FBAR/FATCA)",
+          "IRS Collections Defense",
+          "Offer in Compromise",
+          "Payroll Tax Defense",
+          "Penalty Abatement",
+          "Tax Litigation",
+          "Tax Monitoring",
+          "Tax Planning",
+          "Tax Preparation",
+          "Tax Resolution",
+          "Trust Fund Recovery Defense"
+        ]
+      },
+      "entity_type": {
+        "type": "string",
+        "description": "Client / entity type. Must match the canonical specializations.client_types enum from vlp.profile.public.v1.",
+        "enum": [
+          "Businesses",
+          "C Corporations",
+          "Executives",
+          "Individuals",
+          "LLCs",
+          "Nonprofits",
+          "Partnerships",
+          "S Corporations"
+        ]
+      },
+      "language_preference": {
+        "type": ["string", "null"],
+        "description": "Optional spoken-language preference for matching. Must match the canonical contact.languages enum from vlp.profile.public.v1.",
+        "enum": [
+          "Arabic",
+          "Chinese",
+          "English",
+          "French",
+          "German",
+          "Hindi",
+          "Japanese",
+          "Korean",
+          "Portuguese",
+          "Russian",
+          "Spanish",
+          "Tagalog",
+          "Vietnamese",
+          null
+        ]
+      },
+      "description": {
+        "type": ["string", "null"],
+        "maxLength": 2000,
+        "description": "Optional free-text description of the taxpayer's situation."
+      },
+      "matched_professional_ids": {
+        "type": "array",
+        "maxItems": 3,
+        "items": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "description": "Professional IDs that were shown to the taxpayer as matches at submission time. Used for downstream attribution and match-quality analytics."
+      },
+      "selected_professional_id": {
+        "type": ["string", "null"],
+        "maxLength": 128,
+        "description": "Optional — the professional_id the taxpayer clicked 'Contact' on. Null when the submission came from the top-of-funnel form before a match was selected."
+      },
+      "source": {
+        "type": "string",
+        "description": "Which surface generated the inquiry.",
+        "enum": [
+          "inquiry_form",
+          "questionnaire"
+        ]
+      }
+    }
+  },
+  "response": {
+    "deduped": null,
+    "error": {
+      "ok": false,
+      "error": "validation_failed",
+      "variants": [
+        {
+          "error": "validation_failed",
+          "httpStatus": 400,
+          "reason": "Missing required field or invalid enum/format value."
+        },
+        {
+          "error": "payload_too_large",
+          "httpStatus": 413,
+          "reason": "Payload exceeded maxPayloadBytes (8192)."
+        },
+        {
+          "error": "INTERNAL_ERROR",
+          "httpStatus": 500,
+          "reason": "Receipt or canonical write to R2 failed."
+        }
+      ]
+    },
+    "success": {
+      "ok": true,
+      "inquiry_id": "INQ_{uuid}"
+    }
+  },
+  "schema": {
+    "name": "tmp_inquiry_submit",
+    "version": 1
+  }
+}

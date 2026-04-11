@@ -1,9 +1,26 @@
 {
   "platform": "tmp",
   "name": "Tax Monitor Pro",
-  "version": "1.1",
+  "version": "1.2",
   "lastUpdated": "2026-04-10",
   "contracts": [
+    {
+      "id": "tmp.inquiry.submit.v1",
+      "path": "/contracts/tmp/tmp.inquiry.submit.v1.json",
+      "endpoint": "/v1/tmp/inquiries",
+      "method": "POST",
+      "status": "active",
+      "category": "form",
+      "authRequired": false,
+      "signatureRequired": false,
+      "dedupeKey": "inquiry_id",
+      "receiptKeyPattern": "receipts/tmp/inquiries/{inquiry_id}.json",
+      "receiptSource": "tmp",
+      "writes": ["inquiries"],
+      "usedOnPages": ["taxmonitor.pro/inquiry"],
+      "version": 1,
+      "addedDate": "2026-04-10"
+    },
     {
       "id": "tmp.client-pool.accept.v1",
       "path": "/contracts/tmp/tmp.client-pool.accept.v1.json",

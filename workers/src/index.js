@@ -263,6 +263,102 @@ function d1RowToProfileCard(row) {
   };
 }
 
+// Build a list-shaped card directly from a nested R2 profile. Used by the
+// inquiry match flow so the card reflects fields D1 doesn't project
+// (featured status, reviews summary, languages, client types).
+function nestedProfileToCard(nested, fallbackSlug) {
+  const professions = Array.isArray(nested?.professional?.profession)
+    ? nested.professional.profession.filter(Boolean)
+    : [];
+  const services = Array.isArray(nested?.services_offered?.items)
+    ? nested.services_offered.items
+        .map((s) => (s && typeof s.title === 'string' ? s.title : ''))
+        .filter(Boolean)
+    : [];
+  const badges = Array.isArray(nested?.hero?.credential_badges)
+    ? nested.hero.credential_badges
+    : professions.map((p) => ({
+        label: p,
+        style_key: profileCredentialStyleKey(p),
+      }));
+  return {
+    profile: {
+      name: nested?.profile?.name || '',
+      slug: nested?.profile?.slug || fallbackSlug || '',
+      status: nested?.profile?.status || 'standard',
+    },
+    professional: {
+      profession: professions,
+      years_experience: Number(nested?.professional?.years_experience) || 0,
+    },
+    location: {
+      city: nested?.location?.city || '',
+      state: nested?.location?.state || '',
+    },
+    bio: {
+      bio_short: nested?.bio?.bio_short
+        ? String(nested.bio.bio_short).substring(0, 220)
+        : '',
+    },
+    hero: {
+      credential_badges: badges,
+    },
+    services_offered: {
+      items: services.map((title) => ({ title })),
+    },
+    specializations: {
+      client_types: Array.isArray(nested?.specializations?.client_types)
+        ? nested.specializations.client_types
+        : [],
+    },
+    contact: {
+      languages: Array.isArray(nested?.contact?.languages)
+        ? nested.contact.languages
+        : [],
+    },
+    reviews: {
+      summary: {
+        average_rating: Number(nested?.reviews?.summary?.average_rating) || 0,
+        review_count: Number(nested?.reviews?.summary?.review_count) || 0,
+      },
+    },
+  };
+}
+
+// Scoring weights for the inquiry match flow. A missing R2 profile scores 0.
+function scoreMatchProfile(nested, { cityFilter } = {}) {
+  if (!nested || typeof nested !== 'object') return 0;
+  let score = 0;
+
+  const status = nested?.profile?.status;
+  if (status === 'featured') score += 50;
+  else if (status === 'standard') score += 10;
+
+  const avgRating = Number(nested?.reviews?.summary?.average_rating) || 0;
+  score += avgRating * 10;
+
+  const reviewCount = Number(nested?.reviews?.summary?.review_count) || 0;
+  if (reviewCount > 0) score += 15;
+
+  if (nested?.buttons?.schedule_button?.active === true) score += 10;
+
+  const wa = Array.isArray(nested?.contact?.weekly_availability)
+    ? nested.contact.weekly_availability
+    : [];
+  if (wa.some((d) => d && d.enabled)) score += 5;
+
+  if (cityFilter && nested?.location?.city) {
+    if (
+      String(nested.location.city).trim().toLowerCase() ===
+      String(cityFilter).trim().toLowerCase()
+    ) {
+      score += 20;
+    }
+  }
+
+  return Math.round(score * 10) / 10;
+}
+
 // ---------------------------------------------------------------------------
 // Nested profile helpers (vlp.profile.public.v1 contract shape)
 // ---------------------------------------------------------------------------
@@ -4997,6 +5093,7 @@ const ROUTES = [
   // -------------------------------------------------------------------------
 
   // GET /v1/profiles — directory listing (vlp.profiles.list.v1 contract shape)
+  // Supports ?match=true for scored ranking used by the TMP inquiry flow.
   {
     method: 'GET', pattern: '/v1/profiles',
     handler: async (_method, _pattern, _params, request, env) => {
@@ -5005,10 +5102,13 @@ const ROUTES = [
         const stateFilter = url.searchParams.get('state') || null;
         const professionFilter = url.searchParams.get('profession') || null;
         const serviceFilter = url.searchParams.get('service') || null;
+        const cityFilter = url.searchParams.get('city') || null;
         // client_type and language filters require D1 projection columns (pending migration)
         const q = url.searchParams.get('q') || null;
+        const matchMode = url.searchParams.get('match') === 'true';
         const page = Math.max(1, parseInt(url.searchParams.get('page')) || 1);
-        const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit')) || 20));
+        const defaultLimit = matchMode ? 3 : 20;
+        const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get('limit')) || defaultLimit));
         const offset = (page - 1) * limit;
 
         let where = `WHERE status = 'active'`;
@@ -5029,6 +5129,50 @@ const ROUTES = [
         if (q) {
           where += ` AND (LOWER(display_name) LIKE LOWER(?) OR LOWER(bio) LIKE LOWER(?) OR LOWER(specialties) LIKE LOWER(?))`;
           filterParams.push(`%${q}%`, `%${q}%`, `%${q}%`);
+        }
+
+        // In match mode we score against R2 nested profiles, so pull a wider candidate
+        // pool from D1 (capped at 30) and ignore pagination offset.
+        if (matchMode) {
+          const candidateCap = 30;
+          const result = await env.DB.prepare(
+            `SELECT professional_id, display_name, bio, specialties, profession,
+                    firm_name, city, state, status, created_at
+             FROM profiles ${where}
+             ORDER BY created_at DESC LIMIT ?`
+          ).bind(...filterParams, candidateCap).all();
+
+          const rows = result.results || [];
+
+          // Hydrate each candidate from R2 in parallel so scoring can see featured status,
+          // reviews, schedule button, and weekly availability (none of which live in D1).
+          const hydrated = await Promise.all(rows.map(async (row) => {
+            try {
+              const obj = await env.R2_VIRTUAL_LAUNCH.get(`profiles/${row.professional_id}.json`);
+              if (!obj) return { row, nested: null };
+              return { row, nested: await obj.json() };
+            } catch {
+              return { row, nested: null };
+            }
+          }));
+
+          const scored = hydrated.map(({ row, nested }) => {
+            const score = scoreMatchProfile(nested, { cityFilter });
+            const card = nested
+              ? nestedProfileToCard(nested, row.professional_id)
+              : d1RowToProfileCard(row);
+            return { ...card, match_score: score };
+          });
+
+          scored.sort((a, b) => (b.match_score || 0) - (a.match_score || 0));
+          const top = scored.slice(0, limit);
+
+          return json({
+            ok: true,
+            profiles: top,
+            pagination: { page: 1, limit, total: scored.length, total_pages: 1 },
+            match: true,
+          }, 200, request);
         }
 
         const countResult = await env.DB.prepare(
@@ -10046,6 +10190,194 @@ TTMP Support Team
         console.error('Client pool list error:', e?.message, e?.stack);
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to list client pool cases' }, 500, request);
       }
+    },
+  },
+
+  // POST /v1/tmp/inquiries
+  // Contract: /contracts/tmp/tmp.inquiry.submit.v1.json
+  // Public taxpayer intake — no auth. Writes canonical to R2 + receipt + best-effort D1.
+  {
+    method: 'POST', pattern: '/v1/tmp/inquiries',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const contentType = request.headers.get('content-type') || '';
+      if (!contentType.toLowerCase().includes('application/json')) {
+        return json({ ok: false, error: 'validation_failed', message: 'Content-Type must be application/json' }, 400, request);
+      }
+
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ ok: false, error: 'validation_failed', message: 'Invalid JSON body' }, 400, request);
+      }
+      if (!body || typeof body !== 'object') {
+        return json({ ok: false, error: 'validation_failed', message: 'Payload must be a JSON object' }, 400, request);
+      }
+
+      const TMP_STATE_ENUM = new Set([
+        'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA',
+        'HI','ID','IL','IN','IA','KS','KY','LA','ME','MD',
+        'MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ',
+        'NM','NY','NC','ND','OH','OK','OR','PA','RI','SC',
+        'SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'
+      ]);
+      const TMP_SERVICE_ENUM = new Set([
+        'Appeals','Audit Defense','Business Tax Advisory','Compliance','Consulting',
+        'Estate & Trust Tax','Expert Witness','Foreign Reporting (FBAR/FATCA)',
+        'IRS Collections Defense','Offer in Compromise','Payroll Tax Defense',
+        'Penalty Abatement','Tax Litigation','Tax Monitoring','Tax Planning',
+        'Tax Preparation','Tax Resolution','Trust Fund Recovery Defense'
+      ]);
+      const TMP_ENTITY_ENUM = new Set([
+        'Businesses','C Corporations','Executives','Individuals',
+        'LLCs','Nonprofits','Partnerships','S Corporations'
+      ]);
+      const TMP_LANGUAGE_ENUM = new Set([
+        'Arabic','Chinese','English','French','German','Hindi','Japanese',
+        'Korean','Portuguese','Russian','Spanish','Tagalog','Vietnamese'
+      ]);
+      const TMP_SOURCE_ENUM = new Set(['inquiry_form', 'questionnaire']);
+
+      const name = typeof body.name === 'string' ? body.name.trim() : '';
+      if (!name || name.length > 100) {
+        return json({ ok: false, error: 'validation_failed', message: 'name is required (1-100 chars)' }, 400, request);
+      }
+      const email = typeof body.email === 'string' ? body.email.trim() : '';
+      if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        return json({ ok: false, error: 'validation_failed', message: 'email is required and must be a valid email address' }, 400, request);
+      }
+      const phone = body.phone == null ? null : String(body.phone).trim();
+      if (phone !== null && phone.length > 20) {
+        return json({ ok: false, error: 'validation_failed', message: 'phone must be 20 chars or fewer' }, 400, request);
+      }
+      const state = typeof body.state === 'string' ? body.state.trim().toUpperCase() : '';
+      if (!TMP_STATE_ENUM.has(state)) {
+        return json({ ok: false, error: 'validation_failed', message: 'state must be a valid 2-letter US state code' }, 400, request);
+      }
+      const serviceNeeded = typeof body.service_needed === 'string' ? body.service_needed.trim() : '';
+      if (!TMP_SERVICE_ENUM.has(serviceNeeded)) {
+        return json({ ok: false, error: 'validation_failed', message: 'service_needed must match the canonical services enum' }, 400, request);
+      }
+      const entityType = typeof body.entity_type === 'string' ? body.entity_type.trim() : '';
+      if (!TMP_ENTITY_ENUM.has(entityType)) {
+        return json({ ok: false, error: 'validation_failed', message: 'entity_type must match the canonical entity types enum' }, 400, request);
+      }
+      let languagePreference = null;
+      if (body.language_preference != null && body.language_preference !== '') {
+        const lp = String(body.language_preference).trim();
+        if (!TMP_LANGUAGE_ENUM.has(lp)) {
+          return json({ ok: false, error: 'validation_failed', message: 'language_preference must match the canonical languages enum' }, 400, request);
+        }
+        languagePreference = lp;
+      }
+      let description = null;
+      if (body.description != null && body.description !== '') {
+        if (typeof body.description !== 'string' || body.description.length > 2000) {
+          return json({ ok: false, error: 'validation_failed', message: 'description must be a string of 2000 chars or fewer' }, 400, request);
+        }
+        description = body.description;
+      }
+      let matchedProfessionalIds = [];
+      if (body.matched_professional_ids != null) {
+        if (!Array.isArray(body.matched_professional_ids) || body.matched_professional_ids.length > 3) {
+          return json({ ok: false, error: 'validation_failed', message: 'matched_professional_ids must be an array of at most 3 strings' }, 400, request);
+        }
+        for (const id of body.matched_professional_ids) {
+          if (typeof id !== 'string' || id.length === 0 || id.length > 128) {
+            return json({ ok: false, error: 'validation_failed', message: 'matched_professional_ids entries must be non-empty strings' }, 400, request);
+          }
+        }
+        matchedProfessionalIds = body.matched_professional_ids;
+      }
+      let selectedProfessionalId = null;
+      if (body.selected_professional_id != null && body.selected_professional_id !== '') {
+        if (typeof body.selected_professional_id !== 'string' || body.selected_professional_id.length > 128) {
+          return json({ ok: false, error: 'validation_failed', message: 'selected_professional_id must be a string up to 128 chars' }, 400, request);
+        }
+        selectedProfessionalId = body.selected_professional_id;
+      }
+      const source = typeof body.source === 'string' ? body.source : '';
+      if (!TMP_SOURCE_ENUM.has(source)) {
+        return json({ ok: false, error: 'validation_failed', message: 'source must be inquiry_form or questionnaire' }, 400, request);
+      }
+
+      const inquiryId = `INQ_${crypto.randomUUID()}`;
+      const now = new Date().toISOString();
+      const canonical = {
+        inquiry_id: inquiryId,
+        name,
+        email,
+        phone,
+        state,
+        service_needed: serviceNeeded,
+        entity_type: entityType,
+        language_preference: languagePreference,
+        description,
+        matched_professional_ids: matchedProfessionalIds,
+        selected_professional_id: selectedProfessionalId,
+        source,
+        status: 'new',
+        created_at: now,
+      };
+
+      // Step 1 — receipt
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/tmp/inquiries/${inquiryId}.json`, {
+          event: 'TMP_INQUIRY_SUBMITTED',
+          event_id: inquiryId,
+          inquiry_id: inquiryId,
+          email,
+          source,
+          matched_professional_ids: matchedProfessionalIds,
+          selected_professional_id: selectedProfessionalId,
+          created_at: now,
+        });
+      } catch (e) {
+        console.error('tmp/inquiries: receipt write failed', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to write receipt' }, 500, request);
+      }
+
+      // Step 2 — canonical
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `inquiries/${inquiryId}.json`, canonical);
+      } catch (e) {
+        console.error('tmp/inquiries: canonical write failed', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to write inquiry' }, 500, request);
+      }
+
+      // Step 3 — best-effort D1 projection. The legacy inquiries table has a
+      // split first_name/last_name shape and NOT NULL constraints on phone; if
+      // the insert fails, R2 remains authoritative.
+      try {
+        const parts = name.split(/\s+/).filter(Boolean);
+        const firstName = parts[0] || name;
+        const lastName = parts.slice(1).join(' ') || '';
+        await d1Run(env.DB,
+          `INSERT INTO inquiries (
+            inquiry_id, first_name, last_name, email, phone,
+            business_types, services_needed,
+            preferred_state, preferred_city, prior_audit_experience,
+            membership_interest, status, assigned_professional_id,
+            response_message, created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?, ?)`,
+          [
+            inquiryId, firstName, lastName, email, phone || '',
+            JSON.stringify([entityType]),
+            JSON.stringify([serviceNeeded]),
+            state,
+            '',
+            0,
+            '',
+            selectedProfessionalId,
+            description,
+            now,
+          ]
+        );
+      } catch (e) {
+        // Table shape drift or constraint miss — R2 is authoritative, swallow.
+      }
+
+      return json({ ok: true, inquiry_id: inquiryId }, 200, request);
     },
   },
 
