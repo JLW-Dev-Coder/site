@@ -263,6 +263,268 @@ function d1RowToProfileCard(row) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Nested profile helpers (vlp.profile.public.v1 contract shape)
+// ---------------------------------------------------------------------------
+
+function profileSlugify(input) {
+  return String(input || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 120);
+}
+
+function profileInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function profileCredentialStyleKey(profession) {
+  const p = String(profession || '').toLowerCase();
+  if (p === 'cpa') return 'cpa';
+  if (p === 'attorney') return 'attorney';
+  if (p === 'enrolled agent') return 'ea';
+  return 'custom';
+}
+
+// A fresh default profile matching the canonical contract shape.
+function defaultNestedProfile() {
+  return {
+    profile: {
+      name: '',
+      slug: '',
+      status: 'standard',
+      status_badge_label: null,
+      profile_type: 'live',
+      initials: '',
+      avatar: {
+        upload_type: 'initials_only',
+        initials_fallback: true,
+        display_dimensions: { width: 128, height: 128 },
+        file: null,
+      },
+    },
+    professional: {
+      profession: [],
+      credentials: [],
+      firm_name: null,
+      years_experience: 0,
+    },
+    hero: {
+      headline: '',
+      location_label: '',
+      rating_label: '',
+      years_experience_label: '',
+      credential_badges: [],
+    },
+    location: {
+      city: '',
+      state: '',
+      country: 'United States',
+      zip: null,
+    },
+    bio: {
+      bio_short: '',
+      bio_full_paragraphs: [],
+    },
+    contact: {
+      contact_email: null,
+      phone: null,
+      website: null,
+      availability_display: null,
+      timezone: null,
+      languages: [],
+      weekly_availability: [],
+    },
+    services_offered: { items: [] },
+    specializations: { client_types: [] },
+    credentials_experience: {
+      licenses_certifications: [],
+      background_items: [],
+    },
+    quick_stats: [],
+    reviews: {
+      enabled: false,
+      allow_submission: false,
+      summary: { average_rating: 0, review_count: 0 },
+      items: [],
+    },
+    buttons: {
+      schedule_button: {
+        show: true, active: false,
+        label: 'Schedule Consultation',
+        mode: 'none',
+        url: null,
+        provider_label: 'None',
+        behavior_phrase: 'No, I have not connected Cal.com or my own booking link, keep button inactive',
+        description: null,
+        description_mode: 'derived',
+        event_type_label: null,
+        event_type_duration_minutes: null,
+      },
+      contact_button: {
+        show: true, active: false,
+        label: 'Contact Now',
+        mode: 'inactive',
+        url: null,
+      },
+      review_button: {
+        show: false, active: false,
+        label: 'Add Your Review',
+        mode: 'inactive',
+        url: null,
+      },
+    },
+  };
+}
+
+// Deep merge for nested profile updates.
+// - Top-level section keys merge section-by-section (shallow within each section).
+// - Arrays are REPLACED wholesale (they represent the full new value).
+// - Nested objects inside sections (e.g. profile.avatar) are shallow-merged.
+function mergeProfileSection(existing, patch) {
+  if (patch === null || patch === undefined) return existing;
+  if (Array.isArray(patch)) return patch;
+  if (typeof patch !== 'object') return patch;
+  const base = (existing && typeof existing === 'object' && !Array.isArray(existing)) ? existing : {};
+  const out = { ...base };
+  for (const [k, v] of Object.entries(patch)) {
+    if (Array.isArray(v)) {
+      out[k] = v;
+    } else if (v && typeof v === 'object') {
+      out[k] = mergeProfileSection(base[k], v);
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
+
+function mergeNestedProfile(existing, patch) {
+  const base = existing || defaultNestedProfile();
+  const merged = { ...base };
+  for (const key of Object.keys(patch || {})) {
+    if (key === 'accountId' || key === 'professional_id' || key === 'professionalId') continue;
+    if (key === 'createdAt' || key === 'updatedAt') continue;
+    const incoming = patch[key];
+    if (incoming && typeof incoming === 'object' && !Array.isArray(incoming)) {
+      merged[key] = mergeProfileSection(base[key], incoming);
+    } else {
+      merged[key] = incoming;
+    }
+  }
+  return merged;
+}
+
+// Re-derive computed fields from the canonical data in a nested profile.
+function deriveProfileFields(profile) {
+  const name = profile?.profile?.name || '';
+  const professions = Array.isArray(profile?.professional?.profession)
+    ? profile.professional.profession
+    : [];
+  const years = Number(profile?.professional?.years_experience ?? 0) || 0;
+  const city = profile?.location?.city || '';
+  const state = profile?.location?.state || '';
+
+  // profile.slug + initials
+  if (!profile.profile) profile.profile = {};
+  if (!profile.profile.slug) profile.profile.slug = profileSlugify(name);
+  profile.profile.initials = profileInitials(name);
+
+  // hero.headline — "Name, Profession" (primary profession only)
+  if (!profile.hero) profile.hero = {};
+  const primaryProfession = professions[0] || '';
+  profile.hero.headline = primaryProfession
+    ? `${name}${name && primaryProfession ? ', ' : ''}${primaryProfession}`.slice(0, 120)
+    : name.slice(0, 120);
+
+  // hero.location_label — "City, State"
+  profile.hero.location_label = city && state ? `${city}, ${state}` : (state || city || '');
+
+  // hero.years_experience_label
+  profile.hero.years_experience_label = years > 0
+    ? `${years}+ years experience`
+    : '';
+
+  // hero.credential_badges — derive from professions
+  profile.hero.credential_badges = professions.slice(0, 6).map((p) => ({
+    label: p,
+    style_key: profileCredentialStyleKey(p),
+  }));
+
+  // contact.availability_display — derive from weekly_availability if not explicitly set
+  const wa = Array.isArray(profile?.contact?.weekly_availability)
+    ? profile.contact.weekly_availability
+    : [];
+  const activeDays = wa.filter((d) => d && d.enabled);
+  if (activeDays.length > 0 && !profile.contact.availability_display) {
+    const dayAbbr = { Monday: 'Mon', Tuesday: 'Tue', Wednesday: 'Wed', Thursday: 'Thu', Friday: 'Fri', Saturday: 'Sat', Sunday: 'Sun' };
+    const first = activeDays[0];
+    const last = activeDays[activeDays.length - 1];
+    const daysLabel = activeDays.length === 1
+      ? dayAbbr[first.day] || first.day
+      : `${dayAbbr[first.day] || first.day}-${dayAbbr[last.day] || last.day}`;
+    const formatTime = (t) => {
+      if (!t) return '';
+      const [hh, mm] = String(t).split(':').map(Number);
+      const period = hh >= 12 ? 'PM' : 'AM';
+      const h12 = hh % 12 || 12;
+      return mm ? `${h12}:${String(mm).padStart(2, '0')}${period}` : `${h12}${period}`;
+    };
+    const start = formatTime(first.start_time);
+    const end = formatTime(first.end_time);
+    profile.contact.availability_display = start && end
+      ? `${daysLabel}, ${start}-${end}`
+      : daysLabel;
+  }
+
+  // profile.initials in avatar fallback
+  if (profile.profile.avatar) {
+    profile.profile.avatar.initials_fallback = profile.profile.avatar.upload_type === 'initials_only'
+      || profile.profile.avatar.initials_fallback === true;
+  }
+
+  return profile;
+}
+
+// Build the D1 projection row values from the nested profile.
+function profileD1ProjectionValues(nested) {
+  const professions = Array.isArray(nested?.professional?.profession)
+    ? nested.professional.profession
+    : [];
+  const services = Array.isArray(nested?.services_offered?.items)
+    ? nested.services_offered.items.map((s) => (s && s.title) || '').filter(Boolean)
+    : [];
+  const bioParagraphs = Array.isArray(nested?.bio?.bio_full_paragraphs)
+    ? nested.bio.bio_full_paragraphs
+    : [];
+  const wa = Array.isArray(nested?.contact?.weekly_availability)
+    ? nested.contact.weekly_availability
+    : [];
+  return {
+    display_name: nested?.profile?.name || '',
+    bio: bioParagraphs.join('\n\n') || nested?.bio?.bio_short || '',
+    specialties: services.join(', '),
+    profession: professions.join(', '),
+    phone: nested?.contact?.phone || null,
+    availability_text: nested?.contact?.availability_display || null,
+    business_hours: wa.length ? JSON.stringify(wa) : null,
+    cal_booking_url: nested?.buttons?.schedule_button?.url || null,
+    website: nested?.contact?.website || null,
+    firm_name: nested?.professional?.firm_name || null,
+    city: nested?.location?.city || null,
+    state: nested?.location?.state || null,
+    zip: nested?.location?.zip || null,
+    status: nested?.profile?.status === 'hidden' ? 'inactive' : 'active',
+  };
+}
+
 // Get current token balance for an account (R2 canonical, D1 fallback)
 async function getCurrentTokenBalance(env, accountId) {
   // Try R2 first (canonical)
@@ -4800,61 +5062,74 @@ const ROUTES = [
     handler: async (_method, _pattern, _params, request, env) => {
       const { session, error } = await requireSession(request, env);
       if (error) return error;
-      const body = await parseBody(request);
-      const { professionalId, displayName } = body ?? {};
-      if (!professionalId || !displayName) {
-        return json({ ok: false, error: 'MISSING_FIELDS', message: 'professionalId and displayName required' }, 400, request);
+      const body = (await parseBody(request)) || {};
+
+      // Accept partial nested payload. Name is the one hard requirement —
+      // slug + initials + hero are derived from it.
+      const incomingName = body?.profile?.name || body?.name || '';
+      if (!incomingName || typeof incomingName !== 'string') {
+        return json({ ok: false, error: 'MISSING_FIELDS', message: 'profile.name is required' }, 400, request);
       }
+
+      const professionalId = body?.professional_id || body?.professionalId || `PRO_${crypto.randomUUID()}`;
       const now = new Date().toISOString();
-      // Store the full onboarding form data in R2 (authoritative)
-      const profile = {
-        professionalId, accountId: session.account_id, displayName,
-        fullName: body.fullName ?? null, initials: body.initials ?? null,
-        bioShort: body.bioShort ?? null,
-        yearsExperience: body.yearsExperience ?? null,
-        state: body.state ?? null, city: body.city ?? null,
-        zip: body.zip ?? null,
-        firmName: body.firmName ?? null,
-        professions: body.professions ?? [],
-        otherProfession: body.otherProfession ?? null,
-        aboutHeading: body.aboutHeading ?? null,
-        bio1: body.bio1 ?? null, bio2: body.bio2 ?? null, bio3: body.bio3 ?? null,
-        servicesHeading: body.servicesHeading ?? null,
-        primaryService: body.primaryService ?? null,
-        additionalServices: body.additionalServices ?? [],
-        credentialsHeading: body.credentialsHeading ?? null,
-        primaryCredential: body.primaryCredential ?? null,
-        additionalCredentials: body.additionalCredentials ?? null,
-        email: body.email ?? null, phone: body.phone ?? null,
-        website: body.website ?? null,
-        languages: body.languages ?? [],
-        availabilityText: body.availabilityText ?? null,
-        weeklyAvailability: body.weeklyAvailability ?? null,
-        calBookingUrl: body.calBookingUrl ?? null,
-        status: 'active',
-        createdAt: now, updatedAt: now,
-      };
+
+      // Check if a profile already exists for this account — if so, short-circuit
+      // to an update (onboarding "Step 1 save" is the natural place a user would
+      // create a profile, so repeat calls should be idempotent).
+      try {
+        const existingRow = await env.DB.prepare(
+          'SELECT professional_id FROM profiles WHERE account_id = ? LIMIT 1'
+        ).bind(session.account_id).first();
+        if (existingRow?.professional_id) {
+          const existingObj = await env.R2_VIRTUAL_LAUNCH.get(`profiles/${existingRow.professional_id}.json`);
+          if (existingObj) {
+            const existing = await existingObj.json();
+            const merged = mergeNestedProfile(existing, body);
+            merged.accountId = session.account_id;
+            merged.professional_id = existingRow.professional_id;
+            merged.updatedAt = now;
+            if (!merged.createdAt) merged.createdAt = existing.createdAt || now;
+            deriveProfileFields(merged);
+            await r2Put(env.R2_VIRTUAL_LAUNCH, `profiles/${existingRow.professional_id}.json`, merged);
+            const p = profileD1ProjectionValues(merged);
+            try {
+              await d1Run(env.DB,
+                `UPDATE profiles SET display_name=?, bio=?, specialties=?, profession=?, phone=?, availability_text=?, business_hours=?, cal_booking_url=?, website=?, firm_name=?, city=?, state=?, zip=?, status=?, updated_at=? WHERE professional_id=?`,
+                [p.display_name, p.bio, p.specialties, p.profession, p.phone, p.availability_text, p.business_hours, p.cal_booking_url, p.website, p.firm_name, p.city, p.state, p.zip, p.status, now, existingRow.professional_id]
+              );
+            } catch (e) { console.error('D1 profile update error (POST upsert):', e); }
+            return json({ ok: true, professional_id: existingRow.professional_id, profile: merged }, 200, request);
+          }
+        }
+      } catch (e) {
+        console.error('POST /v1/profiles upsert-check error:', e);
+      }
+
+      // Fresh create — start from canonical defaults, merge client body on top,
+      // then re-derive computed fields.
+      const profile = mergeNestedProfile(defaultNestedProfile(), body);
+      profile.accountId = session.account_id;
+      profile.professional_id = professionalId;
+      profile.createdAt = now;
+      profile.updatedAt = now;
+      deriveProfileFields(profile);
+
       await r2Put(env.R2_VIRTUAL_LAUNCH, `profiles/${professionalId}.json`, profile);
+
       // D1 projection
-      const bio = [body.bio1, body.bio2, body.bio3].filter(Boolean).join('\n\n');
-      const specialties = (body.additionalServices ?? []).join(', ');
-      const profession = (body.professions ?? []).join(', ');
-      const phone = body.phone ?? null;
-      const availabilityText = body.availabilityText ?? null;
-      const businessHours = body.weeklyAvailability ? JSON.stringify(body.weeklyAvailability) : null;
-      const firmName = body.firmName ?? null;
-      const website = body.website ?? null;
+      const p = profileD1ProjectionValues(profile);
       try {
         await d1Run(env.DB,
           `INSERT INTO profiles (professional_id, account_id, display_name, bio, specialties, profession, phone, availability_text, business_hours, cal_booking_url, website, firm_name, city, state, zip, status, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [professionalId, session.account_id, displayName, bio || null, specialties || null, profession || null, phone || null, availabilityText || null, businessHours, body.calBookingUrl || null, website, firmName, body.city || null, body.state || null, body.zip || null, 'active', now, now]
+          [professionalId, session.account_id, p.display_name, p.bio, p.specialties, p.profession, p.phone, p.availability_text, p.business_hours, p.cal_booking_url, p.website, p.firm_name, p.city, p.state, p.zip, p.status, now, now]
         );
       } catch (e) {
         // If D1 insert fails (e.g. duplicate), still return success since R2 is authoritative
         console.error('D1 profile insert error:', e);
       }
-      return json({ ok: true, profile }, 201, request);
+      return json({ ok: true, professional_id: professionalId, profile }, 201, request);
     },
   },
 
@@ -4884,63 +5159,46 @@ const ROUTES = [
   {
     method: 'PATCH', pattern: '/v1/profiles/:professional_id',
     handler: async (_method, _pattern, params, request, env) => {
-      const { error } = await requireSession(request, env);
+      const { session, error } = await requireSession(request, env);
       if (error) return error;
-      const body = await parseBody(request);
+      const body = (await parseBody(request)) || {};
+
       const obj = await env.R2_VIRTUAL_LAUNCH.get(`profiles/${params.professional_id}.json`);
       if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Profile not found' }, 404, request);
       const existing = await obj.json();
+
+      // Ownership check — only the owning account may mutate the profile.
+      if (existing.accountId && existing.accountId !== session.account_id) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
+      }
+
       const now = new Date().toISOString();
-      // Merge all fields from body into existing R2 profile
-      const updated = { ...existing, ...body, updatedAt: now };
-      await r2Put(env.R2_VIRTUAL_LAUNCH, `profiles/${params.professional_id}.json`, updated);
-      // D1 projection — only update columns that exist
-      const setClauses = ['updated_at = ?'];
-      const vals = [now];
-      if (body?.displayName)  { setClauses.unshift('display_name = ?');  vals.unshift(body.displayName); }
-      if (body?.bio1 || body?.bio2 || body?.bio3) {
-        const bio = [body.bio1 ?? existing.bio1, body.bio2 ?? existing.bio2, body.bio3 ?? existing.bio3].filter(Boolean).join('\n\n');
-        setClauses.unshift('bio = ?'); vals.unshift(bio);
-      }
-      if (body?.additionalServices) {
-        setClauses.unshift('specialties = ?'); vals.unshift(body.additionalServices.join(', '));
-      }
-      if (body?.calBookingUrl !== undefined) {
-        setClauses.unshift('cal_booking_url = ?'); vals.unshift(body.calBookingUrl || null);
-      }
-      if (body?.professions) {
-        setClauses.unshift('profession = ?'); vals.unshift(body.professions.join(', '));
-      }
-      if (body?.phone !== undefined) {
-        setClauses.unshift('phone = ?'); vals.unshift(body.phone || null);
-      }
-      if (body?.availabilityText !== undefined) {
-        setClauses.unshift('availability_text = ?'); vals.unshift(body.availabilityText || null);
-      }
-      if (body?.city !== undefined) {
-        setClauses.unshift('city = ?'); vals.unshift(body.city || null);
-      }
-      if (body?.state !== undefined) {
-        setClauses.unshift('state = ?'); vals.unshift(body.state || null);
-      }
-      if (body?.zip !== undefined) {
-        setClauses.unshift('zip = ?'); vals.unshift(body.zip || null);
-      }
-      if (body?.firmName !== undefined) {
-        setClauses.unshift('firm_name = ?'); vals.unshift(body.firmName || null);
-      }
-      if (body?.weeklyAvailability !== undefined) {
-        setClauses.unshift('business_hours = ?'); vals.unshift(body.weeklyAvailability ? JSON.stringify(body.weeklyAvailability) : null);
-      }
-      if (body?.website !== undefined) {
-        setClauses.unshift('website = ?'); vals.unshift(body.website || null);
-      }
+
+      // Deep merge the nested patch into the existing profile.
+      // - Top-level sections merge section-by-section.
+      // - Arrays are replaced wholesale.
+      const merged = mergeNestedProfile(existing, body);
+      merged.accountId = existing.accountId || session.account_id;
+      merged.professional_id = params.professional_id;
+      merged.createdAt = existing.createdAt || now;
+      merged.updatedAt = now;
+
+      // Re-derive computed fields (hero.*, slug, initials, availability_display).
+      deriveProfileFields(merged);
+
+      await r2Put(env.R2_VIRTUAL_LAUNCH, `profiles/${params.professional_id}.json`, merged);
+
+      // D1 projection — rebuild from merged nested profile.
+      const p = profileD1ProjectionValues(merged);
       try {
-        await d1Run(env.DB, `UPDATE profiles SET ${setClauses.join(', ')} WHERE professional_id = ?`, [...vals, params.professional_id]);
+        await d1Run(env.DB,
+          `UPDATE profiles SET display_name=?, bio=?, specialties=?, profession=?, phone=?, availability_text=?, business_hours=?, cal_booking_url=?, website=?, firm_name=?, city=?, state=?, zip=?, status=?, updated_at=? WHERE professional_id=?`,
+          [p.display_name, p.bio, p.specialties, p.profession, p.phone, p.availability_text, p.business_hours, p.cal_booking_url, p.website, p.firm_name, p.city, p.state, p.zip, p.status, now, params.professional_id]
+        );
       } catch (e) {
         console.error('D1 profile update error:', e);
       }
-      return json({ ok: true, profile: updated }, 200, request);
+      return json({ ok: true, profile: merged }, 200, request);
     },
   },
 
