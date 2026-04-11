@@ -16,6 +16,12 @@ import {
   ClipboardCheck,
 } from 'lucide-react'
 
+import {
+  getComplianceRecord,
+  saveComplianceRecord,
+  type ComplianceRecord,
+  type ComplianceRecordPayload,
+} from '@/lib/api/compliance-records'
 import AccordionSection from './components/AccordionSection'
 import ComplianceHeader from './components/ComplianceHeader'
 import ComplianceTabs from './components/ComplianceTabs'
@@ -63,14 +69,44 @@ import {
 
 const MFJ_BANNER_STORAGE_KEY = 'vlp:compliance:mfj-banner-dismissed'
 
+function mergeRecordIntoData(
+  prev: ComplianceData,
+  record: ComplianceRecord
+): ComplianceData {
+  const prevAsRecord = prev as unknown as Record<string, unknown>
+  const source = record as unknown as Record<string, unknown>
+  const next: Record<string, unknown> = { ...prevAsRecord }
+  for (const key of Object.keys(prevAsRecord)) {
+    const value = source[key]
+    if (value !== undefined && value !== null) {
+      next[key] = value
+    }
+  }
+  if (record.order_id) next.order_id = record.order_id
+  if (Array.isArray(record.notices)) {
+    next.notices = record.notices.map((n) => ({
+      received: typeof n.received === 'string' ? n.received : '',
+      date: typeof n.date === 'string' ? n.date : '',
+      type: typeof n.type === 'string' ? n.type : '',
+      cp_number: typeof n.cp_number === 'string' ? n.cp_number : '',
+      details: typeof n.details === 'string' ? n.details : '',
+    }))
+  }
+  return next as unknown as ComplianceData
+}
+
 export default function ComplianceRecordPage() {
   const params = useParams<{ clientId: string }>()
   const clientId = params?.clientId ?? 'c1'
 
-  const [data, setData] = useState<ComplianceData>(() => initialComplianceData())
+  const [data, setData] = useState<ComplianceData>(() => {
+    const initial = initialComplianceData()
+    return { ...initial, order_id: clientId }
+  })
   const [activeTab, setActiveTab] = useState<TabId>('overview')
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null)
   const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [toast, setToast] = useState<string | null>(null)
   const [mfjBannerDismissed, setMfjBannerDismissed] = useState(false)
   const [mfjScope, setMfjScope] = useState<'primary' | 'spouse'>('primary')
@@ -81,6 +117,30 @@ export default function ComplianceRecordPage() {
       window.localStorage.getItem(MFJ_BANNER_STORAGE_KEY) === '1'
     )
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      setLoading(true)
+      try {
+        const res = await getComplianceRecord(clientId)
+        if (cancelled) return
+        if (res.ok && res.record) {
+          setData((prev) => mergeRecordIntoData(prev, res.record!))
+          if (res.record.updated_at) {
+            setLastSavedAt(new Date(res.record.updated_at))
+          }
+        }
+      } catch {
+        // First-time record — initial defaults stand
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [clientId])
 
   const showMfjBanner = data.filing_status === 'MFJ' && !mfjBannerDismissed
 
@@ -201,28 +261,61 @@ export default function ComplianceRecordPage() {
   }
 
   async function handleSaveDraft() {
+    if (saving) return
     setSaving(true)
-    const payload = { ...buildPayload(), compliance_record_status: 'Draft' as const }
-    update('compliance_record_status', 'Draft')
-    // eslint-disable-next-line no-console
-    console.log('[compliance] save draft payload', payload)
-    await new Promise((resolve) => setTimeout(resolve, 400))
-    setLastSavedAt(new Date())
-    setSaving(false)
-    showToast('Draft saved')
+    const payload: ComplianceRecordPayload = {
+      ...buildPayload(),
+      order_id: clientId,
+      compliance_record_status: 'Draft',
+    }
+    try {
+      const res = await saveComplianceRecord(payload)
+      if (res.ok) {
+        update('compliance_record_status', 'Draft')
+        setLastSavedAt(res.updated_at ? new Date(res.updated_at) : new Date())
+        showToast('Draft saved')
+      } else if (res.error === 'record_finalized') {
+        update('compliance_record_status', 'Final')
+        showToast('Record is finalized and locked')
+      } else {
+        showToast(res.message || 'Save failed')
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Save failed')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function handleFinalize() {
+    if (saving) return
     const confirmed = window.confirm(
       'Finalize this compliance record? Once finalized, the record is locked and becomes the authoritative compliance document for this client.'
     )
     if (!confirmed) return
-    const payload = { ...buildPayload(), compliance_record_status: 'Final' as const }
-    update('compliance_record_status', 'Final')
-    // eslint-disable-next-line no-console
-    console.log('[compliance] finalize payload', payload)
-    setLastSavedAt(new Date())
-    showToast('Record finalized')
+    setSaving(true)
+    const payload: ComplianceRecordPayload = {
+      ...buildPayload(),
+      order_id: clientId,
+      compliance_record_status: 'Final',
+    }
+    try {
+      const res = await saveComplianceRecord(payload)
+      if (res.ok) {
+        update('compliance_record_status', 'Final')
+        setLastSavedAt(res.updated_at ? new Date(res.updated_at) : new Date())
+        showToast('Record finalized')
+      } else if (res.error === 'record_finalized') {
+        update('compliance_record_status', 'Final')
+        showToast('Record is already finalized')
+      } else {
+        showToast(res.message || 'Finalize failed')
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Finalize failed')
+    } finally {
+      setSaving(false)
+    }
   }
 
   function handleCopySummary() {
@@ -274,7 +367,7 @@ export default function ComplianceRecordPage() {
         lastSavedLabel={lastSavedLabel}
         onSaveDraft={handleSaveDraft}
         onFinalize={handleFinalize}
-        saving={saving}
+        saving={saving || loading}
         finalized={finalized}
         mfjOffset={showMfjBanner}
       />

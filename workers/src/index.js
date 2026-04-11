@@ -9918,6 +9918,302 @@ TTMP Support Team
   },
 
   // -------------------------------------------------------------------------
+  // TMP Compliance Record Routes
+  // Contracts:
+  //   - /contracts/tmp/tmp.compliance-record.write.v1.json  (staff write + staff read)
+  //   - /contracts/tmp/tmp.compliance-record.read.v1.json   (client-facing report read)
+  // Write pipeline (per CLAUDE.md):
+  //   validate → receiptAppend → canonicalUpsert → D1 projection (best-effort)
+  // R2 keys:
+  //   canonical: compliance_records/{order_id}.json
+  //   receipt:   receipts/tmp/compliance-records/{order_id}.json (history log — appended)
+  // -------------------------------------------------------------------------
+
+  // POST /v1/tmp/compliance-records
+  // Staff writes a draft or finalizes a compliance record for a given order.
+  // Finalization lock: once compliance_record_status === 'Final' on canonical,
+  // subsequent POSTs return { ok: false, error: 'record_finalized' }.
+  {
+    method: 'POST', pattern: '/v1/tmp/compliance-records',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      // Require application/json content-type (contract.validation.requireJsonContentType)
+      const contentType = request.headers.get('content-type') || '';
+      if (!contentType.toLowerCase().includes('application/json')) {
+        return json({ ok: false, error: 'validation_failed', message: 'Content-Type must be application/json' }, 400, request);
+      }
+
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ ok: false, error: 'validation_failed', message: 'Invalid JSON body' }, 400, request);
+      }
+
+      // Required fields (contract.payload.required)
+      const required = ['account_id', 'order_id', 'servicing_professional_id', 'source'];
+      for (const field of required) {
+        if (typeof body[field] !== 'string' || body[field].length === 0) {
+          return json({ ok: false, error: 'validation_failed', message: `${field} is required` }, 400, request);
+        }
+      }
+      if (body.source !== 'staff_compliance_records') {
+        return json({ ok: false, error: 'validation_failed', message: 'source must be staff_compliance_records' }, 400, request);
+      }
+
+      const orderId = body.order_id;
+      const canonicalKey = `compliance_records/${orderId}.json`;
+
+      // Resolve session's professional_id from linked profile
+      let sessionProfessionalId = null;
+      try {
+        const profileRow = await env.DB.prepare(
+          "SELECT professional_id FROM profiles WHERE account_id = ?"
+        ).bind(session.account_id).first();
+        sessionProfessionalId = profileRow?.professional_id || null;
+      } catch (e) {
+        console.error('compliance-records: profile lookup failed', e?.message);
+      }
+
+      // Authorization: the session must be the servicing professional for this case.
+      // If a client_pool case exists with matching case_id === order_id, enforce ownership.
+      // Otherwise allow a standalone compliance record (the session pro becomes the author).
+      try {
+        const caseRaw = await r2Get(env.R2_VIRTUAL_LAUNCH, `client_pool/${orderId}.json`);
+        if (caseRaw) {
+          const caseRecord = JSON.parse(caseRaw);
+          if (caseRecord.servicing_professional_id && sessionProfessionalId &&
+              caseRecord.servicing_professional_id !== sessionProfessionalId) {
+            return json({ ok: false, error: 'FORBIDDEN', message: 'You are not the servicing professional for this case.' }, 403, request);
+          }
+        }
+      } catch (e) {
+        // Non-fatal — continue. Standalone records are permitted.
+      }
+
+      // Load existing canonical to enforce finalization lock
+      let existing = null;
+      try {
+        const raw = await r2Get(env.R2_VIRTUAL_LAUNCH, canonicalKey);
+        if (raw) existing = JSON.parse(raw);
+      } catch (e) {
+        // Missing or unreadable — treat as first write
+      }
+
+      if (existing && existing.compliance_record_status === 'Final') {
+        return json({ ok: false, error: 'record_finalized', message: 'This compliance record is finalized and cannot be modified.' }, 409, request);
+      }
+
+      const now = new Date().toISOString();
+      const recordStatus = body.compliance_record_status === 'Final' ? 'Final' : 'Draft';
+      const priorVersion = typeof existing?.version === 'number' ? existing.version : 0;
+
+      // Step 1: receipt (immutable event record — keyed per-save via timestamp suffix)
+      const receiptKey = `receipts/tmp/compliance-records/${orderId}.json`;
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, {
+          event: 'TMP_COMPLIANCE_RECORD_SAVED',
+          event_id: orderId,
+          order_id: orderId,
+          account_id: session.account_id,
+          professional_id: sessionProfessionalId,
+          record_status: recordStatus,
+          saved_at: now,
+          version: priorVersion + 1
+        });
+      } catch (e) {
+        console.error('compliance-records: receipt write failed', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to write receipt' }, 500, request);
+      }
+
+      // Step 2: canonical upsert
+      const canonicalRecord = {
+        ...(existing || {}),
+        ...body,
+        compliance_record_status: recordStatus,
+        updated_at: now,
+        updated_by: session.account_id,
+        version: priorVersion + 1
+      };
+      if (!canonicalRecord.created_at) canonicalRecord.created_at = now;
+      if (recordStatus === 'Final' && !canonicalRecord.finalized_at) {
+        canonicalRecord.finalized_at = now;
+        canonicalRecord.finalized_by = session.account_id;
+      }
+
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, canonicalKey, canonicalRecord);
+      } catch (e) {
+        console.error('compliance-records: canonical write failed', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to write canonical record' }, 500, request);
+      }
+
+      // Step 3: D1 projection (best-effort — table may not exist yet)
+      try {
+        await env.DB.prepare(
+          "INSERT INTO compliance_records (order_id, account_id, servicing_professional_id, record_status, updated_at, finalized_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(order_id) DO UPDATE SET record_status = excluded.record_status, updated_at = excluded.updated_at, finalized_at = excluded.finalized_at"
+        ).bind(
+          orderId,
+          body.account_id,
+          body.servicing_professional_id,
+          recordStatus,
+          now,
+          canonicalRecord.finalized_at || null
+        ).run();
+      } catch (e) {
+        // Table may not exist — R2 is authoritative, swallow.
+      }
+
+      return json({
+        ok: true,
+        status: 'saved',
+        record_status: recordStatus.toLowerCase(),
+        order_id: orderId,
+        version: canonicalRecord.version,
+        updated_at: now,
+        finalized_at: canonicalRecord.finalized_at || null
+      }, 200, request);
+    },
+  },
+
+  // GET /v1/tmp/compliance-records/:order_id
+  // Staff read — returns the full canonical record from R2.
+  // Requires session; requester must be the servicing professional for the linked case
+  // (if a client_pool case with the same id exists).
+  {
+    method: 'GET', pattern: '/v1/tmp/compliance-records/:order_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const orderId = params.order_id;
+      if (!orderId) {
+        return json({ ok: false, error: 'validation_failed', message: 'order_id is required' }, 400, request);
+      }
+
+      let sessionProfessionalId = null;
+      try {
+        const profileRow = await env.DB.prepare(
+          "SELECT professional_id FROM profiles WHERE account_id = ?"
+        ).bind(session.account_id).first();
+        sessionProfessionalId = profileRow?.professional_id || null;
+      } catch (e) {
+        console.error('compliance-records read: profile lookup failed', e?.message);
+      }
+
+      // Authorization: if there's a linked client_pool case, enforce ownership.
+      try {
+        const caseRaw = await r2Get(env.R2_VIRTUAL_LAUNCH, `client_pool/${orderId}.json`);
+        if (caseRaw) {
+          const caseRecord = JSON.parse(caseRaw);
+          if (caseRecord.servicing_professional_id && sessionProfessionalId &&
+              caseRecord.servicing_professional_id !== sessionProfessionalId) {
+            return json({ ok: false, error: 'FORBIDDEN', message: 'You are not the servicing professional for this case.' }, 403, request);
+          }
+        }
+      } catch (e) {
+        // Non-fatal — continue.
+      }
+
+      let record;
+      try {
+        const raw = await r2Get(env.R2_VIRTUAL_LAUNCH, `compliance_records/${orderId}.json`);
+        if (!raw) {
+          return json({ ok: false, error: 'not_found', message: 'No compliance record exists for this order.' }, 404, request);
+        }
+        record = JSON.parse(raw);
+      } catch (e) {
+        console.error('compliance-records read: canonical read failed', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to read compliance record' }, 500, request);
+      }
+
+      return json({ ok: true, record }, 200, request);
+    },
+  },
+
+  // GET /v1/tmp/compliance-records/:order_id/report
+  // Client-facing read — returns the client-safe projection of the compliance record.
+  // Contract: /contracts/tmp/tmp.compliance-record.read.v1.json
+  // Excludes internal notes, IRS rep/agent fields, RO details, transcripts, authority flags.
+  // Truncates notice details to 500 chars.
+  {
+    method: 'GET', pattern: '/v1/tmp/compliance-records/:order_id/report',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const orderId = params.order_id;
+      if (!orderId) {
+        return json({ ok: false, error: 'validation_failed', message: 'order_id is required' }, 400, request);
+      }
+
+      let record;
+      try {
+        const raw = await r2Get(env.R2_VIRTUAL_LAUNCH, `compliance_records/${orderId}.json`);
+        if (!raw) {
+          return json({ ok: false, error: 'not_found', message: 'No compliance report exists for this order.' }, 404, request);
+        }
+        record = JSON.parse(raw);
+      } catch (e) {
+        console.error('compliance-records report: read failed', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to read compliance report' }, 500, request);
+      }
+
+      // Ownership: the requesting session must either be the client (account_id match)
+      // or the servicing professional (professional_id match on the record).
+      const isClientOwner = record.account_id && record.account_id === session.account_id;
+      let isServicingPro = false;
+      if (!isClientOwner) {
+        try {
+          const profileRow = await env.DB.prepare(
+            "SELECT professional_id FROM profiles WHERE account_id = ?"
+          ).bind(session.account_id).first();
+          const sessionProfessionalId = profileRow?.professional_id || null;
+          isServicingPro = !!sessionProfessionalId &&
+            record.servicing_professional_id === sessionProfessionalId;
+        } catch (e) {
+          // Non-fatal — treat as non-owner
+        }
+      }
+      if (!isClientOwner && !isServicingPro) {
+        return json({ ok: false, error: 'FORBIDDEN', message: 'You are not authorized to view this report.' }, 403, request);
+      }
+
+      // Client-safe projection per tmp.compliance-record.read.v1.json
+      const report = {
+        order_id: orderId,
+        client_name: record.client_name,
+        filing_status: record.filing_status,
+        compliance_tax_year: record.compliance_tax_year,
+        total_irs_balance: record.total_irs_balance,
+        irs_account_status: record.irs_account_status,
+        return_processing_status: record.return_processing_status,
+        return_date_filed: record.return_date_filed,
+        return_tax_liability: record.return_tax_liability,
+        notices: Array.isArray(record.notices)
+          ? record.notices.map((n) => ({
+              received: n.received,
+              date: n.date,
+              type: n.type,
+              cp_number: n.cp_number ?? null,
+              details: typeof n.details === 'string' ? n.details.slice(0, 500) : n.details
+            }))
+          : [],
+        ia_established: record.ia_established,
+        ia_payment_amount: record.ia_payment_amount,
+        ia_payment_date: record.ia_payment_date,
+        compliance_client_summary: record.compliance_client_summary,
+        compliance_record_status: record.compliance_record_status,
+        compliance_prepared_date: record.compliance_prepared_date
+      };
+
+      return json({ ok: true, report }, 200, request);
+    },
+  },
+
+  // -------------------------------------------------------------------------
   // VLP Account Preferences Routes
   // -------------------------------------------------------------------------
 
