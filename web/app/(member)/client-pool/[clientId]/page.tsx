@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { useParams } from 'next/navigation'
 import {
   ArrowLeft,
   FileText,
@@ -25,6 +26,7 @@ import type { PhaseStatus } from './components/PhaseProgressBar'
 import StepCard from './components/StepCard'
 import type { StepDef, StepStatus } from './components/StepCard'
 import StepDetailPanel from './components/StepDetailPanel'
+import type { StepActionConfig } from './components/StepDetailPanel'
 
 /* ── placeholder client data ─────────────────────────────────────── */
 
@@ -321,6 +323,9 @@ function derivePhaseStatus(phaseNum: number, allSteps: StepDef[]): PhaseStatus {
 /* ── page ─────────────────────────────────────────────────────────── */
 
 export default function ClientRecordPage() {
+  const params = useParams<{ clientId: string }>()
+  const clientId = params?.clientId ?? 'c1'
+
   const [selectedStep, setSelectedStep] = useState<StepDef | null>(
     steps.find((s) => s.status === 'current') ?? null
   )
@@ -332,6 +337,56 @@ export default function ClientRecordPage() {
   }))
 
   const groupedSteps = [0, 1, 2, 3].map((p) => steps.filter((s) => s.phase === p))
+
+  const stepActions: Record<string, StepActionConfig> = {
+    'p1-esign-2848': {
+      primary: {
+        label: 'Open eSign Form',
+        href: `https://taxmonitor.pro/forms/2848?caseId=${clientId}`,
+        external: true,
+      },
+      secondary: {
+        label: 'Generate 2848 (Staff)',
+        href: `/client-pool/${clientId}/2848`,
+      },
+    },
+    'p2-auth-caf': {
+      primary: {
+        label: 'Open Compliance Record',
+        href: `/client-pool/${clientId}/compliance`,
+      },
+    },
+    'p2-retrieval': {
+      primary: {
+        label: 'Open Compliance Record',
+        href: `/client-pool/${clientId}/compliance`,
+      },
+    },
+    'p3-report': {
+      primary: {
+        label: 'View Report',
+        href: `/client-pool/${clientId}/report`,
+      },
+    },
+    'p3-results-appt': {
+      primary: {
+        label: 'Schedule Appointment',
+        href: 'https://cal.com/virtuallaunch/results-review',
+        external: true,
+      },
+    },
+    'p3-exit-survey': {
+      notice: 'Coming soon',
+    },
+    support: {
+      primary: {
+        label: 'Contact Support',
+        href: '/support/create',
+      },
+    },
+  }
+
+  const activeAction = selectedStep ? stepActions[selectedStep.id] : undefined
 
   return (
     <div className="space-y-6">
@@ -428,7 +483,7 @@ export default function ClientRecordPage() {
 
         {/* Zone C — Detail Panel (right, 1/3, sticky on desktop) */}
         <div className="lg:sticky lg:top-6 lg:w-1/3 lg:self-start">
-          <StepDetailPanel step={selectedStep} />
+          <StepDetailPanel step={selectedStep} action={activeAction} />
         </div>
       </div>
     </div>

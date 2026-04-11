@@ -1,15 +1,80 @@
 'use client'
 
+import Link from 'next/link'
 import { Clock, ExternalLink, FileText, Lock, Settings } from 'lucide-react'
 import type { StepDef } from './StepCard'
 import FormPreview from './FormPreview'
 import OperatorChecklist from './OperatorChecklist'
 
-interface StepDetailPanelProps {
-  step: StepDef | null
+export interface StepAction {
+  label: string
+  href?: string
+  external?: boolean
+  disabled?: boolean
+  tone?: 'primary' | 'secondary'
 }
 
-function ActionButton({ step }: { step: StepDef }) {
+export interface StepActionConfig {
+  primary?: StepAction
+  secondary?: StepAction
+  /** Message shown instead of a button (e.g. "Coming soon"). */
+  notice?: string
+}
+
+interface StepDetailPanelProps {
+  step: StepDef | null
+  action?: StepActionConfig
+}
+
+function defaultLabelForStep(step: StepDef): string {
+  if (step.status === 'complete') {
+    return step.kind === 'operator' ? 'View Report' : 'View Submission'
+  }
+  if (step.status === 'current') return 'Continue Form'
+  return 'Open Form'
+}
+
+function ActionLink({
+  action,
+  tone,
+}: {
+  action: StepAction
+  tone: 'primary' | 'secondary'
+}) {
+  const base =
+    'flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition'
+  const classes =
+    tone === 'primary'
+      ? `${base} bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/20 hover:opacity-90`
+      : `${base} border border-white/10 bg-white/5 text-white/80 hover:bg-white/10`
+
+  if (action.disabled || !action.href) {
+    return (
+      <button type="button" disabled className={`${classes} cursor-not-allowed opacity-50`}>
+        <ExternalLink className="h-4 w-4" />
+        {action.label}
+      </button>
+    )
+  }
+
+  if (action.external) {
+    return (
+      <a href={action.href} target="_blank" rel="noopener noreferrer" className={classes}>
+        <ExternalLink className="h-4 w-4" />
+        {action.label}
+      </a>
+    )
+  }
+
+  return (
+    <Link href={action.href} className={classes}>
+      <ExternalLink className="h-4 w-4" />
+      {action.label}
+    </Link>
+  )
+}
+
+function ActionArea({ step, action }: { step: StepDef; action?: StepActionConfig }) {
   if (step.status === 'locked') {
     return (
       <button
@@ -23,43 +88,45 @@ function ActionButton({ step }: { step: StepDef }) {
     )
   }
 
-  if (step.status === 'complete') {
-    if (step.kind === 'operator') {
-      return (
-        <button
-          type="button"
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-purple-500/20 px-4 py-3 text-sm font-medium text-purple-400 transition hover:bg-purple-500/30"
-        >
-          <FileText className="h-4 w-4" />
-          View Report
-        </button>
-      )
-    }
+  if (action?.notice) {
+    return (
+      <div className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-white/40">
+        {action.notice}
+      </div>
+    )
+  }
+
+  const primary: StepAction = action?.primary ?? {
+    label: defaultLabelForStep(step),
+    disabled: true,
+  }
+
+  if (step.status === 'complete' && !action?.primary) {
+    const completeTone =
+      step.kind === 'operator'
+        ? 'bg-purple-500/20 text-purple-400 hover:bg-purple-500/30'
+        : 'bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30'
     return (
       <button
         type="button"
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-500/20 px-4 py-3 text-sm font-medium text-emerald-400 transition hover:bg-emerald-500/30"
+        disabled
+        className={`flex w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-medium transition ${completeTone} cursor-not-allowed opacity-70`}
       >
         <FileText className="h-4 w-4" />
-        View Submission
+        {primary.label}
       </button>
     )
   }
 
-  // current or ready
-  const label = step.status === 'current' ? 'Continue Form' : 'Open Form'
   return (
-    <button
-      type="button"
-      className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-amber-500/20 transition hover:opacity-90"
-    >
-      <ExternalLink className="h-4 w-4" />
-      {label}
-    </button>
+    <div className="space-y-2">
+      <ActionLink action={primary} tone="primary" />
+      {action?.secondary && <ActionLink action={action.secondary} tone="secondary" />}
+    </div>
   )
 }
 
-export default function StepDetailPanel({ step }: StepDetailPanelProps) {
+export default function StepDetailPanel({ step, action }: StepDetailPanelProps) {
   if (!step) {
     return (
       <div className="flex h-64 items-center justify-center rounded-xl border border-[--member-border] bg-[--member-card] p-6">
@@ -145,8 +212,8 @@ export default function StepDetailPanel({ step }: StepDetailPanelProps) {
         <OperatorChecklist items={step.checklist} estimate={step.estimate} />
       )}
 
-      {/* Action button */}
-      <ActionButton step={step} />
+      {/* Action area */}
+      <ActionArea step={step} action={action} />
 
       {/* Secondary links */}
       {step.status !== 'locked' && (

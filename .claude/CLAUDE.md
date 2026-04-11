@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-10
+Last updated: 2026-04-10 (Client Record sub-page routing)
 
 ---
 
@@ -849,6 +849,7 @@ SETTINGS (footer)
 | `/client-pool/[clientId]` | Client Record | Built |
 | `/client-pool/[clientId]/2848` | Form 2848 Generator (staff) | Built |
 | `/client-pool/[clientId]/compliance` | Compliance Record (staff) | Built |
+| `/client-pool/[clientId]/report` | Compliance Report preview (staff) | Built |
 | `/payouts` | Payouts | Shell |
 | `/account` | Account | Shell |
 | `/account/payments` | Payments | Shell |
@@ -940,6 +941,37 @@ Components at `web/app/(member)/client-pool/[clientId]/compliance/components/`:
 | `FormPrimitives.tsx` | Label, TextInput, DateInput, Select, TextArea, Field, Grid2, Checkbox, Pill |
 
 Types + sample data live in `types.ts` (`ComplianceData`, `initialComplianceData()`, enum option lists). Sample data matches the TMP compliance-records.html reference (Margaret Chen, $24,847.32 balance, 3 notices). Save Draft / Finalize log a contract-shaped payload to the console — no API call yet (that's Phase D).
+
+### Compliance Report preview (`/client-pool/[clientId]/report`)
+
+Tax-pro preview of the client-facing compliance report. Uses the client-safe projection of the compliance record (derived from `contracts/tmp/tmp.compliance-record.read.v1.json`) — no internal notes, no IRS rep/call details, no SSN full, no transcripts notes. Lets the pro review what the client will see before marking the report final.
+
+Page layout: "Back to Client Record" link, header with "Draft Preview" badge, report shell matching the TMP client-facing report styling (client/order header, then Summary, IRS Account Status, Filing & Return Status, IRS Notices, Installment Agreement, Included In This Report sections), and a "Mark Report Ready" CTA at the bottom. The report data is placeholder (same shape as `initialComplianceData()`) — Phase D will fetch it from `GET /v1/tmp/compliance-records/:order_id/report`. "Mark Report Ready" logs to the console for now; Phase D will PATCH the record status to Final.
+
+### Client Record sub-page routing
+
+The Client Record project map (`/client-pool/[clientId]/page.tsx`) wires each step's detail panel action button to the correct destination through the `stepActions` map. Navigation is handled by `StepDetailPanel`, which accepts a `StepActionConfig` prop (`{ primary, secondary?, notice? }`). Each action renders as a styled `<Link>` (internal) or `<a target="_blank">` (external).
+
+Step → action mapping:
+
+| Step id | Step name | Primary action | Secondary action |
+|---|---|---|---|
+| `p0-inquiry` … `p0-payment` | Inquiry, Intake, Offer, Agreement, Payment | (default: View Submission — disabled) | — |
+| `p1-welcome` | Welcome | (default) | — |
+| `p1-filing-status` | Filing Status | (default) | — |
+| `p1-address` | Address Update | (default) | — |
+| `p1-esign-2848` | eSign 2848 | `Open eSign Form` → `https://taxmonitor.pro/forms/2848?caseId={clientId}` (new tab) | `Generate 2848 (Staff)` → `/client-pool/{clientId}/2848` |
+| `p2-auth-caf` | Authorization + CAF | `Open Compliance Record` → `/client-pool/{clientId}/compliance` | — |
+| `p2-retrieval` | Record Retrieval + Analysis | `Open Compliance Record` → `/client-pool/{clientId}/compliance` | — |
+| `p3-report` | Compliance Report | `View Report` → `/client-pool/{clientId}/report` | — |
+| `p3-results-appt` | Results Appointment | `Schedule Appointment` → `https://cal.com/virtuallaunch/results-review` (new tab, placeholder) | — |
+| `p3-exit-survey` | Exit Survey | Notice: "Coming soon" | — |
+| `support` | Support Ticket | `Contact Support` → `/support/create` | — |
+
+All three sub-pages (`/compliance`, `/2848`, `/report`) include a "Back to Client Record" link pointing to `/client-pool/{clientId}`:
+- Compliance: link lives inside the sticky `ComplianceHeader` component.
+- 2848: back link in the page header + second link at the bottom of the form.
+- Report: back link at the top of the page.
 
 ### Replaced `(app)` route group
 
