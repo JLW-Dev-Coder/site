@@ -2,7 +2,7 @@
   "version": "1.0",
   "type": "federated",
   "description": "VLP Ecosystem Contract Master Registry - Federated Model",
-  "lastUpdated": "2026-03-29",
+  "lastUpdated": "2026-04-10",
   "totalPlatforms": 8,
   "registries": [
     {
@@ -63,14 +63,14 @@
     }
   ],
   "statistics": {
-    "totalContracts": 72,
-    "activeContracts": 71,
+    "totalContracts": 74,
+    "activeContracts": 73,
     "deprecatedContracts": 1,
     "byPlatform": {
       "vlp": 65,
       "tttmp": 4,
       "ttmp": 2,
-      "tmp": 0,
+      "tmp": 2,
       "dvlp": 0,
       "gvlp": 0,
       "tcvlp": 0,

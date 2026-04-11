@@ -1,0 +1,231 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH"
+    ],
+    "governs": "Client-facing compliance report — read-only projection of the staff compliance record, filtered to client-safe fields only. Excludes internal notes, IRS rep/agent fields, RO details, transcript retrieval details, and authority flags.",
+    "path": "/contracts/tmp/tmp.compliance-record.read.v1.json",
+    "source": "Tax Monitor Pro",
+    "title": "Tax Monitor Pro — Compliance Record Read (Client Report)",
+    "usedOnPages": [
+      "taxmonitor.pro/app/report/[orderId]",
+      "/client-pool/[clientId]/report"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true,
+      "enforceOwnerOrStaffRole": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tmp/compliance-records/:order_id/report",
+    "method": "GET",
+    "receiptKeyPattern": null,
+    "receiptSource": null,
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "params.order_id",
+    "eventIdFrom": "params.order_id",
+    "writeOrder": [],
+    "writes": []
+  },
+  "payload": {
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "order_id"
+    ],
+    "properties": {
+      "order_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "client_name": {
+        "type": "string"
+      },
+      "filing_status": {
+        "type": "string",
+        "enum": ["HOH", "MFJ", "MFS", "SINGLE"]
+      },
+      "compliance_tax_year": {
+        "type": "number",
+        "minimum": 2010,
+        "maximum": 2040
+      },
+      "total_irs_balance": {
+        "type": "string"
+      },
+      "irs_account_status": {
+        "type": "string",
+        "enum": ["Compliant", "Limited Compliance", "Non-Compliant", "Unknown"]
+      },
+      "return_processing_status": {
+        "type": "string",
+        "enum": [
+          "Extension Filed",
+          "Filed - Accepted",
+          "Filed - Under Review",
+          "Not Filed"
+        ]
+      },
+      "return_date_filed": {
+        "type": "string",
+        "format": "date"
+      },
+      "return_tax_liability": {
+        "type": "string"
+      },
+      "notices": {
+        "type": "array",
+        "maxItems": 3,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "received": {
+              "type": "string",
+              "enum": ["Yes", "No"]
+            },
+            "date": {
+              "type": "string",
+              "format": "date"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "CP (Computer Paragraph Notice)",
+                "LT (Long Term Notice)",
+                "Other (IRS Letter)",
+                "Unknown (Notice Type Unknown)"
+              ]
+            },
+            "cp_number": {
+              "type": ["string", "null"],
+              "enum": [
+                "CP14",
+                "CP71",
+                "CP90",
+                "CP91",
+                "CP92",
+                "CP501",
+                "CP503",
+                "CP504",
+                "CP523",
+                "CP2000",
+                "No Number Indicated",
+                null
+              ]
+            },
+            "details": {
+              "type": "string",
+              "maxLength": 500
+            }
+          }
+        }
+      },
+      "ia_established": {
+        "type": "string",
+        "enum": ["Yes", "No", "Unable to confirm"]
+      },
+      "ia_payment_amount": {
+        "type": "string"
+      },
+      "ia_payment_date": {
+        "type": "string",
+        "format": "date"
+      },
+      "compliance_client_summary": {
+        "type": "string",
+        "maxLength": 5000
+      },
+      "compliance_record_status": {
+        "type": "string",
+        "enum": ["Draft", "Final"]
+      },
+      "compliance_prepared_date": {
+        "type": "string",
+        "format": "date"
+      }
+    }
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true,
+      "eventId": "{order_id}"
+    },
+    "error": {
+      "ok": false,
+      "error": "not_found"
+    },
+    "success": {
+      "ok": true,
+      "report": "object"
+    }
+  },
+  "schema": {
+    "name": "tmp_compliance_record_read",
+    "version": 1
+  },
+  "notes": {
+    "staffOnlyFieldsExcluded": [
+      "ssn_last4",
+      "state_of_residence",
+      "irs_penalties_total",
+      "irs_interest_total",
+      "estimated_balance_due_range",
+      "irs_missing_years",
+      "unfiled_returns_indicator",
+      "irs_lien_exposure_level",
+      "irs_status_categories",
+      "irs_agent_department",
+      "irs_agent_department_phone",
+      "irs_call_confirmation_date",
+      "irs_representative_name",
+      "irs_representative_badge_number",
+      "irs_call_discussion_notes",
+      "irs_call_action_items",
+      "agent_name",
+      "caf_number",
+      "ptin",
+      "poa_effective_date",
+      "tax_matters_authorized",
+      "auth_receive_tax_info",
+      "auth_represent_taxpayer",
+      "auth_sign_return",
+      "auth_receive_refund",
+      "compliance_activity_type",
+      "compliance_period_covered",
+      "compliance_internal_notes",
+      "return_filing_status",
+      "ia_last_payment_amount",
+      "ia_last_payment_date",
+      "ro_name",
+      "ro_phone",
+      "ro_mobile_phone",
+      "ro_email",
+      "ro_fax",
+      "ro_notes",
+      "transcript_request_made",
+      "transcript_delivery_method",
+      "transcript_scope_confirmed",
+      "transcripts_retrieved_from_sor",
+      "transcript_retrieval_date",
+      "transcript_retrieval_notes",
+      "compliance_internal_next_steps",
+      "compliance_included_sections",
+      "source",
+      "servicing_professional_id"
+    ]
+  }
+}

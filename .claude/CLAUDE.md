@@ -180,7 +180,9 @@ R2 is always authoritative. D1 is always a queryable projection.
 
 **Cross-platform writes:** TMP, TTMP, TTTMP, and others may read shared records. All writes to shared records go through VLP API routes — never direct.
 
-### Canonical Profile Contracts
+### Canonical Contracts
+
+#### Profile contracts
 
 | Contract | Path | Endpoint |
 |----------|------|----------|
@@ -191,6 +193,17 @@ R2 is always authoritative. D1 is always a queryable projection.
 - The TMP repo's `contracts/directory-profile.v1.json` is a **rendering reference only** — it documents how TMP renders profile data on its directory pages. The VLP contract is authoritative for the API shape.
 - `vlp.profiles.list.v1.json` returns truncated card-level fields for directory search, filtering, and listing.
 - The old `contracts/profile/profile.public.get.v1.json` is deleted. The registry entry `profile_public` (in `vlp-registry.json`) replaces the former `profile_public_get`.
+
+#### Compliance record contracts
+
+| Contract | Path | Endpoint |
+|----------|------|----------|
+| Compliance record write (staff) | `/contracts/tmp/tmp.compliance-record.write.v1.json` | `POST /v1/tmp/compliance-records` |
+| Compliance record read (client report) | `/contracts/tmp/tmp.compliance-record.read.v1.json` | `GET /v1/tmp/compliance-records/:order_id/report` |
+
+- The **write** contract governs the full staff compliance record — the working document a tax professional fills out during the Phase 2 Processing / Due Diligence step. Dedupes by `order_id`; canonical R2 key is `compliance_records/{order_id}.json`; receipts land at `receipts/tmp/compliance-records/{order_id}.json`. Staff-only.
+- The **read** contract is the **client-facing** projection of the same canonical record, filtered to client-safe fields only. Excludes: `ssn_last4`, all IRS representative/agent fields, `compliance_internal_notes`, `compliance_internal_next_steps`, `irs_call_*`, `ro_*`, `transcript_*`, `auth_*`, `source`, and `servicing_professional_id`. Notice `details` are truncated to 500 chars. No writes.
+- Both contracts derive their schema from the live staff form at `taxmonitor.pro-site/app/pages/staff/compliance-records.html` — every `data-field` attribute maps to a contract field. Enum values are copied verbatim from the form selects/checkboxes.
 
 ---
 

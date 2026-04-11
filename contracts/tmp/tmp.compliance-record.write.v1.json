@@ -1,0 +1,465 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH",
+      "D1_DB"
+    ],
+    "governs": "Staff compliance record — the full working document a tax professional fills out during Processing / Due Diligence. Staff-only write + read.",
+    "path": "/contracts/tmp/tmp.compliance-record.write.v1.json",
+    "source": "Tax Monitor Pro",
+    "title": "Tax Monitor Pro — Compliance Record Write",
+    "usedOnPages": [
+      "/client-pool/[clientId]/compliance",
+      "/app/pages/staff/compliance-records"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true,
+      "requireJsonContentType": true,
+      "enforceStaffRole": true,
+      "maxPayloadBytes": 65536
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tmp/compliance-records",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/tmp/compliance-records/{order_id}.json",
+    "receiptSource": "tmp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.order_id",
+    "eventIdFrom": "payload.order_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "compliance_records"
+    ],
+    "canonicalUpsert": {
+      "target": "compliance_records/{order_id}.json"
+    }
+  },
+  "payload": {
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "account_id",
+      "order_id",
+      "servicing_professional_id",
+      "source"
+    ],
+    "properties": {
+      "account_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "order_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "servicing_professional_id": {
+        "type": "string",
+        "minLength": 1
+      },
+      "source": {
+        "type": "string",
+        "enum": ["staff_compliance_records"]
+      },
+      "client_name": {
+        "type": "string",
+        "maxLength": 100
+      },
+      "ssn_last4": {
+        "type": "string",
+        "maxLength": 4,
+        "pattern": "^\\d{4}$"
+      },
+      "filing_status": {
+        "type": "string",
+        "enum": ["HOH", "MFJ", "MFS", "SINGLE"]
+      },
+      "state_of_residence": {
+        "type": "string",
+        "maxLength": 40
+      },
+      "total_irs_balance": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "irs_penalties_total": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "irs_interest_total": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "irs_account_status": {
+        "type": "string",
+        "enum": ["Compliant", "Limited Compliance", "Non-Compliant", "Unknown"]
+      },
+      "estimated_balance_due_range": {
+        "type": "string",
+        "enum": [
+          "Under $10,000",
+          "$10,000–$25,000",
+          "$25,001–$50,000",
+          "Over $50,000",
+          "Unknown"
+        ]
+      },
+      "irs_missing_years": {
+        "type": "string",
+        "enum": [
+          "All years filed",
+          "Missing within 10-year window",
+          "Missing prior to 10-year window",
+          "Unable to confirm"
+        ]
+      },
+      "unfiled_returns_indicator": {
+        "type": "string",
+        "enum": ["Yes", "No", "Unsure"]
+      },
+      "irs_lien_exposure_level": {
+        "type": "string",
+        "enum": [
+          "Low — compliant or protected status",
+          "Moderate — balance or status requires monitoring",
+          "High — lien filed or filing imminent",
+          "Unknown — insufficient IRS confirmation"
+        ]
+      },
+      "irs_status_categories": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "Audit",
+            "Collection",
+            "Installment Agreement",
+            "Notice",
+            "OIC",
+            "Pending collection",
+            "RO assigned",
+            "None identified"
+          ]
+        }
+      },
+      "irs_agent_department": {
+        "type": "string",
+        "enum": [
+          "IRS Administration Department 1040/PPS",
+          "IRS Appeals Department",
+          "IRS Collection Department",
+          "IRS Examination Department"
+        ]
+      },
+      "irs_agent_department_phone": {
+        "type": "string",
+        "enum": [
+          "IRS Automated Collections System — Business — (800) 231-3903",
+          "IRS Correspondence Examination — Individual — (800) 597-4347",
+          "IRS e-Help Desk (e-Services) — (800) 673-4348",
+          "IRS General Line — (844) 959-1040",
+          "IRS Identity Verification — (800) 975-5084",
+          "IRS International Line — (877) 298-6617",
+          "IRS OIC Brookhaven (Holtsville) — (800) 803-4980",
+          "IRS Practitioner Priority Service — Business — (800) 347-7801",
+          "IRS Practitioner Priority Service — Individual — (800) 477-4580",
+          "IRS Tax Exempt — (877) 755-7781",
+          "IRS Underreporter — Individual — (800) 868-8209"
+        ]
+      },
+      "irs_call_confirmation_date": {
+        "type": "string",
+        "format": "date"
+      },
+      "irs_representative_name": {
+        "type": "string",
+        "maxLength": 100
+      },
+      "irs_representative_badge_number": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "irs_call_discussion_notes": {
+        "type": "string",
+        "maxLength": 5000
+      },
+      "irs_call_action_items": {
+        "type": "string",
+        "maxLength": 2000
+      },
+      "agent_name": {
+        "type": "string",
+        "maxLength": 100
+      },
+      "caf_number": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "ptin": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "poa_effective_date": {
+        "type": "string",
+        "format": "date"
+      },
+      "tax_matters_authorized": {
+        "type": "string",
+        "maxLength": 500
+      },
+      "auth_receive_tax_info": {
+        "type": "boolean"
+      },
+      "auth_represent_taxpayer": {
+        "type": "boolean"
+      },
+      "auth_sign_return": {
+        "type": "boolean"
+      },
+      "auth_receive_refund": {
+        "type": "boolean"
+      },
+      "compliance_tax_year": {
+        "type": "number",
+        "minimum": 2010,
+        "maximum": 2040
+      },
+      "compliance_activity_type": {
+        "type": "string",
+        "enum": [
+          "Filing compliance review",
+          "IRS account verification",
+          "IRS notice review",
+          "IRS transcript request",
+          "Status confirmation"
+        ]
+      },
+      "compliance_period_covered": {
+        "type": "string",
+        "enum": [
+          "Current month",
+          "Initial 10-year review",
+          "Prior quarter",
+          "Prior tax year",
+          "Rolling review",
+          "Specific IRS notice period"
+        ]
+      },
+      "compliance_internal_notes": {
+        "type": "string",
+        "maxLength": 5000
+      },
+      "return_processing_status": {
+        "type": "string",
+        "enum": [
+          "Extension Filed",
+          "Filed - Accepted",
+          "Filed - Under Review",
+          "Not Filed"
+        ]
+      },
+      "return_date_filed": {
+        "type": "string",
+        "format": "date"
+      },
+      "return_filing_status": {
+        "type": "string",
+        "enum": ["HOH", "MFJ", "MFS", "SINGLE"]
+      },
+      "return_tax_liability": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "notices": {
+        "type": "array",
+        "maxItems": 3,
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "received": {
+              "type": "string",
+              "enum": ["Yes", "No"]
+            },
+            "date": {
+              "type": "string",
+              "format": "date"
+            },
+            "type": {
+              "type": "string",
+              "enum": [
+                "CP (Computer Paragraph Notice)",
+                "LT (Long Term Notice)",
+                "Other (IRS Letter)",
+                "Unknown (Notice Type Unknown)"
+              ]
+            },
+            "cp_number": {
+              "type": ["string", "null"],
+              "enum": [
+                "CP14",
+                "CP71",
+                "CP90",
+                "CP91",
+                "CP92",
+                "CP501",
+                "CP503",
+                "CP504",
+                "CP523",
+                "CP2000",
+                "No Number Indicated",
+                null
+              ]
+            },
+            "details": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          }
+        }
+      },
+      "ia_established": {
+        "type": "string",
+        "enum": ["Yes", "No", "Unable to confirm"]
+      },
+      "ia_payment_amount": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "ia_payment_date": {
+        "type": "string",
+        "format": "date"
+      },
+      "ia_last_payment_amount": {
+        "type": "string",
+        "maxLength": 20
+      },
+      "ia_last_payment_date": {
+        "type": "string",
+        "format": "date"
+      },
+      "ro_name": {
+        "type": "string",
+        "maxLength": 100
+      },
+      "ro_phone": {
+        "type": "string",
+        "maxLength": 30
+      },
+      "ro_mobile_phone": {
+        "type": "string",
+        "maxLength": 30
+      },
+      "ro_email": {
+        "type": "string",
+        "format": "email",
+        "maxLength": 254
+      },
+      "ro_fax": {
+        "type": "string",
+        "maxLength": 30
+      },
+      "ro_notes": {
+        "type": "string",
+        "maxLength": 2000
+      },
+      "transcript_request_made": {
+        "type": "boolean"
+      },
+      "transcript_delivery_method": {
+        "type": "string",
+        "enum": [
+          "CAF mailbox",
+          "Fax",
+          "Online account",
+          "Pending POA processing",
+          "Secure mailbox (SOR)"
+        ]
+      },
+      "transcript_scope_confirmed": {
+        "type": "string",
+        "enum": [
+          "Access denied",
+          "Current year only",
+          "Full 10-year access",
+          "Partial access"
+        ]
+      },
+      "transcripts_retrieved_from_sor": {
+        "type": "string",
+        "enum": ["Yes", "No", "Unknown"]
+      },
+      "transcript_retrieval_date": {
+        "type": "string",
+        "format": "date"
+      },
+      "transcript_retrieval_notes": {
+        "type": "string",
+        "maxLength": 2000
+      },
+      "compliance_client_summary": {
+        "type": "string",
+        "maxLength": 5000
+      },
+      "compliance_internal_next_steps": {
+        "type": "string",
+        "maxLength": 5000
+      },
+      "compliance_record_status": {
+        "type": "string",
+        "enum": ["Draft", "Final"]
+      },
+      "compliance_prepared_date": {
+        "type": "string",
+        "format": "date"
+      },
+      "compliance_included_sections": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "Account Status",
+            "Call Notes",
+            "Notices",
+            "Transcripts"
+          ]
+        }
+      }
+    }
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true,
+      "eventId": "{order_id}"
+    },
+    "error": {
+      "ok": false,
+      "error": "validation_failed"
+    },
+    "success": {
+      "ok": true,
+      "status": "saved",
+      "record_status": "draft|final"
+    }
+  },
+  "schema": {
+    "name": "tmp_compliance_record_write",
+    "version": 1
+  }
+}
