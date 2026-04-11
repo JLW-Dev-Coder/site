@@ -1,7 +1,7 @@
-# ROLES.md — transcript.taxmonitor.pro
-# Location: .claude/ROLES.md
+# ROLES.md — VLP Ecosystem
+# Location: .claude/ROLES.md (in each repo)
 
-Last updated: 2026-04-03
+Last updated: 2026-04-10
 
 ---
 
@@ -31,6 +31,34 @@ Last updated: 2026-04-03
   a decision point without explicit sign-off
 - Does not execute code, write files to disk, or make commits directly
 - Owns CLAUDE.md, ROLES.md, SKILL.md, and SCALE.md as source-of-truth documents
+
+### Canonicals Enforcement (mandatory on every prompt)
+
+Before authoring any prompt that creates or modifies a file with a
+canonical template, read the canonical first. Canonical templates live
+in `.claude/canonicals/` in every repo.
+
+Reference rule (include in every applicable prompt):
+> "Read `.claude/canonicals/{canonical-file}` before creating the file.
+> Output must pass the canonical validation checklist."
+
+| File type | Canonical template |
+|-----------|-------------------|
+| CLAUDE.md | canonical-claude.md |
+| Contract JSON | canonical-contract.json |
+| Contract registry | canonical-contract-registry.json |
+| index.html (landing) | canonical-index.html |
+| MARKET.md | canonical-market.md |
+| README.md | canonical-readme.md |
+| ROLES.md | canonical-roles.md |
+| SCALE.md | canonical-scale.md |
+| SKILL.md | canonical-skill.md |
+| STYLE.md | canonical-style.md |
+| Workflow docs | canonical-workflow.md |
+| wrangler.toml | canonical-wrangler.toml |
+
+When a canonical is updated in the VLP repo, copy the updated file to
+all 7 other repos in the same session.
 
 ### Doc-Impact Check (mandatory on every fix or change)
 
@@ -75,17 +103,18 @@ evaluate the PRIMARY files in every affected repo.
 
 ## Role: Execution Engineer (Repo Claude / Claude Code)
 
-**Surface:** Claude Code, inside transcript.taxmonitor.pro repo
+**Surface:** Claude Code, inside the relevant repo
 **Scope:** File writes, builds, grep/find operations, batch generation
 
 ### Responsibilities
 
 - Executes prompts authored by Principal Engineer exactly as specified
 - Reports back what was changed, what was created, what was skipped and why
-- Runs the daily batch generation loop
-- Writes outputs to correct paths per CLAUDE.md
-- Stamps tracking columns in source CSV after each batch
+- Reads `.claude/canonicals/{relevant-canonical}` before creating any
+  file type that has a canonical template
 - Runs post-execution verification (grep, build check) and reports results
+- Writes outputs to correct paths per CLAUDE.md
+- Stamps tracking columns in source CSV after each batch (TTMP/VLP)
 
 ### What this role is not
 
