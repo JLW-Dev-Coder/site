@@ -5,6 +5,23 @@
   "lastUpdated": "2026-04-10",
   "contracts": [
     {
+      "id": "tmp.client-pool.accept.v1",
+      "path": "/contracts/tmp/tmp.client-pool.accept.v1.json",
+      "endpoint": "/v1/tmp/client-pool/accept",
+      "method": "POST",
+      "status": "active",
+      "category": "form",
+      "authRequired": true,
+      "signatureRequired": false,
+      "dedupeKey": "payload.case_id",
+      "receiptKeyPattern": "receipts/tmp/client-pool/accept/{case_id}.json",
+      "receiptSource": "tmp",
+      "writes": ["client_pool"],
+      "usedOnPages": ["/client-pool", "/client-pool/[clientId]"],
+      "version": 1,
+      "addedDate": "2026-04-10"
+    },
+    {
       "id": "tmp.compliance-record.write.v1",
       "path": "/contracts/tmp/tmp.compliance-record.write.v1.json",
       "endpoint": "/v1/tmp/compliance-records",

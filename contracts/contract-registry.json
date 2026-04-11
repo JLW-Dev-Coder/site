@@ -63,14 +63,14 @@
     }
   ],
   "statistics": {
-    "totalContracts": 74,
-    "activeContracts": 73,
+    "totalContracts": 75,
+    "activeContracts": 74,
     "deprecatedContracts": 1,
     "byPlatform": {
       "vlp": 65,
       "tttmp": 4,
       "ttmp": 2,
-      "tmp": 2,
+      "tmp": 3,
       "dvlp": 0,
       "gvlp": 0,
       "tcvlp": 0,

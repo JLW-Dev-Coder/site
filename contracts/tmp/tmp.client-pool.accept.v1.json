@@ -1,0 +1,125 @@
+{
+  "auth": {
+    "required": true,
+    "trustClientIdentityFields": false,
+    "type": "session"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH",
+      "D1_DB"
+    ],
+    "governs": "Client Pool case acceptance — when a tax professional clicks 'Service Client' and claims an available TMP case. Assigns the case to the accepting professional, flips its status from 'available' to 'assigned', and stamps an assigned_at timestamp. Rejects if the case has already been claimed by another professional.",
+    "path": "/contracts/tmp/tmp.client-pool.accept.v1.json",
+    "source": "Tax Monitor Pro",
+    "title": "Tax Monitor Pro — Client Pool Case Accept",
+    "usedOnPages": [
+      "/client-pool",
+      "/client-pool/[clientId]"
+    ],
+    "validation": {
+      "requireSessionAuthentication": true,
+      "requireJsonContentType": true,
+      "enforceFirstClaimWins": true,
+      "maxPayloadBytes": 2048
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/tmp/client-pool/accept",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/tmp/client-pool/accept/{case_id}.json",
+    "receiptSource": "tmp",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.case_id",
+    "eventIdFrom": "payload.case_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert"
+    ],
+    "writes": [
+      "client_pool"
+    ],
+    "canonicalUpsert": {
+      "target": "client_pool/{case_id}.json"
+    }
+  },
+  "payload": {
+    "additionalProperties": false,
+    "type": "object",
+    "required": [
+      "case_id",
+      "professional_id"
+    ],
+    "properties": {
+      "case_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "description": "Unique case/order identifier from the Client Pool."
+      },
+      "professional_id": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "description": "Accepting tax professional's profile ID. Resolved server-side from the session — client value is informational only and not trusted."
+      }
+    }
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "deduped": true,
+      "eventId": "{case_id}"
+    },
+    "error": {
+      "ok": false,
+      "error": "validation_failed",
+      "variants": [
+        {
+          "error": "validation_failed",
+          "httpStatus": 400,
+          "reason": "Missing case_id or invalid payload shape."
+        },
+        {
+          "error": "unauthorized",
+          "httpStatus": 401,
+          "reason": "Missing or invalid vlp_session cookie."
+        },
+        {
+          "error": "profile_required",
+          "httpStatus": 403,
+          "reason": "Session account has no linked professional profile."
+        },
+        {
+          "error": "case_not_found",
+          "httpStatus": 404,
+          "reason": "No client_pool/{case_id}.json object exists in R2."
+        },
+        {
+          "error": "case_not_available",
+          "message": "This case has already been accepted by another professional.",
+          "httpStatus": 409,
+          "reason": "Case status is not 'available' — another pro already claimed it (or it has been closed/withdrawn)."
+        }
+      ]
+    },
+    "success": {
+      "ok": true,
+      "status": "assigned",
+      "case_id": "{case_id}",
+      "professional_id": "{professional_id}",
+      "assigned_at": "{iso_timestamp}"
+    }
+  },
+  "schema": {
+    "name": "tmp_client_pool_accept",
+    "version": 1
+  }
+}

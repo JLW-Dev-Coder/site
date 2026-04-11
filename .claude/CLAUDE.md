@@ -205,6 +205,16 @@ R2 is always authoritative. D1 is always a queryable projection.
 - The **read** contract is the **client-facing** projection of the same canonical record, filtered to client-safe fields only. Excludes: `ssn_last4`, all IRS representative/agent fields, `compliance_internal_notes`, `compliance_internal_next_steps`, `irs_call_*`, `ro_*`, `transcript_*`, `auth_*`, `source`, and `servicing_professional_id`. Notice `details` are truncated to 500 chars. No writes.
 - Both contracts derive their schema from the live staff form at `taxmonitor.pro-site/app/pages/staff/compliance-records.html` — every `data-field` attribute maps to a contract field. Enum values are copied verbatim from the form selects/checkboxes.
 
+#### Client Pool contracts
+
+| Contract | Path | Endpoint |
+|----------|------|----------|
+| Client Pool case accept | `/contracts/tmp/tmp.client-pool.accept.v1.json` | `POST /v1/tmp/client-pool/accept` |
+| Client Pool case list | (read-model, no contract file yet) | `GET /v1/tmp/client-pool` |
+
+- **Accept** is the write-path for a tax professional claiming an available case from the Client Pool. Dedupes by `case_id`; canonical R2 key is `client_pool/{case_id}.json`; receipts land at `receipts/tmp/client-pool/accept/{case_id}.json`. Write order: receiptAppend → canonicalUpsert → D1 projection (best-effort — `client_pool` D1 table does not yet exist). First-claim-wins: returns 409 `case_not_available` if `status !== 'available'`. Re-accepting a case already owned by the same pro returns a deduped success (idempotent replay). `professional_id` is resolved server-side from the session's linked `profiles` row — never trusted from the client body.
+- **List** is a read-model scan of R2 under the `client_pool/` prefix. Filters: `?status=available`, `?professional_id={id}`, `?page=1&limit=20`. Response shape: `{ ok, cases, pagination: { page, limit, total, total_pages } }`. Requires session. No D1 projection exists — all reads hit R2 directly. When case volume grows, a `client_pool` D1 projection + migration should be added so listing can be paginated from a queryable index.
+
 ---
 
 ## 11. Contracts

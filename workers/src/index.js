@@ -9075,6 +9075,196 @@ TTMP Support Team
     },
   },
 
+  // GET /v1/tmp/client-pool
+  // Contract: /contracts/tmp/tmp.client-pool.list.v1.json (pending — read-model)
+  // Lists cases from R2 under client_pool/ prefix. Filters:
+  //   ?status=available        → only cases with status 'available'
+  //   ?professional_id={id}    → only cases assigned to that pro
+  //   ?page=1&limit=20         → pagination (default page 1, limit 20, max 100)
+  {
+    method: 'GET', pattern: '/v1/tmp/client-pool',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const url = new URL(request.url);
+        const statusFilter = url.searchParams.get('status');
+        const professionalIdFilter = url.searchParams.get('professional_id');
+        const page = Math.max(1, parseInt(url.searchParams.get('page')) || 1);
+        const limit = Math.max(1, Math.min(100, parseInt(url.searchParams.get('limit')) || 20));
+
+        const listResult = await env.R2_VIRTUAL_LAUNCH.list({ prefix: 'client_pool/', limit: 1000 });
+        const objectsOnly = (listResult.objects || []).filter(obj => obj.key.endsWith('.json'));
+
+        const loaded = await Promise.all(
+          objectsOnly.map(async (obj) => {
+            try {
+              const item = await env.R2_VIRTUAL_LAUNCH.get(obj.key);
+              if (!item) return null;
+              return await item.json();
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        let cases = loaded.filter(Boolean);
+        if (statusFilter) {
+          cases = cases.filter(c => c.status === statusFilter);
+        }
+        if (professionalIdFilter) {
+          cases = cases.filter(c => c.servicing_professional_id === professionalIdFilter);
+        }
+
+        cases.sort((a, b) => {
+          const ta = a.created_at || a.updated_at || '';
+          const tb = b.created_at || b.updated_at || '';
+          return tb.localeCompare(ta);
+        });
+
+        const total = cases.length;
+        const offset = (page - 1) * limit;
+        const pageCases = cases.slice(offset, offset + limit);
+
+        return json({
+          ok: true,
+          cases: pageCases,
+          pagination: { page, limit, total, total_pages: Math.ceil(total / limit) || 1 }
+        }, 200, request);
+      } catch (e) {
+        console.error('Client pool list error:', e?.message, e?.stack);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to list client pool cases' }, 500, request);
+      }
+    },
+  },
+
+  // POST /v1/tmp/client-pool/accept
+  // Contract: /contracts/tmp/tmp.client-pool.accept.v1.json
+  // A tax professional claims an available case from the Client Pool.
+  // Write order: validate → receiptAppend → canonicalUpsert → D1 projection (best-effort).
+  // First claim wins: rejects with 409 case_not_available if status !== 'available'.
+  {
+    method: 'POST', pattern: '/v1/tmp/client-pool/accept',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ ok: false, error: 'validation_failed', message: 'Invalid JSON body' }, 400, request);
+      }
+
+      const caseId = typeof body?.case_id === 'string' ? body.case_id.trim() : '';
+      if (!caseId) {
+        return json({ ok: false, error: 'validation_failed', message: 'case_id is required' }, 400, request);
+      }
+
+      // Resolve professional_id server-side from session — client value is informational only.
+      let professionalId = null;
+      try {
+        const profileRow = await env.DB.prepare(
+          "SELECT professional_id FROM profiles WHERE account_id = ?"
+        ).bind(session.account_id).first();
+        professionalId = profileRow?.professional_id || null;
+      } catch (e) {
+        console.error('client-pool/accept: profile lookup failed', e?.message);
+      }
+
+      if (!professionalId) {
+        return json({ ok: false, error: 'profile_required', message: 'Session account has no linked professional profile.' }, 403, request);
+      }
+
+      // Read canonical case record from R2.
+      const canonicalKey = `client_pool/${caseId}.json`;
+      let caseRecord;
+      try {
+        const raw = await r2Get(env.R2_VIRTUAL_LAUNCH, canonicalKey);
+        if (!raw) {
+          return json({ ok: false, error: 'case_not_found', message: 'Case not found in client pool.' }, 404, request);
+        }
+        caseRecord = JSON.parse(raw);
+      } catch (e) {
+        console.error('client-pool/accept: canonical read failed', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to read case record' }, 500, request);
+      }
+
+      if (caseRecord.status !== 'available') {
+        // First-claim-wins: if already assigned to the same pro, return the existing record as success
+        // (idempotent replay). Otherwise reject.
+        if (caseRecord.status === 'assigned' && caseRecord.servicing_professional_id === professionalId) {
+          return json({
+            ok: true,
+            deduped: true,
+            eventId: caseId,
+            status: 'assigned',
+            case_id: caseId,
+            professional_id: professionalId,
+            assigned_at: caseRecord.assigned_at || null
+          }, 200, request);
+        }
+        return json({
+          ok: false,
+          error: 'case_not_available',
+          message: 'This case has already been accepted by another professional.'
+        }, 409, request);
+      }
+
+      const now = new Date().toISOString();
+
+      // Step 1: append receipt (immutable event record)
+      const receiptKey = `receipts/tmp/client-pool/accept/${caseId}.json`;
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, receiptKey, {
+          event: 'CLIENT_POOL_CASE_ACCEPTED',
+          event_id: caseId,
+          case_id: caseId,
+          account_id: session.account_id,
+          professional_id: professionalId,
+          accepted_at: now,
+          prior_status: caseRecord.status || null
+        });
+      } catch (e) {
+        console.error('client-pool/accept: receipt write failed', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to write receipt' }, 500, request);
+      }
+
+      // Step 2: canonical upsert
+      const updatedRecord = {
+        ...caseRecord,
+        status: 'assigned',
+        servicing_professional_id: professionalId,
+        assigned_at: now,
+        updated_at: now
+      };
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, canonicalKey, updatedRecord);
+      } catch (e) {
+        console.error('client-pool/accept: canonical write failed', e?.message);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to update case record' }, 500, request);
+      }
+
+      // Step 3: D1 projection (best-effort — table may not exist yet)
+      try {
+        await env.DB.prepare(
+          "UPDATE client_pool SET status = ?, servicing_professional_id = ?, assigned_at = ?, updated_at = ? WHERE case_id = ?"
+        ).bind('assigned', professionalId, now, now, caseId).run();
+      } catch (e) {
+        // Table may not exist yet — R2 is authoritative, swallow and continue.
+      }
+
+      return json({
+        ok: true,
+        status: 'assigned',
+        case_id: caseId,
+        professional_id: professionalId,
+        assigned_at: now
+      }, 200, request);
+    },
+  },
+
   // -------------------------------------------------------------------------
   // VLP Account Preferences Routes
   // -------------------------------------------------------------------------
