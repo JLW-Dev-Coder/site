@@ -16537,11 +16537,6 @@ https://transcript.taxmonitor.pro/resources
 When you're ready for full transcript parsing:
 https://transcript.taxmonitor.pro/pricing
 10 analyses for $19.
-
-—
-Jamie L Williams, EA
-Transcript Tax Monitor Pro
-transcript.taxmonitor.pro
 `
   };
 }
@@ -16566,11 +16561,6 @@ how the tool fits into your current workflow. Takes about
 If you want to see it work live on a real transcript, I'm
 happy to walk through it:
 https://cal.com/vlp/ttmp-discovery
-
-—
-Jamie L Williams, EA
-Transcript Tax Monitor Pro
-transcript.taxmonitor.pro
 `
   };
 }
@@ -16595,11 +16585,6 @@ machine. Upload a transcript PDF, get a report in seconds.
 
 https://transcript.taxmonitor.pro/pricing
 Starts at 10 analyses for $19.
-
-—
-Jamie L Williams, EA
-Transcript Tax Monitor Pro
-transcript.taxmonitor.pro
 `
   };
 }
@@ -16630,11 +16615,6 @@ https://transcript.taxmonitor.pro
 
 No pitch. If you work with transcripts regularly, you'll see
 the value in about 30 seconds.
-
-—
-Jamie L Williams, EA
-Transcript Tax Monitor Pro
-transcript.taxmonitor.pro
 `
   };
 }
@@ -16656,11 +16636,6 @@ that's more useful:
 https://cal.com/vlp/ttmp-discovery
 
 If not — no worries at all, and I'll stop reaching out.
-
-—
-Jamie L Williams, EA
-Transcript Tax Monitor Pro
-transcript.taxmonitor.pro
 `
   };
 }
@@ -16683,11 +16658,6 @@ https://transcript.taxmonitor.pro/resources
 https://transcript.taxmonitor.pro/pricing
 
 I hope it saves you some time when you need it.
-
-—
-Jamie L Williams, EA
-Transcript Tax Monitor Pro
-transcript.taxmonitor.pro
 `
   };
 }
@@ -16715,11 +16685,6 @@ I put together a quick practice analysis for your firm:
 https://virtuallaunch.pro/asset/${slug}
 
 Takes about 60 seconds to review.
-
-—
-Jamie L Williams, EA
-Virtual Launch Pro
-virtuallaunch.pro
 `
   };
 }
@@ -16747,11 +16712,6 @@ client-ready reports in seconds.
 
 See all tiers:
 https://virtuallaunch.pro/pricing
-
-—
-Jamie L Williams, EA
-Virtual Launch Pro
-virtuallaunch.pro
 `
   };
 }
@@ -16780,11 +16740,6 @@ Not ready for a membership? Try the transcript automation
 tool first — no commitment:
 https://transcript.taxmonitor.pro/pricing
 10 analyses for $19.
-
-—
-Jamie L Williams, EA
-Virtual Launch Pro
-virtuallaunch.pro
 `
   };
 }
@@ -16812,11 +16767,6 @@ https://www.linkedin.com/in/virtuallaunchpro
 
 Here's your practice analysis:
 https://virtuallaunch.pro/asset/${slug}
-
-—
-Jamie L Williams, EA
-Virtual Launch Pro
-virtuallaunch.pro
 `
   };
 }
@@ -16840,11 +16790,6 @@ https://cal.com/tax-monitor-pro/discovery
 
 If your pipeline is full — that's a good problem to have.
 No more emails from me.
-
-—
-Jamie L Williams, EA
-Virtual Launch Pro
-virtuallaunch.pro
 `
   };
 }
@@ -16867,11 +16812,6 @@ https://transcript.taxmonitor.pro/pricing
 10 IRS transcript analyses for $19.
 
 Either way, I hope one of these tools saves you some time.
-
-—
-Jamie L Williams, EA
-Virtual Launch Pro
-virtuallaunch.pro
 `
   };
 }
@@ -16894,11 +16834,6 @@ practice could look like:
 https://websitelotto.virtuallaunch.pro/asset/${slug}
 
 Templates start at $249. Takes about 60 seconds to review.
-
-—
-Jamie L Williams, EA
-Website Lotto by Virtual Launch Pro
-websitelotto.virtuallaunch.pro
 `
   };
 }
@@ -16918,11 +16853,6 @@ https://websitelotto.virtuallaunch.pro/asset/${slug}
 
 If you want to walk through it live (15 minutes):
 https://cal.com/vlp/wlvlp-discovery
-
-—
-Jamie L Williams, EA
-Website Lotto by Virtual Launch Pro
-websitelotto.virtuallaunch.pro
 `
   };
 }
@@ -16947,11 +16877,6 @@ A conversion-optimized site doesn't just look better —
 it turns visitors into clients. Here's what yours could
 look like:
 https://websitelotto.virtuallaunch.pro/asset/${slug}
-
-—
-Jamie L Williams, EA
-Website Lotto by Virtual Launch Pro
-websitelotto.virtuallaunch.pro
 `
   };
 }
@@ -16979,11 +16904,6 @@ https://www.linkedin.com/in/virtuallaunchpro
 
 Here's your preview:
 https://websitelotto.virtuallaunch.pro/asset/${slug}
-
-—
-Jamie L Williams, EA
-Website Lotto by Virtual Launch Pro
-websitelotto.virtuallaunch.pro
 `
   };
 }
@@ -17007,11 +16927,6 @@ https://cal.com/vlp/wlvlp-discovery
 
 If your site is already where you want it — no more
 emails from me.
-
-—
-Jamie L Williams, EA
-Website Lotto by Virtual Launch Pro
-websitelotto.virtuallaunch.pro
 `
   };
 }
@@ -17029,11 +16944,6 @@ And if your website isn't the priority right now but you
 work with IRS transcripts, this might save you real time:
 https://transcript.taxmonitor.pro/pricing
 10 transcript analyses for $19 — no commitment.
-
-—
-Jamie L Williams, EA
-Website Lotto by Virtual Launch Pro
-websitelotto.virtuallaunch.pro
 `
   };
 }
