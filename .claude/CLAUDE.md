@@ -904,6 +904,24 @@ The `(member)` route group replaces the previous `(app)` route group. The old `(
 
 ---
 
+## Tools
+
+Reusable domain modules that sit outside the Worker handler but are imported by Worker routes. Each tool is a pure ES module — no I/O, no env access. Callers (Worker routes, scripts) load any template bytes from R2 and pass them in.
+
+### 2848 Generator
+- **Location:** `tools/2848/`
+- **Source:** Migrated from `JLW-Dev-Coder/2848` (browser HTML → ESM module)
+- **Purpose:** Generates filled IRS Form 2848 Page 1 (Power of Attorney) from structured input by stamping text onto the official IRS PDF template with `pdf-lib`
+- **Entry point:** `tools/2848/generator.js` — exports `generate2848Pdf(input, templateBytes)` and `buildFilename(input)`
+- **Template:** `tools/2848/template/f2848.pdf` — official IRS Form 2848 PDF
+- **Used by:** Client-facing eSign flow (TMP), Staff-facing generation (VLP member app Client Record page)
+- **Contract:** `contracts/tmp/tmp.tool.2848.v1.json` (created in Prompt 7)
+- **Worker route:** `POST /v1/tools/2848/generate` (created in Prompt 7)
+- **Dependencies:** `pdf-lib` ^1.17.1 (already in root `package.json`)
+- **Build ID:** `2848-align-2026-01-22-h` — bump if IRS reissues the form and coordinates need re-aligning
+
+---
+
 ## 23. Canonicals Enforcement (mandatory on every task)
 
 Before writing any file, check whether the file type has a canonical template.
