@@ -1,12 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
+import { ArrowRight, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import StatusBadge from '../components/StatusBadge'
 import AcceptCaseModal, { type AcceptResult } from './components/AcceptCaseModal'
+import {
+  acceptClientPoolCase,
+  getClientPoolCases,
+  type CasePoolRecord,
+} from '@/lib/api/client-pool'
+import { getDashboard } from '@/lib/api/dashboard'
 
-type CaseStatus = 'Available' | 'Assigned' | 'In Progress' | 'Completed' | 'Paid Out'
+type DisplayStatus = 'Available' | 'Assigned' | 'In Progress' | 'Completed' | 'Paid Out'
 type TabKey = 'available' | 'mine' | 'completed'
 
 interface PoolCase {
@@ -17,20 +23,17 @@ interface PoolCase {
   fee: string
   platformFee: string
   payout: string
-  status: CaseStatus
+  status: DisplayStatus
   acceptedAt?: string
 }
 
-const initialCases: PoolCase[] = [
-  { id: 'c1', name: 'Maria Rivera', plan: 'Gold', filing: 'MFJ', fee: '$504', platformFee: '$60.48', payout: '$443.52', status: 'Available' },
-  { id: 'c2', name: 'David Chen', plan: 'Silver', filing: 'Single', fee: '$325', platformFee: '$39.00', payout: '$286.00', status: 'Available' },
-  { id: 'c3', name: 'Sofia Martinez', plan: 'Bronze', filing: 'Single', fee: '$275', platformFee: '$33.00', payout: '$242.00', status: 'Available' },
-  { id: 'c4', name: 'Robert Thompson', plan: 'Gold', filing: 'MFJ', fee: '$504', platformFee: '$60.48', payout: '$443.52', status: 'Available' },
-  { id: 'c5', name: 'Arjun Patel', plan: 'Snapshot', filing: 'Single', fee: '$425', platformFee: '$51.00', payout: '$374.00', status: 'Available' },
-  { id: 'c6', name: 'Linda Park', plan: 'Bronze', filing: 'Single', fee: '$275', platformFee: '$33.00', payout: '$242.00', status: 'Available' },
-]
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
+const STATUS_LABELS: Record<string, DisplayStatus> = {
+  available: 'Available',
+  assigned: 'Assigned',
+  in_progress: 'In Progress',
+  completed: 'Completed',
+  paid_out: 'Paid Out',
+}
 
 const availableColumns = [
   { key: 'client', label: 'Client Name' },
@@ -59,6 +62,73 @@ function formatDate(iso?: string) {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
+function formatMoneyCents(cents: number | undefined | null): string | null {
+  if (cents == null || Number.isNaN(cents)) return null
+  return `$${(cents / 100).toFixed(2)}`
+}
+
+function formatMoneyDollars(dollars: number | undefined | null): string | null {
+  if (dollars == null || Number.isNaN(dollars)) return null
+  return `$${dollars.toFixed(2)}`
+}
+
+function adaptCase(record: CasePoolRecord): PoolCase {
+  const name = String(record.taxpayer_name ?? record.client_name ?? 'Unnamed client')
+  const plan = String(record.service_plan ?? record.plan ?? '—')
+  const filing = String(record.filing_status ?? record.filing ?? '—')
+
+  const feeCents =
+    typeof record.service_fee_cents === 'number'
+      ? record.service_fee_cents
+      : typeof record.plan_fee_cents === 'number'
+      ? record.plan_fee_cents
+      : typeof record.service_fee === 'number'
+      ? Math.round(record.service_fee * 100)
+      : null
+
+  const platformFeeCents =
+    typeof record.platform_fee_cents === 'number'
+      ? record.platform_fee_cents
+      : feeCents != null
+      ? Math.round(feeCents * 0.12)
+      : null
+
+  const payoutCents =
+    typeof record.payout_cents === 'number'
+      ? record.payout_cents
+      : feeCents != null && platformFeeCents != null
+      ? feeCents - platformFeeCents
+      : null
+
+  const fee = formatMoneyCents(feeCents) ?? formatMoneyDollars(record.service_fee as number) ?? '—'
+  const platformFee = formatMoneyCents(platformFeeCents) ?? '—'
+  const payout = formatMoneyCents(payoutCents) ?? '—'
+
+  const rawStatus = String(record.status ?? 'available').toLowerCase()
+  const status = STATUS_LABELS[rawStatus] ?? 'Available'
+
+  return {
+    id: record.case_id,
+    name,
+    plan,
+    filing,
+    fee,
+    platformFee,
+    payout,
+    status,
+    acceptedAt: record.assigned_at ?? undefined,
+  }
+}
+
+interface TabState {
+  loading: boolean
+  error: string | null
+  cases: PoolCase[]
+  loaded: boolean
+}
+
+const initialTabState: TabState = { loading: false, error: null, cases: [], loaded: false }
+
 interface ToastState {
   id: number
   kind: 'success' | 'error'
@@ -66,14 +136,16 @@ interface ToastState {
 }
 
 export default function ClientPoolTable() {
-  const [cases, setCases] = useState<PoolCase[]>(initialCases)
   const [activeTab, setActiveTab] = useState<TabKey>('available')
+  const [professionalId, setProfessionalId] = useState<string | null>(null)
+  const [profError, setProfError] = useState<string | null>(null)
+  const [tabs, setTabs] = useState<Record<TabKey, TabState>>({
+    available: initialTabState,
+    mine: initialTabState,
+    completed: initialTabState,
+  })
   const [modalCase, setModalCase] = useState<PoolCase | null>(null)
   const [toast, setToast] = useState<ToastState | null>(null)
-
-  const availableCases = cases.filter((c) => c.status === 'Available')
-  const myCases = cases.filter((c) => c.status === 'Assigned' || c.status === 'In Progress')
-  const completedCases = cases.filter((c) => c.status === 'Completed' || c.status === 'Paid Out')
 
   function showToast(kind: ToastState['kind'], message: string) {
     const id = Date.now()
@@ -83,89 +155,147 @@ export default function ClientPoolTable() {
     }, 4000)
   }
 
-  function acceptLocally(caseId: string) {
-    const now = new Date().toISOString()
-    setCases((prev) =>
-      prev.map((c) => (c.id === caseId ? { ...c, status: 'Assigned' as CaseStatus, acceptedAt: now } : c))
-    )
-    setActiveTab('mine')
-  }
+  const loadTab = useCallback(
+    async (tab: TabKey, proId: string | null) => {
+      setTabs((prev) => ({ ...prev, [tab]: { ...prev[tab], loading: true, error: null } }))
+      try {
+        let response
+        if (tab === 'available') {
+          response = await getClientPoolCases({ status: 'available', limit: 100 })
+        } else if (tab === 'mine') {
+          if (!proId) {
+            setTabs((prev) => ({
+              ...prev,
+              mine: { loading: false, error: null, cases: [], loaded: true },
+            }))
+            return
+          }
+          response = await getClientPoolCases({
+            professional_id: proId,
+            status: 'assigned,in_progress',
+            limit: 100,
+          })
+        } else {
+          if (!proId) {
+            setTabs((prev) => ({
+              ...prev,
+              completed: { loading: false, error: null, cases: [], loaded: true },
+            }))
+            return
+          }
+          response = await getClientPoolCases({
+            professional_id: proId,
+            status: 'completed,paid_out',
+            limit: 100,
+          })
+        }
+        const mapped = (response.cases ?? []).map(adaptCase)
+        setTabs((prev) => ({
+          ...prev,
+          [tab]: { loading: false, error: null, cases: mapped, loaded: true },
+        }))
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        setTabs((prev) => ({
+          ...prev,
+          [tab]: { loading: false, error: message, cases: [], loaded: true },
+        }))
+      }
+    },
+    []
+  )
+
+  // Initial load: resolve professional_id from dashboard, then fetch Available
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const dashboard = await getDashboard()
+        if (cancelled) return
+        setProfessionalId(dashboard.account.professional_id ?? null)
+      } catch (err) {
+        if (cancelled) return
+        setProfError(err instanceof Error ? err.message : 'Could not load profile')
+      } finally {
+        if (!cancelled) {
+          loadTab('available', null)
+        }
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [loadTab])
+
+  // Lazy-load each non-available tab the first time it is shown
+  useEffect(() => {
+    if (activeTab === 'available') return
+    if (tabs[activeTab].loaded || tabs[activeTab].loading) return
+    loadTab(activeTab, professionalId)
+  }, [activeTab, professionalId, tabs, loadTab])
 
   async function handleAccept(caseId: string): Promise<AcceptResult> {
-    const target = cases.find((c) => c.id === caseId)
+    const target = tabs.available.cases.find((c) => c.id === caseId)
     const clientName = target?.name ?? 'this client'
 
-    let apiErrorReason: string | null = null
-
     try {
-      const res = await fetch(`${API_URL}/v1/tmp/client-pool/accept`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          case_id: caseId,
-          professional_id: 'resolved_server_side',
-        }),
-      })
-
-      const data = (await res.json().catch(() => ({}))) as {
-        ok?: boolean
-        error?: string
-      }
-
-      if (res.ok && data.ok) {
-        acceptLocally(caseId)
+      const data = await acceptClientPoolCase(caseId)
+      if (data.ok) {
+        // Optimistically remove from the Available list and invalidate My Cases
+        setTabs((prev) => ({
+          ...prev,
+          available: {
+            ...prev.available,
+            cases: prev.available.cases.filter((c) => c.id !== caseId),
+          },
+          mine: { ...prev.mine, loaded: false },
+        }))
         setModalCase(null)
+        setActiveTab('mine')
         showToast('success', `Case accepted. You are now assigned to ${clientName}.`)
         return { success: true }
       }
-
       if (data.error === 'case_not_available') {
         return { success: false, blocked: true }
       }
-
-      apiErrorReason = data.error || `HTTP ${res.status}`
+      showToast('error', data.message ?? data.error ?? 'Could not accept case.')
+      return { success: false, blocked: true }
     } catch (err) {
-      apiErrorReason = err instanceof Error ? err.message : 'network error'
+      const message = err instanceof Error ? err.message : 'network error'
+      showToast('error', `Could not accept case (${message}).`)
+      return { success: false, blocked: true }
     }
-
-    acceptLocally(caseId)
-    setModalCase(null)
-    showToast('error', `API unavailable (${apiErrorReason}). Accepted locally as fallback.`)
-    return { success: true }
   }
 
-  const tabs: { key: TabKey; label: string; count: number }[] = [
-    { key: 'available', label: 'Available', count: availableCases.length },
-    { key: 'mine', label: 'My Cases', count: myCases.length },
-    { key: 'completed', label: 'Completed', count: completedCases.length },
+  const tabMeta: { key: TabKey; label: string; count: number | null }[] = [
+    { key: 'available', label: 'Available', count: tabs.available.loaded ? tabs.available.cases.length : null },
+    { key: 'mine', label: 'My Cases', count: tabs.mine.loaded ? tabs.mine.cases.length : null },
+    { key: 'completed', label: 'Completed', count: tabs.completed.loaded ? tabs.completed.cases.length : null },
   ]
 
-  let visibleCases: PoolCase[]
-  let columns
-  if (activeTab === 'available') {
-    visibleCases = availableCases
-    columns = availableColumns
-  } else if (activeTab === 'mine') {
-    visibleCases = myCases
-    columns = assignedColumns
-  } else {
-    visibleCases = completedCases
-    columns = assignedColumns
-  }
+  const current = tabs[activeTab]
+  const columns = activeTab === 'available' ? availableColumns : assignedColumns
 
   const emptyMessage =
     activeTab === 'available'
       ? 'No cases available right now. Check back soon.'
       : activeTab === 'mine'
-      ? 'No active cases yet. Accept a case from the Available tab.'
+      ? 'No assigned cases yet. Accept a case from the Available tab.'
       : 'No completed cases yet.'
 
   return (
     <div>
+      {/* Profile-resolution warning — only shown if My Cases tab needs a pro ID */}
+      {profError && activeTab !== 'available' && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>Could not load your profile. Some tabs may be empty.</span>
+        </div>
+      )}
+
       {/* Tab bar */}
       <div className="mb-4 inline-flex gap-1 rounded-xl border border-[--member-border] bg-[--member-card] p-1">
-        {tabs.map((t) => {
+        {tabMeta.map((t) => {
           const isActive = t.key === activeTab
           return (
             <button
@@ -182,7 +312,7 @@ export default function ClientPoolTable() {
                   isActive ? 'bg-brand-orange/20 text-brand-orange' : 'bg-white/10 text-white/60'
                 }`}
               >
-                {t.count}
+                {t.count ?? '—'}
               </span>
             </button>
           )
@@ -205,14 +335,43 @@ export default function ClientPoolTable() {
             </tr>
           </thead>
           <tbody>
-            {visibleCases.length === 0 ? (
+            {current.loading ? (
+              <>
+                {[0, 1, 2].map((row) => (
+                  <tr key={`skeleton-${row}`} className="border-b border-[--member-border] last:border-b-0">
+                    {columns.map((col) => (
+                      <td key={col.key} className="px-5 py-4">
+                        <div className="h-3 w-full max-w-[140px] animate-pulse rounded bg-white/5" />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                <tr>
+                  <td
+                    colSpan={columns.length}
+                    className="px-5 py-4 text-center text-xs text-white/40"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Loading cases…
+                    </span>
+                  </td>
+                </tr>
+              </>
+            ) : current.error ? (
+              <tr>
+                <td colSpan={columns.length} className="px-5 py-10 text-center text-sm text-red-300">
+                  Could not load cases. Please try again.
+                </td>
+              </tr>
+            ) : current.cases.length === 0 ? (
               <tr>
                 <td colSpan={columns.length} className="px-5 py-10 text-center text-sm text-white/40">
                   {emptyMessage}
                 </td>
               </tr>
             ) : (
-              visibleCases.map((c) => (
+              current.cases.map((c) => (
                 <tr
                   key={c.id}
                   className="border-b border-[--member-border] transition last:border-b-0 hover:bg-[--member-card-hover]"

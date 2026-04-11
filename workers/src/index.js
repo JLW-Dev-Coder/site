@@ -9723,9 +9723,10 @@ TTMP Support Team
   // GET /v1/tmp/client-pool
   // Contract: /contracts/tmp/tmp.client-pool.list.v1.json (pending — read-model)
   // Lists cases from R2 under client_pool/ prefix. Filters:
-  //   ?status=available        → only cases with status 'available'
-  //   ?professional_id={id}    → only cases assigned to that pro
-  //   ?page=1&limit=20         → pagination (default page 1, limit 20, max 100)
+  //   ?status=available              → only cases with that status
+  //   ?status=assigned,in_progress   → comma-separated list = union match
+  //   ?professional_id={id}          → only cases assigned to that pro
+  //   ?page=1&limit=20               → pagination (default page 1, limit 20, max 100)
   {
     method: 'GET', pattern: '/v1/tmp/client-pool',
     handler: async (_method, _pattern, _params, request, env) => {
@@ -9756,7 +9757,13 @@ TTMP Support Team
 
         let cases = loaded.filter(Boolean);
         if (statusFilter) {
-          cases = cases.filter(c => c.status === statusFilter);
+          const allowed = statusFilter.split(',').map(s => s.trim()).filter(Boolean);
+          if (allowed.length === 1) {
+            cases = cases.filter(c => c.status === allowed[0]);
+          } else if (allowed.length > 1) {
+            const allowedSet = new Set(allowed);
+            cases = cases.filter(c => allowedSet.has(c.status));
+          }
         }
         if (professionalIdFilter) {
           cases = cases.filter(c => c.servicing_professional_id === professionalIdFilter);
