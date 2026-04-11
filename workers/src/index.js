@@ -2019,6 +2019,149 @@ const ROUTES = [
     },
   },
 
+  // -------------------------------------------------------------------------
+  // DASHBOARD — aggregate KPIs + profile + recent activity for current session
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'GET', pattern: '/v1/dashboard',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      try {
+        const accountId = session.account_id;
+        const now = new Date();
+        const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+        const nowIso = now.toISOString();
+
+        const [accountRow, profileRow, membershipRow, tokenBalance] = await Promise.all([
+          env.DB.prepare('SELECT account_id, email, first_name, last_name, platform, created_at FROM accounts WHERE account_id = ?').bind(accountId).first().catch(() => null),
+          env.DB.prepare('SELECT professional_id, display_name, profession FROM profiles WHERE account_id = ?').bind(accountId).first().catch(() => null),
+          env.DB.prepare("SELECT plan_key, status, stripe_subscription_id, created_at FROM memberships WHERE account_id = ? AND status = 'active' ORDER BY created_at DESC LIMIT 1").bind(accountId).first().catch(() => null),
+          getCurrentTokenBalance(env, accountId).catch(() => ({ transcriptTokens: 0, taxGameTokens: 0, updatedAt: null })),
+        ]);
+
+        const [bookingsMonthRow, reportsMonthRow, openTicketsRow, upcomingBookingsResult] = await Promise.all([
+          env.DB.prepare('SELECT COUNT(*) AS c FROM bookings WHERE account_id = ? AND scheduled_at >= ?').bind(accountId, monthStart).first().catch(() => ({ c: 0 })),
+          env.DB.prepare('SELECT COUNT(*) AS c FROM transcript_jobs WHERE account_id = ? AND created_at >= ?').bind(accountId, monthStart).first().catch(() => ({ c: 0 })),
+          env.DB.prepare("SELECT COUNT(*) AS c FROM support_tickets WHERE account_id = ? AND status IN ('open','in_progress','reopened')").bind(accountId).first().catch(() => ({ c: 0 })),
+          env.DB.prepare('SELECT booking_id, scheduled_at, booking_type, status, professional_id FROM bookings WHERE account_id = ? AND scheduled_at >= ? ORDER BY scheduled_at ASC LIMIT 3').bind(accountId, nowIso).all().catch(() => ({ results: [] })),
+        ]);
+
+        const [bookingsRecent, reportsRecent, ticketsRecent] = await Promise.all([
+          env.DB.prepare('SELECT booking_id, booking_type, status, scheduled_at, created_at FROM bookings WHERE account_id = ? ORDER BY created_at DESC LIMIT 5').bind(accountId).all().catch(() => ({ results: [] })),
+          env.DB.prepare('SELECT job_id, transcript_type, tax_year, status, created_at FROM transcript_jobs WHERE account_id = ? ORDER BY created_at DESC LIMIT 5').bind(accountId).all().catch(() => ({ results: [] })),
+          env.DB.prepare('SELECT ticket_id, subject, status, created_at FROM support_tickets WHERE account_id = ? ORDER BY created_at DESC LIMIT 5').bind(accountId).all().catch(() => ({ results: [] })),
+        ]);
+
+        const activity = [];
+        for (const r of bookingsRecent.results ?? []) {
+          activity.push({
+            type: 'booking',
+            title: `Booking ${r.status || 'pending'} — ${(r.booking_type || 'consultation').replace(/_/g, ' ')}`,
+            timestamp: r.created_at,
+          });
+        }
+        for (const r of reportsRecent.results ?? []) {
+          const typeLabel = (r.transcript_type || 'transcript').replace(/_/g, ' ');
+          activity.push({
+            type: 'report',
+            title: `${typeLabel} report${r.tax_year ? ` (${r.tax_year})` : ''} — ${r.status}`,
+            timestamp: r.created_at,
+          });
+        }
+        for (const r of ticketsRecent.results ?? []) {
+          activity.push({
+            type: 'support',
+            title: `Support ticket: ${r.subject} — ${r.status}`,
+            timestamp: r.created_at,
+          });
+        }
+        activity.sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+        const recentActivity = activity.slice(0, 5);
+
+        // Tier + allocation mapping from CLAUDE.md section 19
+        const TIER_LABELS = { vlp_free: 'Listed', vlp_starter: 'Active', vlp_scale: 'Featured', vlp_pro: 'Featured', vlp_advanced: 'Premier' };
+        const PLAN_NAMES = { vlp_free: 'VLP Listed', vlp_starter: 'VLP Starter', vlp_scale: 'VLP Scale', vlp_pro: 'VLP Scale', vlp_advanced: 'VLP Advanced' };
+        const MONTHLY_ALLOC = {
+          vlp_free: { transcript: 0, game: 0 },
+          vlp_starter: { transcript: 2, game: 5 },
+          vlp_scale: { transcript: 5, game: 15 },
+          vlp_pro: { transcript: 5, game: 15 },
+          vlp_advanced: { transcript: 10, game: 40 },
+        };
+        const rawPlanKey = membershipRow?.plan_key ?? 'vlp_free';
+        const planKey = rawPlanKey.replace(/_(monthly|yearly)$/, '');
+        const tierLabel = TIER_LABELS[planKey] ?? 'Listed';
+        const planName = PLAN_NAMES[planKey] ?? 'VLP Listed';
+        const alloc = MONTHLY_ALLOC[planKey] ?? { transcript: 0, game: 0 };
+
+        const firstName = accountRow?.first_name ?? '';
+        const lastName = accountRow?.last_name ?? '';
+        const fallbackName = `${firstName} ${lastName}`.trim() || (session.email?.split('@')[0] ?? 'Member');
+        const name = profileRow?.display_name || fallbackName;
+
+        return json({
+          ok: true,
+          dashboard: {
+            account: {
+              account_id: accountId,
+              email: session.email,
+              name,
+              credential: profileRow?.profession ?? null,
+              platform: session.platform,
+              professional_id: profileRow?.professional_id ?? null,
+              tier: tierLabel,
+              plan_key: planKey,
+              plan_name: planName,
+              // memberships table has no current_period_end column; Stripe webhook
+              // does not persist renewal date. Returning null until a future migration
+              // or on-demand Stripe fetch fills this in.
+              tier_renewal_date: null,
+              member_since: accountRow?.created_at ?? null,
+            },
+            tokens: {
+              balance: tokenBalance.transcriptTokens ?? 0,
+              tax_game_balance: tokenBalance.taxGameTokens ?? 0,
+              monthly_allocation: alloc.transcript,
+              updated_at: tokenBalance.updatedAt ?? null,
+            },
+            bookings: {
+              this_month: bookingsMonthRow?.c ?? 0,
+              upcoming: (upcomingBookingsResult.results ?? []).map(b => ({
+                booking_id: b.booking_id,
+                scheduled_at: b.scheduled_at,
+                booking_type: b.booking_type,
+                status: b.status,
+                professional_id: b.professional_id,
+              })),
+            },
+            reports: {
+              generated_this_month: reportsMonthRow?.c ?? 0,
+              // transcript_jobs has no "pending_review" concept — all rows are terminal
+              pending_review: 0,
+            },
+            support: {
+              open_tickets: openTicketsRow?.c ?? 0,
+              // no dedicated awaiting_response status on support_tickets yet
+              awaiting_response: 0,
+            },
+            client_pool: {
+              // No D1 projection for client_pool yet — would require R2 scan
+              assigned_cases: 0,
+              available_cases: 0,
+            },
+            activity: recentActivity,
+          },
+        }, 200, request);
+      } catch (e) {
+        console.error('/v1/dashboard error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to load dashboard' }, 500, request);
+      }
+    },
+  },
+
   {
     method: 'GET', pattern: '/v1/auth/google/start',
     handler: async (_method, _pattern, _params, request, env) => {

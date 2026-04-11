@@ -12,6 +12,60 @@ export interface DashboardSummary {
   renewalDate: string
 }
 
+// GET /v1/dashboard — aggregate payload for the member dashboard page
+export interface DashboardActivity {
+  type: 'booking' | 'report' | 'support' | 'token' | string
+  title: string
+  timestamp: string
+}
+
+export interface DashboardUpcomingBooking {
+  booking_id: string
+  scheduled_at: string
+  booking_type: string
+  status: string
+  professional_id: string
+}
+
+export interface DashboardPayload {
+  account: {
+    account_id: string
+    email: string
+    name: string
+    credential: string | null
+    platform: string
+    professional_id: string | null
+    tier: string
+    plan_key: string
+    plan_name: string
+    tier_renewal_date: string | null
+    member_since: string | null
+  }
+  tokens: {
+    balance: number
+    tax_game_balance: number
+    monthly_allocation: number
+    updated_at: string | null
+  }
+  bookings: {
+    this_month: number
+    upcoming: DashboardUpcomingBooking[]
+  }
+  reports: {
+    generated_this_month: number
+    pending_review: number
+  }
+  support: {
+    open_tickets: number
+    awaiting_response: number
+  }
+  client_pool: {
+    assigned_cases: number
+    available_cases: number
+  }
+  activity: DashboardActivity[]
+}
+
 export interface AccountProfile {
   accountId: string
   email: string
