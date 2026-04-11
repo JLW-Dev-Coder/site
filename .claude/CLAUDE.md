@@ -847,6 +847,7 @@ SETTINGS (footer)
 | `/affiliate` | Affiliate | Shell |
 | `/client-pool` | Client Pool | Shell |
 | `/client-pool/[clientId]` | Client Record | Built |
+| `/client-pool/[clientId]/compliance` | Compliance Record (staff) | Built |
 | `/payouts` | Payouts | Shell |
 | `/account` | Account | Shell |
 | `/account/payments` | Payments | Shell |
@@ -897,6 +898,32 @@ Privacy: PII fields gated by `consentGranted` boolean — shows "[Consent requir
 - Phase 2: Processing / Due Diligence (2 operator steps)
 - Phase 3: Results (3 steps)
 - Cross-phase: Support Ticket
+
+### Compliance Record (`/client-pool/[clientId]/compliance`)
+
+Full staff compliance record form used during Phase 2 Processing / Due Diligence. Implements the canonical write contract `contracts/tmp/tmp.compliance-record.write.v1.json`. Two-column layout: main form area (left, ~60%) and sticky live preview panel (right, 420px).
+
+Structure:
+- **Sticky header:** back link, client name / ID / order, DRAFT/FINAL status badge, last-saved label, Save Draft + Finalize Record buttons
+- **Sticky tab nav:** 9 tabs — Overview, Agent, Authority, Compliance, Notices, Installment Agreement, Revenue Officer, Transcripts, Summary
+- **Main form:** per-tab accordion sections with VLP orange focus rings (no blue)
+- **Preview panel:** sticky right column with live read-only summary; scrolls to + highlights the active tab's section; Print + Copy Summary buttons
+- **MFJ banner:** appears above sticky header when `filing_status === 'MFJ'`; dismissable via localStorage (`vlp:compliance:mfj-banner-dismissed`); Primary/Spouse scope toggle
+
+Components at `web/app/(member)/client-pool/[clientId]/compliance/components/`:
+| Component | Description |
+|-----------|-------------|
+| `ComplianceHeader.tsx` | Sticky header with client info, status badge, save/finalize buttons |
+| `ComplianceTabs.tsx` | Tab navigation bar (orange active underline) |
+| `AccordionSection.tsx` | Collapsible section with icon, title, optional badge |
+| `PreviewPanel.tsx` | Sticky right-side live preview with per-tab highlight |
+| `MFJBanner.tsx` | MFJ associated records banner with Primary/Spouse scope |
+| `SSNField.tsx` | Show/hide SSN field with masking |
+| `NoticeEntry.tsx` | Single notice entry (1-3, conditional CP number) |
+| `YearTabs.tsx` | 10-year rolling tax year selector |
+| `FormPrimitives.tsx` | Label, TextInput, DateInput, Select, TextArea, Field, Grid2, Checkbox, Pill |
+
+Types + sample data live in `types.ts` (`ComplianceData`, `initialComplianceData()`, enum option lists). Sample data matches the TMP compliance-records.html reference (Margaret Chen, $24,847.32 balance, 3 notices). Save Draft / Finalize log a contract-shaped payload to the console — no API call yet (that's Phase D).
 
 ### Replaced `(app)` route group
 
