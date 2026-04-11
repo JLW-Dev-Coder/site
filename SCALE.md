@@ -11,11 +11,11 @@ Build a repeatable system where:
 - Analytics track every touchpoint from email send to Stripe payment
 - Magnets deliver immediate value with personalization
 - Outreach produces real case studies, reviews, and testimonials
-- Tech stack stays free or lowest cost ($125/mo total)
+- Tech stack stays free or lowest cost ($134/mo total)
 - Workflow requires the least manual effort from operator (JLW)
 
 **Revenue targets:**
-- Breakeven: $125/mo (stack cost) = 7 TTMP token packs at $19 or 1 WLVLP template at $249
+- Breakeven: $134/mo (stack cost) = 8 TTMP token packs at $19 or 1 WLVLP template at $249
 - Month 1 target: $500 (proof of concept)
 - Month 3 target: $5,000/mo (pipeline compounding)
 - Month 12 target: $10,000+/mo (SEO + email + referral combined)
@@ -32,17 +32,16 @@ Build a repeatable system where:
 | Stripe | Free | $0 | Payments — TMP Stripe + VLP Stripe accounts |
 | Clay | Free | $0 | 100 credits/mo, prospect enrichment, Claygent |
 
-### Outreach layer ($0/mo)
+### Outreach layer ($9/mo)
 | Tool | Plan | Cost | Purpose |
 |------|------|------|---------|
-| Brevo | Free | $0 | Cold outreach email sequences |
+| Gmail | Free | $0 | API for cold outreach and transactional sends (via VLP Worker cron) |
 | Resend | Free | $0 | Transactional email delivery |
+| Reoon | $9/mo | $9/mo | 500 email validations/day — pre-send email verification |
 | Cal.com | Free | $0 | Booking links for discovery + demo calls |
 | Google Meet | Free | $0 | Video calls |
-| Gmail | Free | $0 | API for transactional sends |
 | Facebook | Free | $0 | Manual outreach — comments, DMs |
 | LinkedIn | Free | $0 | Manual outreach — comments, DMs |
-| Hunter | Free | $0 | Email verification |
 
 ### Execution layer ($120/mo)
 | Tool | Plan | Cost | Purpose |
@@ -50,7 +49,7 @@ Build a repeatable system where:
 | Claude | Max | $100/mo | Batch asset generation, platform dev, prompt authorship |
 | ChatGPT | Plus | $20/mo | Supplementary generation, Canva site creation |
 
-**Total: $125/mo**
+**Total: $134/mo**
 
 ---
 
@@ -58,7 +57,15 @@ Build a repeatable system where:
 
 The end-to-end SCALE pipeline is automated inside the VLP Worker. There are
 three campaigns (TTMP, VLP, WLVLP) sharing the same FOIA master file and
-the same daily loop. No Hunter.io, no Brevo, no Claude in the loop.
+the same daily loop. Cold outreach is sent via the Gmail API from the Worker
+cron — no Hunter.io, no third-party ESP, no Claude in the loop.
+
+### Pre-send validation (Reoon)
+Before any batch enters the send queue, emails are validated via Reoon:
+- Bulk API for pipeline-wide validation (up to 500/day)
+- Single Quick API as a per-batch gate in generate-batch.js
+- Invalid/disposable emails are permanently rejected
+- Daily capacity: 500 validations aligns with Gmail's ~500/day send limit
 
 | Step | Owner | When | Action |
 |------|-------|------|--------|
@@ -107,6 +114,9 @@ See platform-specific SCALE.md files for column definitions. All platforms share
 ---
 
 ## 5. Email Sequences
+
+All cold outreach is sent by the VLP Worker cron via the Gmail API.
+Templates live inline on each queue record in R2.
 
 ### Engine 1 — Email (volume)
 
@@ -195,7 +205,7 @@ This system prepares sending queues. Delivery depends on platform:
 
 | Channel | Tool | Trigger |
 |---------|------|---------|
-| Cold outreach | Brevo | Manual import of sending CSV or API push |
+| Cold outreach | Gmail API via VLP Worker cron | Cron at 14:00 UTC reads R2 send queue |
 | Transactional | Resend | VLP Worker triggers on events (purchase confirm, asset ready) |
 | Asset pages | VLP Worker | Serves from R2 on request |
 
@@ -206,7 +216,7 @@ Platform-specific — see each platform's SCALE.md for exact commands.
 
 ## 10. Analytics
 
-### Email (Brevo + Resend)
+### Email (Gmail API via VLP Worker cron + Resend)
 Sends, opens, CTA clicks, bounces, unsubscribes, complaints, inbound replies
 
 ### Engagement (VLP Worker)
@@ -273,7 +283,7 @@ Applies to all outreach across all platforms. No exceptions.
 - Programmatic SEO pages live (WLVLP niche landing pages, TTMP code pages already exist)
 - WLVLP: before/after generator live as public magnet
 - WLVLP: instant personalization ("enter your business name → see your site") live
-- Target: monthly revenue exceeds $125 stack cost consistently
+- Target: monthly revenue exceeds $134 stack cost consistently
 
 ---
 
@@ -295,7 +305,7 @@ Applies to all outreach across all platforms. No exceptions.
 ## 14. Non-Goals
 
 SCALE does not:
-- Send email directly (Brevo and Resend handle delivery)
+- Send email directly from generator scripts (the VLP Worker cron sends via Gmail API; Resend handles transactional)
 - Build backend routes (those belong in VLP Worker)
 - Modify prospect source CSVs beyond appending tracking columns
 - Store PII in public-facing responses
