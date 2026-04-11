@@ -847,6 +847,7 @@ SETTINGS (footer)
 | `/affiliate` | Affiliate | Shell |
 | `/client-pool` | Client Pool | Shell |
 | `/client-pool/[clientId]` | Client Record | Built |
+| `/client-pool/[clientId]/2848` | Form 2848 Generator (staff) | Built |
 | `/client-pool/[clientId]/compliance` | Compliance Record (staff) | Built |
 | `/payouts` | Payouts | Shell |
 | `/account` | Account | Shell |
@@ -898,6 +899,21 @@ Privacy: PII fields gated by `consentGranted` boolean — shows "[Consent requir
 - Phase 2: Processing / Due Diligence (2 operator steps)
 - Phase 3: Results (3 steps)
 - Cross-phase: Support Ticket
+
+### Form 2848 Generator — staff (`/client-pool/[clientId]/2848`)
+
+Staff-facing Form 2848 (Power of Attorney) generator used during the Phase 2 Processing / Due Diligence → Authorization + CAF step. Implements the canonical contract `contracts/tmp/tmp.tool.2848.v1.json` using the flat payload shape (`taxpayer_name`, `taxpayer_address`, `taxpayer_tin`, `rep_*`, `tax_matters[]`, `line5a_*`, `generated_by: "staff"`).
+
+Sections:
+1. **Client Information (Taxpayer)** — pre-filled from case record, editable. Full name, TIN (show/hide mask), mailing address, daytime phone.
+2. **Your Information (Representative)** — pre-filled from the logged-in pro's profile, editable. Name, CAF number, PTIN, phone, fax (optional), address, designation (dropdown with all contract enum values), jurisdiction.
+3. **Tax Matters (Line 3)** — up to 4 entries with add/remove, each with description, tax form number, years or periods.
+4. **Authorized Acts (Line 5a)** — all 6 checkboxes with technical descriptions (access records + sign disclosure checked by default). Conditional "other" text field.
+5. **Review & Generate** — compact summary card of entered data. No electronic signature (the pro isn't signing — they're generating the PDF for IRS filing or client signature). On submit, POSTs to `/v1/tools/2848/generate` with `credentials: 'include'`.
+
+Post-generation actions: Download PDF (base64 → blob → anchor download), Send to Client for Signature (placeholder — logs to console; Phase D will trigger an email/notification to the client with a link to the TMP eSign page), Mark Step Complete (placeholder — navigates back to the Client Record; Phase D will PATCH the case step status). Edit & regenerate button clears the result so the form is editable again.
+
+Placeholder pre-fill: `CLIENT_PREFILL` (Maria Rivera — matches the Client Pool sample row) and `REP_PREFILL` (Jamie Williams, EA) are shaped to match the contract payload directly so Phase D can swap in real API data without restructuring. Uses `FormPrimitives` from the adjacent `compliance/components/` folder (TextInput, TextArea, Select, Field, Grid2, Checkbox, Label).
 
 ### Compliance Record (`/client-pool/[clientId]/compliance`)
 
