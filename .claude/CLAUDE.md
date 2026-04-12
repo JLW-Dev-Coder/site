@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-12 (WLVLP asset page enrichment cron — crawl + conversion_leak_report)
+Last updated: 2026-04-12 (TTMP + VLP asset page generation in campaign router + backfill)
 
 ---
 
@@ -908,7 +908,10 @@ the TTMP, VLP, and WLVLP send queues. Replaces the legacy
   - `vlp-scale/wlvlp-send-queue/email1-pending.json`
 - **Append, never overwrite:** existing queue is read, new records appended, then written back.
 - **Master mutation:** sets the matching `{ttmp|vlp|wlvlp}_email_1_prepared_at` ISO timestamp on each routed record before writing the master file back as NDJSON.
+- **TTMP asset pages:** for each TTMP routed record, an asset page is written to `vlp-scale/asset-pages/{slug}.json` so the `transcript.taxmonitor.pro/asset/{slug}` link resolves. Contains credential-specific practice analysis (time savings, revenue recovery, workflow fit) with CTAs to TTMP pricing + free tool + discovery call.
+- **VLP asset pages:** for each VLP routed record, an asset page is written to `vlp-scale/asset-pages/{slug}.json` so the `virtuallaunch.pro/asset/{slug}` link resolves. Contains credential-specific practice analysis (new client value, directory visibility) with CTAs to VLP pricing + discovery call.
 - **WLVLP asset pages:** for each WLVLP routed record, a minimal asset page is written to `vlp-scale/wlvlp-asset-pages/{slug}.json` so the `/asset/{slug}` link resolves. (No site crawl — the pre-router crawler/scoring path is dropped.)
+- **Backfill route:** `POST /v1/scale/cron/backfill-asset-pages` with `Authorization: Bearer <SCALE_API_KEY>`. Scans TTMP and VLP send queues, generates asset page JSON for any slug missing from `vlp-scale/asset-pages/{slug}.json`, and writes to R2. One-shot idempotent — safe to re-run.
 - **Daily log:** `vlp-scale/batch-logs/{YYYY-MM-DD}.json` with `eligible_records`, `batch_size`, `routed_ttmp`, `routed_vlp`, `routed_wlvlp`, `records_remaining_eligible`, queue sizes.
 
 ## TTMP Email Send Pipeline
