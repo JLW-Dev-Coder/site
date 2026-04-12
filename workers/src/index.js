@@ -14055,6 +14055,19 @@ TTMP Support Team
       const vote_id = `VOTE_${crypto.randomUUID()}`;
 
       try {
+        // Check for existing vote (per-account dedup)
+        const existing = await env.DB.prepare(
+          "SELECT 1 FROM wlvlp_votes WHERE account_id = ? AND template_slug = ?"
+        ).bind(session.account_id, slug).first();
+        if (existing) {
+          return json({ ok: false, error: 'already_voted' }, 409, request);
+        }
+
+        // Record the vote
+        await env.DB.prepare(
+          "INSERT INTO wlvlp_votes (account_id, template_slug, voted_at) VALUES (?, ?, ?)"
+        ).bind(session.account_id, slug, timestamp).run();
+
         // Write receipt to R2
         const receiptKey = `wlvlp/receipts/votes/${slug}/${session.account_id}/${timestamp}.json`;
         const receipt = {

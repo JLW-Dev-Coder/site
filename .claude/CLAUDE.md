@@ -638,8 +638,9 @@ When adding a new Stripe API call for any VLP-family product, use `STRIPE_SECRET
 
 - `wlvlp_purchases` — projection of completed site purchases (account_id, slug, sku, stripe_session_id, hosting_status, hosting_renews_at)
 - `wlvlp_templates` — projection of the published template catalog (slug, category, tier, status)
+- `wlvlp_votes` — per-account vote dedup (account_id, template_slug, voted_at; UNIQUE on account_id + template_slug). The `POST /v1/wlvlp/templates/:slug/vote` handler returns 409 `already_voted` if a duplicate is attempted.
 
-R2 remains authoritative for both.
+R2 remains authoritative for purchases and templates.
 
 ### R2 keys
 
