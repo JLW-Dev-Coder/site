@@ -15422,50 +15422,93 @@ TTMP Support Team
         return json({ ok: false, error: 'Unauthorized' }, 401, request);
       }
 
-      const contentType = request.headers.get('content-type') || '';
-      if (!contentType.includes('text/csv')) {
-        return json({ ok: false, error: 'content_type_must_be_text_csv' }, 400, request);
+      const contentType = (request.headers.get('content-type') || '').toLowerCase();
+      const isJsonl = contentType.includes('application/jsonl') || contentType.includes('application/x-ndjson');
+      const isCsv = contentType.includes('text/csv');
+      if (!isJsonl && !isCsv) {
+        return json({ ok: false, error: 'content_type_must_be_csv_or_jsonl' }, 400, request);
       }
 
       const url = new URL(request.url);
       const sourceFilename = (url.searchParams.get('source_filename') || '').slice(0, 200);
 
-      const csvText = await request.text();
-      if (!csvText || csvText.length < 10) {
+      const body = await request.text();
+      if (!body || body.length < 10) {
         return json({ ok: false, error: 'empty_body' }, 400, request);
       }
 
-      const firstNewline = csvText.indexOf('\n');
-      if (firstNewline < 0) {
-        return json({ ok: false, error: 'csv_has_no_rows' }, 400, request);
-      }
-
-      // Source file: no column validation. The replenish step in
-      // handleFindEmailsCron does column mapping + domain_clean derivation.
       let rowCount = 0;
-      {
+      let format;
+
+      if (isJsonl) {
+        format = 'jsonl';
+        // Count non-empty lines. Validate the first line parses as JSON to
+        // catch obvious format mistakes (e.g. uploading a regular JSON array).
+        let firstNonEmpty = null;
+        for (let i = 0; i < body.length; i++) {
+          if (body[i] === '\n') {
+            if (firstNonEmpty === null) firstNonEmpty = body.slice(0, i).trim();
+            rowCount++;
+          }
+        }
+        if (firstNonEmpty === null) firstNonEmpty = body.trim();
+        if (body[body.length - 1] !== '\n' && body.trim().length > 0) rowCount++;
+        // Subtract blank lines: cheaper to just re-scan with trim-check on boundaries.
+        rowCount = 0;
+        {
+          let lineStart = 0;
+          for (let i = 0; i <= body.length; i++) {
+            if (i === body.length || body[i] === '\n') {
+              const line = body.slice(lineStart, i).trim();
+              if (line.length > 0) rowCount++;
+              lineStart = i + 1;
+            }
+          }
+        }
+        try {
+          JSON.parse(firstNonEmpty);
+        } catch {
+          return json({ ok: false, error: 'first_line_not_valid_json' }, 400, request);
+        }
+      } else {
+        format = 'csv';
+        const firstNewline = body.indexOf('\n');
+        if (firstNewline < 0) {
+          return json({ ok: false, error: 'csv_has_no_rows' }, 400, request);
+        }
+        // Source file: no column validation. The replenish step in
+        // handleFindEmailsCron does column mapping + domain_clean derivation.
         let inQuotes = false;
-        for (let i = firstNewline + 1; i < csvText.length; i++) {
-          const c = csvText[i];
+        for (let i = firstNewline + 1; i < body.length; i++) {
+          const c = body[i];
           if (c === '"') { inQuotes = !inQuotes; continue; }
           if (c === '\n' && !inQuotes) rowCount++;
         }
-        const last = csvText[csvText.length - 1];
+        const last = body[body.length - 1];
         if (last && last !== '\n') rowCount++;
       }
 
-      const fileSizeBytes = new TextEncoder().encode(csvText).byteLength;
+      const fileSizeBytes = new TextEncoder().encode(body).byteLength;
       const uploadedAt = new Date().toISOString();
       const meta = {
         uploaded_at: uploadedAt,
         row_count: rowCount,
         file_size_bytes: fileSizeBytes,
         source_filename: sourceFilename || null,
+        format,
         uploaded_by: 'scale_api_key',
+        last_replenish_offset: 0,
       };
 
-      await env.R2_VIRTUAL_LAUNCH.put('vlp-scale/prospects/foia-source.csv', csvText, {
-        httpMetadata: { contentType: 'text/csv; charset=utf-8' },
+      const r2Key = isJsonl
+        ? 'vlp-scale/prospects/foia-source.jsonl'
+        : 'vlp-scale/prospects/foia-source.csv';
+      const r2ContentType = isJsonl
+        ? 'application/jsonl; charset=utf-8'
+        : 'text/csv; charset=utf-8';
+
+      await env.R2_VIRTUAL_LAUNCH.put(r2Key, body, {
+        httpMetadata: { contentType: r2ContentType },
       });
       await env.R2_VIRTUAL_LAUNCH.put(
         'vlp-scale/prospects/foia-source.meta.json',
@@ -15571,93 +15614,29 @@ TTMP Support Team
         rows_eligible_email_1: rowsEligibleEmail1,
       };
 
-      // Build dedup set from master rows: `${domain_clean}|${LAST_NAME}|${First_NAME}`
-      // (lowercased, trimmed). Used to count how many FOIA source rows are
-      // already represented in the master.
-      const lastNameIdx = headers.indexOf('LAST_NAME');
-      const firstNameIdx = headers.indexOf('First_NAME');
-      const domainIdx = headers.indexOf('domain_clean');
-      const masterDedupSet = new Set();
-      {
-        let inQ = false;
-        let ls = bodyStart;
-        for (let i = bodyStart; i <= bodyLen; i++) {
-          const c = i < bodyLen ? csvText[i] : '\n';
-          if (c === '"') { inQ = !inQ; continue; }
-          if (c === '\n' && !inQ) {
-            let line = csvText.slice(ls, i);
-            if (line.endsWith('\r')) line = line.slice(0, -1);
-            if (line.length > 0) {
-              const cols = parseLine(line);
-              const dom = (domainIdx >= 0 ? cols[domainIdx] || '' : '').trim().toLowerCase();
-              const ln = (lastNameIdx >= 0 ? cols[lastNameIdx] || '' : '').trim().toLowerCase();
-              const fn = (firstNameIdx >= 0 ? cols[firstNameIdx] || '' : '').trim().toLowerCase();
-              if (dom || ln || fn) masterDedupSet.add(`${dom}|${ln}|${fn}`);
-            }
-            ls = i + 1;
-          }
-        }
-      }
-
-      // FOIA source stats
+      // FOIA source stats — read meta only (cheap) to avoid parsing the 28 MB
+      // JSONL on every status call. Reports row_count from meta and estimates
+      // remaining = foia_total - master_csv_total.
       let foiaStats = null;
       try {
-        const [foiaMetaObj, foiaCsvObj] = await Promise.all([
-          env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/foia-source.meta.json'),
-          env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/foia-source.csv'),
-        ]);
+        const foiaMetaObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/foia-source.meta.json');
         let foiaMeta = null;
         if (foiaMetaObj) { try { foiaMeta = await foiaMetaObj.json(); } catch {} }
 
-        if (foiaCsvObj) {
-          const foiaText = await foiaCsvObj.text();
-          const fNl = foiaText.indexOf('\n');
-          if (fNl >= 0) {
-            const fHeaderLine = foiaText.slice(0, fNl).replace(/\r$/, '').replace(/^\ufeff/, '');
-            const fHeaders = fHeaderLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-            const fLastIdx = fHeaders.indexOf('LAST_NAME');
-            const fFirstIdx = fHeaders.indexOf('First_NAME');
-            const fDomIdx = fHeaders.indexOf('domain_clean');
-            const fWebIdx = fHeaders.indexOf('WEBSITE');
-
-            let fTotal = 0;
-            let fAlready = 0;
-            let fRemaining = 0;
-            const fBodyStart = fNl + 1;
-            const fBodyLen = foiaText.length;
-            let fInQ = false;
-            let fLs = fBodyStart;
-            for (let i = fBodyStart; i <= fBodyLen; i++) {
-              const c = i < fBodyLen ? foiaText[i] : '\n';
-              if (c === '"') { fInQ = !fInQ; continue; }
-              if (c === '\n' && !fInQ) {
-                let line = foiaText.slice(fLs, i);
-                if (line.endsWith('\r')) line = line.slice(0, -1);
-                if (line.length > 0) {
-                  const cols = parseLine(line);
-                  fTotal++;
-                  let dom = (fDomIdx >= 0 ? cols[fDomIdx] || '' : '').trim().toLowerCase();
-                  if (!dom && fWebIdx >= 0) {
-                    dom = normalizeDomainFromWebsite(cols[fWebIdx] || '');
-                  }
-                  const ln = (fLastIdx >= 0 ? cols[fLastIdx] || '' : '').trim().toLowerCase();
-                  const fn = (fFirstIdx >= 0 ? cols[fFirstIdx] || '' : '').trim().toLowerCase();
-                  const key = `${dom}|${ln}|${fn}`;
-                  if (masterDedupSet.has(key)) fAlready++;
-                  else fRemaining++;
-                }
-                fLs = i + 1;
-              }
-            }
-            foiaStats = {
-              meta: foiaMeta,
-              foia_total_rows: fTotal,
-              foia_rows_already_in_master: fAlready,
-              foia_rows_remaining: fRemaining,
-            };
-          }
+        if (foiaMeta) {
+          const foiaTotal = Number.isFinite(foiaMeta.row_count) ? foiaMeta.row_count : 0;
+          const alreadyEstimated = Math.min(foiaTotal, totalRows);
+          foiaStats = {
+            meta: foiaMeta,
+            format: foiaMeta.format || 'csv',
+            foia_total_rows: foiaTotal,
+            foia_rows_already_in_master_estimate: alreadyEstimated,
+            foia_rows_remaining_estimate: Math.max(0, foiaTotal - alreadyEstimated),
+            last_replenish_offset: Number.isFinite(foiaMeta.last_replenish_offset) ? foiaMeta.last_replenish_offset : 0,
+            note: 'estimates_only_no_full_parse',
+          };
         } else {
-          foiaStats = { meta: foiaMeta, error: 'foia_source_csv_not_found' };
+          foiaStats = { error: 'foia_source_meta_not_found' };
         }
       } catch (e) {
         foiaStats = { error: `foia_stats_failed:${e && e.message || e}` };
@@ -18267,11 +18246,16 @@ function normalizeDomainFromWebsite(raw) {
 
 const FIND_EMAILS_REPLENISH_THRESHOLD = 100;
 const FIND_EMAILS_REPLENISH_BATCH = 200;
+// Columns from the FOIA source that we intentionally drop when appending to
+// master — master CSV does not carry these.
+const FIND_EMAILS_REPLENISH_DROP_COLS = new Set(['clay_workbook_ref', 'FULL_NAME']);
 
 // Auto-replenish: if the master CSV has fewer than THRESHOLD rows still
-// awaiting email discovery, pull up to BATCH new rows from the FOIA source CSV.
-// Mutates `headers` (push) and `records` (append) in place. Returns a log
-// object describing the replenish action.
+// awaiting email discovery, pull up to BATCH new rows from the FOIA source.
+// Supports both JSONL (preferred, streaming with offset cursor) and CSV
+// (legacy, full parse) formats, selected by the `format` field in
+// foia-source.meta.json. Mutates `headers` (push) and `records` (append) in
+// place. Returns a log object describing the replenish action.
 async function findEmailsMaybeReplenish(env, headers, records) {
   const log = {
     triggered: false,
@@ -18279,7 +18263,10 @@ async function findEmailsMaybeReplenish(env, headers, records) {
     rows_replenished: 0,
     foia_total: 0,
     foia_already_in_master: 0,
-    foia_remaining_after: 0,
+    foia_scanned: 0,
+    foia_start_offset: 0,
+    foia_end_offset: 0,
+    source_format: null,
     notes: [],
   };
 
@@ -18299,78 +18286,174 @@ async function findEmailsMaybeReplenish(env, headers, records) {
 
   log.triggered = true;
 
-  const foiaObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/foia-source.csv');
-  if (!foiaObj) {
-    log.notes.push('foia_source_csv_not_found');
-    return log;
-  }
-  const foiaText = await foiaObj.text();
-  const foiaParsed = findEmailsParseCsv(foiaText);
-  if (foiaParsed.length < 2) {
-    log.notes.push('foia_source_has_no_data_rows');
-    return log;
-  }
-
-  const foiaHeaders = foiaParsed[0].slice();
-  const foiaRows = foiaParsed.slice(1).filter(row => row.length > 1).map(row => {
-    const rec = {};
-    foiaHeaders.forEach((h, i) => { rec[h] = row[i] || ''; });
-    return rec;
-  });
-  log.foia_total = foiaRows.length;
+  // Load source meta first to decide format and cursor offset.
+  let sourceMeta = {};
+  try {
+    const sourceMetaObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/foia-source.meta.json');
+    if (sourceMetaObj) { try { sourceMeta = await sourceMetaObj.json(); } catch {} }
+  } catch {}
+  const format = (sourceMeta.format === 'jsonl') ? 'jsonl' : 'csv';
+  log.source_format = format;
+  log.foia_total = Number.isFinite(sourceMeta.row_count) ? sourceMeta.row_count : 0;
 
   // Ensure all required columns exist on the master headers before append.
   const requiredCols = [
     'LAST_NAME', 'First_NAME', 'DBA', 'BUS_ADDR_CITY', 'BUS_ST_CODE',
-    'PROFESSION', 'WEBSITE', 'domain_clean', 'firm_bucket',
-    'email_found', 'email_status', 'email_1_prepared_at',
+    'PROFESSION', 'WEBSITE', 'BUS_PHNE_NBR', 'domain_clean', 'firm_bucket',
+    'email_found', 'email_status',
+    'email_1_prepared_at', 'email_2_prepared_at', 'email_3_prepared_at',
   ];
   for (const c of requiredCols) {
     if (!headers.includes(c)) headers.push(c);
   }
 
-  // Build dedup set from existing master rows.
+  // Build dedup set from existing master rows. Normalize domain from WEBSITE
+  // if domain_clean is empty so the key matches what we compute for FOIA rows.
   const dedup = new Set();
   for (const r of records) {
-    const dom = (r.domain_clean || '').trim().toLowerCase();
+    let dom = (r.domain_clean || '').trim().toLowerCase();
+    if (!dom) dom = normalizeDomainFromWebsite(r.WEBSITE || '');
     const ln = (r.LAST_NAME || '').trim().toLowerCase();
     const fn = (r.First_NAME || '').trim().toLowerCase();
     if (dom || ln || fn) dedup.add(`${dom}|${ln}|${fn}`);
   }
 
-  // Walk FOIA rows in source order, picking new ones until BATCH is hit.
   let appended = 0;
-  for (const fr of foiaRows) {
-    let dom = (fr.domain_clean || '').trim().toLowerCase();
-    if (!dom) dom = normalizeDomainFromWebsite(fr.WEBSITE || '');
-    const ln = (fr.LAST_NAME || '').trim().toLowerCase();
-    const fn = (fr.First_NAME || '').trim().toLowerCase();
-    const key = `${dom}|${ln}|${fn}`;
-    if (dedup.has(key)) {
-      log.foia_already_in_master++;
-      continue;
+  let cursorLineIndex = Number.isFinite(sourceMeta.last_replenish_offset)
+    ? Math.max(0, sourceMeta.last_replenish_offset)
+    : 0;
+  log.foia_start_offset = cursorLineIndex;
+
+  if (format === 'jsonl') {
+    const foiaObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/foia-source.jsonl');
+    if (!foiaObj) {
+      log.notes.push('foia_source_jsonl_not_found');
+      return log;
     }
-    if (appended >= FIND_EMAILS_REPLENISH_BATCH) {
-      log.foia_remaining_after++;
-      continue;
+    const foiaText = await foiaObj.text();
+
+    // Stream parse: walk lines sequentially starting from the cursor. Break
+    // as soon as we've appended BATCH rows. If we hit EOF before BATCH,
+    // wrap around to offset 0 once (so re-runs don't permanently skip newly
+    // added earlier rows) — tracked via a wrapped flag.
+    let wrapped = false;
+    let lineIndex = 0;
+    let lineStart = 0;
+    const len = foiaText.length;
+    while (true) {
+      let nl = foiaText.indexOf('\n', lineStart);
+      if (nl < 0) nl = len;
+
+      if (lineIndex >= cursorLineIndex) {
+        const rawLine = foiaText.slice(lineStart, nl).trim();
+        if (rawLine.length > 0) {
+          log.foia_scanned++;
+          let fr = null;
+          try { fr = JSON.parse(rawLine); } catch { fr = null; }
+          if (fr && typeof fr === 'object') {
+            let dom = (fr.domain_clean || '').trim().toLowerCase();
+            if (!dom) dom = normalizeDomainFromWebsite(fr.WEBSITE || '');
+            const ln = (fr.LAST_NAME || '').trim().toLowerCase();
+            const fn = (fr.First_NAME || '').trim().toLowerCase();
+            const key = `${dom}|${ln}|${fn}`;
+            if (dedup.has(key)) {
+              log.foia_already_in_master++;
+            } else {
+              const newRec = {};
+              for (const h of headers) newRec[h] = '';
+              for (const h of headers) {
+                if (FIND_EMAILS_REPLENISH_DROP_COLS.has(h)) continue;
+                if (fr[h] != null) newRec[h] = String(fr[h] || '');
+              }
+              newRec.domain_clean = dom;
+              newRec.email_found = '';
+              newRec.email_status = '';
+              newRec.email_1_prepared_at = '';
+              newRec.email_2_prepared_at = '';
+              newRec.email_3_prepared_at = '';
+              newRec.firm_bucket = newRec.firm_bucket || '';
+              records.push(newRec);
+              dedup.add(key);
+              appended++;
+            }
+          }
+        }
+      }
+
+      lineIndex++;
+      if (nl >= len) {
+        if (appended < FIND_EMAILS_REPLENISH_BATCH && cursorLineIndex > 0 && !wrapped) {
+          // Wrap once — start from 0 but don't re-scan past original cursor.
+          wrapped = true;
+          cursorLineIndex = 0;
+          lineIndex = 0;
+          lineStart = 0;
+          log.notes.push('wrapped_to_start');
+          continue;
+        }
+        break;
+      }
+      if (appended >= FIND_EMAILS_REPLENISH_BATCH) break;
+      lineStart = nl + 1;
     }
 
-    const newRec = {};
-    for (const h of headers) newRec[h] = '';
-    // Copy mappable columns from FOIA row.
-    for (const h of headers) {
-      if (h in fr) newRec[h] = fr[h] || '';
+    log.foia_end_offset = lineIndex;
+  } else {
+    // Legacy CSV path — loads the full file. Retained for backward compat.
+    const foiaObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/foia-source.csv');
+    if (!foiaObj) {
+      log.notes.push('foia_source_csv_not_found');
+      return log;
     }
-    // Force discovery-state columns to empty so the cron picks the row up.
-    newRec.domain_clean = dom;
-    newRec.email_found = '';
-    newRec.email_status = '';
-    newRec.email_1_prepared_at = '';
-    newRec.firm_bucket = newRec.firm_bucket || '';
-
-    records.push(newRec);
-    dedup.add(key);
-    appended++;
+    const foiaText = await foiaObj.text();
+    const foiaParsed = findEmailsParseCsv(foiaText);
+    if (foiaParsed.length < 2) {
+      log.notes.push('foia_source_has_no_data_rows');
+      return log;
+    }
+    const foiaHeaders = foiaParsed[0].slice();
+    const foiaRows = foiaParsed.slice(1).filter(row => row.length > 1).map(row => {
+      const rec = {};
+      foiaHeaders.forEach((h, i) => { rec[h] = row[i] || ''; });
+      return rec;
+    });
+    if (!Number.isFinite(sourceMeta.row_count) || sourceMeta.row_count === 0) {
+      log.foia_total = foiaRows.length;
+    }
+    for (let idx = cursorLineIndex; idx < foiaRows.length; idx++) {
+      const fr = foiaRows[idx];
+      log.foia_scanned++;
+      let dom = (fr.domain_clean || '').trim().toLowerCase();
+      if (!dom) dom = normalizeDomainFromWebsite(fr.WEBSITE || '');
+      const ln = (fr.LAST_NAME || '').trim().toLowerCase();
+      const fn = (fr.First_NAME || '').trim().toLowerCase();
+      const key = `${dom}|${ln}|${fn}`;
+      if (dedup.has(key)) {
+        log.foia_already_in_master++;
+        continue;
+      }
+      const newRec = {};
+      for (const h of headers) newRec[h] = '';
+      for (const h of headers) {
+        if (FIND_EMAILS_REPLENISH_DROP_COLS.has(h)) continue;
+        if (h in fr) newRec[h] = fr[h] || '';
+      }
+      newRec.domain_clean = dom;
+      newRec.email_found = '';
+      newRec.email_status = '';
+      newRec.email_1_prepared_at = '';
+      newRec.email_2_prepared_at = '';
+      newRec.email_3_prepared_at = '';
+      newRec.firm_bucket = newRec.firm_bucket || '';
+      records.push(newRec);
+      dedup.add(key);
+      appended++;
+      if (appended >= FIND_EMAILS_REPLENISH_BATCH) {
+        log.foia_end_offset = idx + 1;
+        break;
+      }
+      log.foia_end_offset = idx + 1;
+    }
   }
 
   log.rows_replenished = appended;
@@ -18380,7 +18463,21 @@ async function findEmailsMaybeReplenish(env, headers, records) {
     log.notes.push('foia_source_nearly_exhausted');
   }
 
-  // Update meta with last replenish info.
+  // Persist the new cursor offset back onto foia-source.meta.json.
+  try {
+    sourceMeta.last_replenish_offset = log.foia_end_offset;
+    sourceMeta.last_replenish_at = new Date().toISOString();
+    sourceMeta.last_replenish_count = appended;
+    await env.R2_VIRTUAL_LAUNCH.put(
+      'vlp-scale/prospects/foia-source.meta.json',
+      JSON.stringify(sourceMeta),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch (e) {
+    log.notes.push(`source_meta_update_failed:${e && e.message || e}`);
+  }
+
+  // Update master meta with last replenish info.
   try {
     const metaObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.meta.json');
     let meta = {};

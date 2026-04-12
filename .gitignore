@@ -13,6 +13,8 @@ scale/prospects/.batch-in-progress
 scale/foia-master.json
 scale/foia-master.updated.json
 scale/ttmp-email1-pending.json
+scale/foia-leads/
+scale/upload-foia-source.js
 
 # Stray R2-key-shaped files that should never land in the repo
 vlp-scale/

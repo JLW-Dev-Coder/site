@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-11 (SCALE FOIA source upload route + auto-replenish in find-emails cron)
+Last updated: 2026-04-12 (SCALE FOIA JSONL source upload + streaming replenish with offset cursor)
 
 ---
 
@@ -664,25 +664,45 @@ Public marketplace surfaces (catalog, voting, bidding, scratch) must contain zer
 ### Directory structure
 scale/
 ├── prospects/           ← source CSVs (gitignored)
+├── foia-leads/          ← local FOIA JSONL master (gitignored — 28 MB / 88K rows)
+│   └── foia-master.json ← JSONL, one prospect per line; uploaded to R2 via upload-foia-source.js
 ├── batches/             ← generated JSON batches (committed)
 ├── hunter/              ← Hunter.io import CSVs (committed)
 ├── generate-vlp-batch.js
-└── upload-prospects.js  ← uploads master prospect CSV to R2 via Worker API
+├── upload-prospects.js  ← uploads master prospect CSV to R2 via Worker API
+└── upload-foia-source.js ← uploads FOIA JSONL source to R2 (gitignored)
 
-### FOIA source CSV → R2 (replenish feeder)
-The find-emails cron (06:00 UTC) auto-replenishes the master CSV from a
-separate FOIA source file when the master runs low on rows still awaiting
-email discovery. The source file is uploaded once (or whenever a new FOIA
-batch is acquired) via:
+### FOIA source JSONL → R2 (replenish feeder)
+The find-emails cron (06:00 UTC) auto-replenishes the master CSV from the
+FOIA JSONL source when the master runs low on rows still awaiting email
+discovery. The source file is uploaded once (or whenever a new FOIA batch is
+acquired) via:
 
-- **Route:** `PUT /v1/scale/prospects/upload-source` — `Authorization: Bearer <SCALE_API_KEY>`, `Content-Type: text/csv`. Optional `?source_filename=...` query param. NO column validation — the source can have any columns; the replenish step does column mapping. Writes:
-  - `vlp-scale/prospects/foia-source.csv` — raw CSV bytes (authoritative source)
-  - `vlp-scale/prospects/foia-source.meta.json` — `{ uploaded_at, row_count, file_size_bytes, source_filename, uploaded_by }`
+- **Local source path:** `scale/foia-leads/foia-master.json` (JSONL, gitignored — 28 MB, 88,497 rows at last upload).
+- **Upload script:** `node scale/upload-foia-source.js` (gitignored). Reads `SCALE_API_KEY` from env/`.env`/`--api-key`, PUTs the raw file as `application/jsonl`.
+- **Route:** `PUT /v1/scale/prospects/upload-source` — `Authorization: Bearer <SCALE_API_KEY>`. Accepts `Content-Type: application/jsonl`, `application/x-ndjson`, or (legacy) `text/csv`. Optional `?source_filename=...` query param. NO column validation — the source can have any columns/keys; the replenish step does column mapping. Writes:
+  - `vlp-scale/prospects/foia-source.jsonl` — raw JSONL bytes (authoritative source; JSONL preferred)
+  - `vlp-scale/prospects/foia-source.csv` — legacy CSV path (still supported as input but no longer fed by the upload script)
+  - `vlp-scale/prospects/foia-source.meta.json` — `{ uploaded_at, row_count, file_size_bytes, source_filename, format, uploaded_by, last_replenish_offset }`
 
 The `GET /v1/scale/prospects/status` route reports FOIA source stats under
-`foia_source: { meta, foia_total_rows, foia_rows_already_in_master, foia_rows_remaining }`.
-The "already in master" count is based on the dedup key `${domain_clean}|${LAST_NAME}|${First_NAME}`
-(lowercased, trimmed) — the same key used by the replenish step.
+`foia_source: { meta, format, foia_total_rows, foia_rows_already_in_master_estimate, foia_rows_remaining_estimate, last_replenish_offset }`.
+To keep status calls fast, the endpoint reads **meta only** — it does NOT
+re-parse the 28 MB JSONL. `foia_total_rows` comes from `meta.row_count`;
+`foia_rows_already_in_master_estimate` is capped at master total rows; and
+`foia_rows_remaining_estimate = foia_total - already`. Precise dedup counts
+happen inside the replenish step itself.
+
+**Streaming replenish with offset cursor:** the replenish walks the JSONL
+line-by-line starting from `meta.last_replenish_offset` and breaks as soon
+as 200 non-duplicate rows have been appended. On success, the new cursor
+line index is persisted back to `foia-source.meta.json` so the next run
+picks up where the previous one stopped — avoiding re-parsing the full 88K
+rows on every cron tick. If the scan hits EOF with fewer than 200 rows
+appended, it wraps to offset 0 once (to pick up earlier rows that weren't
+yet deduped) and logs `wrapped_to_start` in `runLog.replenish.notes`.
+
+**Auto-replenish threshold / batch:** threshold `FIND_EMAILS_REPLENISH_THRESHOLD = 100`, batch size `FIND_EMAILS_REPLENISH_BATCH = 200`. Dropped columns when appending to master CSV: `clay_workbook_ref`, `FULL_NAME`. New rows initialize `email_found`, `email_status`, `email_1_prepared_at`, `email_2_prepared_at`, `email_3_prepared_at` to empty so the discovery loop picks them up on the same run.
 
 ### Master prospect CSV → R2
 The enrichment + campaign router crons read the master prospect CSV from R2
@@ -734,7 +754,7 @@ scheduled path — the CLI remains usable for ad-hoc runs.
 - **Cron:** 06:00 UTC daily (shares the slot with WLVLP site generation)
 - **Worker entrypoint:** `handleFindEmailsCron(env)` in `workers/src/index.js`
 - **Manual trigger:** `POST /v1/scale/cron/find-emails` with `Authorization: Bearer <SCALE_API_KEY>` (optional `?limit=N` query param, default 50, max 500). `limit=0` runs the auto-replenish check then skips Reoon discovery — useful for ops/testing.
-- **Auto-replenish (runs first, before discovery):** counts rows where `email_found` is empty AND `email_status !== 'no_mx'`. If that count is `< 100`, pulls up to **200** new rows from `vlp-scale/prospects/foia-source.csv`. Dedup key: `${domain_clean}|${LAST_NAME}|${First_NAME}` (lowercased, trimmed). Rows missing `domain_clean` get one derived from `WEBSITE` (strip protocol/www/path, lowercase). Appended rows have `email_found` / `email_status` / `email_1_prepared_at` forced empty so the discovery loop picks them up the same run. Updates `master.meta.json` with `last_replenish_at`, `rows_replenished`, new `row_count`. Logged under `runLog.replenish`.
+- **Auto-replenish (runs first, before discovery):** counts rows where `email_found` is empty AND `email_status !== 'no_mx'`. If that count is `< 100`, pulls up to **200** new rows from `vlp-scale/prospects/foia-source.jsonl` (or legacy `foia-source.csv` when `meta.format !== 'jsonl'`). Streams the JSONL line-by-line from `meta.last_replenish_offset` and breaks as soon as 200 non-duplicate rows are appended — the 88K-row source is never fully parsed in a single run. Dedup key: `${domain_clean}|${LAST_NAME}|${First_NAME}` (lowercased, trimmed). Rows missing `domain_clean` get one derived from `WEBSITE` (strip protocol/www/path, lowercase). Dropped columns: `clay_workbook_ref`, `FULL_NAME`. Appended rows have `email_found` / `email_status` / `email_1_prepared_at` / `email_2_prepared_at` / `email_3_prepared_at` forced empty so the discovery loop picks them up the same run. Persists the new cursor line index to `foia-source.meta.json` as `last_replenish_offset`. Updates `master.meta.json` with `last_replenish_at`, `rows_replenished`, new `row_count`. Logged under `runLog.replenish`.
 - **Source / sink:** `vlp-scale/prospects/master.csv` (R2) — in place rewrite
 - **Eligibility filter:** `domain_clean` present, `email_found` empty
 - **Per-run cap:** 50 rows (leaves headroom under the Reoon $9/mo 500/day limit, shared with validate-emails)
@@ -814,7 +834,7 @@ CSV with per-row `email_1_sent_at` / `email_2_sent_at` timestamps.
 ### SCALE Cron Pipeline — full daily flow
 
 ```
-06:00 UTC — find-emails       auto-replenish master from foia-source.csv if low,
+06:00 UTC — find-emails       auto-replenish master from foia-source.jsonl (88K rows, streaming cursor) if low,
                                then discover emails for rows without email_found
 08:00 UTC — validate-emails   verify discovered emails via Reoon quick mode
 10:00 UTC — generate-batch    build email copy + asset pages for valid emails
