@@ -14,7 +14,7 @@ export default async function MemberLayout({
       <MemberSidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <MemberTopbar />
-        <main className="flex-1 overflow-y-auto px-8 py-8">{children}</main>
+        <main className="flex-1 overflow-y-auto px-8 py-8 sidebar-scroll">{children}</main>
       </div>
     </div>
   )

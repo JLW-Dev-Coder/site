@@ -16280,12 +16280,14 @@ TTMP Support Team
       if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
         return json({ ok: false, error: 'Unauthorized' }, 401, request);
       }
+      const bfUrl = new URL(request.url);
+      const forceOverwrite = bfUrl.searchParams.get('force') === 'true';
       const nowIso = new Date().toISOString();
       const campaigns = [
         { key: 'vlp-scale/ttmp-send-queue/email1-pending.json', campaign: 'ttmp' },
         { key: 'vlp-scale/vlp-send-queue/email1-pending.json',  campaign: 'vlp'  },
       ];
-      const report = { ttmp: { scanned: 0, written: 0, skipped: 0, errors: 0 }, vlp: { scanned: 0, written: 0, skipped: 0, errors: 0 } };
+      const report = { ttmp: { scanned: 0, written: 0, skipped: 0, errors: 0, overwritten: 0 }, vlp: { scanned: 0, written: 0, skipped: 0, errors: 0, overwritten: 0 } };
       for (const c of campaigns) {
         try {
           const obj = await env.R2_VIRTUAL_LAUNCH.get(c.key);
@@ -16297,7 +16299,8 @@ TTMP Support Team
             const slug = rec.slug;
             if (!slug) { report[c.campaign].skipped++; continue; }
             const existing = await env.R2_VIRTUAL_LAUNCH.head(`vlp-scale/asset-pages/${slug}.json`);
-            if (existing) { report[c.campaign].skipped++; continue; }
+            if (existing && !forceOverwrite) { report[c.campaign].skipped++; continue; }
+            if (existing && forceOverwrite) report[c.campaign].overwritten++;
             const credKey = dailyNormalizeCred(rec.profession || '');
             const cred = DAILY_CRED[credKey] || DAILY_CRED.EA;
             const firstDisplay = rec.first_name || 'Friend';
@@ -16306,20 +16309,7 @@ TTMP Support Team
             const state = rec.state || '';
             let page;
             if (c.campaign === 'ttmp') {
-              page = {
-                slug, campaign: 'ttmp',
-                headline: `${firstDisplay}, here's what transcript automation saves your ${city || 'local'} practice`,
-                subheadline: `A practice analysis for ${cred.label}s — estimated time savings, revenue recovery, and workflow fit.`,
-                practice_type: credKey, credential_label: cred.label, city, state,
-                firm: `${firstDisplay} ${lastDisplay}`.trim(),
-                stats: { billing_range: cred.billing, weekly_hours: cred.weekly, annual_hours: cred.annual, revenue_impact: cred.revenue },
-                cta_primary_url: 'https://transcript.taxmonitor.pro/pricing',
-                cta_primary_label: 'Start Free — 10 analyses for $19',
-                cta_secondary_url: 'https://transcript.taxmonitor.pro/resources',
-                cta_secondary_label: 'Try the free IRS code lookup tool',
-                cta_booking_url: 'https://cal.com/vlp/ttmp-discovery',
-                generated_at: nowIso, backfilled: true,
-              };
+              page = buildTtmpAssetPageData({ slug, credKey, cred, firstDisplay, lastDisplay, city, state, firm: `${firstDisplay} ${lastDisplay}`.trim(), nowIso, backfilled: true });
             } else {
               page = {
                 slug, campaign: 'vlp',
@@ -18024,10 +18014,18 @@ const DAILY_ROUTE_VLP  = 0.90; // upper bound (0.65..0.90 = VLP, 0.90..1 = WLVLP
 const ALLOWED_SEND_STATUSES = new Set(['valid', 'pattern_match', 'catch_all', 'pattern_unvalidated']);
 
 const DAILY_CRED = {
-  EA:   { label: 'enrolled agent', billing: '$100-300', weekly: '6.7 hours', annual: '322 hours', revenue: '$27,300-$72,800', new_client_value: '$15,000-$90,000/yr' },
-  CPA:  { label: 'CPA',            billing: '$150-400', weekly: '5 hours',   annual: '240 hours', revenue: '$36,000-$96,000', new_client_value: '$22,500-$120,000/yr' },
-  ATTY: { label: 'tax attorney',   billing: '$200-500', weekly: '4 hours',   annual: '192 hours', revenue: '$38,400-$96,000', new_client_value: '$18,000-$150,000/yr' },
+  EA:   { label: 'enrolled agent', billing: '$100-300', weekly: '6.7 hours', annual: '322 hours', revenue: '$27,300-$72,800', new_client_value: '$15,000-$90,000/yr', time_savings_weekly: '6.7' },
+  CPA:  { label: 'CPA',            billing: '$150-400', weekly: '5 hours',   annual: '240 hours', revenue: '$36,000-$96,000', new_client_value: '$22,500-$120,000/yr', time_savings_weekly: '5' },
+  ATTY: { label: 'tax attorney',   billing: '$200-500', weekly: '4 hours',   annual: '192 hours', revenue: '$38,400-$96,000', new_client_value: '$18,000-$150,000/yr', time_savings_weekly: '4' },
 };
+
+// TTMP asset page template arrays — credential-specific workflow gaps and IRS codes
+const TTMP_WORKFLOW_GAPS = {
+  EA:   ['Manual transcript ordering through IRS e-Services — 15-20 min per client', 'Line-by-line code lookup across multiple tax years', 'Manually cross-referencing notice codes with account history'],
+  CPA:  ['Manual transcript ordering through IRS e-Services — 15-20 min per client', 'Reconciling transcript data with prepared returns across periods', 'Manually cross-referencing notice codes with client account history'],
+  ATTY: ['Manual transcript ordering through IRS e-Services — 15-20 min per client', 'Extracting key dates and amounts for case strategy from raw transcripts', 'Manually tracking statute of limitations across multiple tax years'],
+};
+const TTMP_TOOL_PREVIEW_CODES = ['971', '846', '570'];
 
 function dailyTitleCaseFirst(s) {
   if (!s) return '';
@@ -18059,6 +18057,38 @@ function dailyNormalizeCred(profession) {
   if (p === 'EA' || p.includes('ENROLLED')) return 'EA';
   if (p.includes('ATTY') || p.includes('ATTORNEY') || p === 'JD' || p.includes('LAWYER')) return 'ATTY';
   return 'EA'; // default
+}
+
+// Build the full TTMP asset page shape expected by the TTMP frontend
+function buildTtmpAssetPageData({ slug, credKey, cred, firstDisplay, lastDisplay, city, state, firm, nowIso, backfilled }) {
+  return {
+    slug,
+    campaign: 'ttmp',
+    headline: `${firstDisplay}, here's what transcript automation saves your ${city || 'local'} practice`,
+    subheadline: `A practice analysis for ${cred.label}s — estimated time savings, revenue recovery, and workflow fit.`,
+    practice_type: credKey,
+    credential_label: cred.label,
+    city, state,
+    firm: firm || `${firstDisplay} ${lastDisplay}`.trim(),
+    time_savings_weekly: cred.time_savings_weekly,
+    workflow_gaps: TTMP_WORKFLOW_GAPS[credKey] || TTMP_WORKFLOW_GAPS.EA,
+    tool_preview_codes: TTMP_TOOL_PREVIEW_CODES,
+    stats: {
+      billing_range: cred.billing,
+      weekly_hours: cred.weekly,
+      annual_hours: cred.annual,
+      revenue_impact: cred.revenue,
+    },
+    cta_pricing_url: 'https://transcript.taxmonitor.pro/pricing',
+    cta_learn_more_url: 'https://transcript.taxmonitor.pro/resources',
+    cta_primary_url: 'https://transcript.taxmonitor.pro/pricing',
+    cta_primary_label: 'Start Free — 10 analyses for $19',
+    cta_secondary_url: 'https://transcript.taxmonitor.pro/resources',
+    cta_secondary_label: 'Try the free IRS code lookup tool',
+    cta_booking_url: 'https://cal.com/vlp/ttmp-discovery',
+    generated_at: nowIso,
+    ...(backfilled ? { backfilled: true } : {}),
+  };
 }
 
 // ---- TTMP templates (mirror of scale/build-ttmp-batch.js) -------------------
@@ -18756,28 +18786,7 @@ async function handleDailyBatchGeneration(env) {
       r.ttmp_asset_slug = slug;
       ttmpAssetWrites.push({
         slug,
-        page: {
-          slug,
-          campaign: 'ttmp',
-          headline: `${firstDisplay}, here's what transcript automation saves your ${city || 'local'} practice`,
-          subheadline: `A practice analysis for ${cred.label}s — estimated time savings, revenue recovery, and workflow fit.`,
-          practice_type: credKey,
-          credential_label: cred.label,
-          city, state,
-          firm: r.DBA || `${firstDisplay} ${lastDisplay}`.trim(),
-          stats: {
-            billing_range: cred.billing,
-            weekly_hours: cred.weekly,
-            annual_hours: cred.annual,
-            revenue_impact: cred.revenue,
-          },
-          cta_primary_url: 'https://transcript.taxmonitor.pro/pricing',
-          cta_primary_label: 'Start Free — 10 analyses for $19',
-          cta_secondary_url: 'https://transcript.taxmonitor.pro/resources',
-          cta_secondary_label: 'Try the free IRS code lookup tool',
-          cta_booking_url: 'https://cal.com/vlp/ttmp-discovery',
-          generated_at: todayIso,
-        },
+        page: buildTtmpAssetPageData({ slug, credKey, cred, firstDisplay, lastDisplay, city, state, firm: r.DBA || `${firstDisplay} ${lastDisplay}`.trim(), nowIso: todayIso }),
       });
     } else if (dest === 'vlp') {
       vlpRecs.push(buildVlpQueueRecord(r, ctx));
@@ -20056,29 +20065,7 @@ export default {
             const state = rec.state || '';
             let page;
             if (c.campaign === 'ttmp') {
-              page = {
-                slug,
-                campaign: 'ttmp',
-                headline: `${firstDisplay}, here's what transcript automation saves your ${city || 'local'} practice`,
-                subheadline: `A practice analysis for ${cred.label}s — estimated time savings, revenue recovery, and workflow fit.`,
-                practice_type: credKey,
-                credential_label: cred.label,
-                city, state,
-                firm: `${firstDisplay} ${lastDisplay}`.trim(),
-                stats: {
-                  billing_range: cred.billing,
-                  weekly_hours: cred.weekly,
-                  annual_hours: cred.annual,
-                  revenue_impact: cred.revenue,
-                },
-                cta_primary_url: 'https://transcript.taxmonitor.pro/pricing',
-                cta_primary_label: 'Start Free — 10 analyses for $19',
-                cta_secondary_url: 'https://transcript.taxmonitor.pro/resources',
-                cta_secondary_label: 'Try the free IRS code lookup tool',
-                cta_booking_url: 'https://cal.com/vlp/ttmp-discovery',
-                generated_at: nowIso,
-                backfilled: true,
-              };
+              page = buildTtmpAssetPageData({ slug, credKey, cred, firstDisplay, lastDisplay, city, state, firm: `${firstDisplay} ${lastDisplay}`.trim(), nowIso, backfilled: true });
             } else {
               page = {
                 slug,

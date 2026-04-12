@@ -93,7 +93,7 @@ export default function MemberSidebar() {
   return (
     <aside
       className={`flex shrink-0 flex-col border-r border-white/[0.08] bg-[#0a0e27] transition-[width] duration-200 ${
-        collapsed ? 'w-[68px]' : 'w-[280px]'
+        collapsed ? 'w-[68px]' : 'w-[240px]'
       }`}
     >
       {/* Logo */}
@@ -112,7 +112,7 @@ export default function MemberSidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2 scrollbar-none">
+      <nav className="flex-1 overflow-y-auto px-2 py-2 sidebar-scroll">
         {NAV_SECTIONS.map((section) => (
           <div key={section.title} className="mb-6">
             {!collapsed && (
