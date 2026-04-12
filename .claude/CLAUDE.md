@@ -636,6 +636,14 @@ WLVLP, VLP, GVLP, and TTTMP charges flow through the **VLP Stripe account**. TMP
 
 When adding a new Stripe API call for any VLP-family product, use `STRIPE_SECRET_KEY_VLP`. Never cross-wire keys — TMP webhooks will fail signature verification against the VLP secret and vice versa.
 
+### Personalized checkout
+
+`POST /v1/wlvlp/checkout` uses dynamic `price_data` (not static Stripe price IDs) so the Stripe Checkout page shows the template name. The handler looks up the template title from D1 by slug and builds: `"{templateName} — Standard Website"` or `"{templateName} — Premium Website"`. Amounts: Standard $249 (`24900`), Premium $399 (`39900`). Falls back to the slug as the name if D1 lookup fails.
+
+### Scratch ticket daily limit
+
+`POST /v1/wlvlp/scratch` enforces one ticket per rolling 24-hour period (was one per account lifetime). If an account has created a ticket within the last 24 hours, returns `429` with `{ ok: false, error: "daily_limit", next_available_at: "<ISO>" }`. The frontend shows a countdown to the next available scratch.
+
 ### Scratch ticket prize redemption (Stripe Promotion Codes)
 
 Scratch ticket prizes that carry a monetary value are redeemed via Stripe Promotion Codes created on reveal. The flow:

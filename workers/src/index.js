@@ -14243,15 +14243,6 @@ TTMP Support Team
           return json({ ok: false, error: 'INVALID_TIER', message: 'tier must be "standard" or "premium"' }, 400, request);
         }
 
-        const WLVLP_PRICE_MAP = {
-          standard: env.STRIPE_PRICE_WLVLP_STANDARD,
-          premium:  env.STRIPE_PRICE_WLVLP_PREMIUM,
-        };
-        const stripe_price_id = WLVLP_PRICE_MAP[tier];
-        if (!stripe_price_id) {
-          return json({ ok: false, error: 'PRICE_NOT_CONFIGURED' }, 503, request);
-        }
-
         // WLVLP price IDs live in the Virtual Launch Pro Stripe account.
         // STRIPE_SECRET_KEY belongs to the TaxMonitor Pro account, so we
         // must use STRIPE_SECRET_KEY_VLP for any WLVLP/VLP-account prices.
@@ -14261,11 +14252,36 @@ TTMP Support Team
           return json({ ok: false, error: 'STRIPE_NOT_CONFIGURED' }, 503, request);
         }
 
+        // Look up template name from D1 for personalized checkout
+        let templateName = slug;
+        try {
+          const tpl = await env.DB.prepare(
+            "SELECT title FROM wlvlp_templates WHERE slug = ?"
+          ).bind(slug).first();
+          if (tpl?.title) templateName = tpl.title;
+        } catch (e) {
+          console.error('WLVLP checkout: template lookup failed (non-fatal):', e?.message);
+        }
+
+        const WLVLP_AMOUNT_MAP = { standard: 24900, premium: 39900 };
+        const tierLabel = tier === 'premium' ? 'Premium' : 'Standard';
+
         const customerEmail = sessionEmail || (typeof bodyEmail === 'string' ? bodyEmail.trim() : '') || null;
 
         const sessionPayload = {
           mode: 'payment',
-          line_items: [{ price: stripe_price_id, quantity: 1 }],
+          line_items: [{
+            price_data: {
+              currency: 'usd',
+              unit_amount: WLVLP_AMOUNT_MAP[tier],
+              product_data: {
+                name: `${templateName} — ${tierLabel} Website`,
+                description: `Professional website template: ${templateName}. Includes hosting setup and custom domain support.`,
+                metadata: { template_slug: slug }
+              }
+            },
+            quantity: 1
+          }],
           success_url: 'https://websitelotto.virtuallaunch.pro/purchase-success?session_id={CHECKOUT_SESSION_ID}',
           cancel_url: `https://websitelotto.virtuallaunch.pro/sites/${slug}`,
           client_reference_id: accountId || 'anonymous',
@@ -14328,13 +14344,21 @@ TTMP Support Team
       const ticket_id = `TKT_${crypto.randomUUID()}`;
 
       try {
-        // Check if account already has an unscratched ticket
-        const existingTicket = await env.DB.prepare(
-          "SELECT ticket_id FROM wlvlp_scratch_tickets WHERE account_id = ? AND status = 'unscratched'"
+        // Check daily limit: one scratch ticket per rolling 24-hour period
+        const recentTicket = await env.DB.prepare(
+          "SELECT created_at FROM wlvlp_scratch_tickets WHERE account_id = ? ORDER BY created_at DESC LIMIT 1"
         ).bind(session.account_id).first();
 
-        if (existingTicket) {
-          return json({ ok: false, error: 'ALREADY_HAS_UNSCRATCHED_TICKET' }, 409, request);
+        if (recentTicket) {
+          const lastCreated = new Date(recentTicket.created_at);
+          const nextAvailable = new Date(lastCreated.getTime() + 24 * 60 * 60 * 1000);
+          if (new Date() < nextAvailable) {
+            return json({
+              ok: false,
+              error: 'daily_limit',
+              next_available_at: nextAvailable.toISOString()
+            }, 429, request);
+          }
         }
 
         // Write ticket to R2
