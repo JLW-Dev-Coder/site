@@ -14276,7 +14276,7 @@ TTMP Support Team
               unit_amount: WLVLP_AMOUNT_MAP[tier],
               product_data: {
                 name: `${templateName} — ${tierLabel} Website`,
-                description: `Professional website template: ${templateName}. Includes hosting setup and custom domain support.`,
+                description: `Professional website template designed for your business.\n\u2022 Ready to customize with your branding\n\u2022 Custom domain connection included\n\u2022 Managed hosting setup\n\u2022 Mobile-responsive design`,
                 metadata: { template_slug: slug }
               }
             },
