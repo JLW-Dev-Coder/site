@@ -51,6 +51,7 @@ id = "eca3b78d3e564774bb4bdebed8ffa512"
 [triggers]
 crons = [
   "0 6 * * *",   # Every day 06:00 UTC - WLVLP site generation + SCALE find-emails (Reoon Power)
+  "0 8 * * *",   # Every day 08:00 UTC - SCALE validate-emails (Reoon quick mode)
   "0 9 * * 1",   # Every Monday 9am UTC - DVLP job matching
   "0 10 * * *",  # Every day 10am UTC - WLVLP auction settlement + FOIA lead enrichment
   "0 12 * * *",  # Every day 12:00 UTC - WLVLP SCALE batch generation

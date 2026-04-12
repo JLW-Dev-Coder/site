@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-11 (SCALE find-emails Worker cron — Reoon Power mode at 06:00 UTC)
+Last updated: 2026-04-11 (SCALE validate-emails Worker cron — Reoon quick mode at 08:00 UTC)
 
 ---
 
@@ -688,7 +688,30 @@ R2 key pattern for master prospects:
 - `vlp-scale/prospects/master.csv` — authoritative master CSV
 - `vlp-scale/prospects/master.meta.json` — `{ uploaded_at, row_count, file_size_bytes, source_filename, uploaded_by, last_find_emails_at?, last_find_emails_found?, last_find_emails_processed? }`
 
-### Find-emails cron (Reoon Power mode)
+### Email discovery + validation — two-stage pipeline
+
+The master CSV's `email_status` column has a two-stage lifecycle:
+
+```
+empty
+  ↓ (find-emails @ 06:00 UTC — discovery only)
+unverified
+  ↓ (validate-emails @ 08:00 UTC — deliverability verdict)
+valid | invalid | risky | unknown | error
+```
+
+Dead ends from find-emails (`no_mx`, `no_patterns`, `invalid`) never reach
+validate-emails — those rows have no `email_found` value and are skipped by
+the validation eligibility filter.
+
+Tracking columns on each row:
+- `email_found` — discovered address (written by find-emails)
+- `email_status` — lifecycle state per the diagram above
+- `email_found_at` — ISO timestamp of discovery
+- `email_discovery_method` — winning pattern (`first`, `first.last`, etc.)
+- `email_verified_at` — ISO timestamp of deliverability verification
+
+#### Find-emails cron (Reoon Power mode — discovery)
 Daily Worker cron that discovers email addresses for prospects in the master
 CSV. Replaces the manual `scale/find-emails.js` CLI (TTMP repo) for the
 scheduled path — the CLI remains usable for ad-hoc runs.
@@ -698,13 +721,34 @@ scheduled path — the CLI remains usable for ad-hoc runs.
 - **Manual trigger:** `POST /v1/scale/cron/find-emails` with `Authorization: Bearer <SCALE_API_KEY>` (optional `?limit=N` query param, default 50, max 500)
 - **Source / sink:** `vlp-scale/prospects/master.csv` (R2) — in place rewrite
 - **Eligibility filter:** `domain_clean` present, `email_found` empty
-- **Per-run cap:** 50 rows (leaves headroom under the Reoon $9/mo 500/day limit)
+- **Per-run cap:** 50 rows (leaves headroom under the Reoon $9/mo 500/day limit, shared with validate-emails)
 - **Per-row steps:** Cloudflare DNS-over-HTTPS MX precheck → pattern guessing (`first`, `first.last`, `firstlast`, `flast`, `first.l`) → Reoon Power verification → winning pattern written back
 - **Rate limit:** 1 req/sec between Reoon calls
 - **Error handling:** 5xx retries once with 2s delay; 429 stops the run and flushes partial results; R2 read failure logs + returns
-- **Columns written:** `email_found`, `email_status` (`valid` | `risky` | `no_mx` | `no_patterns` | `invalid`), `email_found_at`, `email_discovery_method`
+- **Discovery-only semantics:** when a candidate is accepted, `email_status` is always written as `"unverified"` — Reoon's Power mode verdict is not recorded here. The job of this cron is to answer "what is the email address?" not "is it deliverable?" The 08:00 UTC validate-emails cron owns the deliverability verdict. Rows with no MX records are terminal dead ends and get `email_status = "no_mx"` with no `email_found`.
+- **Columns written:** `email_found`, `email_status` (`unverified` on success; `no_mx` | `no_patterns` | `invalid` on failure), `email_found_at`, `email_discovery_method`
 - **R2 log key:** `vlp-scale/logs/find-emails-{YYYY-MM-DD}.json`
-- **Secret:** `REOON_API_KEY` (already configured for the 10:00 UTC enrichment cron)
+- **Secret:** `REOON_API_KEY` (also used by enrichment + validate-emails crons)
+
+#### Validate-emails cron (Reoon quick mode — deliverability verification)
+Daily Worker cron that verifies deliverability of addresses that the
+find-emails cron discovered. Separates discovery from verification so the
+find-emails pass can focus on guessing patterns and this pass can focus on
+producing the live verdict the send pipeline relies on.
+
+- **Cron:** 08:00 UTC daily (2 hours after find-emails so discoveries land in the validation queue immediately)
+- **Worker entrypoint:** `handleValidateEmailsCron(env)` in `workers/src/index.js`
+- **Manual trigger:** `POST /v1/scale/cron/validate-emails` with `Authorization: Bearer <SCALE_API_KEY>` (optional `?limit=N` query param, default 50, max 500)
+- **Source / sink:** `vlp-scale/prospects/master.csv` (R2) — in place rewrite
+- **Eligibility filter:** `email_found` present AND `email_status` is empty OR `unverified`
+- **Per-run cap:** 50 rows (shared Reoon 500/day budget with find-emails + enrichment)
+- **Reoon mode:** `quick` — cheaper than `power`, sufficient for a deliverability verdict on a known address
+- **Rate limit:** 1 req/sec between Reoon calls (reuses `FIND_EMAILS_REOON_RATE_LIMIT_MS`)
+- **Error handling:** 5xx retries once with 2s delay; 429 stops the run and flushes partial results; per-row errors set `email_status = "error"` and continue
+- **Columns written:** `email_status` (`valid` | `invalid` | `risky` | `unknown` | `error`), `email_verified_at`
+- **Meta updated:** `master.meta.json` gets `last_validate_emails_at` + `last_validate_emails_count`
+- **R2 log key:** `vlp-scale/logs/validate-emails-{YYYY-MM-DD}.json`
+- **Secret:** `REOON_API_KEY`
 
 ### Daily batch generation
 1. Run: node scale/generate-vlp-batch.js scale/prospects/{source}.csv

@@ -15527,6 +15527,22 @@ TTMP Support Team
     },
   },
 
+  {
+    method: 'POST', pattern: '/v1/scale/cron/validate-emails',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
+        return json({ ok: false, error: 'Unauthorized' }, 401, request);
+      }
+      const url = new URL(request.url);
+      const limitParam = parseInt(url.searchParams.get('limit') || '', 10);
+      const opts = Number.isFinite(limitParam) && limitParam > 0 ? { limit: limitParam } : {};
+      const runLog = await handleValidateEmailsCron(env, opts);
+      return json({ ok: true, run_log: runLog }, 200, request);
+    },
+  },
+
   // -------------------------------------------------------------------------
   // Scale Assets (Public Route)
   // -------------------------------------------------------------------------
@@ -18123,8 +18139,10 @@ async function handleFindEmailsCron(env, opts = {}) {
         continue;
       }
 
-      let matched = null;
-      let riskyFallback = null;
+      // Discovery only: pick the first non-disposable candidate that Reoon
+      // Power mode does NOT explicitly mark as undeliverable. The actual
+      // deliverability verdict is written later by handleValidateEmailsCron.
+      let discovered = null;
       for (const c of candidateList) {
         const elapsed = Date.now() - lastCallAt;
         if (lastCallAt > 0 && elapsed < FIND_EMAILS_REOON_RATE_LIMIT_MS) {
@@ -18162,33 +18180,27 @@ async function handleFindEmailsCron(env, opts = {}) {
         const rawStatus = ((res && (res.status || res.state)) || 'unknown').toString().toLowerCase();
         const isDeliverable = res && (res.is_deliverable ?? res.deliverable ?? null);
 
+        if (rawStatus === 'disposable' || rawStatus === 'spamtrap' || rawStatus === 'invalid') {
+          continue;
+        }
         if (rawStatus === 'safe' && isDeliverable === true) {
-          matched = { email: c.email, method: c.method, status: 'valid' };
+          discovered = { email: c.email, method: c.method };
           break;
         }
         if (rawStatus === 'valid') {
-          matched = { email: c.email, method: c.method, status: 'valid' };
+          discovered = { email: c.email, method: c.method };
           break;
         }
-        if (rawStatus === 'disposable' || rawStatus === 'spamtrap') {
-          break;
-        }
-        if (rawStatus === 'catch_all' && !riskyFallback) {
-          riskyFallback = { email: c.email, method: c.method, status: 'risky' };
+        if (!discovered && (rawStatus === 'catch_all' || rawStatus === 'unknown' || rawStatus === 'risky')) {
+          discovered = { email: c.email, method: c.method };
         }
       }
 
-      if (matched) {
-        r.email_found = matched.email;
-        r.email_status = matched.status;
+      if (discovered) {
+        r.email_found = discovered.email;
+        r.email_status = 'unverified';
         r.email_found_at = now;
-        r.email_discovery_method = matched.method;
-        runLog.emails_found++;
-      } else if (riskyFallback) {
-        r.email_found = riskyFallback.email;
-        r.email_status = riskyFallback.status;
-        r.email_found_at = now;
-        r.email_discovery_method = riskyFallback.method;
+        r.email_discovery_method = discovered.method;
         runLog.emails_found++;
       } else {
         r.email_status = r.email_status || 'invalid';
@@ -18235,6 +18247,198 @@ async function handleFindEmailsCron(env, opts = {}) {
     try {
       await env.R2_VIRTUAL_LAUNCH.put(
         `vlp-scale/logs/find-emails-${dateKey}.json`,
+        JSON.stringify(runLog, null, 2),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch {}
+    return runLog;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Validate-emails cron — Reoon quick-mode deliverability verification
+// ---------------------------------------------------------------------------
+
+const VALIDATE_EMAILS_DEFAULT_LIMIT = 50;
+
+async function validateEmailsReoonQuick(env, email) {
+  const url = `https://emailverifier.reoon.com/api/v1/verify?email=${encodeURIComponent(email)}&key=${env.REOON_API_KEY}&mode=quick`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = new Error(`reoon_http_${res.status}`);
+    err.http = res.status;
+    throw err;
+  }
+  return await res.json();
+}
+
+function validateEmailsNormalizeStatus(res) {
+  const raw = ((res && (res.status || res.state)) || '').toString().toLowerCase();
+  const isDeliverable = res && (res.is_deliverable ?? res.deliverable ?? null);
+  if (raw === 'valid' || raw === 'safe') {
+    return isDeliverable === false ? 'risky' : 'valid';
+  }
+  if (raw === 'invalid') return 'invalid';
+  if (raw === 'risky' || raw === 'catch_all' || raw === 'accept_all') return 'risky';
+  if (raw === 'disposable' || raw === 'spamtrap') return 'invalid';
+  if (raw === 'unknown' || raw === '') return 'unknown';
+  return 'unknown';
+}
+
+async function handleValidateEmailsCron(env, opts = {}) {
+  const limit = Math.max(1, Math.min(Number(opts.limit) || VALIDATE_EMAILS_DEFAULT_LIMIT, 500));
+  const startedAt = new Date().toISOString();
+  const dateKey = startedAt.slice(0, 10);
+  const runLog = {
+    ran_at: startedAt,
+    limit,
+    rows_processed: 0,
+    valid: 0,
+    invalid: 0,
+    risky: 0,
+    unknown: 0,
+    error: 0,
+    reoon_calls_made: 0,
+    rate_limited_stop: false,
+    errors: [],
+  };
+
+  if (!env.REOON_API_KEY) {
+    runLog.errors.push('missing_reoon_api_key');
+    return runLog;
+  }
+
+  try {
+    const csvObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.csv');
+    if (!csvObj) {
+      runLog.errors.push('master_csv_not_found');
+      return runLog;
+    }
+    const csvText = await csvObj.text();
+    const parsed = findEmailsParseCsv(csvText);
+    if (parsed.length < 2) {
+      runLog.errors.push('csv_has_no_data_rows');
+      return runLog;
+    }
+
+    const headers = parsed[0].slice();
+    for (const col of ['email_found', 'email_status', 'email_verified_at']) {
+      if (!headers.includes(col)) headers.push(col);
+    }
+
+    const records = parsed.slice(1)
+      .filter(row => row.length > 1)
+      .map(row => {
+        const rec = {};
+        headers.forEach((h, i) => { rec[h] = row[i] || ''; });
+        return rec;
+      });
+
+    const candidates = [];
+    for (const r of records) {
+      const em = (r.email_found || '').trim();
+      const hasEmail = em && em !== 'undefined' && em.toLowerCase() !== 'nan' && em !== 'null';
+      if (!hasEmail) continue;
+      const status = (r.email_status || '').trim().toLowerCase();
+      if (status !== '' && status !== 'unverified') continue;
+      candidates.push(r);
+    }
+
+    const target = candidates.slice(0, limit);
+    let lastCallAt = 0;
+    let rateLimited = false;
+
+    for (const r of target) {
+      if (rateLimited) break;
+      runLog.rows_processed++;
+      const email = (r.email_found || '').trim();
+      const nowIso = new Date().toISOString();
+
+      const elapsed = Date.now() - lastCallAt;
+      if (lastCallAt > 0 && elapsed < FIND_EMAILS_REOON_RATE_LIMIT_MS) {
+        await findEmailsSleep(FIND_EMAILS_REOON_RATE_LIMIT_MS - elapsed);
+      }
+
+      let res = null;
+      let attempt = 0;
+      let hadError = false;
+      while (attempt < 2) {
+        try {
+          res = await validateEmailsReoonQuick(env, email);
+          lastCallAt = Date.now();
+          runLog.reoon_calls_made++;
+          break;
+        } catch (err) {
+          lastCallAt = Date.now();
+          if (err && err.http === 429) {
+            runLog.rate_limited_stop = true;
+            rateLimited = true;
+            runLog.errors.push(`rate_limited_on_${email}`);
+            hadError = true;
+            break;
+          }
+          if (err && err.http && err.http >= 500 && attempt === 0) {
+            attempt++;
+            await findEmailsSleep(2000);
+            continue;
+          }
+          runLog.error++;
+          runLog.errors.push(`reoon_err:${email}:${err && err.message || err}`);
+          r.email_status = 'error';
+          r.email_verified_at = nowIso;
+          hadError = true;
+          break;
+        }
+      }
+      if (rateLimited) break;
+      if (hadError || !res) continue;
+
+      const normalized = validateEmailsNormalizeStatus(res);
+      r.email_status = normalized;
+      r.email_verified_at = nowIso;
+      if (normalized === 'valid') runLog.valid++;
+      else if (normalized === 'invalid') runLog.invalid++;
+      else if (normalized === 'risky') runLog.risky++;
+      else runLog.unknown++;
+    }
+
+    const updatedCsv = findEmailsRowsToCsv(headers, records);
+    await env.R2_VIRTUAL_LAUNCH.put('vlp-scale/prospects/master.csv', updatedCsv, {
+      httpMetadata: { contentType: 'text/csv; charset=utf-8' },
+    });
+
+    try {
+      const metaObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.meta.json');
+      let meta = {};
+      if (metaObj) { try { meta = await metaObj.json(); } catch {} }
+      meta.last_validate_emails_at = startedAt;
+      meta.last_validate_emails_count = runLog.rows_processed;
+      await env.R2_VIRTUAL_LAUNCH.put(
+        'vlp-scale/prospects/master.meta.json',
+        JSON.stringify(meta),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      runLog.errors.push(`meta_update_failed:${e && e.message || e}`);
+    }
+
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/logs/validate-emails-${dateKey}.json`,
+        JSON.stringify(runLog, null, 2),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      console.error('validate-emails: failed to write run log:', e);
+    }
+
+    return runLog;
+  } catch (e) {
+    console.error('handleValidateEmailsCron fatal:', e);
+    runLog.errors.push(`fatal:${e && e.message || e}`);
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/logs/validate-emails-${dateKey}.json`,
         JSON.stringify(runLog, null, 2),
         { httpMetadata: { contentType: 'application/json' } }
       );
@@ -18579,6 +18783,19 @@ export default {
         console.log('Find emails cron:', JSON.stringify(findEmailsLog));
       } catch (e) {
         console.error('Find emails cron failed:', e);
+      }
+      return;
+    }
+
+    // 08:00 UTC trigger — runs SCALE validate-emails (Reoon quick-mode).
+    // Verifies deliverability of addresses discovered by the 06:00 find-emails
+    // cron. Shares the Reoon 500/day budget.
+    if (event && event.cron === '0 8 * * *') {
+      try {
+        const validateEmailsLog = await handleValidateEmailsCron(env);
+        console.log('Validate emails cron:', JSON.stringify(validateEmailsLog));
+      } catch (e) {
+        console.error('Validate emails cron failed:', e);
       }
       return;
     }
