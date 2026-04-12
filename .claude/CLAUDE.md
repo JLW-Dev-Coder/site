@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-11 (SCALE migrate find/validate crons to FOIA master JSONL — single data store)
+Last updated: 2026-04-12 (WLVLP asset page enrichment cron — crawl + conversion_leak_report)
 
 ---
 
@@ -759,6 +759,10 @@ find-emails cron discovered.
                                TTMP 65% / VLP 25% / WLVLP 10% (DAILY_BATCH_CAP
                                = 200/day), builds 6-email sequences, appends
                                to platform send queues
+13:00 UTC — wlvlp-enrich     handleWlvlpAssetEnrichmentCron: crawls prospect
+                               websites, scores conversion leaks, overwrites
+                               minimal Shape B asset pages with full Shape A
+                               records containing conversion_leak_report
 14:00 UTC — staged send       handleTtmpEmailSend, handleVlpEmailSend, and
                                handleWlvlpEmailSend each drain their platform
                                queue: deliver Email 1 for new records and
@@ -766,15 +770,16 @@ find-emails cron discovered.
                                cadence (Day 0, +2, +4, +6, +8, +10)
 ```
 
-**All four data crons** (find-emails, validate-emails, enrichment, campaign
-router) read and write the same R2 file: `vlp-scale/foia-leads/foia-master.json`.
-There is no separate master CSV or FOIA source — they were consolidated into
-this single NDJSON data store on 2026-04-11.
+**All five data crons** (find-emails, validate-emails, enrichment, campaign
+router, wlvlp-enrich) read and write the same R2 file:
+`vlp-scale/foia-leads/foia-master.json`. There is no separate master CSV or
+FOIA source — they were consolidated into this single NDJSON data store on
+2026-04-11.
 
 All crons:
 - are guarded in `scheduled(event, env, ctx)` by `event.cron` string matching
-- find-emails and validate-emails have manual trigger routes under
-  `POST /v1/scale/cron/<step>` with `Authorization: Bearer <SCALE_API_KEY>`
+- find-emails, validate-emails, and wlvlp-enrich have manual trigger routes
+  under `POST /v1/scale/cron/<step>` with `Authorization: Bearer <SCALE_API_KEY>`
   and `?limit=N`
 - write run logs under `vlp-scale/logs/<step>-{YYYY-MM-DD}.json` or
   `vlp-scale/batch-logs/{YYYY-MM-DD}.json` (campaign router)
@@ -887,7 +892,28 @@ asset page (`websitelotto.virtuallaunch.pro/asset/{slug}`).
 - **Schedule:** identical compressed 10-day cadence as TTMP (Day 0, +2, +4, +6, +8, +10)
 - **Templates:** 6 emails inline on the queue record (was 2 — extended in this batch). Emails 1 and 2 no longer reference per-site crawl scores; the new router uses static templates so it can scale to 200 records/day without crawling each domain.
 - **Batch source:** the daily campaign router (`handleDailyBatchGeneration`). The previous `handleWlvlpBatchGeneration` site-crawler is no longer scheduled. Per-prospect site crawl + leak score + bespoke leak report are dropped in favor of static templates.
-- **Asset pages:** the router writes a minimal `vlp-scale/wlvlp-asset-pages/{slug}.json` for each routed record so the email's preview link resolves.
+- **Asset pages:** the router writes a minimal `vlp-scale/wlvlp-asset-pages/{slug}.json` for each routed record so the email's preview link resolves. Also stamps `wlvlp_asset_slug` on the FOIA master record so the enrichment cron can locate the asset page.
+
+## WLVLP Asset Page Enrichment
+
+Daily cron that crawls prospect websites, scores conversion leaks, and
+overwrites the minimal Shape B asset pages (written by the campaign router)
+with full Shape A records containing `conversion_leak_report`.
+
+- **Cron:** 13:00 UTC daily (1 hour after the campaign router, so newly routed WLVLP records are immediately eligible)
+- **Worker entrypoint:** `handleWlvlpAssetEnrichmentCron(env)` in `workers/src/index.js`
+- **Manual trigger:** `POST /v1/scale/cron/wlvlp-enrich` with `Authorization: Bearer <SCALE_API_KEY>` (optional `?limit=N` query param, default 20)
+- **Source / sink:** `vlp-scale/foia-leads/foia-master.json` (NDJSON) — full file rewrite via `readFoiaMasterRecords` / `writeFoiaMasterRecords`
+- **Eligibility filter:** `wlvlp_email_1_prepared_at` present AND `wlvlp_asset_enriched_at` empty — no per-record R2 reads needed
+- **Per-run cap:** 20 records (configurable via `opts.limit` or `?limit=N`)
+- **Per-record steps:** derive domain → `wlvlpCrawlSite(domain)` (10s timeout) → `wlvlpCalculateScore(crawl)` → `wlvlpIdentifyLeaks(crawl)` → `wlvlpBuildLeakReport(prospect, crawl)` → `wlvlpDeriveLeadEconomics(report)` → build Shape A JSON → write to R2 → stamp `wlvlp_asset_enriched_at`
+- **No-website handling:** prospects without a WEBSITE field get `score: 0`, synthetic leaks ("No website found"), and metrics from `WLVLP_TRAFFIC_BY_CRED` / `WLVLP_VALUE_BY_CRED` lookup tables. Full Shape A is still generated — the no-website case is the strongest WLVLP sales pitch.
+- **Crawl failure handling:** unreachable sites get a synthetic report (same as no-website but with `crawl_failed: true`). `wlvlp_asset_enriched_at` is stamped to prevent retries — if the site is unreachable, retrying won't help.
+- **Template matching:** `WLVLP_TEMPLATE_BY_CRED` maps credential to template slug (CPA → `accounting-firm-modern`, EA → `tax-professional-clean`, ATTY → `law-firm-professional`)
+- **Slug resolution:** prefers `wlvlp_asset_slug` stamped by the campaign router; falls back to `dailyMakeSlug(first, last, city, state)` for backfill records
+- **R2 output key:** `vlp-scale/wlvlp-asset-pages/{slug}.json` (overwrites Shape B)
+- **Columns written on FOIA master:** `wlvlp_asset_enriched_at` (ISO timestamp)
+- **R2 log key:** `vlp-scale/logs/wlvlp-enrich-{YYYY-MM-DD}.json`
 
 ## CAN-SPAM Compliance
 
