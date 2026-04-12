@@ -14973,6 +14973,21 @@ TTMP Support Team
                 "UPDATE wlvlp_bids SET status = 'lost' WHERE slug = ? AND account_id != ?"
               ).bind(slug, account_id).run();
             }
+
+            // Stamp redeemed_at on scratch ticket if a promotion code was used
+            const discounts = session.discounts || session.total_details?.breakdown?.discounts || [];
+            for (const disc of discounts) {
+              const promoId = disc.promotion_code || disc.discount?.promotion_code;
+              if (promoId) {
+                try {
+                  await env.DB.prepare(
+                    "UPDATE wlvlp_scratch_tickets SET redeemed_at = ? WHERE promo_code_id = ? AND redeemed_at IS NULL"
+                  ).bind(timestamp, promoId).run();
+                } catch (redeemErr) {
+                  console.error('Failed to stamp redeemed_at for promo', promoId, redeemErr);
+                }
+              }
+            }
           }
         } else if (event.type === 'customer.subscription.deleted') {
           const subscription = event.data.object;
@@ -15742,6 +15757,20 @@ TTMP Support Team
     },
   },
 
+  // POST /v1/wlvlp/cron/auction-settle — Manual trigger for auction settlement
+  {
+    method: 'POST', pattern: '/v1/wlvlp/cron/auction-settle',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
+        return json({ ok: false, error: 'Unauthorized' }, 401, request);
+      }
+      const runLog = await handleWlvlpAuctionSettlementCron(env);
+      return json({ ok: true, settlement_log: runLog }, 200, request);
+    },
+  },
+
   // -------------------------------------------------------------------------
   // Scale Assets (Public Route)
   // -------------------------------------------------------------------------
@@ -16335,6 +16364,288 @@ function wlvlpDeriveLeadEconomics(report) {
   const lostClientsYear = lostLeads * 12 * (close_rate / 100);
   const revenueLostYear = Math.round(lostClientsYear * avg_client_value);
   return { lost_leads_month: lostLeadsMonth, revenue_lost_year: revenueLostYear };
+}
+
+// ---------------------------------------------------------------------------
+// WLVLP Auction Settlement Cron (10:00 UTC daily, alongside enrichment)
+// Settles expired auctions: notifies winners, creates Stripe Checkout
+// sessions, resets no-bid auctions to Buy Now, and sweeps stale
+// pending_payment templates past the 48-hour deadline.
+// ---------------------------------------------------------------------------
+
+async function handleWlvlpAuctionSettlementCron(env) {
+  const eventId = `EVT_${crypto.randomUUID()}`;
+  const timestamp = new Date().toISOString();
+  const now = new Date();
+
+  const log = {
+    event_id: eventId,
+    timestamp,
+    ended_auctions_found: 0,
+    auctions_processed: 0,
+    winners_notified: 0,
+    no_bid_resets: 0,
+    deadline_sweeps: 0,
+    second_bidder_offers: 0,
+    buy_now_resets: 0,
+    errors: [],
+  };
+
+  try {
+    // ── Phase 1: Settle newly expired auctions ──────────────────────────
+    const endedAuctionsResult = await env.DB.prepare(
+      "SELECT * FROM wlvlp_templates WHERE status = 'auction' AND auction_ends_at < ?"
+    ).bind(now.toISOString()).all();
+    const endedAuctions = endedAuctionsResult.results || [];
+    log.ended_auctions_found = endedAuctions.length;
+
+    for (const template of endedAuctions) {
+      try {
+        const highestBid = await env.DB.prepare(
+          "SELECT * FROM wlvlp_bids WHERE slug = ? AND status = 'active' ORDER BY amount DESC LIMIT 1"
+        ).bind(template.slug).first();
+
+        if (highestBid) {
+          // Winner — create Stripe Checkout Session (VLP Stripe account)
+          const stripeRes = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${env.STRIPE_SECRET_KEY_VLP || env.STRIPE_SECRET_KEY}`,
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              mode: 'subscription',
+              'line_items[0][price_data][currency]': 'usd',
+              'line_items[0][price_data][unit_amount]': (highestBid.amount * 100).toString(),
+              'line_items[0][price_data][product_data][name]': `${template.title || template.slug} - Website Template (Auction Winner)`,
+              'line_items[0][price_data][recurring][interval]': 'month',
+              'line_items[0][quantity]': '1',
+              success_url: `https://websitelotto.virtuallaunch.pro/success?session_id={CHECKOUT_SESSION_ID}`,
+              cancel_url: `https://websitelotto.virtuallaunch.pro/templates/${template.slug}`,
+              'metadata[platform]': 'wlvlp',
+              'metadata[slug]': template.slug,
+              'metadata[account_id]': highestBid.account_id,
+              'metadata[acquisition_type]': 'auction_win',
+              'metadata[auction_winner]': 'true',
+            }),
+          });
+
+          if (stripeRes.ok) {
+            const sessionData = await stripeRes.json();
+
+            // Notify winner
+            const winner = await env.DB.prepare(
+              "SELECT email FROM accounts WHERE account_id = ?"
+            ).bind(highestBid.account_id).first();
+
+            if (winner?.email) {
+              try {
+                await sendEmail(winner.email,
+                  `You won the auction for ${template.title || template.slug}!`,
+                  `<p>Congratulations! You won the auction for <strong>${template.title || template.slug}</strong>.</p>
+                   <p>Your winning bid: <strong>$${highestBid.amount}/month</strong></p>
+                   <p>Complete your payment within 48 hours to claim your template:</p>
+                   <p><a href="${sessionData.url}" style="background:#f97316;color:white;padding:12px 24px;text-decoration:none;border-radius:4px;">Complete Payment</a></p>
+                   <p>If payment is not completed within 48 hours, the template may be offered to the next highest bidder.</p>`,
+                  env);
+                log.winners_notified++;
+              } catch (emailError) {
+                console.error('Failed to send auction winner email:', emailError);
+                log.errors.push({ slug: template.slug, phase: 'winner_email', error: emailError.message });
+              }
+            }
+
+            // Mark losing bids
+            await env.DB.prepare(
+              "UPDATE wlvlp_bids SET status = 'lost' WHERE slug = ? AND account_id != ?"
+            ).bind(template.slug, highestBid.account_id).run();
+
+            // Set template to pending_payment with settlement metadata
+            await env.DB.prepare(
+              "UPDATE wlvlp_templates SET status = 'pending_payment', updated_at = ? WHERE slug = ?"
+            ).bind(timestamp, template.slug).run();
+
+            // Write settlement receipt
+            await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${template.slug}/${timestamp}.json`, {
+              eventId: `${eventId}_${template.slug}`,
+              timestamp,
+              type: 'auction_settlement',
+              slug: template.slug,
+              winner_account_id: highestBid.account_id,
+              winning_bid: highestBid.amount,
+              settlement_status: 'pending_payment',
+              stripe_session_url: sessionData.url,
+              payment_deadline: new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString(),
+            });
+          } else {
+            const errText = await stripeRes.text();
+            console.error('Failed to create Stripe session for auction winner:', errText);
+            log.errors.push({ slug: template.slug, phase: 'stripe_session', error: errText });
+          }
+        } else {
+          // No bids — reset to Buy Now
+          await env.DB.prepare(
+            "UPDATE wlvlp_templates SET status = 'available', auction_ends_at = NULL, updated_at = ? WHERE slug = ?"
+          ).bind(timestamp, template.slug).run();
+
+          await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${template.slug}/${timestamp}.json`, {
+            eventId: `${eventId}_${template.slug}`,
+            timestamp,
+            type: 'auction_settlement',
+            slug: template.slug,
+            settlement_status: 'no_bids',
+            action: 'reset_to_available',
+          });
+          log.no_bid_resets++;
+        }
+        log.auctions_processed++;
+      } catch (templateError) {
+        console.error(`Failed to process auction for ${template.slug}:`, templateError);
+        log.errors.push({ slug: template.slug, phase: 'settlement', error: templateError.message });
+      }
+    }
+
+    // ── Phase 2: Sweep stale pending_payment (48-hour deadline) ─────────
+    // Templates set to pending_payment whose settlement receipt is >48h old.
+    const pendingResult = await env.DB.prepare(
+      "SELECT * FROM wlvlp_templates WHERE status = 'pending_payment'"
+    ).all();
+    const pendingTemplates = (pendingResult.results || []);
+
+    for (const template of pendingTemplates) {
+      try {
+        // updated_at was set when we flipped to pending_payment — use it as settlement time
+        const settledAt = template.updated_at ? new Date(template.updated_at) : null;
+        if (!settledAt || (now.getTime() - settledAt.getTime()) < 48 * 60 * 60 * 1000) continue;
+
+        log.deadline_sweeps++;
+
+        // Find the original winning bidder (their bid is still 'active')
+        const winnerBid = await env.DB.prepare(
+          "SELECT * FROM wlvlp_bids WHERE slug = ? AND status = 'active' ORDER BY amount DESC LIMIT 1"
+        ).bind(template.slug).first();
+
+        // Mark winner's bid as expired
+        if (winnerBid) {
+          await env.DB.prepare(
+            "UPDATE wlvlp_bids SET status = 'expired' WHERE bid_id = ?"
+          ).bind(winnerBid.bid_id).run();
+        }
+
+        // Look for second-highest bidder (status = 'lost' since we marked them earlier)
+        const secondBid = await env.DB.prepare(
+          "SELECT * FROM wlvlp_bids WHERE slug = ? AND status = 'lost' ORDER BY amount DESC LIMIT 1"
+        ).bind(template.slug).first();
+
+        if (secondBid) {
+          // Offer to second-highest bidder — create new Checkout Session
+          const stripe2 = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${env.STRIPE_SECRET_KEY_VLP || env.STRIPE_SECRET_KEY}`,
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+              mode: 'subscription',
+              'line_items[0][price_data][currency]': 'usd',
+              'line_items[0][price_data][unit_amount]': (secondBid.amount * 100).toString(),
+              'line_items[0][price_data][product_data][name]': `${template.title || template.slug} - Website Template (Auction - 2nd Offer)`,
+              'line_items[0][price_data][recurring][interval]': 'month',
+              'line_items[0][quantity]': '1',
+              success_url: `https://websitelotto.virtuallaunch.pro/success?session_id={CHECKOUT_SESSION_ID}`,
+              cancel_url: `https://websitelotto.virtuallaunch.pro/templates/${template.slug}`,
+              'metadata[platform]': 'wlvlp',
+              'metadata[slug]': template.slug,
+              'metadata[account_id]': secondBid.account_id,
+              'metadata[acquisition_type]': 'auction_win',
+              'metadata[auction_winner]': 'true',
+            }),
+          });
+
+          if (stripe2.ok) {
+            const session2 = await stripe2.json();
+
+            // Promote second bidder to active, reset their status
+            await env.DB.prepare(
+              "UPDATE wlvlp_bids SET status = 'active' WHERE bid_id = ?"
+            ).bind(secondBid.bid_id).run();
+
+            // Mark remaining lost bids as lost (they already are, but ensure consistency)
+            await env.DB.prepare(
+              "UPDATE wlvlp_bids SET status = 'lost' WHERE slug = ? AND bid_id != ? AND status != 'expired'"
+            ).bind(template.slug, secondBid.bid_id).run();
+
+            // Reset pending_payment timer
+            await env.DB.prepare(
+              "UPDATE wlvlp_templates SET updated_at = ? WHERE slug = ?"
+            ).bind(timestamp, template.slug).run();
+
+            // Notify second bidder
+            const secondBidder = await env.DB.prepare(
+              "SELECT email FROM accounts WHERE account_id = ?"
+            ).bind(secondBid.account_id).first();
+
+            if (secondBidder?.email) {
+              try {
+                await sendEmail(secondBidder.email,
+                  `You have a second chance to win ${template.title || template.slug}!`,
+                  `<p>The previous auction winner for <strong>${template.title || template.slug}</strong> did not complete payment.</p>
+                   <p>As the next highest bidder at <strong>$${secondBid.amount}/month</strong>, you can now claim this template.</p>
+                   <p>Complete your payment within 48 hours:</p>
+                   <p><a href="${session2.url}" style="background:#f97316;color:white;padding:12px 24px;text-decoration:none;border-radius:4px;">Complete Payment</a></p>`,
+                  env);
+              } catch (e2) {
+                console.error('Failed to send second-bidder email:', e2);
+              }
+            }
+
+            log.second_bidder_offers++;
+
+            await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${template.slug}/second-offer-${timestamp}.json`, {
+              eventId: `${eventId}_second_${template.slug}`,
+              timestamp,
+              type: 'auction_settlement_second_offer',
+              slug: template.slug,
+              expired_winner: winnerBid?.account_id,
+              new_offer_account_id: secondBid.account_id,
+              new_offer_amount: secondBid.amount,
+              stripe_session_url: session2.url,
+            });
+          } else {
+            console.error('Failed to create Stripe session for second bidder:', await stripe2.text());
+          }
+        } else {
+          // No second bidder — reset to Buy Now
+          await env.DB.prepare(
+            "UPDATE wlvlp_templates SET status = 'available', auction_ends_at = NULL, updated_at = ? WHERE slug = ?"
+          ).bind(timestamp, template.slug).run();
+
+          log.buy_now_resets++;
+
+          await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${template.slug}/deadline-expired-${timestamp}.json`, {
+            eventId: `${eventId}_expired_${template.slug}`,
+            timestamp,
+            type: 'auction_settlement_deadline_expired',
+            slug: template.slug,
+            action: 'reset_to_available',
+          });
+        }
+      } catch (sweepError) {
+        console.error(`Failed deadline sweep for ${template.slug}:`, sweepError);
+        log.errors.push({ slug: template.slug, phase: 'deadline_sweep', error: sweepError.message });
+      }
+    }
+  } catch (e) {
+    console.error('WLVLP auction settlement cron failed:', e);
+    log.errors.push({ phase: 'top_level', error: e.message });
+  }
+
+  // Write settlement log
+  const dateStr = now.toISOString().slice(0, 10);
+  await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/logs/wlvlp-auction-${dateStr}.json`, log);
+
+  console.log(`WLVLP auction settlement: ${log.auctions_processed} settled, ${log.winners_notified} notified, ${log.deadline_sweeps} deadline sweeps, ${log.second_bidder_offers} second-bidder offers, ${log.buy_now_resets} buy-now resets`);
+  return log;
 }
 
 // ---------------------------------------------------------------------------
@@ -19176,6 +19487,12 @@ export default {
       } catch (e) {
         console.error('Enrichment cron failed:', e);
       }
+      try {
+        const auctionLog = await handleWlvlpAuctionSettlementCron(env);
+        console.log('WLVLP auction settlement cron:', JSON.stringify(auctionLog));
+      } catch (e) {
+        console.error('WLVLP auction settlement cron failed:', e);
+      }
     }
 
     // 06:00 UTC trigger — runs WLVLP site generation and SCALE find-emails.
@@ -19330,160 +19647,6 @@ export default {
         await r2Put(env.R2_VIRTUAL_LAUNCH, `dvlp/receipts/cron/${errorEventId}.json`, JSON.stringify(errorReceipt));
       } catch (receiptError) {
         console.error('Failed to write error receipt:', receiptError);
-      }
-    }
-
-    // WLVLP Auction Settlement Cron
-    try {
-      const eventId = `EVT_${crypto.randomUUID()}`;
-      const timestamp = new Date().toISOString();
-      const now = new Date();
-
-      // 1. Query ended auctions
-      const endedAuctionsResult = await env.DB.prepare(
-        "SELECT * FROM wlvlp_templates WHERE status = 'auction' AND auction_ends_at < ?"
-      ).bind(now.toISOString()).all();
-      const endedAuctions = endedAuctionsResult.results || [];
-
-      let auctionsProcessed = 0;
-      let winnersNotified = 0;
-
-      // 2. For each ended auction
-      for (const template of endedAuctions) {
-        try {
-          // Find highest bid
-          const highestBid = await env.DB.prepare(
-            "SELECT * FROM wlvlp_bids WHERE slug = ? AND status = 'active' ORDER BY amount DESC LIMIT 1"
-          ).bind(template.slug).first();
-
-          if (highestBid) {
-            // Winner found - create Stripe Checkout Session for auction winner.
-            // WLVLP products are sold via the VLP Stripe account.
-            const stripeSession = await fetch('https://api.stripe.com/v1/checkout/sessions', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${env.STRIPE_SECRET_KEY_VLP || env.STRIPE_SECRET_KEY}`,
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              body: new URLSearchParams({
-                mode: 'subscription',
-                'line_items[0][price_data][currency]': 'usd',
-                'line_items[0][price_data][unit_amount]': (highestBid.amount * 100).toString(),
-                'line_items[0][price_data][product_data][name]': `${template.title} - Website Template (Auction Winner)`,
-                'line_items[0][price_data][recurring][interval]': 'month',
-                'line_items[0][quantity]': '1',
-                success_url: `https://websitelotto.virtuallaunch.pro/success?session_id={CHECKOUT_SESSION_ID}`,
-                cancel_url: `https://websitelotto.virtuallaunch.pro/templates/${template.slug}`,
-                'metadata[platform]': 'wlvlp',
-                'metadata[slug]': template.slug,
-                'metadata[account_id]': highestBid.account_id,
-                'metadata[acquisition_type]': 'auction_win'
-              }),
-            });
-
-            if (stripeSession.ok) {
-              const sessionData = await stripeSession.json();
-
-              // Send winner notification email
-              const winner = await env.DB.prepare(
-                "SELECT email FROM accounts WHERE account_id = ?"
-              ).bind(highestBid.account_id).first();
-
-              if (winner?.email) {
-                const subject = `🎉 You won the auction for ${template.title}!`;
-                const htmlBody = `
-                  <p>Congratulations! You won the auction for <strong>${template.title}</strong>.</p>
-                  <p>Your winning bid: <strong>$${highestBid.amount}/month</strong></p>
-                  <p>To claim your template, complete your payment:</p>
-                  <p><a href="${sessionData.url}" style="background: #007cba; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px;">Complete Payment</a></p>
-                  <p>This link expires in 24 hours.</p>
-                `;
-
-                try {
-                  await sendEmail(winner.email, subject, htmlBody, env);
-                  winnersNotified++;
-                } catch (emailError) {
-                  console.error('Failed to send auction winner email:', emailError);
-                }
-              }
-
-              // Mark losing bids as lost
-              await env.DB.prepare(
-                "UPDATE wlvlp_bids SET status = 'lost' WHERE slug = ? AND account_id != ?"
-              ).bind(template.slug, highestBid.account_id).run();
-
-              // Set template status to pending_payment
-              await env.DB.prepare(
-                "UPDATE wlvlp_templates SET status = 'pending_payment', updated_at = ? WHERE slug = ?"
-              ).bind(timestamp, template.slug).run();
-
-              // Write auction settlement receipt
-              const settlementReceipt = {
-                eventId: `${eventId}_${template.slug}`,
-                timestamp,
-                type: 'auction_settlement',
-                slug: template.slug,
-                winner_account_id: highestBid.account_id,
-                winning_bid: highestBid.amount,
-                stripe_session_url: sessionData.url,
-                action: 'winner_notified'
-              };
-              await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${template.slug}/${timestamp}.json`, settlementReceipt);
-            } else {
-              console.error('Failed to create Stripe session for auction winner:', await stripeSession.text());
-            }
-          } else {
-            // No bids - reset template to available
-            await env.DB.prepare(
-              "UPDATE wlvlp_templates SET status = 'available', auction_ends_at = NULL, updated_at = ? WHERE slug = ?"
-            ).bind(timestamp, template.slug).run();
-
-            // Write no-bids receipt
-            const noBidsReceipt = {
-              eventId: `${eventId}_${template.slug}`,
-              timestamp,
-              type: 'auction_settlement',
-              slug: template.slug,
-              action: 'reset_to_available'
-            };
-            await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${template.slug}/${timestamp}.json`, noBidsReceipt);
-          }
-
-          auctionsProcessed++;
-        } catch (templateError) {
-          console.error(`Failed to process auction for ${template.slug}:`, templateError);
-        }
-      }
-
-      // 3. Write master cron receipt
-      const auctionCronReceipt = {
-        eventId,
-        timestamp,
-        type: 'wlvlp-auction-settlement-cron',
-        stats: {
-          auctions_processed: auctionsProcessed,
-          winners_notified: winnersNotified,
-          ended_auctions_found: endedAuctions.length
-        }
-      };
-      await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${timestamp}.json`, auctionCronReceipt);
-
-      console.log(`WLVLP auction settlement completed: ${auctionsProcessed} auctions processed, ${winnersNotified} winners notified`);
-    } catch (e) {
-      console.error('WLVLP auction settlement cron job failed:', e);
-
-      // Write error receipt
-      const errorEventId = `EVT_${crypto.randomUUID()}`;
-      const errorReceipt = {
-        eventId: errorEventId,
-        timestamp: new Date().toISOString(),
-        type: 'wlvlp-auction-settlement-cron-error',
-        error: e.message
-      };
-      try {
-        await r2Put(env.R2_VIRTUAL_LAUNCH, `wlvlp/receipts/cron/auction-settlement/${errorEventId}.json`, errorReceipt);
-      } catch (receiptError) {
-        console.error('Failed to write WLVLP auction settlement error receipt:', receiptError);
       }
     }
 

@@ -610,6 +610,7 @@ WLVLP is operational and live. All backend routes live in `workers/src/index.js`
 | GET   | `/v1/wlvlp/sites/expiring` | Cron-facing endpoint listing sites with hosting expiring soon |
 | POST  | `/v1/wlvlp/sites/:slug/renew` | Renew hosting subscription for a site |
 | GET   | `/v1/wlvlp/scratch/prizes/:account_id` | List unredeemed scratch ticket promo codes (owner-only) |
+| POST  | `/v1/wlvlp/cron/auction-settle` | Manual trigger for auction settlement (SCALE_API_KEY auth) |
 
 Plus existing read routes for the marketplace catalog, voting, bidding, and scratch tickets.
 
@@ -664,12 +665,12 @@ Scratch ticket prizes that carry a monetary value are redeemed via Stripe Promot
 | `free_ticket` | (no coupon — creates new ticket) |
 | `no_prize` | (nothing) |
 
-Promotion codes are single-use (`max_redemptions: 1`) and expire 30 days after creation. Metadata includes `account_id`, `ticket_id`, and `prize` type. The `redeemed_at` column on `wlvlp_scratch_tickets` should be stamped when the promo code is consumed (via webhook or checkout confirmation — not yet wired).
+Promotion codes are single-use (`max_redemptions: 1`) and expire 30 days after creation. Metadata includes `account_id`, `ticket_id`, and `prize` type. The `redeemed_at` column on `wlvlp_scratch_tickets` is stamped when the promo code is consumed — wired in the WLVLP Stripe webhook's `checkout.session.completed` handler. When a checkout session includes a `promotion_code` in its `discounts` array, the handler updates `wlvlp_scratch_tickets SET redeemed_at = now()` for the matching `promo_code_id`.
 
 ### D1 tables
 
 - `wlvlp_purchases` — projection of completed site purchases (account_id, slug, sku, stripe_session_id, hosting_status, hosting_renews_at)
-- `wlvlp_templates` — projection of the published template catalog (slug, category, tier, status)
+- `wlvlp_templates` — projection of the published template catalog (slug, category, tier, status, auction_ends_at, current_owner_id). Auction-related statuses: `auction` (active bidding), `pending_payment` (winner notified, awaiting checkout), `sold`, `available`.
 - `wlvlp_votes` — per-account vote dedup (account_id, template_slug, voted_at; UNIQUE on account_id + template_slug). The `POST /v1/wlvlp/templates/:slug/vote` handler returns 409 `already_voted` if a duplicate is attempted.
 - `wlvlp_scratch_tickets` — scratch ticket state (ticket_id PK, account_id, status, prize_type, prize_value, revealed_at, created_at, promo_code_id, promo_code, promo_expires_at, redeemed_at). Migration: `0034` (base) + `0045` (promo columns).
 
@@ -682,6 +683,24 @@ R2 remains authoritative for purchases and templates.
 | `wlvlp/sites/{slug}.json` | Canonical site record (template ref, ownership, hosting state) |
 | `wlvlp/sites/{slug}/customizations.json` | Owner-edited site data from the editor |
 | `wlvlp/notifications/...` | Outbound notification queue (purchase confirmations, renewal reminders) |
+
+### Auction settlement
+
+Daily cron at **10:00 UTC** (`handleWlvlpAuctionSettlementCron`) alongside FOIA enrichment. Two-phase sweep:
+
+**Phase 1 — Settle newly expired auctions:**
+- Queries `wlvlp_templates WHERE status = 'auction' AND auction_ends_at < now()`
+- **With bids:** creates Stripe Checkout Session for highest bidder (VLP Stripe account), emails winner with payment link and 48-hour deadline, sets template to `pending_payment`, marks losing bids as `lost`, writes settlement receipt to R2
+- **No bids:** resets template to `available`, clears `auction_ends_at`
+
+**Phase 2 — 48-hour payment deadline sweep:**
+- Queries `wlvlp_templates WHERE status = 'pending_payment'` where `updated_at` > 48 hours ago
+- **Second-highest bidder exists:** marks expired winner's bid as `expired`, promotes second bidder to `active`, creates new Checkout Session, emails second bidder, resets 48-hour timer
+- **No second bidder:** resets template to `available` (Buy Now)
+
+Manual trigger: `POST /v1/wlvlp/cron/auction-settle` with `Authorization: Bearer <SCALE_API_KEY>`
+Settlement log: `vlp-scale/logs/wlvlp-auction-{YYYY-MM-DD}.json`
+Per-auction receipts: `wlvlp/receipts/cron/auction-settlement/{slug}/{timestamp}.json`
 
 ### Cron
 
