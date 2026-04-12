@@ -14,17 +14,14 @@ import {
   Users,
   User,
   Wallet,
-  Settings,
-  CreditCard,
-  UserCircle,
-  ClipboardList,
-  Eye,
   HelpCircle,
   Activity,
   ChevronDown,
   ChevronRight,
   ArrowLeft,
   LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react'
 
 type NavChild = { label: string; href: string; icon: React.ReactNode }
@@ -64,25 +61,8 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'SETUP',
+    title: 'SUPPORT',
     items: [
-      {
-        label: 'Account',
-        href: '/account',
-        icon: <Settings className="h-5 w-5" />,
-        children: [
-          { label: 'Payments', href: '/account/payments', icon: <CreditCard className="h-4 w-4" /> },
-        ],
-      },
-      {
-        label: 'Profile',
-        href: '/profile',
-        icon: <UserCircle className="h-5 w-5" />,
-        children: [
-          { label: 'Onboarding', href: '/profile/onboarding', icon: <ClipboardList className="h-4 w-4" /> },
-          { label: 'Preview', href: '/profile/preview', icon: <Eye className="h-4 w-4" /> },
-        ],
-      },
       { label: 'Support', href: '/support', icon: <HelpCircle className="h-5 w-5" /> },
       { label: 'Usage', href: '/usage', icon: <Activity className="h-5 w-5" /> },
     ],
@@ -92,6 +72,7 @@ const NAV_SECTIONS: NavSection[] = [
 export default function MemberSidebar() {
   const pathname = usePathname()
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
+  const [collapsed, setCollapsed] = useState(false)
 
   function toggleExpand(href: string) {
     setExpanded((prev) => ({ ...prev, [href]: !prev[href] }))
@@ -110,31 +91,39 @@ export default function MemberSidebar() {
   }
 
   return (
-    <aside className="flex w-[280px] shrink-0 flex-col border-r border-white/[0.08] bg-[#0a0e27]">
+    <aside
+      className={`flex shrink-0 flex-col border-r border-white/[0.08] bg-[#0a0e27] transition-[width] duration-200 ${
+        collapsed ? 'w-[68px]' : 'w-[280px]'
+      }`}
+    >
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5">
-        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 text-xs font-bold text-slate-950">
+      <div className={`flex items-center ${collapsed ? 'justify-center px-2' : 'gap-3 px-6'} py-5`}>
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-amber-500 text-xs font-bold text-slate-950">
           VLP
         </span>
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold tracking-tight text-white">
-            Virtual Launch Pro
-          </span>
-          <span className="text-[11px] text-white/40">Member Dashboard</span>
-        </div>
+        {!collapsed && (
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm font-semibold tracking-tight text-white">
+              Virtual Launch Pro
+            </span>
+            <span className="text-[11px] text-white/40">Member Dashboard</span>
+          </div>
+        )}
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-2">
+      <nav className="flex-1 overflow-y-auto px-2 py-2">
         {NAV_SECTIONS.map((section) => (
           <div key={section.title} className="mb-6">
-            <div className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-white/30">
-              {section.title}
-            </div>
+            {!collapsed && (
+              <div className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-white/30">
+                {section.title}
+              </div>
+            )}
             <div className="space-y-0.5">
               {section.items.map((item) => {
                 const active = isActive(item.href)
-                const hasChildren = item.children && item.children.length > 0
+                const hasChildren = !collapsed && item.children && item.children.length > 0
                 const isOpen =
                   expanded[item.href] ||
                   (hasChildren && item.children!.some((c) => isActive(c.href)))
@@ -144,16 +133,19 @@ export default function MemberSidebar() {
                     <div className="flex items-center">
                       <Link
                         href={item.href}
-                        className={`flex flex-1 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                        title={collapsed ? item.label : undefined}
+                        className={`flex flex-1 items-center rounded-lg py-2 text-sm font-medium transition ${
+                          collapsed ? 'justify-center px-0' : 'gap-3 px-3'
+                        } ${
                           active
-                            ? 'border-l-2 border-brand-orange bg-brand-orange/10 text-brand-orange'
-                            : 'border-l-2 border-transparent text-white/60 hover:bg-white/[0.04] hover:text-white'
+                            ? `${collapsed ? '' : 'border-l-2 border-brand-orange'} bg-brand-orange/10 text-brand-orange`
+                            : `${collapsed ? '' : 'border-l-2 border-transparent'} text-white/60 hover:bg-white/[0.04] hover:text-white`
                         }`}
                       >
-                        <span className={active ? 'text-brand-orange' : 'text-white/40'}>
+                        <span className={`shrink-0 ${active ? 'text-brand-orange' : 'text-white/40'}`}>
                           {item.icon}
                         </span>
-                        {item.label}
+                        {!collapsed && item.label}
                       </Link>
                       {hasChildren && (
                         <button
@@ -201,38 +193,50 @@ export default function MemberSidebar() {
         ))}
       </nav>
 
-      {/* Footer — SETTINGS */}
-      <div className="border-t border-white/[0.06] px-4 py-4">
-        <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-widest text-white/30">
-          Settings
-        </div>
+      {/* Footer */}
+      <div className="border-t border-white/[0.06] px-2 py-3">
         <div className="space-y-1">
           <Link
-            href="/account"
-            className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-white/50 transition hover:text-white/80"
-          >
-            <Settings className="h-4 w-4" /> Account
-          </Link>
-          <Link
-            href="/profile"
-            className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-white/50 transition hover:text-white/80"
-          >
-            <UserCircle className="h-4 w-4" /> Profile
-          </Link>
-          <Link
             href="/"
-            className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-white/50 transition hover:text-white/80"
+            title={collapsed ? 'Back to site' : undefined}
+            className={`flex items-center rounded-lg py-1.5 text-sm text-white/50 transition hover:text-white/80 ${
+              collapsed ? 'justify-center px-0' : 'gap-2.5 px-2'
+            }`}
           >
-            <ArrowLeft className="h-4 w-4" /> Back to site
+            <ArrowLeft className="h-4 w-4 shrink-0" />
+            {!collapsed && 'Back to site'}
           </Link>
           <button
             type="button"
             onClick={handleSignOut}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-red-400/70 transition hover:text-red-400"
+            title={collapsed ? 'Sign out' : undefined}
+            className={`flex w-full items-center rounded-lg py-1.5 text-sm text-red-400/70 transition hover:text-red-400 ${
+              collapsed ? 'justify-center px-0' : 'gap-2.5 px-2'
+            }`}
           >
-            <LogOut className="h-4 w-4" /> Sign out
+            <LogOut className="h-4 w-4 shrink-0" />
+            {!collapsed && 'Sign out'}
           </button>
         </div>
+
+        {/* Collapse toggle */}
+        <button
+          type="button"
+          onClick={() => setCollapsed((v) => !v)}
+          className={`mt-2 flex w-full items-center rounded-lg py-1.5 text-sm text-white/30 transition hover:bg-white/[0.04] hover:text-white/60 ${
+            collapsed ? 'justify-center px-0' : 'gap-2.5 px-2'
+          }`}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? (
+            <PanelLeftOpen className="h-4 w-4 shrink-0" />
+          ) : (
+            <>
+              <PanelLeftClose className="h-4 w-4 shrink-0" />
+              Collapse
+            </>
+          )}
+        </button>
       </div>
     </aside>
   )

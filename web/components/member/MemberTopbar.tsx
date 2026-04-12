@@ -2,18 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Search, Bell, HelpCircle, Settings, UserCircle, LogOut } from 'lucide-react'
+import { Search, Bell, HelpCircle, Settings, LogOut } from 'lucide-react'
 
 export default function MemberTopbar() {
   const [email, setEmail] = useState<string | null>(null)
-  const [avatarSrc, setAvatarSrc] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const saved = localStorage.getItem('vlp_avatar_b64')
-    if (saved) setAvatarSrc(saved)
-
     fetch('https://api.virtuallaunch.pro/v1/auth/session', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
@@ -33,8 +29,6 @@ export default function MemberTopbar() {
     if (open) document.addEventListener('mousedown', handleOutside)
     return () => document.removeEventListener('mousedown', handleOutside)
   }, [open])
-
-  const initial = email?.[0]?.toUpperCase() ?? 'U'
 
   async function handleSignOut() {
     await fetch('https://api.virtuallaunch.pro/v1/auth/logout', {
@@ -74,19 +68,15 @@ export default function MemberTopbar() {
           <HelpCircle className="h-5 w-5" />
         </Link>
 
-        {/* Avatar + dropdown */}
+        {/* Gear icon + dropdown */}
         <div className="relative ml-2" ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}
-            className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-orange-500 to-amber-500 text-xs font-bold text-slate-950 transition hover:opacity-90"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-white/40 transition hover:bg-white/[0.06] hover:text-white"
             aria-label="Account menu"
           >
-            {avatarSrc ? (
-              <img src={avatarSrc} alt="Avatar" className="h-full w-full object-cover" />
-            ) : (
-              initial
-            )}
+            <Settings className="h-5 w-5" />
           </button>
 
           {open && (
@@ -94,23 +84,6 @@ export default function MemberTopbar() {
               {email && (
                 <div className="truncate px-3 py-2 text-xs text-white/40">{email}</div>
               )}
-              <div className="my-1 border-t border-white/[0.06]" />
-              <Link
-                href="/account"
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 transition hover:bg-white/[0.06]"
-              >
-                <Settings className="h-4 w-4" />
-                Account
-              </Link>
-              <Link
-                href="/profile"
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-white/70 transition hover:bg-white/[0.06]"
-              >
-                <UserCircle className="h-4 w-4" />
-                Profile
-              </Link>
               <div className="my-1 border-t border-white/[0.06]" />
               <button
                 type="button"

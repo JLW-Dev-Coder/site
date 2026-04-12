@@ -1000,8 +1000,8 @@ The member app is the authenticated dashboard experience for VLP members. It liv
 
 ### Layout
 
-- **Sidebar:** 280px fixed width, scrollable nav — `web/components/member/MemberSidebar.tsx`
-- **Topbar:** 80px fixed height, search + notifications + help + avatar dropdown — `web/components/member/MemberTopbar.tsx`
+- **Sidebar:** 280px expanded / 68px collapsed, scrollable nav with collapse toggle — `web/components/member/MemberSidebar.tsx`
+- **Topbar:** 80px fixed height, search + notifications + help + gear icon (Settings, sign-out only dropdown) — `web/components/member/MemberTopbar.tsx`
 - **Layout:** `web/app/(member)/layout.tsx` — wraps all member pages
 - **Background:** `#0a0e27` (Canva-adapted dark theme with VLP orange accents)
 - **Icons:** lucide-react
@@ -1022,14 +1022,12 @@ EARNINGS
   Client Pool      /client-pool (expandable → Client Record)
   Payouts          /payouts
 
-SETUP
-  Account          /account (sub: Payments → /account/payments)
-  Profile          /profile (sub: Onboarding → /profile/onboarding, Preview → /profile/preview)
+SUPPORT
   Support          /support
   Usage            /usage
 
-SETTINGS (footer)
-  Account, Profile, Back to site, Sign out
+FOOTER
+  Back to site, Sign out, Collapse toggle
 ```
 
 ### Routes (17 pages)
