@@ -609,6 +609,7 @@ WLVLP is operational and live. All backend routes live in `workers/src/index.js`
 | POST  | `/v1/wlvlp/sites/:slug/domain` | Connect a custom domain to a purchased site |
 | GET   | `/v1/wlvlp/sites/expiring` | Cron-facing endpoint listing sites with hosting expiring soon |
 | POST  | `/v1/wlvlp/sites/:slug/renew` | Renew hosting subscription for a site |
+| GET   | `/v1/wlvlp/scratch/prizes/:account_id` | List unredeemed scratch ticket promo codes (owner-only) |
 
 Plus existing read routes for the marketplace catalog, voting, bidding, and scratch tickets.
 
@@ -634,11 +635,43 @@ WLVLP, VLP, GVLP, and TTTMP charges flow through the **VLP Stripe account**. TMP
 
 When adding a new Stripe API call for any VLP-family product, use `STRIPE_SECRET_KEY_VLP`. Never cross-wire keys — TMP webhooks will fail signature verification against the VLP secret and vice versa.
 
+### Scratch ticket prize redemption (Stripe Promotion Codes)
+
+Scratch ticket prizes that carry a monetary value are redeemed via Stripe Promotion Codes created on reveal. The flow:
+
+1. **Reveal** (`POST /v1/wlvlp/scratch/:ticket_id/reveal`) draws a prize. For discount/credit/free-month prizes, it creates a single-use Stripe Promotion Code (30-day expiry) and returns the code in the response.
+2. **Checkout** (`POST /v1/wlvlp/checkout`) auto-applies the highest-value unredeemed promo code for authenticated users via the `discounts` parameter on the Checkout Session.
+3. **Prize check** (`GET /v1/wlvlp/scratch/prizes/:account_id`) returns all unredeemed promo codes for the frontend to display.
+4. **free_ticket** prizes create a new unscratched ticket for the same account (no promo code).
+
+**Stripe Coupons (VLP account, set explicitly by ID):**
+
+| Coupon ID | Name | Type | Value |
+|-----------|------|------|-------|
+| `wlvlp_50_off` | WLVLP $50 Off | amount_off | $50 |
+| `wlvlp_25_off` | WLVLP $25 Off | amount_off | $25 |
+| `wlvlp_9_credit` | WLVLP $9 Credit | amount_off | $9 |
+| `wlvlp_free_month` | WLVLP Free Month Hosting | percent_off | 100% |
+
+**Prize-type → Coupon mapping:**
+
+| prize_type | Coupon ID |
+|------------|-----------|
+| `discount_50` | `wlvlp_50_off` |
+| `discount_25` | `wlvlp_25_off` |
+| `credit_9` | `wlvlp_9_credit` |
+| `free_month` | `wlvlp_free_month` |
+| `free_ticket` | (no coupon — creates new ticket) |
+| `no_prize` | (nothing) |
+
+Promotion codes are single-use (`max_redemptions: 1`) and expire 30 days after creation. Metadata includes `account_id`, `ticket_id`, and `prize` type. The `redeemed_at` column on `wlvlp_scratch_tickets` should be stamped when the promo code is consumed (via webhook or checkout confirmation — not yet wired).
+
 ### D1 tables
 
 - `wlvlp_purchases` — projection of completed site purchases (account_id, slug, sku, stripe_session_id, hosting_status, hosting_renews_at)
 - `wlvlp_templates` — projection of the published template catalog (slug, category, tier, status)
 - `wlvlp_votes` — per-account vote dedup (account_id, template_slug, voted_at; UNIQUE on account_id + template_slug). The `POST /v1/wlvlp/templates/:slug/vote` handler returns 409 `already_voted` if a duplicate is attempted.
+- `wlvlp_scratch_tickets` — scratch ticket state (ticket_id PK, account_id, status, prize_type, prize_value, revealed_at, created_at, promo_code_id, promo_code, promo_expires_at, redeemed_at). Migration: `0034` (base) + `0045` (promo columns).
 
 R2 remains authoritative for purchases and templates.
 

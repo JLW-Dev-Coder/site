@@ -14281,6 +14281,32 @@ TTMP Support Team
           sessionPayload.customer_email = customerEmail;
         }
 
+        // Auto-apply best unredeemed scratch ticket promo code for authenticated users
+        if (accountId) {
+          try {
+            const VALUE_ORDER = ['discount_50', 'free_month', 'discount_25', 'credit_9'];
+            const prizes = await env.DB.prepare(
+              "SELECT promo_code_id, prize_type, promo_expires_at FROM wlvlp_scratch_tickets WHERE account_id = ? AND promo_code_id IS NOT NULL AND redeemed_at IS NULL AND status = 'scratched' ORDER BY revealed_at ASC"
+            ).bind(accountId).all();
+
+            if (prizes?.results?.length) {
+              const now = new Date().toISOString();
+              const valid = prizes.results.filter(p => !p.promo_expires_at || p.promo_expires_at > now);
+              if (valid.length) {
+                // Pick highest-value promo
+                valid.sort((a, b) => {
+                  const ai = VALUE_ORDER.indexOf(a.prize_type);
+                  const bi = VALUE_ORDER.indexOf(b.prize_type);
+                  return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+                });
+                sessionPayload.discounts = [{ promotion_code: valid[0].promo_code_id }];
+              }
+            }
+          } catch (promoErr) {
+            console.error('WLVLP checkout: promo lookup failed (non-fatal):', promoErr?.message);
+          }
+        }
+
         const checkout_session = await stripePost('/checkout/sessions', sessionPayload, env, vlpSecretKey);
 
         return json({ ok: true, session_url: checkout_session.url }, 200, request);
@@ -14364,6 +14390,54 @@ TTMP Support Team
         // Draw prize using weighted random
         const prize = drawScratchPrize();
 
+        // --- Prize-specific side-effects ---
+        const PRIZE_TO_COUPON = {
+          discount_50: 'wlvlp_50_off',
+          discount_25: 'wlvlp_25_off',
+          credit_9:    'wlvlp_9_credit',
+          free_month:  'wlvlp_free_month',
+        };
+
+        let promoCodeId = null;
+        let promoCodeStr = null;
+        let promoExpiresAt = null;
+        let newTicketId = null;
+
+        const couponId = PRIZE_TO_COUPON[prize.prize_type];
+        if (couponId) {
+          // Create a single-use Stripe Promotion Code
+          const expiresUnix = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60; // 30 days
+          const promo = await stripePost('/promotion_codes', {
+            coupon: couponId,
+            max_redemptions: 1,
+            expires_at: expiresUnix,
+            metadata: {
+              account_id: session.account_id,
+              ticket_id,
+              prize: prize.prize_type,
+            },
+          }, env, env.STRIPE_SECRET_KEY_VLP);
+          promoCodeId = promo.id;
+          promoCodeStr = promo.code;
+          promoExpiresAt = new Date(expiresUnix * 1000).toISOString();
+        } else if (prize.prize_type === 'free_ticket') {
+          // Create a new scratch ticket for the same account
+          const freeTicketId = `TKT_${crypto.randomUUID()}`;
+          const freeTicketKey = `wlvlp/scratch/${session.account_id}/${freeTicketId}.json`;
+          const freeTicketData = {
+            ticket_id: freeTicketId,
+            account_id: session.account_id,
+            status: 'unscratched',
+            created_at: timestamp,
+          };
+          await r2Put(env.R2_VIRTUAL_LAUNCH, freeTicketKey, freeTicketData);
+          await env.DB.prepare(
+            "INSERT INTO wlvlp_scratch_tickets (ticket_id, account_id, status, created_at) VALUES (?, ?, 'unscratched', ?)"
+          ).bind(freeTicketId, session.account_id, timestamp).run();
+          newTicketId = freeTicketId;
+        }
+        // no_prize: nothing extra
+
         // Write receipt to R2
         const receiptKey = `wlvlp/receipts/scratch/${session.account_id}/${ticket_id}.json`;
         const receipt = {
@@ -14371,6 +14445,9 @@ TTMP Support Team
           account_id: session.account_id,
           prize_type: prize.prize_type,
           prize_value: prize.prize_value,
+          promo_code_id: promoCodeId,
+          promo_code: promoCodeStr,
+          new_ticket_id: newTicketId,
           timestamp,
           type: 'scratch_reveal'
         };
@@ -14384,6 +14461,9 @@ TTMP Support Team
           status: 'scratched',
           prize_type: prize.prize_type,
           prize_value: prize.prize_value,
+          promo_code_id: promoCodeId,
+          promo_code: promoCodeStr,
+          promo_expires_at: promoExpiresAt,
           revealed_at: timestamp,
           created_at: ticket.created_at
         };
@@ -14391,16 +14471,67 @@ TTMP Support Team
 
         // Update D1 projection
         await env.DB.prepare(
-          "UPDATE wlvlp_scratch_tickets SET status = 'scratched', prize_type = ?, prize_value = ?, revealed_at = ? WHERE ticket_id = ?"
-        ).bind(prize.prize_type, prize.prize_value, timestamp, ticket_id).run();
+          "UPDATE wlvlp_scratch_tickets SET status = 'scratched', prize_type = ?, prize_value = ?, revealed_at = ?, promo_code_id = ?, promo_code = ?, promo_expires_at = ? WHERE ticket_id = ?"
+        ).bind(prize.prize_type, prize.prize_value, timestamp, promoCodeId, promoCodeStr, promoExpiresAt, ticket_id).run();
 
-        return json({
+        // Build response based on prize type
+        const response = {
           ok: true,
           prize_type: prize.prize_type,
-          prize_value: prize.prize_value
-        }, 200, request);
+          prize_value: prize.prize_value,
+        };
+        if (promoCodeStr) {
+          response.promo_code = promoCodeStr;
+          response.promo_code_id = promoCodeId;
+          response.auto_apply = true;
+          response.expires_at = promoExpiresAt;
+        }
+        if (newTicketId) {
+          response.new_ticket_id = newTicketId;
+          response.auto_apply = true;
+        }
+
+        return json(response, 200, request);
       } catch (e) {
         console.error('WLVLP scratch reveal error:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
+      }
+    },
+  },
+
+  // GET /v1/wlvlp/scratch/prizes/:account_id — unredeemed promo code prizes
+  {
+    method: 'GET', pattern: '/v1/wlvlp/scratch/prizes/:account_id',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const { account_id } = params;
+      if (account_id !== session.account_id) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
+      }
+
+      try {
+        const now = new Date().toISOString();
+        const rows = await env.DB.prepare(
+          "SELECT ticket_id, prize_type, prize_value, promo_code, promo_code_id, promo_expires_at, revealed_at FROM wlvlp_scratch_tickets WHERE account_id = ? AND promo_code_id IS NOT NULL AND redeemed_at IS NULL AND status = 'scratched'"
+        ).bind(account_id).all();
+
+        const prizes = (rows?.results || [])
+          .filter(r => !r.promo_expires_at || r.promo_expires_at > now)
+          .map(r => ({
+            ticket_id: r.ticket_id,
+            prize_type: r.prize_type,
+            prize_value: r.prize_value,
+            promo_code: r.promo_code,
+            promo_code_id: r.promo_code_id,
+            expires_at: r.promo_expires_at,
+            revealed_at: r.revealed_at,
+          }));
+
+        return json({ ok: true, prizes }, 200, request);
+      } catch (e) {
+        console.error('WLVLP scratch prizes error:', e);
         return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
       }
     },
