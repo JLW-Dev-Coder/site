@@ -55,6 +55,7 @@ crons = [
   "0 9 * * 1",   # Every Monday 9am UTC - DVLP job matching
   "0 10 * * *",  # Every day 10am UTC - WLVLP auction settlement + FOIA lead enrichment + SCALE generate-batch
   "0 12 * * *",  # Every day 12:00 UTC - WLVLP SCALE batch generation
+  "0 13 * * *",  # Every day 13:00 UTC - WLVLP asset page enrichment (crawl + conversion_leak_report)
   "0 14 * * *"   # Every day 14:00 UTC - SCALE email sending (TTMP + WLVLP)
 ]
 

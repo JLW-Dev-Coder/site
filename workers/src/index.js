@@ -15582,6 +15582,22 @@ TTMP Support Team
     },
   },
 
+  {
+    method: 'POST', pattern: '/v1/scale/cron/wlvlp-enrich',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
+        return json({ ok: false, error: 'Unauthorized' }, 401, request);
+      }
+      const url = new URL(request.url);
+      const limitParam = parseInt(url.searchParams.get('limit') || '', 10);
+      const opts = Number.isFinite(limitParam) && limitParam >= 0 ? { limit: limitParam } : {};
+      const runLog = await handleWlvlpAssetEnrichmentCron(env, opts);
+      return json({ ok: true, run_log: runLog }, 200, request);
+    },
+  },
+
   // -------------------------------------------------------------------------
   // Scale Assets (Public Route)
   // -------------------------------------------------------------------------
@@ -16175,6 +16191,255 @@ function wlvlpDeriveLeadEconomics(report) {
   const lostClientsYear = lostLeads * 12 * (close_rate / 100);
   const revenueLostYear = Math.round(lostClientsYear * avg_client_value);
   return { lost_leads_month: lostLeadsMonth, revenue_lost_year: revenueLostYear };
+}
+
+// ---------------------------------------------------------------------------
+// WLVLP Asset Page Enrichment Cron (13:00 UTC daily)
+// Crawls prospect websites, scores conversion leaks, and overwrites the
+// minimal Shape B asset pages written by the campaign router with full
+// Shape A records containing conversion_leak_report.
+// ---------------------------------------------------------------------------
+
+async function handleWlvlpAssetEnrichmentCron(env, opts = {}) {
+  const startedAt = new Date();
+  const todayIso = startedAt.toISOString();
+  const dateKey = todayIso.slice(0, 10);
+  const limit = typeof opts.limit === 'number' && opts.limit >= 0 ? opts.limit : 20;
+
+  const runLog = {
+    ran_at: todayIso,
+    records_processed: 0,
+    crawled_ok: 0,
+    crawl_failed: 0,
+    no_domain: 0,
+    no_website: 0,
+    avg_score: 0,
+    errors: [],
+  };
+
+  // 1. Read FOIA master JSONL
+  let records;
+  try {
+    records = await readFoiaMasterRecords(env);
+    if (!records) {
+      runLog.errors.push('master_file_not_found');
+      return runLog;
+    }
+  } catch (e) {
+    runLog.errors.push(`master_read_failed: ${e && e.message || e}`);
+    return runLog;
+  }
+
+  // 2. Filter: wlvlp_email_1_prepared_at set AND wlvlp_asset_enriched_at empty
+  const eligibleIdx = [];
+  for (let i = 0; i < records.length; i++) {
+    const r = records[i];
+    if (!r.wlvlp_email_1_prepared_at || !String(r.wlvlp_email_1_prepared_at).trim()) continue;
+    if (r.wlvlp_asset_enriched_at && String(r.wlvlp_asset_enriched_at).trim()) continue;
+    eligibleIdx.push(i);
+  }
+
+  if (eligibleIdx.length === 0) {
+    runLog.records_eligible = 0;
+    return runLog;
+  }
+
+  // 3. Cap at limit
+  const batch = eligibleIdx.slice(0, limit);
+  runLog.records_eligible = eligibleIdx.length;
+  let scoreSum = 0;
+  let scoreCount = 0;
+  let masterDirty = false;
+
+  for (const idx of batch) {
+    const r = records[idx];
+    const firstDisplay = dailyTitleCaseFirst(r.First_NAME) || 'Friend';
+    const lastDisplay = dailyTitleCase(r.LAST_NAME);
+    const city = dailyTitleCase(r.BUS_ADDR_CITY);
+    const state = String(r.BUS_ST_CODE || '').toUpperCase().trim();
+    const profession = String(r.PROFESSION || '').toUpperCase();
+    const credKey = dailyNormalizeCred(profession);
+    const cred = DAILY_CRED[credKey] || DAILY_CRED.EA;
+    const templateMatch = WLVLP_TEMPLATE_BY_CRED[credKey] || WLVLP_TEMPLATE_BY_CRED.Unknown;
+
+    // Determine slug — prefer stored slug from campaign router, else regenerate
+    const slug = (r.wlvlp_asset_slug && String(r.wlvlp_asset_slug).trim())
+      ? String(r.wlvlp_asset_slug).trim()
+      : dailyMakeSlug(
+          dailySanitizeNamePart(r.First_NAME),
+          dailySanitizeNamePart(r.LAST_NAME),
+          r.BUS_ADDR_CITY,
+          r.BUS_ST_CODE
+        );
+
+    if (!slug) {
+      r.wlvlp_asset_enriched_at = todayIso;
+      r.wlvlp_asset_enriched_note = 'no_slug';
+      masterDirty = true;
+      runLog.errors.push({ slug: '(empty)', reason: 'no_slug' });
+      continue;
+    }
+
+    // a. Derive domain
+    let domainClean = r.domain_clean && String(r.domain_clean).trim();
+    if (!domainClean) {
+      domainClean = normalizeDomainFromWebsite(r.WEBSITE);
+      if (domainClean) {
+        r.domain_clean = domainClean;
+        masterDirty = true;
+      }
+    }
+
+    // b/c. Crawl or synthetic report for no-domain / no-website records
+    let crawlResult;
+    let isNoDomain = false;
+    let isNoWebsite = false;
+    let crawlFailed = false;
+
+    if (!domainClean) {
+      // No website — strongest sales pitch
+      isNoWebsite = true;
+      runLog.no_website++;
+      crawlResult = {
+        has_above_fold_cta: false,
+        has_phone_visible: false,
+        has_intake_form: false,
+        form_field_count: 0,
+        has_reviews_or_testimonials: false,
+        has_credentials_visible: false,
+        headline_text: 'Not available',
+        meta_description: '',
+        page_title: '',
+        fetch_ok: false,
+        status: 0,
+        elapsed_ms: 0,
+      };
+    } else {
+      try {
+        crawlResult = await wlvlpCrawlSite(domainClean);
+        if (crawlResult.fetch_ok) {
+          runLog.crawled_ok++;
+        } else {
+          crawlFailed = true;
+          runLog.crawl_failed++;
+        }
+      } catch (e) {
+        crawlFailed = true;
+        runLog.crawl_failed++;
+        runLog.errors.push({ slug, reason: `crawl_error: ${e && e.message || e}` });
+        crawlResult = {
+          has_above_fold_cta: false,
+          has_phone_visible: false,
+          has_intake_form: false,
+          form_field_count: 0,
+          has_reviews_or_testimonials: false,
+          has_credentials_visible: false,
+          headline_text: 'Not available',
+          meta_description: '',
+          page_title: '',
+          fetch_ok: false,
+          status: 0,
+          elapsed_ms: 0,
+        };
+      }
+    }
+
+    // d-f. Build leak report using existing helpers
+    const prospect = { credential: credKey, City: city };
+    const leakReport = wlvlpBuildLeakReport(prospect, crawlResult);
+    const economics = wlvlpDeriveLeadEconomics(leakReport);
+
+    // Override for no-website case
+    if (isNoWebsite) {
+      leakReport.score = 0;
+      leakReport.leaks = [{
+        title: 'No website found',
+        description: `We couldn't find an active website for your practice. This means potential clients searching for ${cred.label}s in ${city || 'your area'} can't find you online.`,
+      }];
+    }
+
+    // Override for crawl-failed case
+    if (crawlFailed && !isNoWebsite) {
+      leakReport.leaks.unshift({
+        title: 'Website unreachable',
+        description: `We tried to analyze ${domainClean} but couldn't reach it. If your site is down or loading slowly, potential clients are bouncing to competitors.`,
+      });
+    }
+
+    scoreSum += leakReport.score;
+    scoreCount++;
+
+    // g. Build full Shape A asset page
+    const lostLeads = economics.lost_leads_month;
+    const assetPage = {
+      slug,
+      headline: isNoWebsite
+        ? `${firstDisplay}, potential clients in ${city || 'your area'} can't find you online`
+        : `${firstDisplay}, your website may be losing ${lostLeads}+ leads every month`,
+      subheadline: isNoWebsite
+        ? `Without a website, ${cred.label}s miss out on clients who search online first.`
+        : `Based on your current site structure at ${domainClean}, here's what we found.`,
+      template_preview_slug: templateMatch.slug,
+      template_preview_url: `https://websitelotto.virtuallaunch.pro/sites/${templateMatch.slug}/preview.html`,
+      practice_type: credKey,
+      city: city || '',
+      state: state || '',
+      firm: r.DBA || `${firstDisplay} ${lastDisplay}`.trim(),
+      conversion_leak_report: {
+        score: leakReport.score,
+        leaks: leakReport.leaks,
+        metrics: leakReport.metrics,
+        before_after: leakReport.before_after,
+        crawl_failed: crawlFailed || false,
+        no_website: isNoWebsite || false,
+      },
+      cta_claim_url: `https://websitelotto.virtuallaunch.pro/sites/${templateMatch.slug}`,
+      cta_scratch_url: 'https://websitelotto.virtuallaunch.pro/scratch',
+      cta_booking_url: 'https://cal.com/vlp/wlvlp-discovery',
+      generated_at: todayIso,
+    };
+
+    // h. Write enriched asset page to R2
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/wlvlp-asset-pages/${slug}.json`,
+        JSON.stringify(assetPage),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      runLog.errors.push({ slug, reason: `r2_write_failed: ${e && e.message || e}` });
+    }
+
+    // i. Stamp enrichment on FOIA master record
+    r.wlvlp_asset_enriched_at = todayIso;
+    masterDirty = true;
+    runLog.records_processed++;
+  }
+
+  // 4. Write updated FOIA master JSONL back to R2
+  if (masterDirty) {
+    try {
+      await writeFoiaMasterRecords(env, records);
+    } catch (e) {
+      runLog.errors.push(`master_write_failed: ${e && e.message || e}`);
+    }
+  }
+
+  // 5. Compute avg score
+  runLog.avg_score = scoreCount > 0 ? Math.round((scoreSum / scoreCount) * 10) / 10 : 0;
+
+  // 6. Write run log to R2
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      `vlp-scale/logs/wlvlp-enrich-${dateKey}.json`,
+      JSON.stringify(runLog),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch (e) {
+    console.error('WLVLP enrich: failed to write run log:', e);
+  }
+
+  return runLog;
 }
 
 function wlvlpFormatMoney(n) {
@@ -17454,6 +17719,7 @@ async function handleDailyBatchGeneration(env) {
     } else {
       wlvlpRecs.push(buildWlvlpQueueRecord(r, ctx));
       r.wlvlp_email_1_prepared_at = todayIso;
+      r.wlvlp_asset_slug = slug;
       // Minimal asset page so the /asset/{slug} link resolves
       wlvlpAssetWrites.push({
         slug,
@@ -18794,6 +19060,21 @@ export default {
         console.log('Validate emails cron:', JSON.stringify(validateEmailsLog));
       } catch (e) {
         console.error('Validate emails cron failed:', e);
+      }
+      return;
+    }
+
+    // WLVLP Asset Page Enrichment Cron — 13:00 UTC daily.
+    // Crawls prospect websites, scores conversion leaks, and overwrites
+    // minimal Shape B asset pages with full Shape A records containing
+    // conversion_leak_report. Runs after the 12:00 campaign router so
+    // newly routed WLVLP records are immediately eligible.
+    if (event && event.cron === '0 13 * * *') {
+      try {
+        const enrichLog = await handleWlvlpAssetEnrichmentCron(env);
+        console.log('WLVLP asset enrichment cron:', JSON.stringify(enrichLog));
+      } catch (e) {
+        console.error('WLVLP asset enrichment cron failed:', e);
       }
       return;
     }
