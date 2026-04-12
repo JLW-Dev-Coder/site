@@ -143,12 +143,20 @@ export default function ScaleCRMPage() {
           <h1 className="text-2xl font-semibold text-white">CRM</h1>
           <p className="mt-1 text-sm text-slate-400">Paid clients across all platforms</p>
         </div>
-        <Link
-          href="/scale"
-          className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2 text-sm font-bold text-slate-950 hover:from-orange-400 hover:to-amber-400 transition"
-        >
-          Generate New Batch
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            href="/scale/crm/prospects"
+            className="rounded-xl border border-slate-700 px-4 py-2 text-sm text-slate-300 hover:bg-slate-800 transition"
+          >
+            FOIA Prospects
+          </Link>
+          <Link
+            href="/scale"
+            className="rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2 text-sm font-bold text-slate-950 hover:from-orange-400 hover:to-amber-400 transition"
+          >
+            Generate New Batch
+          </Link>
+        </div>
       </div>
 
       {/* Platform summary cards (clickable — navigate to client list) */}
