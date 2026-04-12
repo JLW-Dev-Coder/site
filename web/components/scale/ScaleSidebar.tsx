@@ -88,7 +88,7 @@ export default function ScaleSidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4 scrollbar-none">
         {NAV_ITEMS.map((item) => {
           const active = item.exact
             ? pathname === item.href

@@ -6877,6 +6877,233 @@ const ROUTES = [
     },
   },
 
+  // ── Admin prospect search (session auth — browser-friendly proxy) ──────
+  {
+    method: 'GET', pattern: '/v1/admin/scale/prospects/search',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      const url = new URL(request.url)
+      const q = (url.searchParams.get('q') || '').trim().toLowerCase()
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '50', 10) || 50, 1), 500)
+      const offset = Math.max(parseInt(url.searchParams.get('offset') || '0', 10) || 0, 0)
+
+      const records = await readFoiaMasterRecords(env)
+      if (!records) {
+        return json({ ok: false, error: 'foia_master_not_found' }, 404, request)
+      }
+
+      let filtered = records
+      if (q) {
+        filtered = records.filter(r => {
+          const fields = [
+            r.First_NAME, r.LAST_NAME, r.DBA, r.BUS_ADDR_CITY,
+            r.email_found, r.domain_clean,
+          ]
+          return fields.some(f => f && String(f).toLowerCase().includes(q))
+        })
+      }
+
+      const total = records.length
+      const filteredCount = filtered.length
+      const page = filtered.slice(offset, offset + limit)
+
+      const prospects = page.map(r => {
+        const first = (r.First_NAME || '').trim()
+        const last = (r.LAST_NAME || '').trim()
+        const city = (r.BUS_ADDR_CITY || '').trim()
+        const state = (r.BUS_ST_CODE || '').trim()
+        const profession = (r.PROFESSION || r.CRED || '').trim()
+        const email = (r.email_found || '').trim()
+        const slug = dailyMakeSlug(
+          dailySanitizeNamePart(first), dailySanitizeNamePart(last), city, state
+        )
+
+        let campaign = 'none'
+        if (r.ttmp_email_1_prepared_at) campaign = 'ttmp'
+        else if (r.vlp_email_1_prepared_at) campaign = 'vlp'
+        else if (r.wlvlp_email_1_prepared_at) campaign = 'wlvlp'
+
+        let maskedEmail = ''
+        if (email && email.includes('@')) {
+          const [local, domain] = email.split('@')
+          maskedEmail = local.charAt(0) + '***@' + domain
+        }
+
+        const fullName = [first, last].filter(Boolean).join(' ')
+        const linkedinParts = [fullName, city, profession].filter(Boolean).join(' ')
+        const linkedin_url = linkedinParts
+          ? 'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(linkedinParts)
+          : null
+
+        return {
+          slug, first_name: first, last_name: last, firm: (r.DBA || '').trim(),
+          city, state, profession, email: maskedEmail, phone: (r.BUS_PHONE || '').trim(),
+          domain: (r.domain_clean || '').trim(), email_status: (r.email_status || '').trim(),
+          campaign, email_stage: r.unsubscribed_at ? 'unsubscribed' : 'not_queued', linkedin_url,
+        }
+      })
+
+      return json({ ok: true, prospects, total, filtered: filteredCount, limit, offset }, 200, request)
+    },
+  },
+
+  // ── Admin prospect detail (session auth — browser-friendly proxy) ─────
+  {
+    method: 'GET', pattern: '/v1/admin/scale/prospects/:slug',
+    handler: async (_method, _pattern, params, request, env) => {
+      const { session, error } = await requireSession(request, env)
+      if (error) return error
+
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro']
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request)
+      }
+
+      const targetSlug = (params.slug || '').trim().toLowerCase()
+      if (!targetSlug) {
+        return json({ ok: false, error: 'slug_required' }, 400, request)
+      }
+
+      const records = await readFoiaMasterRecords(env)
+      if (!records) {
+        return json({ ok: false, error: 'foia_master_not_found' }, 404, request)
+      }
+
+      const record = records.find(r => {
+        const slug = dailyMakeSlug(
+          dailySanitizeNamePart(r.First_NAME),
+          dailySanitizeNamePart(r.LAST_NAME),
+          r.BUS_ADDR_CITY,
+          r.BUS_ST_CODE
+        )
+        return slug === targetSlug
+      })
+
+      if (!record) {
+        return json({ ok: false, error: 'prospect_not_found' }, 404, request)
+      }
+
+      const first = (record.First_NAME || '').trim()
+      const last = (record.LAST_NAME || '').trim()
+      const city = (record.BUS_ADDR_CITY || '').trim()
+      const state = (record.BUS_ST_CODE || '').trim()
+      const profession = (record.PROFESSION || record.CRED || '').trim()
+      const fullName = [first, last].filter(Boolean).join(' ')
+      const linkedinParts = [fullName, city, profession].filter(Boolean).join(' ')
+
+      let campaign = 'none'
+      if (record.ttmp_email_1_prepared_at) campaign = 'ttmp'
+      else if (record.vlp_email_1_prepared_at) campaign = 'vlp'
+      else if (record.wlvlp_email_1_prepared_at) campaign = 'wlvlp'
+
+      const emails_sent = []
+      if (campaign !== 'none') {
+        const queuePrefix = `vlp-scale/${campaign}-send-queue/`
+        const email = (record.email_found || '').trim().toLowerCase()
+
+        try {
+          const queueObj = await env.R2_VIRTUAL_LAUNCH.get(queuePrefix + 'email1-pending.json')
+          if (queueObj) {
+            const queueData = JSON.parse(await queueObj.text())
+            const arr = Array.isArray(queueData) ? queueData : []
+            for (const qr of arr) {
+              const qrEmail = (qr.email || qr.to || '').trim().toLowerCase()
+              if (qrEmail !== email) continue
+              for (let n = 1; n <= 6; n++) {
+                const sentKey = `email_${n}_sent_at`
+                if (qr[sentKey]) {
+                  emails_sent.push({
+                    email_number: n,
+                    subject: qr[n === 1 ? 'subject' : `email_${n}_subject`] || '',
+                    body: qr[n === 1 ? 'body' : `email_${n}_body`] || '',
+                    sent_at: qr[sentKey],
+                    campaign,
+                  })
+                }
+              }
+            }
+          }
+        } catch {}
+
+        try {
+          const sentList = await env.R2_VIRTUAL_LAUNCH.list({ prefix: queuePrefix + 'sent-', limit: 30 })
+          for (const obj of (sentList.objects || [])) {
+            try {
+              const archiveObj = await env.R2_VIRTUAL_LAUNCH.get(obj.key)
+              if (!archiveObj) continue
+              const archiveData = JSON.parse(await archiveObj.text())
+              const arr = Array.isArray(archiveData) ? archiveData : []
+              for (const qr of arr) {
+                const qrEmail = (qr.email || qr.to || '').trim().toLowerCase()
+                if (qrEmail !== email) continue
+                for (let n = 1; n <= 6; n++) {
+                  const sentKey = `email_${n}_sent_at`
+                  if (qr[sentKey]) {
+                    if (!emails_sent.some(e => e.email_number === n)) {
+                      emails_sent.push({
+                        email_number: n,
+                        subject: qr[n === 1 ? 'subject' : `email_${n}_subject`] || '',
+                        body: qr[n === 1 ? 'body' : `email_${n}_body`] || '',
+                        sent_at: qr[sentKey],
+                        campaign,
+                      })
+                    }
+                  }
+                }
+              }
+            } catch {}
+          }
+        } catch {}
+
+        emails_sent.sort((a, b) => a.email_number - b.email_number)
+      }
+
+      let email_stage = 'not_queued'
+      if (record.unsubscribed_at) {
+        email_stage = 'unsubscribed'
+      } else if (emails_sent.length > 0) {
+        const maxSent = Math.max(...emails_sent.map(e => e.email_number))
+        email_stage = `email_${maxSent}_sent`
+      } else if (campaign !== 'none') {
+        email_stage = 'pending'
+      }
+
+      const prospect = {
+        slug: targetSlug,
+        first_name: first, last_name: last, full_name: fullName,
+        firm: (record.DBA || '').trim(), city, state,
+        phone: (record.BUS_PHONE || '').trim(), profession,
+        website: (record.WEBSITE || '').trim(),
+        domain_clean: (record.domain_clean || '').trim(),
+        email_found: (record.email_found || '').trim(),
+        email_status: (record.email_status || '').trim(),
+        firm_bucket: (record.firm_bucket || '').trim(),
+        linkedin_url: linkedinParts
+          ? 'https://www.linkedin.com/search/results/people/?keywords=' + encodeURIComponent(linkedinParts)
+          : null,
+        campaign, email_stage,
+        timestamps: {
+          email_found_at: record.email_found_at || null,
+          email_verified_at: record.email_verified_at || null,
+          ttmp_email_1_prepared_at: record.ttmp_email_1_prepared_at || null,
+          vlp_email_1_prepared_at: record.vlp_email_1_prepared_at || null,
+          wlvlp_email_1_prepared_at: record.wlvlp_email_1_prepared_at || null,
+          wlvlp_asset_enriched_at: record.wlvlp_asset_enriched_at || null,
+          unsubscribed_at: record.unsubscribed_at || null,
+        },
+      }
+
+      return json({ ok: true, prospect, emails_sent }, 200, request)
+    },
+  },
+
   // ── Cal.com bookings (admin, cached 5min in KV) ────────────────────────
   {
     method: 'GET', pattern: '/v1/admin/bookings',

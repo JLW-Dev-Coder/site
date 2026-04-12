@@ -73,7 +73,7 @@ export default function ProspectsPage() {
       const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset) })
       if (debouncedQuery) params.set('q', debouncedQuery)
       const res = await fetch(
-        `https://api.virtuallaunch.pro/v1/scale/prospects/search?${params}`,
+        `https://api.virtuallaunch.pro/v1/admin/scale/prospects/search?${params}`,
         { credentials: 'include' },
       )
       if (!res.ok) throw new Error(`HTTP ${res.status}`)

@@ -87,7 +87,7 @@ export default function ProspectDetailPage() {
     setError(null)
     try {
       const res = await fetch(
-        `https://api.virtuallaunch.pro/v1/scale/prospects/${encodeURIComponent(slug)}`,
+        `https://api.virtuallaunch.pro/v1/admin/scale/prospects/${encodeURIComponent(slug)}`,
         { credentials: 'include' },
       )
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
