@@ -15559,6 +15559,26 @@ TTMP Support Team
     },
   },
 
+  {
+    method: 'POST', pattern: '/v1/scale/cron/send',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
+        return json({ ok: false, error: 'Unauthorized' }, 401, request);
+      }
+      const url = new URL(request.url);
+      const limitParam = parseInt(url.searchParams.get('limit') || '', 10);
+      const dryRunParam = (url.searchParams.get('dry-run') || url.searchParams.get('dry_run') || '').toLowerCase();
+      const dryRun = dryRunParam === '1' || dryRunParam === 'true' || dryRunParam === 'yes';
+      const opts = {};
+      if (Number.isFinite(limitParam) && limitParam > 0) opts.limit = limitParam;
+      if (dryRun) opts.dryRun = true;
+      const runLog = await handleScaleEmailSend(env, opts);
+      return json({ ok: true, run_log: runLog }, 200, request);
+    },
+  },
+
   // -------------------------------------------------------------------------
   // Scale Assets (Public Route)
   // -------------------------------------------------------------------------
@@ -18886,6 +18906,267 @@ async function handleGenerateBatchCron(env, opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// SCALE Email Send Cron — 14:00 UTC daily
+//
+// Drains the two queues generate-batch writes:
+//   vlp-scale/send-queue/email1-pending.json     (Email 1 — send immediately)
+//   vlp-scale/send-queue/email2-scheduled.json   (Email 2 — send when send_after <= now)
+//
+// For each queue:
+//   1. Read pending records
+//   2. Filter ineligible (unsubscribed, already sent, or send_after in future for email 2)
+//   3. Apply opts.limit cap
+//   4. For each eligible record: append canspamTtmpFooter(email) to body → Gmail send
+//      → stamp email_{1,2}_sent_at on master CSV row (matched by email_found)
+//   5. Remove sent records from the pending queue (write back remainders)
+//   6. Append sent records to the sent archive:
+//        vlp-scale/send-queue/email1-sent.json
+//        vlp-scale/send-queue/email2-sent.json
+//
+// opts: { limit?: number, dryRun?: boolean }
+//   limit   — cap on records processed per lane (default 500 per lane, min 1, max 1000)
+//   dryRun  — skip Gmail, skip writes, return counts of what WOULD have sent
+// ---------------------------------------------------------------------------
+const SCALE_SEND_DEFAULT_LIMIT = 500;
+const SCALE_SEND_MAX_LIMIT = 1000;
+
+async function handleScaleEmailSend(env, opts = {}) {
+  const limit = Math.max(1, Math.min(Number(opts.limit) || SCALE_SEND_DEFAULT_LIMIT, SCALE_SEND_MAX_LIMIT));
+  const dryRun = Boolean(opts.dryRun);
+  const startedAt = new Date().toISOString();
+  const dateKey = startedAt.slice(0, 10);
+  const nowIso = startedAt;
+
+  const runLog = {
+    ran_at: startedAt,
+    dry_run: dryRun,
+    limit,
+    email_1: { eligible: 0, attempted: 0, sent: 0, failed: 0 },
+    email_2: { eligible: 0, attempted: 0, sent: 0, failed: 0 },
+    master_csv_rows_stamped: 0,
+    errors: [],
+  };
+
+  let csvHeaders = null;
+  let csvRecords = null;
+  let csvDirty = false;
+
+  // Lazy-load master CSV once (only when a send succeeds and needs stamping).
+  async function loadMasterCsv() {
+    if (csvRecords !== null) return true;
+    try {
+      const csvObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.csv');
+      if (!csvObj) {
+        runLog.errors.push('master_csv_not_found');
+        csvRecords = [];
+        return false;
+      }
+      const csvText = await csvObj.text();
+      const parsed = findEmailsParseCsv(csvText);
+      if (parsed.length < 2) {
+        runLog.errors.push('master_csv_empty');
+        csvRecords = [];
+        return false;
+      }
+      csvHeaders = parsed[0].slice();
+      if (!csvHeaders.includes('email_1_sent_at')) csvHeaders.push('email_1_sent_at');
+      if (!csvHeaders.includes('email_2_sent_at')) csvHeaders.push('email_2_sent_at');
+      csvRecords = parsed.slice(1)
+        .filter(row => row.length > 1)
+        .map(row => {
+          const rec = {};
+          csvHeaders.forEach((h, i) => { rec[h] = row[i] || ''; });
+          return rec;
+        });
+      return true;
+    } catch (e) {
+      runLog.errors.push(`master_csv_read_failed:${e && e.message || e}`);
+      csvRecords = [];
+      return false;
+    }
+  }
+
+  function stampMasterCsv(email, column, timestamp) {
+    if (!csvRecords || csvRecords.length === 0) return false;
+    const needle = String(email || '').trim().toLowerCase();
+    if (!needle) return false;
+    const row = csvRecords.find(r => String(r.email_found || '').trim().toLowerCase() === needle);
+    if (!row) return false;
+    row[column] = timestamp;
+    csvDirty = true;
+    runLog.master_csv_rows_stamped++;
+    return true;
+  }
+
+  async function appendToSentArchive(archiveKey, newRecords) {
+    if (newRecords.length === 0) return;
+    let existing = [];
+    try {
+      const obj = await env.R2_VIRTUAL_LAUNCH.get(archiveKey);
+      if (obj) {
+        const arr = await obj.json();
+        if (Array.isArray(arr)) existing = arr;
+      }
+    } catch (e) {
+      runLog.errors.push(`archive_read_failed:${archiveKey}:${e && e.message || e}`);
+    }
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        archiveKey,
+        JSON.stringify(existing.concat(newRecords), null, 2),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      runLog.errors.push(`archive_write_failed:${archiveKey}:${e && e.message || e}`);
+    }
+  }
+
+  // -------- Email 1 lane --------
+  try {
+    const obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email1-pending.json');
+    if (obj) {
+      const queue = await obj.json();
+      if (Array.isArray(queue) && queue.length > 0) {
+        const eligible = queue.filter(r =>
+          r && r.status !== 'unsubscribed' && !r.email_1_sent_at && r.email && r.subject && r.body
+        );
+        runLog.email_1.eligible = eligible.length;
+        const toSend = eligible.slice(0, limit);
+        runLog.email_1.attempted = toSend.length;
+
+        const sentRecords = [];
+        for (const record of toSend) {
+          const body = `${record.body}${canspamTtmpFooter(record.email)}`;
+          if (dryRun) {
+            runLog.email_1.sent++;
+            continue;
+          }
+          try {
+            await sendGmailMessage(env, record.email, record.subject, body);
+            const sentAt = new Date().toISOString();
+            record.email_1_sent_at = sentAt;
+            record.status = 'email_1_sent';
+            runLog.email_1.sent++;
+            sentRecords.push(record);
+            if (await loadMasterCsv()) stampMasterCsv(record.email, 'email_1_sent_at', sentAt);
+          } catch (e) {
+            console.error(`SCALE email 1 send failed for ${record.slug}/${record.email}:`, e && e.message || e);
+            record.status = 'email_1_failed';
+            record.last_error = e && e.message || String(e);
+            runLog.email_1.failed++;
+            runLog.errors.push(`email1_send_failed:${record.email}:${e && e.message || e}`);
+          }
+        }
+
+        if (!dryRun) {
+          const sentSet = new Set(sentRecords);
+          const remaining = queue.filter(r => !sentSet.has(r));
+          try {
+            await env.R2_VIRTUAL_LAUNCH.put(
+              'vlp-scale/send-queue/email1-pending.json',
+              JSON.stringify(remaining, null, 2),
+              { httpMetadata: { contentType: 'application/json' } }
+            );
+          } catch (e) {
+            runLog.errors.push(`email1_queue_writeback_failed:${e && e.message || e}`);
+          }
+          await appendToSentArchive('vlp-scale/send-queue/email1-sent.json', sentRecords);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('handleScaleEmailSend email1 lane fatal:', e);
+    runLog.errors.push(`email1_lane_fatal:${e && e.message || e}`);
+  }
+
+  // -------- Email 2 lane --------
+  try {
+    const obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email2-scheduled.json');
+    if (obj) {
+      const queue = await obj.json();
+      if (Array.isArray(queue) && queue.length > 0) {
+        const eligible = queue.filter(r =>
+          r && r.status !== 'unsubscribed' && !r.email_2_sent_at && r.email && r.subject && r.body &&
+          r.send_after && String(r.send_after) <= nowIso
+        );
+        runLog.email_2.eligible = eligible.length;
+        const toSend = eligible.slice(0, limit);
+        runLog.email_2.attempted = toSend.length;
+
+        const sentRecords = [];
+        for (const record of toSend) {
+          const body = `${record.body}${canspamTtmpFooter(record.email)}`;
+          if (dryRun) {
+            runLog.email_2.sent++;
+            continue;
+          }
+          try {
+            await sendGmailMessage(env, record.email, record.subject, body);
+            const sentAt = new Date().toISOString();
+            record.email_2_sent_at = sentAt;
+            record.status = 'email_2_sent';
+            runLog.email_2.sent++;
+            sentRecords.push(record);
+            if (await loadMasterCsv()) stampMasterCsv(record.email, 'email_2_sent_at', sentAt);
+          } catch (e) {
+            console.error(`SCALE email 2 send failed for ${record.slug}/${record.email}:`, e && e.message || e);
+            record.status = 'email_2_failed';
+            record.last_error = e && e.message || String(e);
+            runLog.email_2.failed++;
+            runLog.errors.push(`email2_send_failed:${record.email}:${e && e.message || e}`);
+          }
+        }
+
+        if (!dryRun) {
+          const sentSet = new Set(sentRecords);
+          const remaining = queue.filter(r => !sentSet.has(r));
+          try {
+            await env.R2_VIRTUAL_LAUNCH.put(
+              'vlp-scale/send-queue/email2-scheduled.json',
+              JSON.stringify(remaining, null, 2),
+              { httpMetadata: { contentType: 'application/json' } }
+            );
+          } catch (e) {
+            runLog.errors.push(`email2_queue_writeback_failed:${e && e.message || e}`);
+          }
+          await appendToSentArchive('vlp-scale/send-queue/email2-sent.json', sentRecords);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('handleScaleEmailSend email2 lane fatal:', e);
+    runLog.errors.push(`email2_lane_fatal:${e && e.message || e}`);
+  }
+
+  // Flush master CSV once at end if anything was stamped.
+  if (!dryRun && csvDirty && csvRecords && csvHeaders) {
+    try {
+      const updatedCsv = findEmailsRowsToCsv(csvHeaders, csvRecords);
+      await env.R2_VIRTUAL_LAUNCH.put('vlp-scale/prospects/master.csv', updatedCsv, {
+        httpMetadata: { contentType: 'text/csv; charset=utf-8' },
+      });
+    } catch (e) {
+      runLog.errors.push(`master_csv_writeback_failed:${e && e.message || e}`);
+    }
+  }
+
+  // Run log to R2 (skipped on dry-run to avoid polluting logs).
+  if (!dryRun) {
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/logs/send-${dateKey}.json`,
+        JSON.stringify(runLog, null, 2),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      console.error('SCALE send: failed to write run log:', e);
+    }
+  }
+
+  return runLog;
+}
+
+// ---------------------------------------------------------------------------
 // Fetch handler
 // ---------------------------------------------------------------------------
 
@@ -19624,157 +19905,12 @@ export default {
       } catch (e) {
         console.error('WLVLP email send cron failed:', e);
       }
-    }
-
-    // SCALE Email Sending Cron (TTMP)
-    try {
-      const eventId = `EVT_${crypto.randomUUID()}`;
-      const timestamp = new Date().toISOString();
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-
-      // Helper function for delays
-      const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-      // Read send state
-      let sendState;
+      // SCALE generate-batch send queues (vlp-scale/send-queue/email{1,2}-*)
       try {
-        const sendStateObj = await env.R2_VIRTUAL_LAUNCH.get(`vlp-scale/send-state.json`);
-        if (!sendStateObj) {
-          console.log('SCALE cron: No send-state.json found, skipping');
-          return;
-        }
-        sendState = await sendStateObj.json();
+        const scaleStats = await handleScaleEmailSend(env);
+        console.log('SCALE email send cron:', JSON.stringify(scaleStats));
       } catch (e) {
-        console.error('SCALE cron: Failed to read send-state.json:', e);
-        return;
-      }
-
-      // Calculate daily cap
-      const startDate = new Date(sendState.send_start_date);
-      const todayDate = new Date(today);
-      const daysSinceStart = Math.ceil((todayDate - startDate) / (1000 * 60 * 60 * 24)) + 1; // inclusive
-
-      let dailyCap;
-      if (daysSinceStart <= 3) {
-        dailyCap = 10;
-      } else if (daysSinceStart <= 7) {
-        dailyCap = 20;
-      } else if (daysSinceStart <= 14) {
-        dailyCap = 30;
-      } else {
-        dailyCap = 50;
-      }
-
-      let email1Sent = 0;
-      let email2Sent = 0;
-
-      // Email 1 Job
-      try {
-        const email1Obj = await env.R2_VIRTUAL_LAUNCH.get(`vlp-scale/send-queue/email1-pending.json`);
-        if (email1Obj) {
-          const email1Queue = await email1Obj.json();
-          const eligibleForEmail1 = email1Queue.filter(record => !record.email_1_sent_at);
-          const toSendEmail1 = eligibleForEmail1.slice(0, dailyCap);
-
-          for (const record of toSendEmail1) {
-            try {
-              // Randomized delay: 45-90 seconds
-              const delayMs = 45000 + Math.random() * 45000;
-              await delay(delayMs);
-
-              // Send email via Gmail
-              await sendGmailMessage(env, record.email, record.subject, record.body);
-
-              // Update record
-              record.email_1_sent_at = new Date().toISOString();
-              const twoDaysLater = new Date();
-              twoDaysLater.setDate(twoDaysLater.getDate() + 2);
-              record.email_2_scheduled_for = twoDaysLater.toISOString().split('T')[0];
-
-              email1Sent++;
-            } catch (e) {
-              console.error(`SCALE cron: Failed to send email 1 to ${record.slug}/${record.email}:`, e.message);
-            }
-          }
-
-          // Write back updated queue
-          await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/send-queue/email1-pending.json`, JSON.stringify(email1Queue));
-        }
-      } catch (e) {
-        console.error('SCALE cron: Email 1 job failed:', e);
-      }
-
-      // Email 2 Job
-      try {
-        const email2Obj = await env.R2_VIRTUAL_LAUNCH.get(`vlp-scale/send-queue/email2-pending.json`);
-        if (email2Obj) {
-          const email2Queue = await email2Obj.json();
-          const eligibleForEmail2 = email2Queue.filter(record =>
-            !record.email_2_sent_at &&
-            record.email_2_scheduled_for &&
-            record.email_2_scheduled_for <= today
-          );
-
-          for (const record of eligibleForEmail2) {
-            try {
-              // Randomized delay: 30-60 seconds
-              const delayMs = 30000 + Math.random() * 30000;
-              await delay(delayMs);
-
-              // Send email via Gmail
-              await sendGmailMessage(env, record.email, record.subject, record.body);
-
-              // Update record
-              record.email_2_sent_at = new Date().toISOString();
-
-              email2Sent++;
-            } catch (e) {
-              console.error(`SCALE cron: Failed to send email 2 to ${record.slug}/${record.email}:`, e.message);
-            }
-          }
-
-          // Write back updated queue
-          await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/send-queue/email2-pending.json`, JSON.stringify(email2Queue));
-        }
-      } catch (e) {
-        console.error('SCALE cron: Email 2 job failed:', e);
-      }
-
-      // Update send state with total sent count
-      sendState.total_sent += email1Sent;
-      await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/send-state.json`, JSON.stringify(sendState));
-
-      // Write cron receipt
-      const cronReceipt = {
-        eventId,
-        timestamp,
-        type: 'scale-email-cron',
-        stats: {
-          days_since_start: daysSinceStart,
-          daily_cap: dailyCap,
-          email_1_sent: email1Sent,
-          email_2_sent: email2Sent,
-          total_sent_overall: sendState.total_sent
-        }
-      };
-      await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/receipts/cron/${eventId}.json`, JSON.stringify(cronReceipt));
-
-      console.log(`SCALE cron completed: ${email1Sent} email 1 sent, ${email2Sent} email 2 sent, ${sendState.total_sent} total overall`);
-    } catch (e) {
-      console.error('SCALE email cron failed:', e);
-
-      // Write error receipt
-      const errorEventId = `EVT_${crypto.randomUUID()}`;
-      const errorReceipt = {
-        eventId: errorEventId,
-        timestamp: new Date().toISOString(),
-        type: 'scale-email-cron-error',
-        error: e.message
-      };
-      try {
-        await r2Put(env.R2_VIRTUAL_LAUNCH, `vlp-scale/receipts/cron/${errorEventId}.json`, JSON.stringify(errorReceipt));
-      } catch (receiptError) {
-        console.error('Failed to write SCALE email cron error receipt:', receiptError);
+        console.error('SCALE email send cron failed:', e);
       }
     }
   },

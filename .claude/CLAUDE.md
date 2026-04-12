@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-11 (SCALE generate-batch Worker cron — template-based, 10:00 UTC)
+Last updated: 2026-04-11 (SCALE send cron wired to generate-batch queues — 14:00 UTC, CAN-SPAM footer at send time)
 
 ---
 
@@ -770,6 +770,49 @@ local `scale/generate-vlp-batch.js` CLI for the scheduled path.
 - **Master mutation:** stamps `email_1_prepared_at = ISO timestamp` on each processed row, then writes the updated CSV back to R2
 - **R2 log key:** `vlp-scale/logs/generate-batch-{YYYY-MM-DD}.json` — `{ ran_at, batch_date, prospects_processed, asset_pages_pushed, email1_queued, email2_scheduled, remaining_eligible, days_of_pipeline_remaining, errors }`. `days_of_pipeline_remaining = ceil(remaining / 50)`
 - **Error handling:** try/catch wrapper; per-prospect errors push to `errors[]` and continue; fatal errors flush partial batch JSON before returning
+
+#### Send cron (drains generate-batch queues via Gmail API)
+Daily Worker cron that drains both queues produced by generate-batch and
+delivers them via the Gmail API. Appends the TTMP CAN-SPAM footer at send
+time (templates stay clean; footer logic is centralized). Stamps the master
+CSV with per-row `email_1_sent_at` / `email_2_sent_at` timestamps.
+
+- **Cron:** 14:00 UTC daily (runs after the 3 staged TTMP/VLP/WLVLP sends — same trigger slot)
+- **Worker entrypoint:** `handleScaleEmailSend(env, opts)` in `workers/src/index.js`
+- **Manual trigger:** `POST /v1/scale/cron/send` with `Authorization: Bearer <SCALE_API_KEY>`. Query params: `?limit=N` (default 500, max 1000, cap per lane), `?dry-run=true` (logs what would send; no Gmail call, no R2 writes, no CSV mutation).
+- **Email 1 lane:**
+  - Source: `vlp-scale/send-queue/email1-pending.json`
+  - Eligibility: `status !== 'unsubscribed'` AND `!email_1_sent_at` AND non-empty `email`/`subject`/`body`
+  - For each eligible record: body = `record.body + canspamTtmpFooter(record.email)` → `sendGmailMessage(env, email, subject, body)` → stamp `email_1_sent_at = now()` on queue record AND on master CSV row matched by `email_found` (case-insensitive)
+  - Sent records are REMOVED from the pending queue and appended to `vlp-scale/send-queue/email1-sent.json`
+- **Email 2 lane:**
+  - Source: `vlp-scale/send-queue/email2-scheduled.json`
+  - Eligibility: `status !== 'unsubscribed'` AND `!email_2_sent_at` AND `send_after <= now()` AND non-empty `email`/`subject`/`body`
+  - Same send + stamp flow as Email 1 (stamps `email_2_sent_at` on master CSV)
+  - Sent records are REMOVED from the scheduled queue and appended to `vlp-scale/send-queue/email2-sent.json`
+- **Master CSV stamping:** CSV is loaded lazily on first successful send, mutated in memory, and rewritten to `vlp-scale/prospects/master.csv` once at the end of the run. `email_1_sent_at` / `email_2_sent_at` columns are added if missing.
+- **CAN-SPAM footer:** applied at send time via `canspamTtmpFooter(record.email)`. NOT stored in queue bodies. If you grep the queue JSON on R2 you will NOT see the footer — that's expected.
+- **R2 log key:** `vlp-scale/logs/send-{YYYY-MM-DD}.json` — `{ ran_at, dry_run, limit, email_1: {eligible, attempted, sent, failed}, email_2: {...}, master_csv_rows_stamped, errors[] }`. Dry-run mode skips this write.
+- **Secret:** no new secret — reuses the existing Gmail credentials consumed by `sendGmailMessage`.
+
+### SCALE Cron Pipeline — full daily flow
+
+```
+06:00 UTC — find-emails       discover emails for rows without email_found
+08:00 UTC — validate-emails   verify discovered emails via Reoon quick mode
+10:00 UTC — generate-batch    build email copy + asset pages for valid emails
+14:00 UTC — send              deliver Email 1 via Gmail; send Email 2 where send_after has passed
+```
+
+All 4 crons:
+- share the master CSV at `vlp-scale/prospects/master.csv`
+- are guarded in `scheduled(event, env, ctx)` by `event.cron` string matching
+- have manual trigger routes under `POST /v1/scale/cron/<step>` with `Authorization: Bearer <SCALE_API_KEY>` and `?limit=N`
+- write run logs to `vlp-scale/logs/<step>-{YYYY-MM-DD}.json`
+
+The `POST /v1/scale/cron/send` route additionally supports `?dry-run=true`
+so you can inspect what would be sent without burning Gmail credits or
+mutating R2 state. Use this before any production smoke test.
 
 ### Daily batch generation
 1. Run: node scale/generate-vlp-batch.js scale/prospects/{source}.csv
