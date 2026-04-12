@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-11 (Master prospect CSV R2 upload route + CLI)
+Last updated: 2026-04-11 (SCALE find-emails Worker cron — Reoon Power mode at 06:00 UTC)
 
 ---
 
@@ -686,7 +686,25 @@ no email allowlist. Set via `wrangler secret put SCALE_API_KEY`.
 
 R2 key pattern for master prospects:
 - `vlp-scale/prospects/master.csv` — authoritative master CSV
-- `vlp-scale/prospects/master.meta.json` — `{ uploaded_at, row_count, file_size_bytes, source_filename, uploaded_by }`
+- `vlp-scale/prospects/master.meta.json` — `{ uploaded_at, row_count, file_size_bytes, source_filename, uploaded_by, last_find_emails_at?, last_find_emails_found?, last_find_emails_processed? }`
+
+### Find-emails cron (Reoon Power mode)
+Daily Worker cron that discovers email addresses for prospects in the master
+CSV. Replaces the manual `scale/find-emails.js` CLI (TTMP repo) for the
+scheduled path — the CLI remains usable for ad-hoc runs.
+
+- **Cron:** 06:00 UTC daily (shares the slot with WLVLP site generation)
+- **Worker entrypoint:** `handleFindEmailsCron(env)` in `workers/src/index.js`
+- **Manual trigger:** `POST /v1/scale/cron/find-emails` with `Authorization: Bearer <SCALE_API_KEY>` (optional `?limit=N` query param, default 50, max 500)
+- **Source / sink:** `vlp-scale/prospects/master.csv` (R2) — in place rewrite
+- **Eligibility filter:** `domain_clean` present, `email_found` empty
+- **Per-run cap:** 50 rows (leaves headroom under the Reoon $9/mo 500/day limit)
+- **Per-row steps:** Cloudflare DNS-over-HTTPS MX precheck → pattern guessing (`first`, `first.last`, `firstlast`, `flast`, `first.l`) → Reoon Power verification → winning pattern written back
+- **Rate limit:** 1 req/sec between Reoon calls
+- **Error handling:** 5xx retries once with 2s delay; 429 stops the run and flushes partial results; R2 read failure logs + returns
+- **Columns written:** `email_found`, `email_status` (`valid` | `risky` | `no_mx` | `no_patterns` | `invalid`), `email_found_at`, `email_discovery_method`
+- **R2 log key:** `vlp-scale/logs/find-emails-{YYYY-MM-DD}.json`
+- **Secret:** `REOON_API_KEY` (already configured for the 10:00 UTC enrichment cron)
 
 ### Daily batch generation
 1. Run: node scale/generate-vlp-batch.js scale/prospects/{source}.csv

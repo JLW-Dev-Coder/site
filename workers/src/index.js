@@ -15511,6 +15511,22 @@ TTMP Support Team
     },
   },
 
+  {
+    method: 'POST', pattern: '/v1/scale/cron/find-emails',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
+        return json({ ok: false, error: 'Unauthorized' }, 401, request);
+      }
+      const url = new URL(request.url);
+      const limitParam = parseInt(url.searchParams.get('limit') || '', 10);
+      const opts = Number.isFinite(limitParam) && limitParam > 0 ? { limit: limitParam } : {};
+      const runLog = await handleFindEmailsCron(env, opts);
+      return json({ ok: true, run_log: runLog }, 200, request);
+    },
+  },
+
   // -------------------------------------------------------------------------
   // Scale Assets (Public Route)
   // -------------------------------------------------------------------------
@@ -17882,6 +17898,352 @@ async function handleEnrichmentBatch(env) {
 }
 
 // ---------------------------------------------------------------------------
+// Find Emails Cron — 06:00 UTC
+// ---------------------------------------------------------------------------
+// Reads vlp-scale/prospects/master.csv from R2, selects rows with a domain
+// but no email_found, runs MX precheck + pattern guessing + Reoon Power
+// verification, and writes results back to R2.
+//
+// Mirrors scale/find-emails.js (the TTMP repo CLI) but runs inside the
+// Worker so it can be scheduled.
+
+const FIND_EMAILS_DEFAULT_LIMIT = 50;
+const FIND_EMAILS_REOON_RATE_LIMIT_MS = 1000;
+const FIND_EMAILS_NAME_TITLE_RE = /\b(dr|mr|mrs|ms|miss|jr|sr|iii|ii|iv|phd|esq|cpa|ea|jd)\b\.?/gi;
+
+function findEmailsParseCsv(text) {
+  const rows = [];
+  let i = 0;
+  while (i < text.length) {
+    const fields = [];
+    while (i < text.length) {
+      if (text[i] === '"') {
+        let v = ''; i++;
+        while (i < text.length) {
+          if (text[i] === '"') {
+            if (text[i + 1] === '"') { v += '"'; i += 2; }
+            else { i++; break; }
+          } else { v += text[i]; i++; }
+        }
+        fields.push(v);
+        if (text[i] === ',') { i++; }
+        else if (text[i] === '\r' || text[i] === '\n') {
+          if (text[i] === '\r' && text[i + 1] === '\n') i += 2; else i++;
+          break;
+        } else if (i >= text.length) { break; }
+      } else {
+        let end = i;
+        while (end < text.length && text[end] !== ',' && text[end] !== '\r' && text[end] !== '\n') end++;
+        fields.push(text.substring(i, end));
+        i = end;
+        if (text[i] === ',') { i++; }
+        else if (text[i] === '\r' || text[i] === '\n') {
+          if (text[i] === '\r' && text[i + 1] === '\n') i += 2; else i++;
+          break;
+        } else if (i >= text.length) { break; }
+      }
+    }
+    if (fields.length > 0) rows.push(fields);
+  }
+  return rows;
+}
+
+function findEmailsCsvEscape(value) {
+  const s = String(value == null ? '' : value);
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function findEmailsRowsToCsv(headers, records) {
+  const lines = [headers.map(findEmailsCsvEscape).join(',')];
+  for (const rec of records) {
+    lines.push(headers.map(h => findEmailsCsvEscape(rec[h] || '')).join(','));
+  }
+  return lines.join('\n') + '\n';
+}
+
+function findEmailsNormalizeFirst(raw) {
+  if (!raw) return '';
+  let s = String(raw).replace(FIND_EMAILS_NAME_TITLE_RE, ' ').trim();
+  s = s.split(/\s+/)[0] || '';
+  return s.toLowerCase().replace(/[^a-z]/g, '');
+}
+
+function findEmailsNormalizeLast(raw) {
+  if (!raw) return '';
+  let s = String(raw).replace(FIND_EMAILS_NAME_TITLE_RE, ' ').trim();
+  const cleaned = s.replace(/[^a-zA-Z\s]/g, '');
+  const tokens = cleaned.split(/\s+/).filter(Boolean);
+  const pick = tokens[0] || '';
+  return pick.toLowerCase();
+}
+
+function findEmailsBuildCandidates(firstRaw, lastRaw, domain) {
+  const f = findEmailsNormalizeFirst(firstRaw);
+  const l = findEmailsNormalizeLast(lastRaw);
+  if (!f || !domain) return [];
+  const fi = f.charAt(0);
+  const li = l ? l.charAt(0) : '';
+  const out = [];
+  const push = (local, method) => {
+    if (!local) return;
+    const em = `${local}@${domain}`;
+    if (!out.some(c => c.email === em)) out.push({ email: em, method });
+  };
+  push(f, 'first');
+  if (l) push(`${f}.${l}`, 'first.last');
+  if (l) push(`${f}${l}`, 'firstlast');
+  if (l) push(`${fi}${l}`, 'flast');
+  if (l && li) push(`${f}.${li}`, 'first.l');
+  return out;
+}
+
+async function findEmailsHasMx(env, domain) {
+  const cacheKey = `enrichment:mx:${domain}`;
+  try {
+    const cached = await env.ENRICHMENT_KV.get(cacheKey);
+    if (cached !== null) return cached === 'true';
+  } catch {}
+  try {
+    const res = await fetch(
+      `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain)}&type=MX`,
+      { headers: { Accept: 'application/dns-json' } }
+    );
+    if (!res.ok) {
+      try { await env.ENRICHMENT_KV.put(cacheKey, 'false', { expirationTtl: 60 * 60 * 24 * 30 }); } catch {}
+      return false;
+    }
+    const data = await res.json();
+    const hasMx = Array.isArray(data.Answer) && data.Answer.length > 0 && data.Status === 0;
+    try { await env.ENRICHMENT_KV.put(cacheKey, hasMx ? 'true' : 'false', { expirationTtl: 60 * 60 * 24 * 30 }); } catch {}
+    return hasMx;
+  } catch {
+    return false;
+  }
+}
+
+async function findEmailsReoonPower(env, email) {
+  const url = `https://emailverifier.reoon.com/api/v1/verify?email=${encodeURIComponent(email)}&key=${env.REOON_API_KEY}&mode=power`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    const err = new Error(`reoon_http_${res.status}`);
+    err.http = res.status;
+    throw err;
+  }
+  return await res.json();
+}
+
+async function findEmailsSleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+async function handleFindEmailsCron(env, opts = {}) {
+  const limit = Math.max(1, Math.min(Number(opts.limit) || FIND_EMAILS_DEFAULT_LIMIT, 500));
+  const startedAt = new Date().toISOString();
+  const dateKey = startedAt.slice(0, 10);
+  const runLog = {
+    ran_at: startedAt,
+    limit,
+    rows_processed: 0,
+    emails_found: 0,
+    no_mx_skipped: 0,
+    all_invalid: 0,
+    reoon_calls_made: 0,
+    reoon_errors: 0,
+    rate_limited_stop: false,
+    errors: [],
+  };
+
+  if (!env.REOON_API_KEY) {
+    runLog.errors.push('missing_reoon_api_key');
+    return runLog;
+  }
+
+  try {
+    const csvObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.csv');
+    if (!csvObj) {
+      runLog.errors.push('master_csv_not_found');
+      return runLog;
+    }
+    const csvText = await csvObj.text();
+    const parsed = findEmailsParseCsv(csvText);
+    if (parsed.length < 2) {
+      runLog.errors.push('csv_has_no_data_rows');
+      return runLog;
+    }
+
+    const headers = parsed[0].slice();
+    for (const col of ['email_found', 'email_status', 'email_found_at', 'email_discovery_method']) {
+      if (!headers.includes(col)) headers.push(col);
+    }
+
+    const records = parsed.slice(1)
+      .filter(row => row.length > 1)
+      .map(row => {
+        const rec = {};
+        headers.forEach((h, i) => { rec[h] = row[i] || ''; });
+        return rec;
+      });
+
+    const candidates = [];
+    for (const r of records) {
+      const em = (r.email_found || '').trim();
+      const hasEmail = em && em !== 'undefined' && em.toLowerCase() !== 'nan' && em !== 'null';
+      if (hasEmail) continue;
+      const dom = (r.domain_clean || '').trim();
+      if (!dom || dom === 'undefined' || dom.toLowerCase() === 'nan') continue;
+      candidates.push(r);
+    }
+
+    const target = candidates.slice(0, limit);
+    const now = new Date().toISOString();
+    let lastCallAt = 0;
+    let rateLimited = false;
+
+    for (const r of target) {
+      if (rateLimited) break;
+      runLog.rows_processed++;
+      const domain = (r.domain_clean || '').trim().toLowerCase();
+
+      const mxOk = await findEmailsHasMx(env, domain);
+      if (!mxOk) {
+        r.email_status = 'no_mx';
+        r.email_found_at = now;
+        runLog.no_mx_skipped++;
+        continue;
+      }
+
+      const candidateList = findEmailsBuildCandidates(r.First_NAME || '', r.LAST_NAME || '', domain);
+      if (candidateList.length === 0) {
+        r.email_status = 'no_patterns';
+        r.email_found_at = now;
+        runLog.all_invalid++;
+        continue;
+      }
+
+      let matched = null;
+      let riskyFallback = null;
+      for (const c of candidateList) {
+        const elapsed = Date.now() - lastCallAt;
+        if (lastCallAt > 0 && elapsed < FIND_EMAILS_REOON_RATE_LIMIT_MS) {
+          await findEmailsSleep(FIND_EMAILS_REOON_RATE_LIMIT_MS - elapsed);
+        }
+        let res = null;
+        let attempt = 0;
+        while (attempt < 2) {
+          try {
+            res = await findEmailsReoonPower(env, c.email);
+            lastCallAt = Date.now();
+            runLog.reoon_calls_made++;
+            break;
+          } catch (err) {
+            lastCallAt = Date.now();
+            if (err && err.http === 429) {
+              runLog.rate_limited_stop = true;
+              rateLimited = true;
+              runLog.errors.push(`rate_limited_on_${c.email}`);
+              break;
+            }
+            if (err && err.http && err.http >= 500 && attempt === 0) {
+              attempt++;
+              await findEmailsSleep(2000);
+              continue;
+            }
+            runLog.reoon_errors++;
+            runLog.errors.push(`reoon_err:${c.email}:${err && err.message || err}`);
+            break;
+          }
+        }
+        if (rateLimited) break;
+        if (!res) continue;
+
+        const rawStatus = ((res && (res.status || res.state)) || 'unknown').toString().toLowerCase();
+        const isDeliverable = res && (res.is_deliverable ?? res.deliverable ?? null);
+
+        if (rawStatus === 'safe' && isDeliverable === true) {
+          matched = { email: c.email, method: c.method, status: 'valid' };
+          break;
+        }
+        if (rawStatus === 'valid') {
+          matched = { email: c.email, method: c.method, status: 'valid' };
+          break;
+        }
+        if (rawStatus === 'disposable' || rawStatus === 'spamtrap') {
+          break;
+        }
+        if (rawStatus === 'catch_all' && !riskyFallback) {
+          riskyFallback = { email: c.email, method: c.method, status: 'risky' };
+        }
+      }
+
+      if (matched) {
+        r.email_found = matched.email;
+        r.email_status = matched.status;
+        r.email_found_at = now;
+        r.email_discovery_method = matched.method;
+        runLog.emails_found++;
+      } else if (riskyFallback) {
+        r.email_found = riskyFallback.email;
+        r.email_status = riskyFallback.status;
+        r.email_found_at = now;
+        r.email_discovery_method = riskyFallback.method;
+        runLog.emails_found++;
+      } else {
+        r.email_status = r.email_status || 'invalid';
+        r.email_found_at = now;
+        runLog.all_invalid++;
+      }
+    }
+
+    const updatedCsv = findEmailsRowsToCsv(headers, records);
+    await env.R2_VIRTUAL_LAUNCH.put('vlp-scale/prospects/master.csv', updatedCsv, {
+      httpMetadata: { contentType: 'text/csv; charset=utf-8' },
+    });
+
+    try {
+      const metaObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.meta.json');
+      let meta = {};
+      if (metaObj) { try { meta = await metaObj.json(); } catch {} }
+      meta.last_find_emails_at = startedAt;
+      meta.last_find_emails_found = runLog.emails_found;
+      meta.last_find_emails_processed = runLog.rows_processed;
+      await env.R2_VIRTUAL_LAUNCH.put(
+        'vlp-scale/prospects/master.meta.json',
+        JSON.stringify(meta),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      runLog.errors.push(`meta_update_failed:${e && e.message || e}`);
+    }
+
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/logs/find-emails-${dateKey}.json`,
+        JSON.stringify(runLog, null, 2),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      console.error('find-emails: failed to write run log:', e);
+    }
+
+    return runLog;
+  } catch (e) {
+    console.error('handleFindEmailsCron fatal:', e);
+    runLog.errors.push(`fatal:${e && e.message || e}`);
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/logs/find-emails-${dateKey}.json`,
+        JSON.stringify(runLog, null, 2),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch {}
+    return runLog;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Fetch handler
 // ---------------------------------------------------------------------------
 
@@ -18204,13 +18566,19 @@ export default {
       }
     }
 
-    // WLVLP Site Generation Cron — only runs on the 06:00 UTC trigger.
-    // Sweeps pending vlp-scale/wlvlp-site-requests/* and fills templates.
+    // 06:00 UTC trigger — runs WLVLP site generation and SCALE find-emails.
+    // Both share the 06:00 cron slot so they run in the same scheduled invocation.
     if (event && event.cron === '0 6 * * *') {
       try {
         await handleWlvlpSiteGeneration(env);
       } catch (e) {
         console.error('WLVLP site generation cron failed:', e);
+      }
+      try {
+        const findEmailsLog = await handleFindEmailsCron(env);
+        console.log('Find emails cron:', JSON.stringify(findEmailsLog));
+      } catch (e) {
+        console.error('Find emails cron failed:', e);
       }
       return;
     }
