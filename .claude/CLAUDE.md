@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-11 (SCALE validate-emails Worker cron — Reoon quick mode at 08:00 UTC)
+Last updated: 2026-04-11 (SCALE generate-batch Worker cron — template-based, 10:00 UTC)
 
 ---
 
@@ -749,6 +749,27 @@ producing the live verdict the send pipeline relies on.
 - **Meta updated:** `master.meta.json` gets `last_validate_emails_at` + `last_validate_emails_count`
 - **R2 log key:** `vlp-scale/logs/validate-emails-{YYYY-MM-DD}.json`
 - **Secret:** `REOON_API_KEY`
+
+#### Generate-batch cron (template-based — no Claude API)
+Daily Worker cron that takes verified prospects and emits a full daily
+batch package: per-prospect asset pages, an Email 1 send queue, and an
+Email 2 schedule. Uses static templates only — no LLM calls. Replaces the
+local `scale/generate-vlp-batch.js` CLI for the scheduled path.
+
+- **Cron:** 10:00 UTC daily (shares the slot with FOIA enrichment + WLVLP auction settlement; runs after enrichment so newly enriched rows don't get picked up until the next day)
+- **Worker entrypoint:** `handleGenerateBatchCron(env)` in `workers/src/index.js`
+- **Manual trigger:** `POST /v1/scale/cron/generate-batch` with `Authorization: Bearer <SCALE_API_KEY>` (optional `?limit=N` query param, default 50, max 500)
+- **Source:** `vlp-scale/prospects/master.csv` (R2)
+- **Selection (in order):** `email_found` present (not `undefined` / `nan` / `null`) → `email_status === 'valid'` → `email_1_prepared_at` empty → sort ascending by `domain_clean` (nulls last) → take first 50
+- **Per-prospect generation:** slug = `{first}-{last}-{city}-{state}` (lowercase, hyphens, titles stripped, dedup `-2`/`-3` on collision); time savings table by credential (EA / CPA / JD / default); subject by `firm_bucket` (`solo_brand` vs `local_firm`/default); Email 1 + Email 2 bodies + asset page from static templates
+- **R2 outputs:**
+  - `vlp-scale/batches/scale-batch-{YYYY-MM-DD}.json` — full per-prospect batch JSON (asset_page + email_1 + email_2)
+  - `vlp-scale/asset-pages/{slug}.json` — per-prospect asset page (served by `GET /v1/scale/asset/:slug`)
+  - `vlp-scale/send-queue/email1-pending.json` — appended (read existing, merge new, write back). Each record: `{ email, first_name, subject, body, slug, queued_at }`
+  - `vlp-scale/send-queue/email2-scheduled.json` — appended. Each record: `{ email, first_name, subject, body, slug, send_after }` (`send_after` = +3 days)
+- **Master mutation:** stamps `email_1_prepared_at = ISO timestamp` on each processed row, then writes the updated CSV back to R2
+- **R2 log key:** `vlp-scale/logs/generate-batch-{YYYY-MM-DD}.json` — `{ ran_at, batch_date, prospects_processed, asset_pages_pushed, email1_queued, email2_scheduled, remaining_eligible, days_of_pipeline_remaining, errors }`. `days_of_pipeline_remaining = ceil(remaining / 50)`
+- **Error handling:** try/catch wrapper; per-prospect errors push to `errors[]` and continue; fatal errors flush partial batch JSON before returning
 
 ### Daily batch generation
 1. Run: node scale/generate-vlp-batch.js scale/prospects/{source}.csv

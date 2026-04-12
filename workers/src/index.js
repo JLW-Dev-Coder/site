@@ -15543,6 +15543,22 @@ TTMP Support Team
     },
   },
 
+  {
+    method: 'POST', pattern: '/v1/scale/cron/generate-batch',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
+        return json({ ok: false, error: 'Unauthorized' }, 401, request);
+      }
+      const url = new URL(request.url);
+      const limitParam = parseInt(url.searchParams.get('limit') || '', 10);
+      const opts = Number.isFinite(limitParam) && limitParam > 0 ? { limit: limitParam } : {};
+      const runLog = await handleGenerateBatchCron(env, opts);
+      return json({ ok: true, run_log: runLog }, 200, request);
+    },
+  },
+
   // -------------------------------------------------------------------------
   // Scale Assets (Public Route)
   // -------------------------------------------------------------------------
@@ -18448,6 +18464,428 @@ async function handleValidateEmailsCron(env, opts = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Generate-Batch Cron — 10:00 UTC daily
+// ---------------------------------------------------------------------------
+// Reads vlp-scale/prospects/master.csv from R2, selects up to 50 verified
+// prospects (email_status === 'valid', email_1_prepared_at empty), generates
+// a per-prospect asset page + Email 1 + Email 2 from static templates
+// (no Claude API), and writes:
+//   - vlp-scale/batches/scale-batch-{date}.json     (full batch JSON)
+//   - vlp-scale/asset-pages/{slug}.json             (per-prospect, served by /v1/scale/asset/:slug)
+//   - vlp-scale/send-queue/email1-pending.json      (append)
+//   - vlp-scale/send-queue/email2-scheduled.json    (append, send_after = +3d)
+//   - vlp-scale/logs/generate-batch-{date}.json     (run log)
+// Stamps email_1_prepared_at on each processed master row.
+
+const GENERATE_BATCH_DEFAULT_LIMIT = 50;
+const GENERATE_BATCH_TITLE_RE = /\b(dr|mr|mrs|ms|miss|jr|sr|iii|ii|iv|phd|esq|cpa|ea|jd|atty|md)\b\.?/gi;
+
+const GENERATE_BATCH_TIME_SAVINGS = {
+  EA:  { hrs_week: 6.7, hrs_year: 348, revenue_low: 34800, revenue_high: 104400 },
+  CPA: { hrs_week: 5.0, hrs_year: 260, revenue_low: 39000, revenue_high: 104000 },
+  JD:  { hrs_week: 3.3, hrs_year: 174, revenue_low: 34800, revenue_high: 87000  },
+};
+const GENERATE_BATCH_TIME_SAVINGS_DEFAULT = { hrs_week: 5.0, hrs_year: 260, revenue_low: 39000, revenue_high: 104000 };
+
+function generateBatchTitleCase(s) {
+  if (!s) return '';
+  return String(s).toLowerCase().replace(/\b([a-z])/g, c => c.toUpperCase());
+}
+
+function generateBatchStripForSlug(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(GENERATE_BATCH_TITLE_RE, ' ')
+    .toLowerCase()
+    .replace(/[^a-z\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function generateBatchSlug(first, last, city, state) {
+  const f = (generateBatchStripForSlug(first).split(' ')[0] || '');
+  const l = (generateBatchStripForSlug(last).split(' ')[0] || '');
+  const c = generateBatchStripForSlug(city).replace(/\s+/g, '-');
+  const st = String(state || '').toLowerCase().replace(/[^a-z]/g, '');
+  return [f, l, c, st].filter(Boolean).join('-');
+}
+
+function generateBatchFormatMoney(n) {
+  if (typeof n !== 'number' || !Number.isFinite(n)) return String(n || '');
+  return n.toLocaleString('en-US');
+}
+
+function generateBatchTimeSavings(profession) {
+  const key = String(profession || '').trim().toUpperCase();
+  return GENERATE_BATCH_TIME_SAVINGS[key] || GENERATE_BATCH_TIME_SAVINGS_DEFAULT;
+}
+
+function generateBatchFirmOrPractice(firmBucket, dba, city) {
+  const bucket = String(firmBucket || '').trim().toLowerCase();
+  if (bucket === 'solo_brand' && dba) return generateBatchTitleCase(dba);
+  if (bucket === 'local_firm' && city) return `your ${generateBatchTitleCase(city)} practice`;
+  return 'your practice';
+}
+
+function generateBatchEmail1Subject(firmBucket, first, profession, dba, city, hrsWeek) {
+  const bucket = String(firmBucket || '').trim().toLowerCase();
+  if (bucket === 'solo_brand' && dba) {
+    return `${first} — ${profession}s running ${generateBatchTitleCase(dba)} spend ${hrsWeek}+ hours/week on this`;
+  }
+  return `${first} — ${profession}s in ${generateBatchTitleCase(city || 'your city')} are spending ${hrsWeek}+ hours/week on this`;
+}
+
+function generateBatchEmail1Body({ first, profession, hrsWeek, hrsYear, revenueLow, revenueHigh, slug }) {
+  return `${first},
+
+Every IRS transcript your firm processes takes about 20 minutes to decode manually. For a ${profession} handling ${hrsWeek} hours of transcript work per week, that's ${hrsYear} hours a year — roughly $${generateBatchFormatMoney(revenueLow)} to $${generateBatchFormatMoney(revenueHigh)} in billable time.
+
+I built a tool that reads IRS transcripts in seconds and produces plain-English reports your clients can actually understand.
+
+I put together a quick practice analysis for your firm — takes 30 seconds to read:
+https://transcript.taxmonitor.pro/asset/${slug}
+
+If the numbers look off, reply and I'll adjust them. If they look right, the tool is ready to try — 10 transcripts for $19, no subscription.
+
+—
+Jamie L Williams
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro`;
+}
+
+function generateBatchEmail2Subject(first, hrsYear) {
+  return `Quick asset generated for your firm, ${first} — ${hrsYear} hours/yr on the table`;
+}
+
+function generateBatchEmail2Body({ first, profession, city, slug }) {
+  const cityTitle = generateBatchTitleCase(city || 'your city');
+  return `${first},
+
+I sent you a note a few days ago about the time your practice spends decoding IRS transcripts manually.
+
+I went ahead and generated a quick practice analysis for your firm:
+https://transcript.taxmonitor.pro/asset/${slug}
+
+It breaks down estimated time savings and what that translates to in revenue for a ${cityTitle} ${profession} practice.
+
+Two options if it resonates:
+
+1. Try the tool: https://transcript.taxmonitor.pro/pricing
+   10 transcripts for $19 — no subscription, no onboarding.
+
+2. Talk through your caseload: https://cal.com/vlp/ttmp-discovery
+   15 minutes, no pitch — just whether this fits your workflow.
+
+—
+Jamie L Williams
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro`;
+}
+
+function generateBatchAssetPage({ first, profession, city, state, dba, firmBucket, hrsWeek, hrsYear, revenueLow, revenueHigh }) {
+  const firmOrPractice = generateBatchFirmOrPractice(firmBucket, dba, city);
+  return {
+    headline: `${first}, here's what 20 minutes per transcript is costing ${firmOrPractice}`,
+    credential: profession,
+    city: generateBatchTitleCase(city),
+    state: String(state || '').toUpperCase(),
+    firm: dba ? generateBatchTitleCase(dba) : '',
+    hrs_week: hrsWeek,
+    hrs_year: hrsYear,
+    revenue_low: revenueLow,
+    revenue_high: revenueHigh,
+    cta_pricing: 'https://transcript.taxmonitor.pro/pricing',
+    cta_booking: 'https://cal.com/vlp/ttmp-discovery',
+    cta_tool: 'https://transcript.taxmonitor.pro/tools/code-lookup',
+    generated_at: new Date().toISOString(),
+  };
+}
+
+async function generateBatchWriteRunLog(env, dateKey, runLog) {
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      `vlp-scale/logs/generate-batch-${dateKey}.json`,
+      JSON.stringify(runLog, null, 2),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch (e) {
+    console.error('generate-batch: failed to write run log:', e);
+  }
+}
+
+async function handleGenerateBatchCron(env, opts = {}) {
+  const limit = Math.max(1, Math.min(Number(opts.limit) || GENERATE_BATCH_DEFAULT_LIMIT, 500));
+  const startedAt = new Date().toISOString();
+  const dateKey = startedAt.slice(0, 10);
+  const runLog = {
+    ran_at: startedAt,
+    batch_date: dateKey,
+    prospects_processed: 0,
+    asset_pages_pushed: 0,
+    email1_queued: 0,
+    email2_scheduled: 0,
+    remaining_eligible: 0,
+    days_of_pipeline_remaining: 0,
+    errors: [],
+  };
+
+  const batchProspects = [];
+  const newEmail1Records = [];
+  const newEmail2Records = [];
+  let csvHeaders = null;
+  let csvRecords = null;
+
+  try {
+    const csvObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.csv');
+    if (!csvObj) {
+      runLog.errors.push('master_csv_not_found');
+      await generateBatchWriteRunLog(env, dateKey, runLog);
+      return runLog;
+    }
+    const csvText = await csvObj.text();
+    const parsed = findEmailsParseCsv(csvText);
+    if (parsed.length < 2) {
+      runLog.errors.push('csv_has_no_data_rows');
+      await generateBatchWriteRunLog(env, dateKey, runLog);
+      return runLog;
+    }
+
+    csvHeaders = parsed[0].slice();
+    if (!csvHeaders.includes('email_1_prepared_at')) csvHeaders.push('email_1_prepared_at');
+
+    csvRecords = parsed.slice(1)
+      .filter(row => row.length > 1)
+      .map(row => {
+        const rec = {};
+        csvHeaders.forEach((h, i) => { rec[h] = row[i] || ''; });
+        return rec;
+      });
+
+    const eligible = csvRecords.filter(r => {
+      const em = String(r.email_found || '').trim();
+      if (!em || em === 'undefined' || em.toLowerCase() === 'nan' || em === 'null') return false;
+      const status = String(r.email_status || '').trim().toLowerCase();
+      if (status !== 'valid') return false;
+      if (String(r.email_1_prepared_at || '').trim()) return false;
+      return true;
+    });
+
+    eligible.sort((a, b) => {
+      const da = String(a.domain_clean || '').toLowerCase();
+      const db = String(b.domain_clean || '').toLowerCase();
+      if (!da && !db) return 0;
+      if (!da) return 1;
+      if (!db) return -1;
+      return da.localeCompare(db);
+    });
+
+    if (eligible.length === 0) {
+      runLog.remaining_eligible = 0;
+      runLog.days_of_pipeline_remaining = 0;
+      runLog.errors.push('no_eligible_records');
+      await generateBatchWriteRunLog(env, dateKey, runLog);
+      return runLog;
+    }
+
+    const target = eligible.slice(0, limit);
+    const usedSlugs = new Set();
+
+    let existingEmail1 = [];
+    let existingEmail2 = [];
+    try {
+      const q1 = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email1-pending.json');
+      if (q1) {
+        const arr = await q1.json();
+        if (Array.isArray(arr)) existingEmail1 = arr;
+      }
+    } catch (e) {
+      runLog.errors.push(`email1_queue_read_failed:${e && e.message || e}`);
+    }
+    try {
+      const q2 = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email2-scheduled.json');
+      if (q2) {
+        const arr = await q2.json();
+        if (Array.isArray(arr)) existingEmail2 = arr;
+      }
+    } catch (e) {
+      runLog.errors.push(`email2_queue_read_failed:${e && e.message || e}`);
+    }
+
+    const sendAfter = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
+
+    for (const r of target) {
+      try {
+        const firstRaw = r.First_NAME || '';
+        const lastRaw = r.LAST_NAME || '';
+        const cityRaw = r.BUS_ADDR_CITY || '';
+        const stateRaw = r.BUS_ST_CODE || '';
+        const profession = String(r.PROFESSION || '').trim().toUpperCase() || 'EA';
+        const dba = r.DBA || '';
+        const firmBucket = r.firm_bucket || '';
+        const domainClean = r.domain_clean || '';
+        const email = String(r.email_found || '').trim();
+
+        const baseSlug = generateBatchSlug(firstRaw, lastRaw, cityRaw, stateRaw);
+        if (!baseSlug) {
+          runLog.errors.push(`slug_empty:${email}`);
+          continue;
+        }
+        let slug = baseSlug;
+        let n = 2;
+        while (usedSlugs.has(slug)) {
+          slug = `${baseSlug}-${n}`;
+          n++;
+        }
+        usedSlugs.add(slug);
+
+        const ts = generateBatchTimeSavings(profession);
+        const firstTitle = generateBatchTitleCase(firstRaw.split(/\s+/)[0] || '');
+
+        const assetPage = generateBatchAssetPage({
+          first: firstTitle,
+          profession,
+          city: cityRaw,
+          state: stateRaw,
+          dba,
+          firmBucket,
+          hrsWeek: ts.hrs_week,
+          hrsYear: ts.hrs_year,
+          revenueLow: ts.revenue_low,
+          revenueHigh: ts.revenue_high,
+        });
+
+        const email1Subject = generateBatchEmail1Subject(firmBucket, firstTitle, profession, dba, cityRaw, ts.hrs_week);
+        const email1Body = generateBatchEmail1Body({
+          first: firstTitle,
+          profession,
+          hrsWeek: ts.hrs_week,
+          hrsYear: ts.hrs_year,
+          revenueLow: ts.revenue_low,
+          revenueHigh: ts.revenue_high,
+          slug,
+        });
+        const email2Subject = generateBatchEmail2Subject(firstTitle, ts.hrs_year);
+        const email2Body = generateBatchEmail2Body({
+          first: firstTitle,
+          profession,
+          city: cityRaw,
+          slug,
+        });
+
+        const prospectEntry = {
+          slug,
+          email,
+          name: `${firstRaw} ${lastRaw}`.trim(),
+          credential: profession,
+          city: generateBatchTitleCase(cityRaw),
+          state: String(stateRaw || '').toUpperCase(),
+          firm: dba ? generateBatchTitleCase(dba) : '',
+          firm_bucket: firmBucket,
+          domain_clean: domainClean,
+          asset_page: assetPage,
+          email_1: { subject: email1Subject, body: email1Body },
+          email_2: { subject: email2Subject, body: email2Body },
+        };
+        batchProspects.push(prospectEntry);
+
+        await env.R2_VIRTUAL_LAUNCH.put(
+          `vlp-scale/asset-pages/${slug}.json`,
+          JSON.stringify(assetPage, null, 2),
+          { httpMetadata: { contentType: 'application/json' } }
+        );
+        runLog.asset_pages_pushed++;
+
+        const queuedAt = new Date().toISOString();
+        newEmail1Records.push({
+          email,
+          first_name: firstTitle,
+          subject: email1Subject,
+          body: email1Body,
+          slug,
+          queued_at: queuedAt,
+        });
+        newEmail2Records.push({
+          email,
+          first_name: firstTitle,
+          subject: email2Subject,
+          body: email2Body,
+          slug,
+          send_after: sendAfter,
+        });
+
+        r.email_1_prepared_at = queuedAt;
+        runLog.prospects_processed++;
+      } catch (perErr) {
+        runLog.errors.push(`prospect_err:${(r && r.email_found) || ''}:${perErr && perErr.message || perErr}`);
+      }
+    }
+
+    if (batchProspects.length > 0) {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/batches/scale-batch-${dateKey}.json`,
+        JSON.stringify(batchProspects, null, 2),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    }
+
+    if (newEmail1Records.length > 0) {
+      const merged = existingEmail1.concat(newEmail1Records);
+      await env.R2_VIRTUAL_LAUNCH.put(
+        'vlp-scale/send-queue/email1-pending.json',
+        JSON.stringify(merged, null, 2),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+      runLog.email1_queued = newEmail1Records.length;
+    }
+
+    if (newEmail2Records.length > 0) {
+      const merged = existingEmail2.concat(newEmail2Records);
+      await env.R2_VIRTUAL_LAUNCH.put(
+        'vlp-scale/send-queue/email2-scheduled.json',
+        JSON.stringify(merged, null, 2),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+      runLog.email2_scheduled = newEmail2Records.length;
+    }
+
+    if (runLog.prospects_processed > 0) {
+      const updatedCsv = findEmailsRowsToCsv(csvHeaders, csvRecords);
+      await env.R2_VIRTUAL_LAUNCH.put('vlp-scale/prospects/master.csv', updatedCsv, {
+        httpMetadata: { contentType: 'text/csv; charset=utf-8' },
+      });
+    }
+
+    const remaining = csvRecords.filter(r => {
+      const em = String(r.email_found || '').trim();
+      if (!em || em === 'undefined' || em.toLowerCase() === 'nan' || em === 'null') return false;
+      const status = String(r.email_status || '').trim().toLowerCase();
+      if (status !== 'valid') return false;
+      if (String(r.email_1_prepared_at || '').trim()) return false;
+      return true;
+    }).length;
+    runLog.remaining_eligible = remaining;
+    runLog.days_of_pipeline_remaining = Math.ceil(remaining / GENERATE_BATCH_DEFAULT_LIMIT);
+
+    await generateBatchWriteRunLog(env, dateKey, runLog);
+    return runLog;
+  } catch (e) {
+    console.error('handleGenerateBatchCron fatal:', e);
+    runLog.errors.push(`fatal:${e && e.message || e}`);
+    try {
+      if (batchProspects.length > 0) {
+        await env.R2_VIRTUAL_LAUNCH.put(
+          `vlp-scale/batches/scale-batch-${dateKey}.json`,
+          JSON.stringify(batchProspects, null, 2),
+          { httpMetadata: { contentType: 'application/json' } }
+        );
+      }
+    } catch {}
+    await generateBatchWriteRunLog(env, dateKey, runLog);
+    return runLog;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Fetch handler
 // ---------------------------------------------------------------------------
 
@@ -18767,6 +19205,12 @@ export default {
         console.log('Enrichment cron:', JSON.stringify(stats));
       } catch (e) {
         console.error('Enrichment cron failed:', e);
+      }
+      try {
+        const generateBatchLog = await handleGenerateBatchCron(env);
+        console.log('Generate-batch cron:', JSON.stringify(generateBatchLog));
+      } catch (e) {
+        console.error('Generate-batch cron failed:', e);
       }
     }
 
