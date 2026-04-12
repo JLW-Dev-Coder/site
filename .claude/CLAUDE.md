@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-11 (SCALE retire generate-batch + send handlers — campaign router is single path)
+Last updated: 2026-04-11 (SCALE migrate find/validate crons to FOIA master JSONL — single data store)
 
 ---
 
@@ -663,69 +663,33 @@ Public marketplace surfaces (catalog, voting, bidding, scratch) must contain zer
 
 ### Directory structure
 scale/
-├── prospects/           ← source CSVs (gitignored)
 ├── foia-leads/          ← local FOIA JSONL master (gitignored — 28 MB / 88K rows)
 │   └── foia-master.json ← JSONL, one prospect per line; uploaded to R2 via upload-foia-source.js
 ├── batches/             ← generated JSON batches (committed)
 ├── hunter/              ← Hunter.io import CSVs (committed)
 ├── generate-vlp-batch.js
-├── upload-prospects.js  ← uploads master prospect CSV to R2 via Worker API
-└── upload-foia-source.js ← uploads FOIA JSONL source to R2 (gitignored)
+└── upload-foia-source.js ← uploads FOIA JSONL to R2 (gitignored)
 
-### FOIA source JSONL → R2 (replenish feeder)
-The find-emails cron (06:00 UTC) auto-replenishes the master CSV from the
-FOIA JSONL source when the master runs low on rows still awaiting email
-discovery. The source file is uploaded once (or whenever a new FOIA batch is
-acquired) via:
+### Single data store: FOIA master JSONL
 
-- **Local source path:** `scale/foia-leads/foia-master.json` (JSONL, gitignored — 28 MB, 88,497 rows at last upload).
+All SCALE pipeline crons (find-emails, validate-emails, enrichment, campaign
+router) read and write a **single NDJSON file** in R2:
+
+- **R2 key:** `vlp-scale/foia-leads/foia-master.json` (constant: `ENRICHMENT_R2_KEY`)
+- **Local source path:** `scale/foia-leads/foia-master.json` (JSONL, gitignored — 28 MB, 88K+ rows)
 - **Upload script:** `node scale/upload-foia-source.js` (gitignored). Reads `SCALE_API_KEY` from env/`.env`/`--api-key`, PUTs the raw file as `application/jsonl`.
-- **Route:** `PUT /v1/scale/prospects/upload-source` — `Authorization: Bearer <SCALE_API_KEY>`. Accepts `Content-Type: application/jsonl`, `application/x-ndjson`, or (legacy) `text/csv`. Optional `?source_filename=...` query param. NO column validation — the source can have any columns/keys; the replenish step does column mapping. Writes:
-  - `vlp-scale/prospects/foia-source.jsonl` — raw JSONL bytes (authoritative source; JSONL preferred)
-  - `vlp-scale/prospects/foia-source.csv` — legacy CSV path (still supported as input but no longer fed by the upload script)
-  - `vlp-scale/prospects/foia-source.meta.json` — `{ uploaded_at, row_count, file_size_bytes, source_filename, format, uploaded_by, last_replenish_offset }`
+- **Upload route:** `PUT /v1/scale/prospects/upload-source` — `Authorization: Bearer <SCALE_API_KEY>`. Accepts `Content-Type: application/jsonl` or `application/x-ndjson`. Optional `?source_filename=...` query param. **Safety check:** refuses to overwrite an existing file that contains rows with `email_found` populated unless `?force=true` is passed. Returns 409 `would_lose_enrichment` with the count of enriched rows that would be lost. When `force=true`, overwrites the file and reports the replaced row counts in the response.
+- **Status route:** `GET /v1/scale/prospects/status` — reports a full breakdown from the JSONL: total rows, rows with email found, rows by status (valid, unverified, no_mx, dead end), rows eligible for discovery / validation / campaign router, rows already routed per platform, last run timestamps.
 
-The `GET /v1/scale/prospects/status` route reports FOIA source stats under
-`foia_source: { meta, format, foia_total_rows, foia_rows_already_in_master_estimate, foia_rows_remaining_estimate, last_replenish_offset }`.
-To keep status calls fast, the endpoint reads **meta only** — it does NOT
-re-parse the 28 MB JSONL. `foia_total_rows` comes from `meta.row_count`;
-`foia_rows_already_in_master_estimate` is capped at master total rows; and
-`foia_rows_remaining_estimate = foia_total - already`. Precise dedup counts
-happen inside the replenish step itself.
-
-**Streaming replenish with offset cursor:** the replenish walks the JSONL
-line-by-line starting from `meta.last_replenish_offset` and breaks as soon
-as 200 non-duplicate rows have been appended. On success, the new cursor
-line index is persisted back to `foia-source.meta.json` so the next run
-picks up where the previous one stopped — avoiding re-parsing the full 88K
-rows on every cron tick. If the scan hits EOF with fewer than 200 rows
-appended, it wraps to offset 0 once (to pick up earlier rows that weren't
-yet deduped) and logs `wrapped_to_start` in `runLog.replenish.notes`.
-
-**Auto-replenish threshold / batch:** threshold `FIND_EMAILS_REPLENISH_THRESHOLD = 100`, batch size `FIND_EMAILS_REPLENISH_BATCH = 200`. Dropped columns when appending to master CSV: `clay_workbook_ref`, `FULL_NAME`. New rows initialize `email_found`, `email_status`, `email_1_prepared_at`, `email_2_prepared_at`, `email_3_prepared_at` to empty so the discovery loop picks them up on the same run.
-
-### Master prospect CSV → R2
-The enrichment + campaign router crons read the master prospect CSV from R2
-at `vlp-scale/prospects/master.csv` (not local filesystem). To refresh:
-
-1. Run: `node scale/upload-prospects.js --file <path/to/master.csv>`
-   (reads `SCALE_API_KEY` from `.env` / environment, or pass `--api-key <value>`)
-2. Script validates required columns, reports row counts, then PUTs the raw CSV
-   to `PUT /v1/scale/prospects/upload` with `Authorization: Bearer <SCALE_API_KEY>`
-3. Worker compares the bearer token to the `SCALE_API_KEY` Worker secret and
-   writes `vlp-scale/prospects/master.csv` + `vlp-scale/prospects/master.meta.json`
-4. Verify with: `GET /v1/scale/prospects/status` (same bearer auth; or re-run with `--dry-run` first)
-
-Both routes are gated by the `SCALE_API_KEY` Worker secret — no session cookie,
-no email allowlist. Set via `wrangler secret put SCALE_API_KEY`.
-
-R2 key pattern for master prospects:
-- `vlp-scale/prospects/master.csv` — authoritative master CSV
-- `vlp-scale/prospects/master.meta.json` — `{ uploaded_at, row_count, file_size_bytes, source_filename, uploaded_by, last_find_emails_at?, last_find_emails_found?, last_find_emails_processed? }`
+There is no separate "master CSV" or "FOIA source" — the old two-file
+architecture (master.csv + foia-source.jsonl) was collapsed into this single
+NDJSON file. The old R2 keys (`vlp-scale/prospects/master.csv`,
+`vlp-scale/prospects/master.meta.json`, `vlp-scale/prospects/foia-source.jsonl`,
+`vlp-scale/prospects/foia-source.meta.json`) are retired.
 
 ### Email discovery + validation — two-stage pipeline
 
-The master CSV's `email_status` column has a two-stage lifecycle:
+The FOIA master JSONL's `email_status` field has a two-stage lifecycle:
 
 ```
 empty
@@ -747,16 +711,15 @@ Tracking columns on each row:
 - `email_verified_at` — ISO timestamp of deliverability verification
 
 #### Find-emails cron (Reoon Power mode — discovery)
-Daily Worker cron that discovers email addresses for prospects in the master
-CSV. Replaces the manual `scale/find-emails.js` CLI (TTMP repo) for the
-scheduled path — the CLI remains usable for ad-hoc runs.
+Daily Worker cron that discovers email addresses for prospects in the FOIA
+master JSONL.
 
 - **Cron:** 06:00 UTC daily (shares the slot with WLVLP site generation)
 - **Worker entrypoint:** `handleFindEmailsCron(env)` in `workers/src/index.js`
-- **Manual trigger:** `POST /v1/scale/cron/find-emails` with `Authorization: Bearer <SCALE_API_KEY>` (optional `?limit=N` query param, default 50, max 500). `limit=0` runs the auto-replenish check then skips Reoon discovery — useful for ops/testing.
-- **Auto-replenish (runs first, before discovery):** counts rows where `email_found` is empty AND `email_status !== 'no_mx'`. If that count is `< 100`, pulls up to **200** new rows from `vlp-scale/prospects/foia-source.jsonl` (or legacy `foia-source.csv` when `meta.format !== 'jsonl'`). Streams the JSONL line-by-line from `meta.last_replenish_offset` and breaks as soon as 200 non-duplicate rows are appended — the 88K-row source is never fully parsed in a single run. Dedup key: `${domain_clean}|${LAST_NAME}|${First_NAME}` (lowercased, trimmed). Rows missing `domain_clean` get one derived from `WEBSITE` (strip protocol/www/path, lowercase). Dropped columns: `clay_workbook_ref`, `FULL_NAME`. Appended rows have `email_found` / `email_status` / `email_1_prepared_at` / `email_2_prepared_at` / `email_3_prepared_at` forced empty so the discovery loop picks them up the same run. Persists the new cursor line index to `foia-source.meta.json` as `last_replenish_offset`. Updates `master.meta.json` with `last_replenish_at`, `rows_replenished`, new `row_count`. Logged under `runLog.replenish`.
-- **Source / sink:** `vlp-scale/prospects/master.csv` (R2) — in place rewrite
-- **Eligibility filter:** `domain_clean` present, `email_found` empty
+- **Manual trigger:** `POST /v1/scale/cron/find-emails` with `Authorization: Bearer <SCALE_API_KEY>` (optional `?limit=N` query param, default 50, max 500). `limit=0` reports stats and persists any inline domain derivations without spending Reoon credits.
+- **Source / sink:** `vlp-scale/foia-leads/foia-master.json` (NDJSON) — full file rewrite via `readFoiaMasterRecords` / `writeFoiaMasterRecords`
+- **Eligibility filter:** `email_found` empty, `email_status` not in dead-end set (`no_mx`, `no_valid_pattern`, `no_domain`, `no_name`, `no_patterns`), and `domain_clean` present or derivable from `WEBSITE`
+- **Inline domain derivation:** rows missing `domain_clean` but with a populated `WEBSITE` get one derived via `normalizeDomainFromWebsite` before discovery. The derived value is written back to the record.
 - **Per-run cap:** 50 rows (leaves headroom under the Reoon $9/mo 500/day limit, shared with validate-emails)
 - **Per-row steps:** Cloudflare DNS-over-HTTPS MX precheck → pattern guessing (`first`, `first.last`, `firstlast`, `flast`, `first.l`) → Reoon Power verification → winning pattern written back
 - **Rate limit:** 1 req/sec between Reoon calls
@@ -768,33 +731,31 @@ scheduled path — the CLI remains usable for ad-hoc runs.
 
 #### Validate-emails cron (Reoon quick mode — deliverability verification)
 Daily Worker cron that verifies deliverability of addresses that the
-find-emails cron discovered. Separates discovery from verification so the
-find-emails pass can focus on guessing patterns and this pass can focus on
-producing the live verdict the send pipeline relies on.
+find-emails cron discovered.
 
 - **Cron:** 08:00 UTC daily (2 hours after find-emails so discoveries land in the validation queue immediately)
 - **Worker entrypoint:** `handleValidateEmailsCron(env)` in `workers/src/index.js`
 - **Manual trigger:** `POST /v1/scale/cron/validate-emails` with `Authorization: Bearer <SCALE_API_KEY>` (optional `?limit=N` query param, default 50, max 500)
-- **Source / sink:** `vlp-scale/prospects/master.csv` (R2) — in place rewrite
+- **Source / sink:** `vlp-scale/foia-leads/foia-master.json` (NDJSON) — full file rewrite via `readFoiaMasterRecords` / `writeFoiaMasterRecords`
 - **Eligibility filter:** `email_found` present AND `email_status` is empty OR `unverified`
 - **Per-run cap:** 50 rows (shared Reoon 500/day budget with find-emails + enrichment)
 - **Reoon mode:** `quick` — cheaper than `power`, sufficient for a deliverability verdict on a known address
 - **Rate limit:** 1 req/sec between Reoon calls (reuses `FIND_EMAILS_REOON_RATE_LIMIT_MS`)
 - **Error handling:** 5xx retries once with 2s delay; 429 stops the run and flushes partial results; per-row errors set `email_status = "error"` and continue
 - **Columns written:** `email_status` (`valid` | `invalid` | `risky` | `unknown` | `error`), `email_verified_at`
-- **Meta updated:** `master.meta.json` gets `last_validate_emails_at` + `last_validate_emails_count`
 - **R2 log key:** `vlp-scale/logs/validate-emails-{YYYY-MM-DD}.json`
 - **Secret:** `REOON_API_KEY`
 
 ### SCALE Pipeline (unified)
 
 ```
-06:00 UTC — find-emails       auto-replenish master from foia-source.jsonl
-                               (88K rows, streaming cursor) if low, then
-                               discover emails for rows without email_found
+06:00 UTC — find-emails       discover emails for rows without email_found
+                               in the FOIA master JSONL (88K+ rows)
 08:00 UTC — validate-emails   verify discovered emails via Reoon quick mode
+10:00 UTC — enrichment        handleEnrichmentBatch: MX + catch-all + pattern
+                               + Reoon validation for unenriched rows
 12:00 UTC — campaign router   handleDailyBatchGeneration selects valid
-                               prospects from foia-master NDJSON, allocates
+                               prospects from FOIA master NDJSON, allocates
                                TTMP 65% / VLP 25% / WLVLP 10% (DAILY_BATCH_CAP
                                = 200/day), builds 6-email sequences, appends
                                to platform send queues
@@ -805,6 +766,11 @@ producing the live verdict the send pipeline relies on.
                                cadence (Day 0, +2, +4, +6, +8, +10)
 ```
 
+**All four data crons** (find-emails, validate-emails, enrichment, campaign
+router) read and write the same R2 file: `vlp-scale/foia-leads/foia-master.json`.
+There is no separate master CSV or FOIA source — they were consolidated into
+this single NDJSON data store on 2026-04-11.
+
 All crons:
 - are guarded in `scheduled(event, env, ctx)` by `event.cron` string matching
 - find-emails and validate-emails have manual trigger routes under
@@ -812,16 +778,6 @@ All crons:
   and `?limit=N`
 - write run logs under `vlp-scale/logs/<step>-{YYYY-MM-DD}.json` or
   `vlp-scale/batch-logs/{YYYY-MM-DD}.json` (campaign router)
-
-**Note:** find-emails and validate-emails currently read/write
-`vlp-scale/prospects/master.csv`. The campaign router reads the FOIA master
-NDJSON at `vlp-scale/foia-leads/foia-master.json`. Migrating find-emails and
-validate-emails to the FOIA NDJSON directly is a follow-up — once complete,
-the master CSV path can be retired.
-
-The 10:00 UTC slot runs `handleEnrichmentBatch` only. The legacy SCALE
-`generate-batch` (10:00) and `send` (14:00) handlers have been retired —
-the campaign router is the single path for email generation and delivery.
 
 ### Daily batch generation
 1. Run: node scale/generate-vlp-batch.js scale/prospects/{source}.csv
