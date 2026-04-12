@@ -15341,6 +15341,177 @@ TTMP Support Team
   },
 
   // -------------------------------------------------------------------------
+  // Scale Prospects Master CSV (Admin)
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'PUT', pattern: '/v1/scale/prospects/upload',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
+        return json({ ok: false, error: 'Unauthorized' }, 401, request);
+      }
+
+      const contentType = request.headers.get('content-type') || '';
+      if (!contentType.includes('text/csv')) {
+        return json({ ok: false, error: 'content_type_must_be_text_csv' }, 400, request);
+      }
+
+      const url = new URL(request.url);
+      const sourceFilename = (url.searchParams.get('source_filename') || '').slice(0, 200);
+
+      const csvText = await request.text();
+      if (!csvText || csvText.length < 10) {
+        return json({ ok: false, error: 'empty_body' }, 400, request);
+      }
+
+      const firstNewline = csvText.indexOf('\n');
+      if (firstNewline < 0) {
+        return json({ ok: false, error: 'csv_has_no_rows' }, 400, request);
+      }
+      const headerLine = csvText.slice(0, firstNewline).replace(/\r$/, '').replace(/^\ufeff/, '');
+      const headers = headerLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const required = ['LAST_NAME', 'First_NAME', 'DBA', 'BUS_ADDR_CITY', 'BUS_ST_CODE', 'PROFESSION', 'domain_clean'];
+      const missing = required.filter(c => !headers.includes(c));
+      if (missing.length > 0) {
+        return json({ ok: false, error: 'missing_required_columns', missing }, 400, request);
+      }
+
+      let rowCount = 0;
+      {
+        let inQuotes = false;
+        for (let i = firstNewline + 1; i < csvText.length; i++) {
+          const c = csvText[i];
+          if (c === '"') { inQuotes = !inQuotes; continue; }
+          if (c === '\n' && !inQuotes) rowCount++;
+        }
+        const last = csvText[csvText.length - 1];
+        if (last && last !== '\n') rowCount++;
+      }
+
+      const fileSizeBytes = new TextEncoder().encode(csvText).byteLength;
+      const uploadedAt = new Date().toISOString();
+      const meta = {
+        uploaded_at: uploadedAt,
+        row_count: rowCount,
+        file_size_bytes: fileSizeBytes,
+        source_filename: sourceFilename || null,
+        uploaded_by: 'scale_api_key',
+      };
+
+      await env.R2_VIRTUAL_LAUNCH.put('vlp-scale/prospects/master.csv', csvText, {
+        httpMetadata: { contentType: 'text/csv; charset=utf-8' },
+      });
+      await env.R2_VIRTUAL_LAUNCH.put(
+        'vlp-scale/prospects/master.meta.json',
+        JSON.stringify(meta),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+
+      return json({ ok: true, ...meta }, 200, request);
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/scale/prospects/status',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
+        return json({ ok: false, error: 'Unauthorized' }, 401, request);
+      }
+
+      const [metaObj, csvObj] = await Promise.all([
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.meta.json'),
+        env.R2_VIRTUAL_LAUNCH.get('vlp-scale/prospects/master.csv'),
+      ]);
+
+      if (!csvObj) {
+        return json({ ok: false, error: 'master_csv_not_found' }, 404, request);
+      }
+
+      let meta = null;
+      if (metaObj) {
+        try { meta = await metaObj.json(); } catch { meta = null; }
+      }
+
+      const csvText = await csvObj.text();
+      const firstNewline = csvText.indexOf('\n');
+      if (firstNewline < 0) {
+        return json({ ok: false, error: 'csv_has_no_rows' }, 500, request);
+      }
+      const headerLine = csvText.slice(0, firstNewline).replace(/\r$/, '').replace(/^\ufeff/, '');
+      const headers = headerLine.split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+      const emailFoundIdx = headers.indexOf('email_found');
+      const emailStatusIdx = headers.indexOf('email_status');
+      const email1PreparedIdx = headers.indexOf('email_1_prepared_at');
+
+      let totalRows = 0;
+      let rowsWithEmailFound = 0;
+      let rowsValidEmail = 0;
+      let rowsEligibleEmail1 = 0;
+
+      const bodyStart = firstNewline + 1;
+      const bodyLen = csvText.length;
+      let inQuotes = false;
+      let lineStart = bodyStart;
+
+      function parseLine(line) {
+        const out = [];
+        let field = '';
+        let q = false;
+        for (let i = 0; i < line.length; i++) {
+          const c = line[i];
+          if (q) {
+            if (c === '"') {
+              if (line[i + 1] === '"') { field += '"'; i++; continue; }
+              q = false;
+              continue;
+            }
+            field += c;
+            continue;
+          }
+          if (c === '"') { q = true; continue; }
+          if (c === ',') { out.push(field); field = ''; continue; }
+          field += c;
+        }
+        out.push(field);
+        return out;
+      }
+
+      for (let i = bodyStart; i <= bodyLen; i++) {
+        const c = i < bodyLen ? csvText[i] : '\n';
+        if (c === '"') { inQuotes = !inQuotes; continue; }
+        if (c === '\n' && !inQuotes) {
+          let line = csvText.slice(lineStart, i);
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.length > 0) {
+            const cols = parseLine(line);
+            totalRows++;
+            const emailFound = emailFoundIdx >= 0 ? (cols[emailFoundIdx] || '').trim() : '';
+            const emailStatus = emailStatusIdx >= 0 ? (cols[emailStatusIdx] || '').trim() : '';
+            const email1Prepared = email1PreparedIdx >= 0 ? (cols[email1PreparedIdx] || '').trim() : '';
+            if (emailFound) rowsWithEmailFound++;
+            if (emailStatus === 'valid') rowsValidEmail++;
+            if (!email1Prepared) rowsEligibleEmail1++;
+          }
+          lineStart = i + 1;
+        }
+      }
+
+      const stats = {
+        total_rows: totalRows,
+        rows_with_email_found: rowsWithEmailFound,
+        rows_valid_email_status: rowsValidEmail,
+        rows_eligible_email_1: rowsEligibleEmail1,
+      };
+
+      return json({ ok: true, meta, stats, fetched_at: new Date().toISOString() }, 200, request);
+    },
+  },
+
+  // -------------------------------------------------------------------------
   // Scale Assets (Public Route)
   // -------------------------------------------------------------------------
 

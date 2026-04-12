@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-10 (Client Record sub-page routing)
+Last updated: 2026-04-11 (Master prospect CSV R2 upload route + CLI)
 
 ---
 
@@ -663,10 +663,30 @@ Public marketplace surfaces (catalog, voting, bidding, scratch) must contain zer
 
 ### Directory structure
 scale/
-├── prospects/    ← source CSVs (gitignored)
-├── batches/      ← generated JSON batches (committed)
-├── hunter/       ← Hunter.io import CSVs (committed)
-└── generate-vlp-batch.js
+├── prospects/           ← source CSVs (gitignored)
+├── batches/             ← generated JSON batches (committed)
+├── hunter/              ← Hunter.io import CSVs (committed)
+├── generate-vlp-batch.js
+└── upload-prospects.js  ← uploads master prospect CSV to R2 via Worker API
+
+### Master prospect CSV → R2
+The enrichment + campaign router crons read the master prospect CSV from R2
+at `vlp-scale/prospects/master.csv` (not local filesystem). To refresh:
+
+1. Run: `node scale/upload-prospects.js --file <path/to/master.csv>`
+   (reads `SCALE_API_KEY` from `.env` / environment, or pass `--api-key <value>`)
+2. Script validates required columns, reports row counts, then PUTs the raw CSV
+   to `PUT /v1/scale/prospects/upload` with `Authorization: Bearer <SCALE_API_KEY>`
+3. Worker compares the bearer token to the `SCALE_API_KEY` Worker secret and
+   writes `vlp-scale/prospects/master.csv` + `vlp-scale/prospects/master.meta.json`
+4. Verify with: `GET /v1/scale/prospects/status` (same bearer auth; or re-run with `--dry-run` first)
+
+Both routes are gated by the `SCALE_API_KEY` Worker secret — no session cookie,
+no email allowlist. Set via `wrangler secret put SCALE_API_KEY`.
+
+R2 key pattern for master prospects:
+- `vlp-scale/prospects/master.csv` — authoritative master CSV
+- `vlp-scale/prospects/master.meta.json` — `{ uploaded_at, row_count, file_size_bytes, source_filename, uploaded_by }`
 
 ### Daily batch generation
 1. Run: node scale/generate-vlp-batch.js scale/prospects/{source}.csv
