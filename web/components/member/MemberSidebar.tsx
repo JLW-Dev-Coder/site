@@ -14,6 +14,8 @@ import {
   Users,
   User,
   Wallet,
+  Settings,
+  UserCircle,
   HelpCircle,
   Activity,
   ChevronDown,
@@ -61,8 +63,25 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'SUPPORT',
+    title: 'SETTINGS',
     items: [
+      {
+        label: 'Account',
+        href: '/account',
+        icon: <Settings className="h-5 w-5" />,
+        children: [
+          { label: 'Payments', href: '/account/payments', icon: <Wallet className="h-4 w-4" /> },
+        ],
+      },
+      {
+        label: 'Profile',
+        href: '/profile',
+        icon: <UserCircle className="h-5 w-5" />,
+        children: [
+          { label: 'Onboarding', href: '/profile/onboarding', icon: <User className="h-4 w-4" /> },
+          { label: 'Preview', href: '/profile/preview', icon: <User className="h-4 w-4" /> },
+        ],
+      },
       { label: 'Support', href: '/support', icon: <HelpCircle className="h-5 w-5" /> },
       { label: 'Usage', href: '/usage', icon: <Activity className="h-5 w-5" /> },
     ],
