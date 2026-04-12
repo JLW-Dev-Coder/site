@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-12 (SCALE FOIA JSONL source upload + streaming replenish with offset cursor)
+Last updated: 2026-04-11 (SCALE retire generate-batch + send handlers — campaign router is single path)
 
 ---
 
@@ -786,70 +786,42 @@ producing the live verdict the send pipeline relies on.
 - **R2 log key:** `vlp-scale/logs/validate-emails-{YYYY-MM-DD}.json`
 - **Secret:** `REOON_API_KEY`
 
-#### Generate-batch cron (template-based — no Claude API)
-Daily Worker cron that takes verified prospects and emits a full daily
-batch package: per-prospect asset pages, an Email 1 send queue, and an
-Email 2 schedule. Uses static templates only — no LLM calls. Replaces the
-local `scale/generate-vlp-batch.js` CLI for the scheduled path.
-
-- **Cron:** 10:00 UTC daily (shares the slot with FOIA enrichment + WLVLP auction settlement; runs after enrichment so newly enriched rows don't get picked up until the next day)
-- **Worker entrypoint:** `handleGenerateBatchCron(env)` in `workers/src/index.js`
-- **Manual trigger:** `POST /v1/scale/cron/generate-batch` with `Authorization: Bearer <SCALE_API_KEY>` (optional `?limit=N` query param, default 50, max 500)
-- **Source:** `vlp-scale/prospects/master.csv` (R2)
-- **Selection (in order):** `email_found` present (not `undefined` / `nan` / `null`) → `email_status === 'valid'` → `email_1_prepared_at` empty → sort ascending by `domain_clean` (nulls last) → take first 50
-- **Per-prospect generation:** slug = `{first}-{last}-{city}-{state}` (lowercase, hyphens, titles stripped, dedup `-2`/`-3` on collision); time savings table by credential (EA / CPA / JD / default); subject by `firm_bucket` (`solo_brand` vs `local_firm`/default); Email 1 + Email 2 bodies + asset page from static templates
-- **R2 outputs:**
-  - `vlp-scale/batches/scale-batch-{YYYY-MM-DD}.json` — full per-prospect batch JSON (asset_page + email_1 + email_2)
-  - `vlp-scale/asset-pages/{slug}.json` — per-prospect asset page (served by `GET /v1/scale/asset/:slug`)
-  - `vlp-scale/send-queue/email1-pending.json` — appended (read existing, merge new, write back). Each record: `{ email, first_name, subject, body, slug, queued_at }`
-  - `vlp-scale/send-queue/email2-scheduled.json` — appended. Each record: `{ email, first_name, subject, body, slug, send_after }` (`send_after` = +3 days)
-- **Master mutation:** stamps `email_1_prepared_at = ISO timestamp` on each processed row, then writes the updated CSV back to R2
-- **R2 log key:** `vlp-scale/logs/generate-batch-{YYYY-MM-DD}.json` — `{ ran_at, batch_date, prospects_processed, asset_pages_pushed, email1_queued, email2_scheduled, remaining_eligible, days_of_pipeline_remaining, errors }`. `days_of_pipeline_remaining = ceil(remaining / 50)`
-- **Error handling:** try/catch wrapper; per-prospect errors push to `errors[]` and continue; fatal errors flush partial batch JSON before returning
-
-#### Send cron (drains generate-batch queues via Gmail API)
-Daily Worker cron that drains both queues produced by generate-batch and
-delivers them via the Gmail API. Appends the TTMP CAN-SPAM footer at send
-time (templates stay clean; footer logic is centralized). Stamps the master
-CSV with per-row `email_1_sent_at` / `email_2_sent_at` timestamps.
-
-- **Cron:** 14:00 UTC daily (runs after the 3 staged TTMP/VLP/WLVLP sends — same trigger slot)
-- **Worker entrypoint:** `handleScaleEmailSend(env, opts)` in `workers/src/index.js`
-- **Manual trigger:** `POST /v1/scale/cron/send` with `Authorization: Bearer <SCALE_API_KEY>`. Query params: `?limit=N` (default 500, max 1000, cap per lane), `?dry-run=true` (logs what would send; no Gmail call, no R2 writes, no CSV mutation).
-- **Email 1 lane:**
-  - Source: `vlp-scale/send-queue/email1-pending.json`
-  - Eligibility: `status !== 'unsubscribed'` AND `!email_1_sent_at` AND non-empty `email`/`subject`/`body`
-  - For each eligible record: body = `record.body + canspamTtmpFooter(record.email)` → `sendGmailMessage(env, email, subject, body)` → stamp `email_1_sent_at = now()` on queue record AND on master CSV row matched by `email_found` (case-insensitive)
-  - Sent records are REMOVED from the pending queue and appended to `vlp-scale/send-queue/email1-sent.json`
-- **Email 2 lane:**
-  - Source: `vlp-scale/send-queue/email2-scheduled.json`
-  - Eligibility: `status !== 'unsubscribed'` AND `!email_2_sent_at` AND `send_after <= now()` AND non-empty `email`/`subject`/`body`
-  - Same send + stamp flow as Email 1 (stamps `email_2_sent_at` on master CSV)
-  - Sent records are REMOVED from the scheduled queue and appended to `vlp-scale/send-queue/email2-sent.json`
-- **Master CSV stamping:** CSV is loaded lazily on first successful send, mutated in memory, and rewritten to `vlp-scale/prospects/master.csv` once at the end of the run. `email_1_sent_at` / `email_2_sent_at` columns are added if missing.
-- **CAN-SPAM footer:** applied at send time via `canspamTtmpFooter(record.email)`. NOT stored in queue bodies. If you grep the queue JSON on R2 you will NOT see the footer — that's expected.
-- **R2 log key:** `vlp-scale/logs/send-{YYYY-MM-DD}.json` — `{ ran_at, dry_run, limit, email_1: {eligible, attempted, sent, failed}, email_2: {...}, master_csv_rows_stamped, errors[] }`. Dry-run mode skips this write.
-- **Secret:** no new secret — reuses the existing Gmail credentials consumed by `sendGmailMessage`.
-
-### SCALE Cron Pipeline — full daily flow
+### SCALE Pipeline (unified)
 
 ```
-06:00 UTC — find-emails       auto-replenish master from foia-source.jsonl (88K rows, streaming cursor) if low,
-                               then discover emails for rows without email_found
+06:00 UTC — find-emails       auto-replenish master from foia-source.jsonl
+                               (88K rows, streaming cursor) if low, then
+                               discover emails for rows without email_found
 08:00 UTC — validate-emails   verify discovered emails via Reoon quick mode
-10:00 UTC — generate-batch    build email copy + asset pages for valid emails
-14:00 UTC — send              deliver Email 1 via Gmail; send Email 2 where send_after has passed
+12:00 UTC — campaign router   handleDailyBatchGeneration selects valid
+                               prospects from foia-master NDJSON, allocates
+                               TTMP 65% / VLP 25% / WLVLP 10% (DAILY_BATCH_CAP
+                               = 200/day), builds 6-email sequences, appends
+                               to platform send queues
+14:00 UTC — staged send       handleTtmpEmailSend, handleVlpEmailSend, and
+                               handleWlvlpEmailSend each drain their platform
+                               queue: deliver Email 1 for new records and
+                               advance Emails 2-6 on the compressed 10-day
+                               cadence (Day 0, +2, +4, +6, +8, +10)
 ```
 
-All 4 crons:
-- share the master CSV at `vlp-scale/prospects/master.csv`
+All crons:
 - are guarded in `scheduled(event, env, ctx)` by `event.cron` string matching
-- have manual trigger routes under `POST /v1/scale/cron/<step>` with `Authorization: Bearer <SCALE_API_KEY>` and `?limit=N`
-- write run logs to `vlp-scale/logs/<step>-{YYYY-MM-DD}.json`
+- find-emails and validate-emails have manual trigger routes under
+  `POST /v1/scale/cron/<step>` with `Authorization: Bearer <SCALE_API_KEY>`
+  and `?limit=N`
+- write run logs under `vlp-scale/logs/<step>-{YYYY-MM-DD}.json` or
+  `vlp-scale/batch-logs/{YYYY-MM-DD}.json` (campaign router)
 
-The `POST /v1/scale/cron/send` route additionally supports `?dry-run=true`
-so you can inspect what would be sent without burning Gmail credits or
-mutating R2 state. Use this before any production smoke test.
+**Note:** find-emails and validate-emails currently read/write
+`vlp-scale/prospects/master.csv`. The campaign router reads the FOIA master
+NDJSON at `vlp-scale/foia-leads/foia-master.json`. Migrating find-emails and
+validate-emails to the FOIA NDJSON directly is a follow-up — once complete,
+the master CSV path can be retired.
+
+The 10:00 UTC slot runs `handleEnrichmentBatch` only. The legacy SCALE
+`generate-batch` (10:00) and `send` (14:00) handlers have been retired —
+the campaign router is the single path for email generation and delivery.
 
 ### Daily batch generation
 1. Run: node scale/generate-vlp-batch.js scale/prospects/{source}.csv
