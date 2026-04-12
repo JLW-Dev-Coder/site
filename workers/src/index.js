@@ -16271,6 +16271,89 @@ TTMP Support Team
     },
   },
 
+  // POST /v1/scale/cron/backfill-asset-pages — One-shot backfill for TTMP + VLP asset pages
+  {
+    method: 'POST', pattern: '/v1/scale/cron/backfill-asset-pages',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
+        return json({ ok: false, error: 'Unauthorized' }, 401, request);
+      }
+      const nowIso = new Date().toISOString();
+      const campaigns = [
+        { key: 'vlp-scale/ttmp-send-queue/email1-pending.json', campaign: 'ttmp' },
+        { key: 'vlp-scale/vlp-send-queue/email1-pending.json',  campaign: 'vlp'  },
+      ];
+      const report = { ttmp: { scanned: 0, written: 0, skipped: 0, errors: 0 }, vlp: { scanned: 0, written: 0, skipped: 0, errors: 0 } };
+      for (const c of campaigns) {
+        try {
+          const obj = await env.R2_VIRTUAL_LAUNCH.get(c.key);
+          if (!obj) { report[c.campaign].skipped_reason = 'no_queue'; continue; }
+          const arr = await obj.json();
+          if (!Array.isArray(arr)) continue;
+          report[c.campaign].scanned = arr.length;
+          for (const rec of arr) {
+            const slug = rec.slug;
+            if (!slug) { report[c.campaign].skipped++; continue; }
+            const existing = await env.R2_VIRTUAL_LAUNCH.head(`vlp-scale/asset-pages/${slug}.json`);
+            if (existing) { report[c.campaign].skipped++; continue; }
+            const credKey = dailyNormalizeCred(rec.profession || '');
+            const cred = DAILY_CRED[credKey] || DAILY_CRED.EA;
+            const firstDisplay = rec.first_name || 'Friend';
+            const lastDisplay = rec.last_name || '';
+            const city = rec.city || '';
+            const state = rec.state || '';
+            let page;
+            if (c.campaign === 'ttmp') {
+              page = {
+                slug, campaign: 'ttmp',
+                headline: `${firstDisplay}, here's what transcript automation saves your ${city || 'local'} practice`,
+                subheadline: `A practice analysis for ${cred.label}s — estimated time savings, revenue recovery, and workflow fit.`,
+                practice_type: credKey, credential_label: cred.label, city, state,
+                firm: `${firstDisplay} ${lastDisplay}`.trim(),
+                stats: { billing_range: cred.billing, weekly_hours: cred.weekly, annual_hours: cred.annual, revenue_impact: cred.revenue },
+                cta_primary_url: 'https://transcript.taxmonitor.pro/pricing',
+                cta_primary_label: 'Start Free — 10 analyses for $19',
+                cta_secondary_url: 'https://transcript.taxmonitor.pro/resources',
+                cta_secondary_label: 'Try the free IRS code lookup tool',
+                cta_booking_url: 'https://cal.com/vlp/ttmp-discovery',
+                generated_at: nowIso, backfilled: true,
+              };
+            } else {
+              page = {
+                slug, campaign: 'vlp',
+                headline: `${firstDisplay}, taxpayers in ${city || 'your area'} are searching for help you're not showing up for`,
+                subheadline: `A practice analysis for ${cred.label}s — new client value, directory visibility, and transcript automation.`,
+                practice_type: credKey, credential_label: cred.label, city, state,
+                firm: `${firstDisplay} ${lastDisplay}`.trim(),
+                stats: { new_client_value: cred.new_client_value, billing_range: cred.billing, weekly_hours: cred.weekly, annual_hours: cred.annual, revenue_impact: cred.revenue },
+                cta_primary_url: 'https://virtuallaunch.pro/pricing',
+                cta_primary_label: 'See listing tiers — starts at $79/mo',
+                cta_booking_url: 'https://cal.com/vlp/vlp-discovery',
+                generated_at: nowIso, backfilled: true,
+              };
+            }
+            try {
+              await env.R2_VIRTUAL_LAUNCH.put(
+                `vlp-scale/asset-pages/${slug}.json`,
+                JSON.stringify(page),
+                { httpMetadata: { contentType: 'application/json' } }
+              );
+              report[c.campaign].written++;
+            } catch (e) {
+              console.error(`Backfill asset page failed ${slug}:`, e);
+              report[c.campaign].errors++;
+            }
+          }
+        } catch (e) {
+          report[c.campaign].error = String(e && e.message || e);
+        }
+      }
+      return json({ ok: true, report }, 200, request);
+    },
+  },
+
   // -------------------------------------------------------------------------
   // Scale Assets (Public Route)
   // -------------------------------------------------------------------------
