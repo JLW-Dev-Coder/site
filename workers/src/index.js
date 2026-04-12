@@ -18633,6 +18633,8 @@ async function handleDailyBatchGeneration(env) {
   const ttmpRecs = [];
   const vlpRecs = [];
   const wlvlpRecs = [];
+  const ttmpAssetWrites = [];
+  const vlpAssetWrites = [];
   const wlvlpAssetWrites = [];
 
   for (const i of selectedIdx) {
@@ -18668,9 +18670,60 @@ async function handleDailyBatchGeneration(env) {
     if (dest === 'ttmp') {
       ttmpRecs.push(buildTtmpQueueRecord(r, ctx));
       r.ttmp_email_1_prepared_at = todayIso;
+      r.ttmp_asset_slug = slug;
+      ttmpAssetWrites.push({
+        slug,
+        page: {
+          slug,
+          campaign: 'ttmp',
+          headline: `${firstDisplay}, here's what transcript automation saves your ${city || 'local'} practice`,
+          subheadline: `A practice analysis for ${cred.label}s — estimated time savings, revenue recovery, and workflow fit.`,
+          practice_type: credKey,
+          credential_label: cred.label,
+          city, state,
+          firm: r.DBA || `${firstDisplay} ${lastDisplay}`.trim(),
+          stats: {
+            billing_range: cred.billing,
+            weekly_hours: cred.weekly,
+            annual_hours: cred.annual,
+            revenue_impact: cred.revenue,
+          },
+          cta_primary_url: 'https://transcript.taxmonitor.pro/pricing',
+          cta_primary_label: 'Start Free — 10 analyses for $19',
+          cta_secondary_url: 'https://transcript.taxmonitor.pro/resources',
+          cta_secondary_label: 'Try the free IRS code lookup tool',
+          cta_booking_url: 'https://cal.com/vlp/ttmp-discovery',
+          generated_at: todayIso,
+        },
+      });
     } else if (dest === 'vlp') {
       vlpRecs.push(buildVlpQueueRecord(r, ctx));
       r.vlp_email_1_prepared_at = todayIso;
+      r.vlp_asset_slug = slug;
+      vlpAssetWrites.push({
+        slug,
+        page: {
+          slug,
+          campaign: 'vlp',
+          headline: `${firstDisplay}, taxpayers in ${city || 'your area'} are searching for help you're not showing up for`,
+          subheadline: `A practice analysis for ${cred.label}s — new client value, directory visibility, and transcript automation.`,
+          practice_type: credKey,
+          credential_label: cred.label,
+          city, state,
+          firm: r.DBA || `${firstDisplay} ${lastDisplay}`.trim(),
+          stats: {
+            new_client_value: cred.new_client_value,
+            billing_range: cred.billing,
+            weekly_hours: cred.weekly,
+            annual_hours: cred.annual,
+            revenue_impact: cred.revenue,
+          },
+          cta_primary_url: 'https://virtuallaunch.pro/pricing',
+          cta_primary_label: 'See listing tiers — starts at $79/mo',
+          cta_booking_url: 'https://cal.com/vlp/vlp-discovery',
+          generated_at: todayIso,
+        },
+      });
     } else {
       wlvlpRecs.push(buildWlvlpQueueRecord(r, ctx));
       r.wlvlp_email_1_prepared_at = todayIso;
@@ -18693,7 +18746,31 @@ async function handleDailyBatchGeneration(env) {
     }
   }
 
-  // 5. Write WLVLP minimal asset pages
+  // 5. Write asset pages for all three campaigns
+  // TTMP + VLP → vlp-scale/asset-pages/{slug}.json (served by GET /v1/scale/asset/:slug)
+  // WLVLP → vlp-scale/wlvlp-asset-pages/{slug}.json (served by GET /v1/wlvlp/asset-pages/:slug)
+  for (const a of ttmpAssetWrites) {
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/asset-pages/${a.slug}.json`,
+        JSON.stringify(a.page),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      console.error(`Daily batch: TTMP asset page write failed ${a.slug}:`, e);
+    }
+  }
+  for (const a of vlpAssetWrites) {
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/asset-pages/${a.slug}.json`,
+        JSON.stringify(a.page),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      console.error(`Daily batch: VLP asset page write failed ${a.slug}:`, e);
+    }
+  }
   for (const a of wlvlpAssetWrites) {
     try {
       await env.R2_VIRTUAL_LAUNCH.put(
@@ -18702,7 +18779,7 @@ async function handleDailyBatchGeneration(env) {
         { httpMetadata: { contentType: 'application/json' } }
       );
     } catch (e) {
-      console.error(`Daily batch: asset page write failed ${a.slug}:`, e);
+      console.error(`Daily batch: WLVLP asset page write failed ${a.slug}:`, e);
     }
   }
 
@@ -19849,6 +19926,114 @@ export default {
           report[t.campaign] = { records_in_queue: arr.length, records_patched: recordsPatched, bodies_patched: bodiesPatched };
         } catch (e) {
           report[t.campaign] = { error: String(e && e.message || e) };
+        }
+      }
+      return new Response(JSON.stringify(report, null, 2), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+      });
+    }
+
+    // Internal one-shot backfill for TTMP + VLP asset pages.
+    // Scans both send queues, generates asset page JSON for any slug missing
+    // from vlp-scale/asset-pages/{slug}.json, and writes to R2.
+    if (pathname === '/internal/backfill-asset-pages' && method === 'POST') {
+      const providedKey = request.headers.get('X-Internal-Key') || '';
+      if (!env.INTERNAL_TEST_KEY || providedKey !== env.INTERNAL_TEST_KEY) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', ...getCorsHeaders(request) }
+        });
+      }
+      const nowIso = new Date().toISOString();
+      const campaigns = [
+        { key: 'vlp-scale/ttmp-send-queue/email1-pending.json', campaign: 'ttmp' },
+        { key: 'vlp-scale/vlp-send-queue/email1-pending.json',  campaign: 'vlp'  },
+      ];
+      const report = { ttmp: { scanned: 0, written: 0, skipped: 0, errors: 0 }, vlp: { scanned: 0, written: 0, skipped: 0, errors: 0 } };
+      for (const c of campaigns) {
+        try {
+          const obj = await env.R2_VIRTUAL_LAUNCH.get(c.key);
+          if (!obj) { report[c.campaign].skipped_reason = 'no_queue'; continue; }
+          const arr = await obj.json();
+          if (!Array.isArray(arr)) continue;
+          report[c.campaign].scanned = arr.length;
+          for (const rec of arr) {
+            const slug = rec.slug;
+            if (!slug) { report[c.campaign].skipped++; continue; }
+            // Check if asset page already exists
+            const existing = await env.R2_VIRTUAL_LAUNCH.head(`vlp-scale/asset-pages/${slug}.json`);
+            if (existing) { report[c.campaign].skipped++; continue; }
+            // Build asset page from queue record data
+            const credKey = dailyNormalizeCred(rec.profession || '');
+            const cred = DAILY_CRED[credKey] || DAILY_CRED.EA;
+            const firstDisplay = rec.first_name || 'Friend';
+            const lastDisplay = rec.last_name || '';
+            const city = rec.city || '';
+            const state = rec.state || '';
+            let page;
+            if (c.campaign === 'ttmp') {
+              page = {
+                slug,
+                campaign: 'ttmp',
+                headline: `${firstDisplay}, here's what transcript automation saves your ${city || 'local'} practice`,
+                subheadline: `A practice analysis for ${cred.label}s — estimated time savings, revenue recovery, and workflow fit.`,
+                practice_type: credKey,
+                credential_label: cred.label,
+                city, state,
+                firm: `${firstDisplay} ${lastDisplay}`.trim(),
+                stats: {
+                  billing_range: cred.billing,
+                  weekly_hours: cred.weekly,
+                  annual_hours: cred.annual,
+                  revenue_impact: cred.revenue,
+                },
+                cta_primary_url: 'https://transcript.taxmonitor.pro/pricing',
+                cta_primary_label: 'Start Free — 10 analyses for $19',
+                cta_secondary_url: 'https://transcript.taxmonitor.pro/resources',
+                cta_secondary_label: 'Try the free IRS code lookup tool',
+                cta_booking_url: 'https://cal.com/vlp/ttmp-discovery',
+                generated_at: nowIso,
+                backfilled: true,
+              };
+            } else {
+              page = {
+                slug,
+                campaign: 'vlp',
+                headline: `${firstDisplay}, taxpayers in ${city || 'your area'} are searching for help you're not showing up for`,
+                subheadline: `A practice analysis for ${cred.label}s — new client value, directory visibility, and transcript automation.`,
+                practice_type: credKey,
+                credential_label: cred.label,
+                city, state,
+                firm: `${firstDisplay} ${lastDisplay}`.trim(),
+                stats: {
+                  new_client_value: cred.new_client_value,
+                  billing_range: cred.billing,
+                  weekly_hours: cred.weekly,
+                  annual_hours: cred.annual,
+                  revenue_impact: cred.revenue,
+                },
+                cta_primary_url: 'https://virtuallaunch.pro/pricing',
+                cta_primary_label: 'See listing tiers — starts at $79/mo',
+                cta_booking_url: 'https://cal.com/vlp/vlp-discovery',
+                generated_at: nowIso,
+                backfilled: true,
+              };
+            }
+            try {
+              await env.R2_VIRTUAL_LAUNCH.put(
+                `vlp-scale/asset-pages/${slug}.json`,
+                JSON.stringify(page),
+                { httpMetadata: { contentType: 'application/json' } }
+              );
+              report[c.campaign].written++;
+            } catch (e) {
+              console.error(`Backfill asset page failed ${slug}:`, e);
+              report[c.campaign].errors++;
+            }
+          }
+        } catch (e) {
+          report[c.campaign].error = String(e && e.message || e);
         }
       }
       return new Response(JSON.stringify(report, null, 2), {
