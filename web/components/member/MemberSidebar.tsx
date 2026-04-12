@@ -11,7 +11,6 @@ import {
   FileText,
   Coins,
   Link2,
-  Users,
   User,
   Wallet,
   Settings,
@@ -51,14 +50,6 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'EARNINGS',
     items: [
       { label: 'Affiliate', href: '/affiliate', icon: <Link2 className="h-5 w-5" /> },
-      {
-        label: 'Client Pool',
-        href: '/client-pool',
-        icon: <Users className="h-5 w-5" />,
-        children: [
-          { label: 'Client Record', href: '/client-pool', icon: <User className="h-4 w-4" /> },
-        ],
-      },
       { label: 'Payouts', href: '/payouts', icon: <Wallet className="h-5 w-5" /> },
     ],
   },
