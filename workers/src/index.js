@@ -5004,18 +5004,6 @@ const ROUTES = [
           console.log('[calcom callback] Token response status:', tokenRes.status);
           console.log('[calcom callback] Token response body:', tokenText);
 
-          // Write debug info to R2 so we can inspect after the fact
-          await env.R2_VIRTUAL_LAUNCH.put('vlp-scale/logs/calcom-oauth-debug.json', JSON.stringify({
-            timestamp: new Date().toISOString(),
-            flow,
-            account_id: session.account_id,
-            token_url: tokenUrl,
-            request_body: { ...tokenBody, client_secret: '[REDACTED]' },
-            response_status: tokenRes.status,
-            response_headers: Object.fromEntries(tokenRes.headers.entries()),
-            response_body: tokenText,
-          }, null, 2));
-
           if (!tokenRes.ok) {
             return Response.redirect(`https://virtuallaunch.pro/calendar?calcom=error&reason=token_exchange`, 302);
           }
@@ -8576,7 +8564,6 @@ const ROUTES = [
 
         if (calApiKey) {
           let rawBookings = [];
-          let _calDebug = { calcom_connected: calcomConnected, token_source: userCalToken ? 'oauth' : 'admin_key', token_prefix: calApiKey ? calApiKey.slice(0, 12) + '...' : null };
           try {
             const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,recurring,unconfirmed&take=250', {
               headers: {
@@ -8585,29 +8572,15 @@ const ROUTES = [
               },
             });
             const v2Text = await v2Res.text();
-            _calDebug.v2_status = v2Res.status;
-            _calDebug.v2_body = v2Text.slice(0, 4000);
             if (v2Res.ok) {
               const v2Data = JSON.parse(v2Text);
               rawBookings = v2Data.data || v2Data.bookings || [];
-              _calDebug.v2_bookings_count = rawBookings.length;
             } else {
-              _calDebug.v2_error = `v2 ${v2Res.status}`;
+              console.log('[calendar] Cal.com v2 bookings error:', v2Res.status, v2Text.slice(0, 500));
             }
           } catch (v2Err) {
-            _calDebug.v2_error = v2Err.message;
+            console.log('[calendar] Cal.com v2 bookings fetch failed:', v2Err.message);
           }
-          _calDebug.raw_bookings_total = rawBookings.length;
-          _calDebug.raw_bookings_sample = rawBookings.slice(0, 3);
-          // Write debug to R2
-          try {
-            await env.R2_VIRTUAL_LAUNCH.put('vlp-scale/logs/calcom-bookings-debug.json', JSON.stringify({
-              timestamp: new Date().toISOString(),
-              account_id: session.account_id,
-              range: { start: rangeStart, end: rangeEnd },
-              ..._calDebug,
-            }));
-          } catch (_e) { /* best-effort */ }
 
           // When using the admin key, filter by user email; personal key returns only their bookings
           const userEmail = (session.email || '').toLowerCase();
@@ -16451,36 +16424,6 @@ TTMP Support Team
     },
   },
 
-  {
-    // Temporary debug route — read Cal.com OAuth debug log from R2
-    method: 'GET', pattern: '/v1/debug/calcom-oauth',
-    handler: async (_method, _pattern, _params, request, env) => {
-      const authHeader = request.headers.get('authorization') || '';
-      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
-        return json({ ok: false, error: 'Unauthorized' }, 401, request);
-      }
-      const obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/logs/calcom-oauth-debug.json');
-      if (!obj) return json({ ok: false, error: 'No debug log found yet' }, 404, request);
-      const data = JSON.parse(await obj.text());
-      return json({ ok: true, ...data }, 200, request);
-    }
-  },
-  {
-    // Temporary debug route — read Cal.com bookings debug log from R2
-    method: 'GET', pattern: '/v1/debug/calcom-bookings',
-    handler: async (_method, _pattern, _params, request, env) => {
-      const authHeader = request.headers.get('authorization') || '';
-      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
-      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
-        return json({ ok: false, error: 'Unauthorized' }, 401, request);
-      }
-      const obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/logs/calcom-bookings-debug.json');
-      if (!obj) return json({ ok: false, error: 'No bookings debug log found yet — load the calendar page first' }, 404, request);
-      const data = JSON.parse(await obj.text());
-      return json({ ok: true, ...data }, 200, request);
-    }
-  },
   {
     method: 'GET', pattern: '/v1/scale/prospects/status',
     handler: async (_method, _pattern, _params, request, env) => {
