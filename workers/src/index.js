@@ -8539,6 +8539,7 @@ const ROUTES = [
             const firstAttendee = Array.isArray(attendees) && attendees.length > 0 ? attendees[0] : {};
             const startTime = start.length > 10 ? start.slice(11, 16) : null;
             const endTime = end.length > 10 ? end.slice(11, 16) : null;
+            const bookingUid = b.uid || b.id || b.bookingId || '';
             const booking = {
               id: `calcom-${b.id || b.uid || b.bookingId}`,
               title: b.title || b.eventType?.title || 'Cal.com Booking',
@@ -8549,6 +8550,8 @@ const ROUTES = [
               source: 'calcom',
               color: '#292929',
               url: b.meetingUrl || '',
+              meeting_url: b.meetingUrl || '',
+              manage_url: bookingUid ? `https://app.cal.com/booking/${bookingUid}` : '',
               description: `${firstAttendee.name || ''} (${firstAttendee.email || ''})`.trim(),
             };
             calcomBookings.push(booking);

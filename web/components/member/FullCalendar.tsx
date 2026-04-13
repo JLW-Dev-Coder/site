@@ -27,6 +27,8 @@ export interface CalendarEvent {
   url: string
   description: string
   location?: string
+  meeting_url?: string
+  manage_url?: string
 }
 
 interface CalendarApiResponse {
@@ -460,18 +462,42 @@ export default function FullCalendar({ brandColor, onConnectGoogle, calcomConnec
                                 <p className="mt-2 text-xs text-white/40 line-clamp-3">{evt.description}</p>
                               )}
 
-                              {/* Action link */}
-                              {evt.url && (
-                                <a
-                                  href={evt.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="mt-2.5 inline-flex items-center gap-1 rounded-md bg-white/5 px-2.5 py-1 text-xs font-medium text-blue-400 transition hover:bg-white/10 hover:text-blue-300"
-                                >
-                                  <ExternalLink className="h-3 w-3" />
-                                  {evt.source === 'google' ? 'Open in Google Calendar' : evt.source === 'calcom' ? 'Open in Cal.com' : 'Details'}
-                                </a>
-                              )}
+                              {/* Action links */}
+                              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                                {evt.source === 'calcom' && evt.meeting_url && (
+                                  <a
+                                    href={evt.meeting_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-400 transition hover:bg-blue-500/20 hover:text-blue-300"
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                    Join Meeting
+                                  </a>
+                                )}
+                                {evt.source === 'calcom' && evt.manage_url && (
+                                  <a
+                                    href={evt.manage_url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-md border border-white/10 px-2.5 py-1 text-xs font-medium text-white/50 transition hover:bg-white/5 hover:text-white/70"
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                    Manage Booking
+                                  </a>
+                                )}
+                                {evt.source === 'google' && evt.url && (
+                                  <a
+                                    href={evt.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-md bg-white/5 px-2.5 py-1 text-xs font-medium text-blue-400 transition hover:bg-white/10 hover:text-blue-300"
+                                  >
+                                    <ExternalLink className="h-3 w-3" />
+                                    Open in Google Calendar
+                                  </a>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>

@@ -235,13 +235,26 @@ export default function CalendarClient() {
                 Disconnect
               </button>
             ) : (
-              <a
-                href={`${API_URL}/v1/cal/oauth/start`}
-                className="inline-flex items-center gap-2 rounded-lg border border-brand-orange/30 px-4 py-2 text-sm font-medium text-brand-orange transition hover:bg-brand-orange/10"
-              >
-                <Link2 className="h-4 w-4" />
-                Connect Cal.com
-              </a>
+              <div className="flex flex-col items-end gap-1.5">
+                <a
+                  href={`${API_URL}/v1/cal/oauth/start`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-brand-orange/30 px-4 py-2 text-sm font-medium text-brand-orange transition hover:bg-brand-orange/10"
+                >
+                  <Link2 className="h-4 w-4" />
+                  Connect Cal.com
+                </a>
+                <span className="text-[11px] text-white/30">
+                  Don&apos;t have Cal.com?{' '}
+                  <a
+                    href="https://refer.cal.com/tax-monitor-pro-wltn"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-white/40 underline transition hover:text-white/60"
+                  >
+                    Sign up free
+                  </a>
+                </span>
+              </div>
             )}
           </div>
         </div>
