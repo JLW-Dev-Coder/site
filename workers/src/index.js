@@ -1521,7 +1521,7 @@ async function handleCalVlpOAuthCallback(request, env, session) {
   const calClientId = env.CAL_VLP_OAUTH_CLIENT_ID ?? '782133b560b9ee33174a7a765b8cd73343ffeb2ece517be73a3061f370e21eeb';
   const redirectUri = env.CAL_VLP_REDIRECT_URI ?? 'https://api.virtuallaunch.pro/cal/app/oauth/callback';
 
-  const tokenRes = await fetch('https://app.cal.com/oauth2/token', {
+  const tokenRes = await fetch('https://api.cal.com/v2/auth/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -1560,7 +1560,7 @@ async function handleCalProOAuthCallback(request, env, session) {
   const calClientId = env.CAL_PRO_OAUTH_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
   const redirectUri = env.CAL_PRO_REDIRECT_URI ?? 'https://api.virtuallaunch.pro/v1/cal/oauth/callback';
 
-  const tokenRes = await fetch('https://app.cal.com/oauth2/token', {
+  const tokenRes = await fetch('https://api.cal.com/v2/auth/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -4919,10 +4919,11 @@ const ROUTES = [
         [state, '', session.account_id, 'calcom_user', now]
       );
 
-      const url = new URL('https://app.cal.com/oauth2/authorize');
+      const url = new URL('https://app.cal.com/auth/oauth2/authorize');
       url.searchParams.set('client_id', calClientId);
       url.searchParams.set('redirect_uri', redirectUri);
       url.searchParams.set('response_type', 'code');
+      url.searchParams.set('scope', 'BOOKING_READ BOOKING_WRITE');
       url.searchParams.set('state', state);
       return Response.redirect(url.toString(), 302);
     },
@@ -4939,10 +4940,11 @@ const ROUTES = [
       // https://api.virtuallaunch.pro/v1/cal/oauth/callback
       // If this changes, update CAL_PRO_REDIRECT_URI env var.
       const redirectUri = env.CAL_PRO_REDIRECT_URI ?? 'https://api.virtuallaunch.pro/v1/cal/oauth/callback';
-      const url = new URL('https://app.cal.com/oauth2/authorize');
+      const url = new URL('https://app.cal.com/auth/oauth2/authorize');
       url.searchParams.set('client_id', calClientId);
       url.searchParams.set('redirect_uri', redirectUri);
       url.searchParams.set('response_type', 'code');
+      url.searchParams.set('scope', 'BOOKING_READ BOOKING_WRITE');
       return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() }, 200, request);
     },
   },
@@ -4982,7 +4984,7 @@ const ROUTES = [
         const redirectUri = 'https://api.virtuallaunch.pro/v1/cal/oauth/callback';
 
         try {
-          const tokenRes = await fetch('https://app.cal.com/oauth2/token', {
+          const tokenRes = await fetch('https://api.cal.com/v2/auth/oauth2/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -8240,7 +8242,7 @@ const ROUTES = [
       if (Date.now() + 60000 > expiry && row.calcom_refresh_token) {
         try {
           const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
-          const refreshRes = await fetch('https://app.cal.com/oauth2/token', {
+          const refreshRes = await fetch('https://api.cal.com/v2/auth/oauth2/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -8448,7 +8450,7 @@ const ROUTES = [
           if (Date.now() + 60000 > expiry) {
             try {
               const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
-              const refreshRes = await fetch('https://app.cal.com/oauth2/token', {
+              const refreshRes = await fetch('https://api.cal.com/v2/auth/oauth2/token', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({
