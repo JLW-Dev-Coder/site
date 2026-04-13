@@ -4907,11 +4907,15 @@ const ROUTES = [
       if (error) return error;
       const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
       const redirectUri = 'https://api.virtuallaunch.pro/v1/cal/oauth/callback';
+      // Capture requesting domain so the callback can redirect back to the correct platform
+      const refOrigin = request.headers.get('Referer') || request.headers.get('Origin') || '';
+      const origin = refOrigin.includes('taxmonitor.pro') ? 'transcript.taxmonitor.pro' : 'virtuallaunch.pro';
 
       const state = btoa(JSON.stringify({
         accountId: session.account_id,
         nonce: crypto.randomUUID(),
         flow: 'calcom_user',
+        origin,
       }));
 
       const now = new Date().toISOString();
@@ -4962,6 +4966,13 @@ const ROUTES = [
       const stateParam = url.searchParams.get('state');
       const code = url.searchParams.get('code');
 
+      // Decode state to extract origin for domain-aware redirects
+      let stateObj = {};
+      try { stateObj = JSON.parse(atob(stateParam || '')); } catch { /* ignore */ }
+      const calendarBase = (stateObj.origin || '').includes('taxmonitor.pro')
+        ? 'https://transcript.taxmonitor.pro/app/calendar'
+        : 'https://virtuallaunch.pro/calendar';
+
       // Determine flow from state
       let flow = 'cal_pro'; // default to legacy FLOW B
       if (stateParam) {
@@ -4978,7 +4989,7 @@ const ROUTES = [
 
       if (flow === 'calcom_user') {
         // Per-user Cal.com OAuth — store tokens in accounts table
-        if (!code) return Response.redirect('https://virtuallaunch.pro/calendar?calcom=error&reason=missing_code', 302);
+        if (!code) return Response.redirect(`${calendarBase}?calcom=error&reason=missing_code`, 302);
 
         const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
         const calClientSecret = env.CALCOM_CLIENT_SECRET;
@@ -5005,7 +5016,7 @@ const ROUTES = [
           console.log('[calcom callback] Token response body:', tokenText);
 
           if (!tokenRes.ok) {
-            return Response.redirect(`https://virtuallaunch.pro/calendar?calcom=error&reason=token_exchange`, 302);
+            return Response.redirect(`${calendarBase}?calcom=error&reason=token_exchange`, 302);
           }
 
           const tokenData = JSON.parse(tokenText);
@@ -5016,10 +5027,10 @@ const ROUTES = [
             [tokenData.access_token, tokenData.refresh_token ?? null, expiresAt, now, session.account_id]
           );
 
-          return Response.redirect('https://virtuallaunch.pro/calendar?calcom=connected', 302);
+          return Response.redirect(`${calendarBase}?calcom=connected`, 302);
         } catch (err) {
           console.log('[calcom-oauth] Callback error:', err.message);
-          return Response.redirect('https://virtuallaunch.pro/calendar?calcom=error&reason=internal', 302);
+          return Response.redirect(`${calendarBase}?calcom=error&reason=internal`, 302);
         }
       }
 
@@ -7997,7 +8008,10 @@ const ROUTES = [
       if (error) return error;
       // Calendar OAuth uses its own redirect URI — NOT env.GOOGLE_REDIRECT_URI (that's the login callback)
       const redirectUri = 'https://api.virtuallaunch.pro/v1/google/oauth/callback';
-      const state = btoa(JSON.stringify({ accountId: session.account_id, nonce: crypto.randomUUID() }));
+      // Capture requesting domain so the callback can redirect back to the correct platform
+      const refOrigin = request.headers.get('Referer') || request.headers.get('Origin') || '';
+      const origin = refOrigin.includes('taxmonitor.pro') ? 'transcript.taxmonitor.pro' : 'virtuallaunch.pro';
+      const state = btoa(JSON.stringify({ accountId: session.account_id, nonce: crypto.randomUUID(), origin }));
       const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
       url.searchParams.set('client_id', env.GOOGLE_CLIENT_ID);
       url.searchParams.set('redirect_uri', redirectUri);
@@ -8017,17 +8031,24 @@ const ROUTES = [
       const code = url.searchParams.get('code');
       const state = url.searchParams.get('state');
       const oauthError = url.searchParams.get('error');
+      // Decode state early to extract origin for domain-aware redirects
+      let stateObj = {};
+      try { stateObj = JSON.parse(atob(state || '')); } catch { /* handled below */ }
+      const calendarBase = (stateObj.origin || '').includes('taxmonitor.pro')
+        ? 'https://transcript.taxmonitor.pro/app/calendar'
+        : 'https://virtuallaunch.pro/calendar';
       if (oauthError) {
-        return Response.redirect(`https://virtuallaunch.pro/calendar?google=error&reason=${encodeURIComponent(oauthError)}`, 302);
+        return Response.redirect(`${calendarBase}?google=error&reason=${encodeURIComponent(oauthError)}`, 302);
       }
       if (!code || !state) {
-        return Response.redirect('https://virtuallaunch.pro/calendar?google=error&reason=missing_params', 302);
+        return Response.redirect(`${calendarBase}?google=error&reason=missing_params`, 302);
       }
       let accountId;
       try {
-        accountId = JSON.parse(atob(state)).accountId;
+        accountId = stateObj.accountId;
+        if (!accountId) throw new Error('missing accountId');
       } catch {
-        return Response.redirect('https://virtuallaunch.pro/calendar?google=error&reason=invalid_state', 302);
+        return Response.redirect(`${calendarBase}?google=error&reason=invalid_state`, 302);
       }
       // Must match the redirect_uri used in /v1/google/oauth/start — NOT env.GOOGLE_REDIRECT_URI
       const redirectUri = 'https://api.virtuallaunch.pro/v1/google/oauth/callback';
@@ -8044,7 +8065,7 @@ const ROUTES = [
           }),
         });
         if (!tokenRes.ok) {
-          return Response.redirect('https://virtuallaunch.pro/calendar?google=error&reason=token_exchange_failed', 302);
+          return Response.redirect(`${calendarBase}?google=error&reason=token_exchange_failed`, 302);
         }
         const tokenData = await tokenRes.json();
         const expiresAt = new Date(Date.now() + (tokenData.expires_in ?? 3600) * 1000).toISOString();
@@ -8056,9 +8077,9 @@ const ROUTES = [
            WHERE account_id = ?`,
           [tokenData.access_token, tokenData.refresh_token ?? null, expiresAt, accountId]
         );
-        return Response.redirect('https://virtuallaunch.pro/calendar?google=connected', 302);
+        return Response.redirect(`${calendarBase}?google=connected`, 302);
       } catch {
-        return Response.redirect('https://virtuallaunch.pro/calendar?google=error&reason=internal_error', 302);
+        return Response.redirect(`${calendarBase}?google=error&reason=internal_error`, 302);
       }
     },
   },

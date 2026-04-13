@@ -1088,9 +1088,18 @@ Source colors: Google `#4285f4`, Cal.com `#22c55e`, IRS `#dc2626`.
 
 **IRS tax dates:** `IRS_TAX_DATES` constant in `workers/src/index.js` — covers 2026-2027. Weekend dates adjusted to next business day per IRS rules (e.g., 2026-01-31 Sat → 2026-02-02 Mon). **Update annually** when new tax year dates are confirmed.
 
-**Google Calendar OAuth:** `GET /v1/google/oauth/start` initiates the flow. The redirect URI is hardcoded to `https://api.virtuallaunch.pro/v1/google/oauth/callback` (NOT `env.GOOGLE_REDIRECT_URI`, which points to the login callback). This URI must be registered in Google Cloud Console. Tokens stored on `accounts` table (`google_access_token`, `google_refresh_token`, `google_token_expiry`). The unified endpoint reuses the same refresh logic as `GET /v1/google/events`.
+**Google Calendar OAuth:** `GET /v1/google/oauth/start` initiates the flow. The redirect URI is hardcoded to `https://api.virtuallaunch.pro/v1/google/oauth/callback` (NOT `env.GOOGLE_REDIRECT_URI`, which points to the login callback). This URI must be registered in Google Cloud Console. Tokens stored on `accounts` table (`google_access_token`, `google_refresh_token`, `google_token_expiry`). The unified endpoint reuses the same refresh logic as `GET /v1/google/events`. **Domain-aware redirects:** the start handler captures the requesting domain from `Referer`/`Origin` headers and stores it in the OAuth state as `origin`. The callback reads `origin` and redirects accordingly (see redirect mapping below).
 
-**Cal.com integration (per-user OAuth):** Users connect Cal.com via standard OAuth 2.0 authorization code flow. The "Connect Cal.com" button on the calendar page navigates to `GET /v1/cal/oauth/start`, which redirects (302) to Cal.com's authorize endpoint. After consent, the callback exchanges the code for access/refresh tokens and stores them in D1. The unified calendar endpoint uses the per-user OAuth token if available, falling back to the admin `CAL_API_KEY` (scoped by email). Token refresh is handled automatically when tokens expire.
+**Cal.com integration (per-user OAuth):** Users connect Cal.com via standard OAuth 2.0 authorization code flow. The "Connect Cal.com" button on the calendar page navigates to `GET /v1/cal/oauth/start`, which redirects (302) to Cal.com's authorize endpoint. After consent, the callback exchanges the code for access/refresh tokens and stores them in D1. The unified calendar endpoint uses the per-user OAuth token if available, falling back to the admin `CAL_API_KEY` (scoped by email). Token refresh is handled automatically when tokens expire. **Domain-aware redirects:** same `origin` pattern as Google Calendar OAuth — captured in state at start, read in callback.
+
+**OAuth redirect mapping (Google Calendar + Cal.com):**
+
+| Origin (from Referer/Origin header) | Callback redirect base |
+|--------------------------------------|------------------------|
+| Contains `taxmonitor.pro` | `https://transcript.taxmonitor.pro/app/calendar` |
+| Contains `virtuallaunch.pro` (or fallback) | `https://virtuallaunch.pro/calendar` |
+
+**Worker custom domains:** Both `api.virtuallaunch.pro` and `api.taxmonitor.pro` are custom domains on the same VLP Worker. The Google/Cal.com OAuth redirect URIs always use `api.virtuallaunch.pro` — only the post-auth browser redirect is domain-aware.
 
 | Method | Path | Purpose |
 |--------|------|---------|
