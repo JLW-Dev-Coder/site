@@ -4914,19 +4914,10 @@ const ROUTES = [
         flow: 'calcom_user',
       }));
 
-      // PKCE — Cal.com requires code_verifier even when app says PKCE OFF
-      const verifierBytes = new Uint8Array(32);
-      crypto.getRandomValues(verifierBytes);
-      const codeVerifier = btoa(String.fromCharCode(...verifierBytes))
-        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      const challengeDigest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
-      const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(challengeDigest)))
-        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-
       const now = new Date().toISOString();
       await d1Run(env.DB,
         'INSERT OR REPLACE INTO oauth_state (state_key, code_verifier, account_id, flow, created_at) VALUES (?, ?, ?, ?, ?)',
-        [state, codeVerifier, session.account_id, 'calcom_user', now]
+        [state, '', session.account_id, 'calcom_user', now]
       );
 
       const url = new URL('https://app.cal.com/auth/oauth2/authorize');
@@ -4935,8 +4926,6 @@ const ROUTES = [
       url.searchParams.set('response_type', 'code');
       url.searchParams.set('scope', 'BOOKING_READ BOOKING_WRITE');
       url.searchParams.set('state', state);
-      url.searchParams.set('code_challenge', codeChallenge);
-      url.searchParams.set('code_challenge_method', 'S256');
       return Response.redirect(url.toString(), 302);
     },
   },
@@ -4973,17 +4962,15 @@ const ROUTES = [
       const stateParam = url.searchParams.get('state');
       const code = url.searchParams.get('code');
 
-      // Determine flow + retrieve PKCE code_verifier from state
+      // Determine flow from state
       let flow = 'cal_pro'; // default to legacy FLOW B
-      let storedCodeVerifier = '';
       if (stateParam) {
         try {
           const stateRow = await env.DB.prepare(
-            'SELECT flow, code_verifier FROM oauth_state WHERE state_key = ?'
+            'SELECT flow FROM oauth_state WHERE state_key = ?'
           ).bind(stateParam).first();
           if (stateRow && stateRow.flow === 'calcom_user') {
             flow = 'calcom_user';
-            storedCodeVerifier = stateRow.code_verifier || '';
           }
           await d1Run(env.DB, 'DELETE FROM oauth_state WHERE state_key = ?', [stateParam]);
         } catch { /* fall through to legacy */ }
@@ -5003,7 +4990,6 @@ const ROUTES = [
           client_secret: calClientSecret,
           redirect_uri: redirectUri,
           code,
-          code_verifier: storedCodeVerifier,
         };
 
         try {
