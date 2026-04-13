@@ -1084,7 +1084,7 @@ Returns:
 }
 ```
 
-Source colors: Google `#4285f4`, Cal.com `#292929`, IRS `#dc2626`.
+Source colors: Google `#4285f4`, Cal.com `#22c55e`, IRS `#dc2626`.
 
 **IRS tax dates:** `IRS_TAX_DATES` constant in `workers/src/index.js` — covers 2026-2027. Weekend dates adjusted to next business day per IRS rules (e.g., 2026-01-31 Sat → 2026-02-02 Mon). **Update annually** when new tax year dates are confirmed.
 

@@ -104,6 +104,35 @@ export async function getTokenUsage(
 }
 
 // ---------------------------------------------------------------------------
+// Cal.com stats — GET /v1/calcom/stats
+// ---------------------------------------------------------------------------
+
+export interface CalcomEventTypeStats {
+  slug: string
+  label: string
+  count: number
+}
+
+export interface CalcomStats {
+  total: number
+  upcoming: number
+  completed: number
+  cancelled: number
+  no_show: number
+  by_event_type: CalcomEventTypeStats[]
+}
+
+export interface CalcomStatsResponse {
+  ok: boolean
+  connected: boolean
+  stats: CalcomStats | null
+}
+
+export async function getCalcomStats(): Promise<CalcomStatsResponse> {
+  return apiGet<CalcomStatsResponse>('/v1/calcom/stats')
+}
+
+// ---------------------------------------------------------------------------
 // Support tickets — GET /v1/support/tickets/by-account/:account_id
 //                   POST /v1/support/tickets
 // ---------------------------------------------------------------------------

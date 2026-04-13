@@ -8308,6 +8308,99 @@ const ROUTES = [
   },
 
   // -------------------------------------------------------------------------
+  // CAL.COM BOOKING STATS
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'GET', pattern: '/v1/calcom/stats',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+      const row = await env.DB.prepare(
+        'SELECT calcom_access_token, calcom_refresh_token, calcom_token_expiry FROM accounts WHERE account_id = ?'
+      ).bind(session.account_id).first();
+      if (!row || !row.calcom_access_token) {
+        return json({ ok: true, connected: false, stats: null }, 200, request);
+      }
+
+      let accessToken = row.calcom_access_token;
+      const expiry = row.calcom_token_expiry ? new Date(row.calcom_token_expiry).getTime() : 0;
+      if (Date.now() + 60000 > expiry && row.calcom_refresh_token) {
+        try {
+          const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
+          const refreshRes = await fetch('https://app.cal.com/api/auth/oauth/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              grant_type: 'refresh_token',
+              client_id: calClientId,
+              client_secret: env.CALCOM_CLIENT_SECRET,
+              refresh_token: row.calcom_refresh_token,
+            }),
+          });
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            accessToken = refreshData.access_token;
+            const newExpiry = new Date(Date.now() + (refreshData.expires_in ?? 3600) * 1000).toISOString();
+            await d1Run(env.DB,
+              'UPDATE accounts SET calcom_access_token = ?, calcom_refresh_token = ?, calcom_token_expiry = ? WHERE account_id = ?',
+              [accessToken, refreshData.refresh_token ?? row.calcom_refresh_token, newExpiry, session.account_id]
+            );
+          }
+        } catch (err) {
+          console.log('[calcom] Token refresh failed:', err.message);
+        }
+      }
+
+      try {
+        const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,recurring,unconfirmed&take=250', {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'cal-api-version': '2024-08-13',
+          },
+        });
+        if (!v2Res.ok) {
+          return json({ ok: false, error: 'CALCOM_ERROR', message: 'Failed to fetch Cal.com bookings' }, 502, request);
+        }
+        const v2Data = await v2Res.json();
+        const rawBookings = v2Data.data || v2Data.bookings || [];
+
+        const now = Date.now();
+        let upcoming = 0, completed = 0, cancelled = 0, past = 0, noShow = 0;
+        const byEventType = {};
+        for (const b of rawBookings) {
+          const s = (b.status || '').toLowerCase();
+          const startMs = new Date(b.startTime || b.start || '').getTime();
+          if (s === 'cancelled') { cancelled++; }
+          else if (s === 'no_show' || s === 'no-show') { noShow++; }
+          else if (!Number.isNaN(startMs) && startMs >= now) { upcoming++; }
+          else { completed++; past++; }
+
+          const slug = b.eventType?.slug || 'unknown';
+          const label = b.eventType?.title || slug;
+          if (!byEventType[slug]) byEventType[slug] = { slug, label, count: 0 };
+          byEventType[slug].count++;
+        }
+
+        return json({
+          ok: true,
+          connected: true,
+          stats: {
+            total: rawBookings.length,
+            upcoming,
+            completed,
+            cancelled,
+            no_show: noShow,
+            by_event_type: Object.values(byEventType),
+          },
+        }, 200, request);
+      } catch {
+        return json({ ok: false, error: 'CALCOM_ERROR', message: 'Failed to fetch Cal.com bookings' }, 502, request);
+      }
+    },
+  },
+
+  // -------------------------------------------------------------------------
   // UNIFIED CALENDAR (Google + Cal.com + IRS)
   // -------------------------------------------------------------------------
 
@@ -8548,7 +8641,7 @@ const ROUTES = [
               end_time: endTime,
               all_day: false,
               source: 'calcom',
-              color: '#292929',
+              color: '#22c55e',
               url: b.meetingUrl || '',
               meeting_url: b.meetingUrl || '',
               manage_url: bookingUid ? `https://app.cal.com/booking/${bookingUid}` : '',

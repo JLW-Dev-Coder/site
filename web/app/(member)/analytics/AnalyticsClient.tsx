@@ -9,18 +9,20 @@ import {
   TrendingUp,
   Users,
   AlertCircle,
+  Calendar,
+  Video,
 } from 'lucide-react'
 import KPICard from '../components/KPICard'
 import HeroCard from '../components/HeroCard'
 import StatusBadge from '../components/StatusBadge'
 import DataTable from '../components/DataTable'
 import { getDashboard } from '@/lib/api/dashboard'
-import { getBookingsByAccount, type BookingRow } from '@/lib/api/member'
+import { getBookingsByAccount, getCalcomStats, type BookingRow, type CalcomStats } from '@/lib/api/member'
 
 type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
-  | { status: 'ready'; bookings: BookingRow[] }
+  | { status: 'ready'; bookings: BookingRow[]; calcom: { connected: boolean; stats: CalcomStats | null } }
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -56,8 +58,11 @@ export default function AnalyticsClient() {
       try {
         const dashboard = await getDashboard()
         if (cancelled) return
-        const bookings = await getBookingsByAccount(dashboard.account.account_id).catch(() => [])
-        if (!cancelled) setState({ status: 'ready', bookings })
+        const [bookings, calcomRes] = await Promise.all([
+          getBookingsByAccount(dashboard.account.account_id).catch(() => []),
+          getCalcomStats().catch(() => ({ ok: true, connected: false, stats: null })),
+        ])
+        if (!cancelled) setState({ status: 'ready', bookings, calcom: { connected: calcomRes.connected, stats: calcomRes.stats } })
       } catch (err) {
         if (!cancelled) {
           setState({
@@ -75,7 +80,7 @@ export default function AnalyticsClient() {
   if (state.status === 'loading') return <AnalyticsSkeleton />
   if (state.status === 'error') return <AnalyticsFallback message={state.message} />
 
-  const { bookings } = state
+  const { bookings, calcom } = state
   const now = Date.now()
 
   const total = bookings.length
@@ -221,6 +226,69 @@ export default function AnalyticsClient() {
           </p>
         </div>
       </div>
+
+      {/* Cal.com Booking Stats */}
+      {calcom.connected && calcom.stats && (
+        <div className="space-y-4">
+          <h3 className="text-xs uppercase tracking-widest text-white/40">Cal.com Bookings</h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KPICard
+              label="Upcoming"
+              value={String(calcom.stats.upcoming)}
+              change="Scheduled"
+              trend="neutral"
+              icon={Calendar}
+            />
+            <KPICard
+              label="Completed"
+              value={String(calcom.stats.completed)}
+              change="Past sessions"
+              trend="neutral"
+              icon={CheckCircle}
+            />
+            <KPICard
+              label="Cancelled"
+              value={String(calcom.stats.cancelled)}
+              change={calcom.stats.total > 0 ? `${Math.round((calcom.stats.cancelled / calcom.stats.total) * 100)}% of total` : '—'}
+              trend="neutral"
+              icon={XCircle}
+            />
+            <KPICard
+              label="No-Shows"
+              value={String(calcom.stats.no_show)}
+              change={calcom.stats.total > 0 ? `${Math.round((calcom.stats.no_show / calcom.stats.total) * 100)}% of total` : '—'}
+              trend="neutral"
+              icon={AlertCircle}
+            />
+          </div>
+          {calcom.stats.by_event_type.length > 0 && (
+            <div className="rounded-xl border border-[--member-border] bg-[--member-card] p-6">
+              <h4 className="text-xs uppercase tracking-widest text-white/40">By Event Type</h4>
+              <div className="mt-4 space-y-3">
+                {calcom.stats.by_event_type
+                  .sort((a, b) => b.count - a.count)
+                  .map((et) => (
+                    <div key={et.slug} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Video className="h-4 w-4 text-emerald-400" />
+                        <span className="text-sm text-white/70">{et.label}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="h-2 w-24 overflow-hidden rounded-full bg-white/5">
+                          <div
+                            className="h-full rounded-full bg-emerald-500"
+                            style={{ width: `${Math.round((et.count / calcom.stats!.total) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-medium text-white">{et.count}</span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <h3 className="mb-4 text-xs uppercase tracking-widest text-white/40">Recent Appointments</h3>

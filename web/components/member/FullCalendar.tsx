@@ -54,7 +54,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 const SOURCE_COLORS: Record<string, string> = {
   google: '#4285f4',
-  calcom: '#292929',
+  calcom: '#22c55e',
   irs: '#dc2626',
 }
 
@@ -518,7 +518,7 @@ export default function FullCalendar({ brandColor, onConnectGoogle, calcomConnec
           Google
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: '#292929', border: '1px solid rgba(255,255,255,0.2)' }} />
+          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: '#22c55e' }} />
           Cal.com
         </span>
         <span className="flex items-center gap-1.5">
