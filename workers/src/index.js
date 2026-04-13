@@ -4956,7 +4956,7 @@ const ROUTES = [
     method: 'GET', pattern: '/v1/cal/oauth/callback',
     handler: async (_method, _pattern, _params, request, env) => {
       const { session, error } = await requireSession(request, env);
-      if (error) return Response.redirect('https://virtuallaunch.pro/dashboard/calendar?calcom=error&reason=session', 302);
+      if (error) return Response.redirect('https://virtuallaunch.pro/calendar?calcom=error&reason=session', 302);
 
       const url = new URL(request.url);
       const stateParam = url.searchParams.get('state');
@@ -4978,41 +4978,48 @@ const ROUTES = [
 
       if (flow === 'calcom_user') {
         // Per-user Cal.com OAuth — store tokens in accounts table
-        if (!code) return Response.redirect('https://virtuallaunch.pro/dashboard/calendar?calcom=error&reason=missing_code', 302);
+        if (!code) return Response.redirect('https://virtuallaunch.pro/calendar?calcom=error&reason=missing_code', 302);
 
         const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
         const calClientSecret = env.CALCOM_CLIENT_SECRET;
         const redirectUri = 'https://api.virtuallaunch.pro/v1/cal/oauth/callback';
+        const tokenUrl = 'https://api.cal.com/v2/auth/oauth2/token';
+        const tokenBody = {
+          grant_type: 'authorization_code',
+          client_id: calClientId,
+          client_secret: calClientSecret,
+          redirect_uri: redirectUri,
+          code,
+        };
 
         try {
-          const tokenRes = await fetch('https://app.cal.com/api/auth/oauth/token', {
+          console.log('[calcom callback] Token request URL:', tokenUrl);
+          console.log('[calcom callback] Token request body:', JSON.stringify({ ...tokenBody, client_secret: '[REDACTED]' }));
+          const tokenRes = await fetch(tokenUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              grant_type: 'authorization_code',
-              client_id: calClientId,
-              client_secret: calClientSecret,
-              redirect_uri: redirectUri,
-              code,
-            }),
+            body: JSON.stringify(tokenBody),
           });
-          const tokenData = await tokenRes.json().catch(() => ({}));
+          const tokenText = await tokenRes.text();
+          console.log('[calcom callback] Token response status:', tokenRes.status);
+          console.log('[calcom callback] Token response body:', tokenText);
+
           if (!tokenRes.ok) {
-            console.log('[calcom-oauth] Token exchange failed:', tokenData);
-            return Response.redirect(`https://virtuallaunch.pro/dashboard/calendar?calcom=error&reason=token_exchange`, 302);
+            return Response.redirect(`https://virtuallaunch.pro/calendar?calcom=error&reason=token_exchange`, 302);
           }
 
+          const tokenData = JSON.parse(tokenText);
           const now = new Date().toISOString();
-          const expiresAt = new Date(Date.now() + (tokenData.expires_in ?? 3600) * 1000).toISOString();
+          const expiresAt = new Date(Date.now() + (tokenData.expires_in ?? 1800) * 1000).toISOString();
           await d1Run(env.DB,
             'UPDATE accounts SET calcom_access_token = ?, calcom_refresh_token = ?, calcom_token_expiry = ?, updated_at = ? WHERE account_id = ?',
             [tokenData.access_token, tokenData.refresh_token ?? null, expiresAt, now, session.account_id]
           );
 
-          return Response.redirect('https://virtuallaunch.pro/dashboard/calendar?calcom=connected', 302);
+          return Response.redirect('https://virtuallaunch.pro/calendar?calcom=connected', 302);
         } catch (err) {
           console.log('[calcom-oauth] Callback error:', err.message);
-          return Response.redirect('https://virtuallaunch.pro/dashboard/calendar?calcom=error&reason=internal', 302);
+          return Response.redirect('https://virtuallaunch.pro/calendar?calcom=error&reason=internal', 302);
         }
       }
 
