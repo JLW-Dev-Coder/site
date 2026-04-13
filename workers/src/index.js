@@ -8504,6 +8504,7 @@ const ROUTES = [
 
         if (calApiKey) {
           let rawBookings = [];
+          let _calDebug = { calcom_connected: calcomConnected, token_source: userCalToken ? 'oauth' : 'admin_key', token_prefix: calApiKey ? calApiKey.slice(0, 12) + '...' : null };
           try {
             const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,pending,rescheduled&take=250', {
               headers: {
@@ -8511,21 +8512,41 @@ const ROUTES = [
                 'cal-api-version': '2024-08-13',
               },
             });
+            const v2Text = await v2Res.text();
+            _calDebug.v2_status = v2Res.status;
+            _calDebug.v2_body = v2Text.slice(0, 4000);
             if (v2Res.ok) {
-              const v2Data = await v2Res.json();
+              const v2Data = JSON.parse(v2Text);
               rawBookings = v2Data.data || v2Data.bookings || [];
+              _calDebug.v2_bookings_count = rawBookings.length;
             } else {
               throw new Error(`v2 ${v2Res.status}`);
             }
-          } catch {
+          } catch (v2Err) {
+            _calDebug.v2_error = v2Err.message;
             try {
               const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${calApiKey}`);
+              const v1Text = await v1Res.text();
+              _calDebug.v1_status = v1Res.status;
+              _calDebug.v1_body = v1Text.slice(0, 4000);
               if (v1Res.ok) {
-                const v1Data = await v1Res.json();
+                const v1Data = JSON.parse(v1Text);
                 rawBookings = v1Data.bookings || v1Data || [];
+                _calDebug.v1_bookings_count = rawBookings.length;
               }
-            } catch { /* skip Cal.com */ }
+            } catch (v1Err) { _calDebug.v1_error = v1Err.message; }
           }
+          _calDebug.raw_bookings_total = rawBookings.length;
+          _calDebug.raw_bookings_sample = rawBookings.slice(0, 3);
+          // Write debug to R2
+          try {
+            await env.R2_VIRTUAL_LAUNCH.put('vlp-scale/logs/calcom-bookings-debug.json', JSON.stringify({
+              timestamp: new Date().toISOString(),
+              account_id: session.account_id,
+              range: { start: rangeStart, end: rangeEnd },
+              ..._calDebug,
+            }));
+          } catch (_e) { /* best-effort */ }
 
           // When using the admin key, filter by user email; personal key returns only their bookings
           const userEmail = (session.email || '').toLowerCase();
@@ -16377,6 +16398,21 @@ TTMP Support Team
       }
       const obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/logs/calcom-oauth-debug.json');
       if (!obj) return json({ ok: false, error: 'No debug log found yet' }, 404, request);
+      const data = JSON.parse(await obj.text());
+      return json({ ok: true, ...data }, 200, request);
+    }
+  },
+  {
+    // Temporary debug route — read Cal.com bookings debug log from R2
+    method: 'GET', pattern: '/v1/debug/calcom-bookings',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const authHeader = request.headers.get('authorization') || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+      if (!env.SCALE_API_KEY || !token || token !== env.SCALE_API_KEY) {
+        return json({ ok: false, error: 'Unauthorized' }, 401, request);
+      }
+      const obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/logs/calcom-bookings-debug.json');
+      if (!obj) return json({ ok: false, error: 'No bookings debug log found yet — load the calendar page first' }, 404, request);
       const data = JSON.parse(await obj.text());
       return json({ ok: true, ...data }, 200, request);
     }
