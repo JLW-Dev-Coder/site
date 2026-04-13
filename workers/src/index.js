@@ -1521,10 +1521,10 @@ async function handleCalVlpOAuthCallback(request, env, session) {
   const calClientId = env.CAL_VLP_OAUTH_CLIENT_ID ?? '782133b560b9ee33174a7a765b8cd73343ffeb2ece517be73a3061f370e21eeb';
   const redirectUri = env.CAL_VLP_REDIRECT_URI ?? 'https://api.virtuallaunch.pro/cal/app/oauth/callback';
 
-  const tokenRes = await fetch('https://api.cal.com/v2/auth/oauth2/token', {
+  const tokenRes = await fetch('https://app.cal.com/api/auth/oauth/token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       grant_type: 'authorization_code',
       client_id: calClientId,
       redirect_uri: redirectUri,
@@ -1560,10 +1560,10 @@ async function handleCalProOAuthCallback(request, env, session) {
   const calClientId = env.CAL_PRO_OAUTH_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
   const redirectUri = env.CAL_PRO_REDIRECT_URI ?? 'https://api.virtuallaunch.pro/v1/cal/oauth/callback';
 
-  const tokenRes = await fetch('https://api.cal.com/v2/auth/oauth2/token', {
+  const tokenRes = await fetch('https://app.cal.com/api/auth/oauth/token', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       grant_type: 'authorization_code',
       client_id: calClientId,
       client_secret: env.CAL_PRO_OAUTH_CLIENT_SECRET,
@@ -1573,6 +1573,7 @@ async function handleCalProOAuthCallback(request, env, session) {
   });
   const tokenData = await tokenRes.json().catch(() => ({}));
   if (!tokenRes.ok) {
+    console.log('[cal-pro-oauth] Token exchange failed:', JSON.stringify(tokenData));
     return { ok: false, error: 'TOKEN_EXCHANGE_FAILED', message: tokenData?.error_description ?? 'Token exchange failed' };
   }
 
@@ -4984,10 +4985,10 @@ const ROUTES = [
         const redirectUri = 'https://api.virtuallaunch.pro/v1/cal/oauth/callback';
 
         try {
-          const tokenRes = await fetch('https://api.cal.com/v2/auth/oauth2/token', {
+          const tokenRes = await fetch('https://app.cal.com/api/auth/oauth/token', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
               grant_type: 'authorization_code',
               client_id: calClientId,
               client_secret: calClientSecret,
@@ -5016,11 +5017,16 @@ const ROUTES = [
       }
 
       // Legacy FLOW B — tax pro's Cal.com connection (profile setup)
-      const result = await handleCalProOAuthCallback(request, env, session);
-      if (!result.ok) {
-        return Response.redirect(`https://virtuallaunch.pro/onboarding?cal=error&reason=${encodeURIComponent(result.error ?? 'unknown')}`, 302);
+      try {
+        const result = await handleCalProOAuthCallback(request, env, session);
+        if (!result.ok) {
+          return Response.redirect(`https://virtuallaunch.pro/onboarding?cal=error&reason=${encodeURIComponent(result.error ?? 'unknown')}`, 302);
+        }
+        return Response.redirect('https://virtuallaunch.pro/onboarding?cal=connected', 302);
+      } catch (err) {
+        console.log('[cal-pro-oauth] Callback error:', err.message);
+        return Response.redirect('https://virtuallaunch.pro/onboarding?cal=error&reason=internal', 302);
       }
-      return Response.redirect('https://virtuallaunch.pro/onboarding?cal=connected', 302);
     },
   },
 
@@ -8242,10 +8248,10 @@ const ROUTES = [
       if (Date.now() + 60000 > expiry && row.calcom_refresh_token) {
         try {
           const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
-          const refreshRes = await fetch('https://api.cal.com/v2/auth/oauth2/token', {
+          const refreshRes = await fetch('https://app.cal.com/api/auth/oauth/token', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
               grant_type: 'refresh_token',
               client_id: calClientId,
               client_secret: env.CALCOM_CLIENT_SECRET,
@@ -8450,10 +8456,10 @@ const ROUTES = [
           if (Date.now() + 60000 > expiry) {
             try {
               const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
-              const refreshRes = await fetch('https://api.cal.com/v2/auth/oauth2/token', {
+              const refreshRes = await fetch('https://app.cal.com/api/auth/oauth/token', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: new URLSearchParams({
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
                   grant_type: 'refresh_token',
                   client_id: calClientId,
                   client_secret: env.CALCOM_CLIENT_SECRET,
