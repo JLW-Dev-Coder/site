@@ -12,7 +12,6 @@ import {
   Link2,
   Unlink,
   Loader2,
-  X,
 } from 'lucide-react'
 import HeroCard from '../components/HeroCard'
 import StatusBadge from '../components/StatusBadge'
@@ -77,115 +76,11 @@ function parseAvailability(profile: Record<string, unknown> | null): Array<{ day
 }
 
 // ---------------------------------------------------------------------------
-// Cal.com Connect Modal
-// ---------------------------------------------------------------------------
-
-function CalcomConnectModal({ onClose, onConnected }: { onClose: () => void; onConnected: () => void }) {
-  const [apiKey, setApiKey] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!apiKey.trim()) return
-    setSaving(true)
-    setError(null)
-    try {
-      const res = await fetch(`${API_URL}/v1/calcom/connect`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: apiKey.trim() }),
-      })
-      const data = await res.json()
-      if (!data.ok) {
-        setError(data.message || 'Failed to connect')
-        return
-      }
-      onConnected()
-      onClose()
-    } catch {
-      setError('Network error — please try again')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="relative mx-4 w-full max-w-md rounded-xl border border-[--member-border] bg-[#0d1232] p-6 shadow-2xl">
-        <button
-          onClick={onClose}
-          className="absolute right-3 top-3 rounded-lg p-1 text-white/40 transition hover:bg-white/5 hover:text-white"
-        >
-          <X className="h-4 w-4" />
-        </button>
-
-        <h3 className="text-lg font-semibold text-white">Connect Cal.com</h3>
-        <p className="mt-1 text-sm text-white/50">
-          Paste your Cal.com API key to sync your bookings. Get your key from{' '}
-          <a
-            href="https://app.cal.com/settings/developer/api-keys"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300"
-          >
-            Cal.com Settings &rarr; Developer &rarr; API Keys
-          </a>
-        </p>
-
-        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
-          <div>
-            <label htmlFor="calcom-key" className="block text-xs font-medium uppercase tracking-wider text-white/40">
-              API Key
-            </label>
-            <input
-              id="calcom-key"
-              type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="cal_live_..."
-              autoFocus
-              className="mt-1 w-full rounded-lg border border-[--member-border] bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-brand-orange/50 focus:ring-1 focus:ring-brand-orange/30"
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-300">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={!apiKey.trim() || saving}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-orange px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Validating...
-              </>
-            ) : (
-              <>
-                <Link2 className="h-4 w-4" />
-                Connect Cal.com
-              </>
-            )}
-          </button>
-        </form>
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
 export default function CalendarClient() {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
-  const [showCalcomModal, setShowCalcomModal] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
 
   useEffect(() => {
@@ -248,9 +143,18 @@ export default function CalendarClient() {
     setDisconnecting(false)
   }
 
-  function handleCalcomConnected() {
-    setState(prev => prev.status === 'ready' ? { ...prev, calcomConnected: true } : prev)
-  }
+  // Check URL params for OAuth callback result
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('calcom') === 'connected') {
+      setState(prev => prev.status === 'ready' ? { ...prev, calcomConnected: true } : prev)
+      // Clean up URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('calcom')
+      window.history.replaceState({}, '', url.pathname)
+    }
+  }, [])
 
   if (state.status === 'loading') return <CalendarSkeleton />
   if (state.status === 'error') return <CalendarFallback message={state.message} />
@@ -311,7 +215,7 @@ export default function CalendarClient() {
                     <span>Connect to sync bookings</span>
                   </>
                 ) : (
-                  <span>Connect your Cal.com API key to sync bookings</span>
+                  <span>Connect your Cal.com account to sync bookings</span>
                 )}
               </div>
             </div>
@@ -331,13 +235,13 @@ export default function CalendarClient() {
                 Disconnect
               </button>
             ) : (
-              <button
-                onClick={() => setShowCalcomModal(true)}
+              <a
+                href={`${API_URL}/v1/cal/oauth/start`}
                 className="inline-flex items-center gap-2 rounded-lg border border-brand-orange/30 px-4 py-2 text-sm font-medium text-brand-orange transition hover:bg-brand-orange/10"
               >
                 <Link2 className="h-4 w-4" />
                 Connect Cal.com
-              </button>
+              </a>
             )}
           </div>
         </div>
@@ -415,13 +319,6 @@ export default function CalendarClient() {
         </div>
       </div>
 
-      {/* Cal.com connect modal */}
-      {showCalcomModal && (
-        <CalcomConnectModal
-          onClose={() => setShowCalcomModal(false)}
-          onConnected={handleCalcomConnected}
-        />
-      )}
     </div>
   )
 }

@@ -4876,47 +4876,47 @@ const ROUTES = [
 
   // ── Cal.com OAuth Flows ──────────────────────────────────────────────
   //
-  // FLOW A — VLP user reads back their bookings with the VLP team
-  //   App: Virtual Launch Pro App
-  //   Client ID: 782133b560b9ee33174a7a765b8cd73343ffeb2ece517be73a3061f370e21eeb
-  //   Redirect: https://api.virtuallaunch.pro/cal/app/oauth/callback
-  //   PKCE: ON
-  //   Tokens stored in: accounts.cal_access_token
+  // PER-USER FLOW — Calendar page "Connect Cal.com" OAuth
+  //   App: Tax Monitor Pro Tax Professionals
+  //   Client ID: env.CALCOM_CLIENT_ID (9d03bcaa...)
+  //   Redirect: https://api.virtuallaunch.pro/v1/cal/oauth/callback
+  //   PKCE: OFF (standard OAuth 2.0 authorization code flow)
+  //   Tokens stored in: accounts.calcom_access_token / calcom_refresh_token / calcom_token_expiry
   //   Entry point: GET /v1/cal/oauth/start
-  //   Used on: Calendar page "Connect Your Cal.com Account" section
+  //   Used on: Calendar page "Connect Cal.com" button
   //
   // FLOW B — Tax pro connects their own Cal.com (clients book them)
-  //   App: Tax Monitor Pro Tax Professionals
+  //   App: Tax Monitor Pro Tax Professionals (same app, different flow)
   //   Client ID: 9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420
   //   Redirect: https://api.virtuallaunch.pro/v1/cal/oauth/callback
   //   Tokens stored in: cal_connections table
   //   Entry point: GET /v1/cal/pro/oauth/start
-  //   Used on: Profile Setup step 5, Calendar page (secondary section)
+  //   Used on: Profile Setup step 5
   //
   // NOT IN THIS REPO:
   //   Taxpayer App (d6839d7...) — lives in taxmonitor.pro repo only
   // ────────────────────────────────────────────────────────────────────
 
   {
-    // FLOW A start — Calendar page "Connect Your Cal.com Account"
+    // Per-user Cal.com OAuth start — Calendar page "Connect Cal.com"
+    // Redirects browser (302) to Cal.com authorize endpoint
     method: 'GET', pattern: '/v1/cal/oauth/start',
     handler: async (_method, _pattern, _params, request, env) => {
       const { session, error } = await requireSession(request, env);
       if (error) return error;
-      const calClientId = env.CAL_VLP_OAUTH_CLIENT_ID ?? '782133b560b9ee33174a7a765b8cd73343ffeb2ece517be73a3061f370e21eeb';
-      const redirectUri = env.CAL_VLP_REDIRECT_URI ?? 'https://api.virtuallaunch.pro/cal/app/oauth/callback';
+      const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
+      const redirectUri = 'https://api.virtuallaunch.pro/v1/cal/oauth/callback';
 
-      const { codeVerifier, codeChallenge } = await generatePKCE();
       const state = btoa(JSON.stringify({
         accountId: session.account_id,
         nonce: crypto.randomUUID(),
-        flow: 'vlp',
+        flow: 'calcom_user',
       }));
 
       const now = new Date().toISOString();
       await d1Run(env.DB,
         'INSERT OR REPLACE INTO oauth_state (state_key, code_verifier, account_id, flow, created_at) VALUES (?, ?, ?, ?, ?)',
-        [state, codeVerifier, session.account_id, 'vlp', now]
+        [state, '', session.account_id, 'calcom_user', now]
       );
 
       const url = new URL('https://app.cal.com/oauth2/authorize');
@@ -4924,9 +4924,7 @@ const ROUTES = [
       url.searchParams.set('redirect_uri', redirectUri);
       url.searchParams.set('response_type', 'code');
       url.searchParams.set('state', state);
-      url.searchParams.set('code_challenge', codeChallenge);
-      url.searchParams.set('code_challenge_method', 'S256');
-      return json({ ok: true, status: 'redirect_required', authorizationUrl: url.toString() }, 200, request);
+      return Response.redirect(url.toString(), 302);
     },
   },
 
@@ -4950,12 +4948,72 @@ const ROUTES = [
   },
 
   {
-    // FLOW B callback — tax pro's Cal.com connection
+    // Cal.com OAuth callback — handles both per-user calendar flow and FLOW B (pro connection)
     // Registered redirect URI: https://api.virtuallaunch.pro/v1/cal/oauth/callback
     method: 'GET', pattern: '/v1/cal/oauth/callback',
     handler: async (_method, _pattern, _params, request, env) => {
       const { session, error } = await requireSession(request, env);
-      if (error) return Response.redirect('https://virtuallaunch.pro/onboarding?cal=error&reason=session', 302);
+      if (error) return Response.redirect('https://virtuallaunch.pro/dashboard/calendar?calcom=error&reason=session', 302);
+
+      const url = new URL(request.url);
+      const stateParam = url.searchParams.get('state');
+      const code = url.searchParams.get('code');
+
+      // Determine flow from state
+      let flow = 'cal_pro'; // default to legacy FLOW B
+      if (stateParam) {
+        try {
+          const stateRow = await env.DB.prepare(
+            'SELECT flow FROM oauth_state WHERE state_key = ?'
+          ).bind(stateParam).first();
+          if (stateRow && stateRow.flow === 'calcom_user') {
+            flow = 'calcom_user';
+          }
+          await d1Run(env.DB, 'DELETE FROM oauth_state WHERE state_key = ?', [stateParam]);
+        } catch { /* fall through to legacy */ }
+      }
+
+      if (flow === 'calcom_user') {
+        // Per-user Cal.com OAuth — store tokens in accounts table
+        if (!code) return Response.redirect('https://virtuallaunch.pro/dashboard/calendar?calcom=error&reason=missing_code', 302);
+
+        const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
+        const calClientSecret = env.CALCOM_CLIENT_SECRET;
+        const redirectUri = 'https://api.virtuallaunch.pro/v1/cal/oauth/callback';
+
+        try {
+          const tokenRes = await fetch('https://app.cal.com/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              grant_type: 'authorization_code',
+              client_id: calClientId,
+              client_secret: calClientSecret,
+              redirect_uri: redirectUri,
+              code,
+            }),
+          });
+          const tokenData = await tokenRes.json().catch(() => ({}));
+          if (!tokenRes.ok) {
+            console.log('[calcom-oauth] Token exchange failed:', tokenData);
+            return Response.redirect(`https://virtuallaunch.pro/dashboard/calendar?calcom=error&reason=token_exchange`, 302);
+          }
+
+          const now = new Date().toISOString();
+          const expiresAt = new Date(Date.now() + (tokenData.expires_in ?? 3600) * 1000).toISOString();
+          await d1Run(env.DB,
+            'UPDATE accounts SET calcom_access_token = ?, calcom_refresh_token = ?, calcom_token_expiry = ?, updated_at = ? WHERE account_id = ?',
+            [tokenData.access_token, tokenData.refresh_token ?? null, expiresAt, now, session.account_id]
+          );
+
+          return Response.redirect('https://virtuallaunch.pro/dashboard/calendar?calcom=connected', 302);
+        } catch (err) {
+          console.log('[calcom-oauth] Callback error:', err.message);
+          return Response.redirect('https://virtuallaunch.pro/dashboard/calendar?calcom=error&reason=internal', 302);
+        }
+      }
+
+      // Legacy FLOW B — tax pro's Cal.com connection (profile setup)
       const result = await handleCalProOAuthCallback(request, env, session);
       if (!result.ok) {
         return Response.redirect(`https://virtuallaunch.pro/onboarding?cal=error&reason=${encodeURIComponent(result.error ?? 'unknown')}`, 302);
@@ -8129,8 +8187,8 @@ const ROUTES = [
     },
   },
   // -------------------------------------------------------------------------
-  // CAL.COM INTEGRATION (per-user API key)
-  // Users paste their personal Cal.com API key from cal.com/settings/developer/api-keys
+  // CAL.COM INTEGRATION (per-user OAuth tokens)
+  // Users connect Cal.com via OAuth from the Calendar page
   // -------------------------------------------------------------------------
 
   {
@@ -8140,50 +8198,13 @@ const ROUTES = [
       if (error) return error;
       try {
         const row = await env.DB.prepare(
-          'SELECT calcom_api_key FROM accounts WHERE account_id = ?'
+          'SELECT calcom_access_token FROM accounts WHERE account_id = ?'
         ).bind(session.account_id).first();
-        const connected = !!(row && row.calcom_api_key);
+        const connected = !!(row && row.calcom_access_token);
         return json({ ok: true, connected }, 200, request);
       } catch {
         return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check Cal.com status' }, 500, request);
       }
-    },
-  },
-
-  {
-    method: 'POST', pattern: '/v1/calcom/connect',
-    handler: async (_method, _pattern, _params, request, env) => {
-      const { session, error } = await requireSession(request, env);
-      if (error) return error;
-      const body = await parseBody(request);
-      if (!body || typeof body.api_key !== 'string' || !body.api_key.trim()) {
-        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'api_key string required' }, 400, request);
-      }
-      const apiKey = body.api_key.trim();
-      // Validate the key by making a test call to Cal.com
-      try {
-        const testRes = await fetch('https://api.cal.com/v2/me', {
-          headers: {
-            'Authorization': `Bearer ${apiKey}`,
-            'cal-api-version': '2024-08-13',
-          },
-        });
-        if (!testRes.ok) {
-          // Try v1 fallback
-          const v1Res = await fetch(`https://api.cal.com/v1/me?apiKey=${apiKey}`);
-          if (!v1Res.ok) {
-            return json({ ok: false, error: 'INVALID_KEY', message: 'Cal.com API key is invalid or expired' }, 400, request);
-          }
-        }
-      } catch {
-        return json({ ok: false, error: 'CALCOM_UNREACHABLE', message: 'Could not reach Cal.com to validate key' }, 502, request);
-      }
-      // Store the validated key
-      await d1Run(env.DB,
-        'UPDATE accounts SET calcom_api_key = ? WHERE account_id = ?',
-        [apiKey, session.account_id]
-      );
-      return json({ ok: true, message: 'Cal.com connected' }, 200, request);
     },
   },
 
@@ -8193,7 +8214,7 @@ const ROUTES = [
       const { session, error } = await requireSession(request, env);
       if (error) return error;
       await d1Run(env.DB,
-        'UPDATE accounts SET calcom_api_key = NULL WHERE account_id = ?',
+        'UPDATE accounts SET calcom_access_token = NULL, calcom_refresh_token = NULL, calcom_token_expiry = NULL WHERE account_id = ?',
         [session.account_id]
       );
       return json({ ok: true, message: 'Cal.com disconnected' }, 200, request);
@@ -8206,18 +8227,48 @@ const ROUTES = [
       const { session, error } = await requireSession(request, env);
       if (error) return error;
       const row = await env.DB.prepare(
-        'SELECT calcom_api_key FROM accounts WHERE account_id = ?'
+        'SELECT calcom_access_token, calcom_refresh_token, calcom_token_expiry FROM accounts WHERE account_id = ?'
       ).bind(session.account_id).first();
-      if (!row || !row.calcom_api_key) {
-        return json({ ok: false, error: 'NOT_CONNECTED', message: 'Cal.com not connected. Add your API key first.' }, 400, request);
+      if (!row || !row.calcom_access_token) {
+        return json({ ok: false, error: 'NOT_CONNECTED', message: 'Cal.com not connected. Connect via OAuth first.' }, 400, request);
       }
-      const apiKey = row.calcom_api_key;
+
+      let accessToken = row.calcom_access_token;
+
+      // Refresh if expired or expiring within 60s
+      const expiry = row.calcom_token_expiry ? new Date(row.calcom_token_expiry).getTime() : 0;
+      if (Date.now() + 60000 > expiry && row.calcom_refresh_token) {
+        try {
+          const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
+          const refreshRes = await fetch('https://app.cal.com/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              grant_type: 'refresh_token',
+              client_id: calClientId,
+              client_secret: env.CALCOM_CLIENT_SECRET,
+              refresh_token: row.calcom_refresh_token,
+            }),
+          });
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            accessToken = refreshData.access_token;
+            const newExpiry = new Date(Date.now() + (refreshData.expires_in ?? 3600) * 1000).toISOString();
+            await d1Run(env.DB,
+              'UPDATE accounts SET calcom_access_token = ?, calcom_refresh_token = ?, calcom_token_expiry = ? WHERE account_id = ?',
+              [accessToken, refreshData.refresh_token ?? row.calcom_refresh_token, newExpiry, session.account_id]
+            );
+          }
+        } catch (err) {
+          console.log('[calcom] Token refresh failed:', err.message);
+        }
+      }
+
       try {
         let rawBookings = [];
-        // Try v2 first
         const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,pending,rescheduled&take=250', {
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': `Bearer ${accessToken}`,
             'cal-api-version': '2024-08-13',
           },
         });
@@ -8225,8 +8276,7 @@ const ROUTES = [
           const v2Data = await v2Res.json();
           rawBookings = v2Data.data || v2Data.bookings || [];
         } else {
-          // v1 fallback
-          const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${apiKey}`);
+          const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${accessToken}`);
           if (v1Res.ok) {
             const v1Data = await v1Res.json();
             rawBookings = v1Data.bookings || v1Data || [];
@@ -8382,16 +8432,48 @@ const ROUTES = [
       }
 
       // --- Cal.com bookings ---
-      // Priority: per-user calcom_api_key > admin CAL_API_KEY (scoped by email)
+      // Priority: per-user OAuth token > admin CAL_API_KEY (scoped by email)
       let calcomBookings = [];
       let calcomConnected = false;
       try {
         const calcomRow = await env.DB.prepare(
-          'SELECT calcom_api_key FROM accounts WHERE account_id = ?'
+          'SELECT calcom_access_token, calcom_refresh_token, calcom_token_expiry FROM accounts WHERE account_id = ?'
         ).bind(session.account_id).first();
-        const userCalKey = calcomRow?.calcom_api_key || null;
-        const calApiKey = userCalKey || env.CAL_API_KEY || null;
-        calcomConnected = !!userCalKey;
+        let userCalToken = calcomRow?.calcom_access_token || null;
+        calcomConnected = !!userCalToken;
+
+        // Refresh OAuth token if expired
+        if (userCalToken && calcomRow.calcom_refresh_token) {
+          const expiry = calcomRow.calcom_token_expiry ? new Date(calcomRow.calcom_token_expiry).getTime() : 0;
+          if (Date.now() + 60000 > expiry) {
+            try {
+              const calClientId = env.CALCOM_CLIENT_ID ?? '9d03bcaa8ee24644d21dc7af5c3c17722ffa314c9790f2c7c83a1f88032b8420';
+              const refreshRes = await fetch('https://app.cal.com/oauth2/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                  grant_type: 'refresh_token',
+                  client_id: calClientId,
+                  client_secret: env.CALCOM_CLIENT_SECRET,
+                  refresh_token: calcomRow.calcom_refresh_token,
+                }),
+              });
+              if (refreshRes.ok) {
+                const refreshData = await refreshRes.json();
+                userCalToken = refreshData.access_token;
+                const newExpiry = new Date(Date.now() + (refreshData.expires_in ?? 3600) * 1000).toISOString();
+                await d1Run(env.DB,
+                  'UPDATE accounts SET calcom_access_token = ?, calcom_refresh_token = ?, calcom_token_expiry = ? WHERE account_id = ?',
+                  [userCalToken, refreshData.refresh_token ?? calcomRow.calcom_refresh_token, newExpiry, session.account_id]
+                );
+              }
+            } catch (err) {
+              console.log('[calendar] Cal.com token refresh error:', err.message);
+            }
+          }
+        }
+
+        const calApiKey = userCalToken || env.CAL_API_KEY || null;
 
         if (calApiKey) {
           let rawBookings = [];
@@ -8429,7 +8511,7 @@ const ROUTES = [
             if (dateStr < rangeStart || dateStr > rangeEnd) continue;
 
             // When using admin key, scope to user's email
-            if (!userCalKey && userEmail) {
+            if (!userCalToken && userEmail) {
               const attendees = b.attendees || b.guests || [];
               const attendeeEmails = Array.isArray(attendees) ? attendees.map(a => (a.email || '').toLowerCase()) : [];
               const hostEmail = (b.user?.email || b.hostEmail || '').toLowerCase();

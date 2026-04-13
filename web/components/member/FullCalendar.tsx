@@ -319,7 +319,7 @@ export default function FullCalendar({ brandColor, onConnectGoogle, calcomConnec
                     data-calendar-cell
                     onClick={() => setSelectedDate(isSelected ? null : cell.key)}
                     className={`
-                      relative h-24 border-b border-r border-[--member-border] p-1.5 text-left transition
+                      relative h-24 border-b border-r border-[--member-border] p-1 text-left transition
                       hover:bg-white/[0.03] focus:outline-none
                       ${!cell.inMonth ? 'opacity-30' : ''}
                       ${isSelected ? 'bg-white/[0.06] ring-1 ring-inset' : ''}
@@ -328,7 +328,7 @@ export default function FullCalendar({ brandColor, onConnectGoogle, calcomConnec
                   >
                     <span
                       className={`
-                        inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-medium
+                        absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-medium
                         ${isToday ? 'text-white' : 'text-white/60'}
                       `}
                       style={isToday ? { backgroundColor: accentColor } : undefined}
@@ -337,7 +337,7 @@ export default function FullCalendar({ brandColor, onConnectGoogle, calcomConnec
                     </span>
 
                     {/* Event dots / pills */}
-                    <div className="mt-0.5 space-y-0.5">
+                    <div className="mt-6 space-y-0.5">
                       {dayEvents.slice(0, 3).map((evt) => (
                         <div
                           key={evt.id}

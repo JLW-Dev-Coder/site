@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-12 (Google Calendar OAuth fix + Cal.com per-user integration + calendar side panel)
+Last updated: 2026-04-12 (Cal.com OAuth integration + calendar day number positioning fix)
 
 ---
 
@@ -1090,16 +1090,19 @@ Source colors: Google `#4285f4`, Cal.com `#292929`, IRS `#dc2626`.
 
 **Google Calendar OAuth:** `GET /v1/google/oauth/start` initiates the flow. The redirect URI is hardcoded to `https://api.virtuallaunch.pro/v1/google/oauth/callback` (NOT `env.GOOGLE_REDIRECT_URI`, which points to the login callback). This URI must be registered in Google Cloud Console. Tokens stored on `accounts` table (`google_access_token`, `google_refresh_token`, `google_token_expiry`). The unified endpoint reuses the same refresh logic as `GET /v1/google/events`.
 
-**Cal.com integration (per-user API key):** Users connect Cal.com by pasting their personal API key (from `cal.com/settings/developer/api-keys`). The key is validated against the Cal.com API before storage. The unified calendar endpoint uses the per-user key if available, falling back to the admin `CAL_API_KEY` (scoped by email).
+**Cal.com integration (per-user OAuth):** Users connect Cal.com via standard OAuth 2.0 authorization code flow. The "Connect Cal.com" button on the calendar page navigates to `GET /v1/cal/oauth/start`, which redirects (302) to Cal.com's authorize endpoint. After consent, the callback exchanges the code for access/refresh tokens and stores them in D1. The unified calendar endpoint uses the per-user OAuth token if available, falling back to the admin `CAL_API_KEY` (scoped by email). Token refresh is handled automatically when tokens expire.
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/v1/calcom/status` | Check if the current user has a Cal.com API key connected |
-| POST | `/v1/calcom/connect` | Body: `{ api_key }`. Validates the key against Cal.com, then stores in D1 |
-| POST | `/v1/calcom/disconnect` | Removes the user's Cal.com API key from D1 |
-| GET | `/v1/calcom/bookings` | Fetches all bookings using the user's stored Cal.com API key |
+| GET | `/v1/cal/oauth/start` | Initiates Cal.com OAuth flow (302 redirect to Cal.com) |
+| GET | `/v1/cal/oauth/callback` | Exchanges auth code for tokens, stores in D1, redirects to calendar page |
+| GET | `/v1/calcom/status` | Check if the current user has Cal.com OAuth tokens connected |
+| POST | `/v1/calcom/disconnect` | Clears the user's Cal.com OAuth tokens from D1 |
+| GET | `/v1/calcom/bookings` | Fetches all bookings using the user's stored Cal.com OAuth access token |
 
-D1 column: `accounts.calcom_api_key` (migration `0046_calcom_api_key.sql`).
+Cal.com OAuth app: "Tax Monitor Pro Tax Professionals" (Client ID: `9d03bcaa...`). PKCE: OFF. Redirect URI: `https://api.virtuallaunch.pro/v1/cal/oauth/callback`. Worker secrets: `CALCOM_CLIENT_ID`, `CALCOM_CLIENT_SECRET`.
+
+D1 columns: `accounts.calcom_access_token`, `accounts.calcom_refresh_token`, `accounts.calcom_token_expiry` (migration `0047_calcom_oauth_tokens.sql`). The old `calcom_api_key` column from migration `0046` is unused.
 
 ### Design system (member app tokens)
 
