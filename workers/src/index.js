@@ -7948,7 +7948,7 @@ const ROUTES = [
       url.searchParams.set('access_type', 'offline');
       url.searchParams.set('prompt', 'consent');
       url.searchParams.set('state', state);
-      return json({ ok: true, authorizationUrl: url.toString() }, 200, request);
+      return Response.redirect(url.toString(), 302);
     },
   },
 
