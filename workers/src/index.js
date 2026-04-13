@@ -7234,7 +7234,7 @@ const ROUTES = [
         }
       } catch { /* cache miss or parse error — fetch fresh */ }
 
-      const EMPTY_COUNTS = { all: 0, cancelled: 0, completed: 0, confirmed: 0, pending: 0, rescheduled: 0, upcoming: 0 }
+      const EMPTY_COUNTS = { all: 0, cancelled: 0, completed: 0, confirmed: 0, upcoming: 0, recurring: 0, unconfirmed: 0 }
 
       if (!env.CAL_API_KEY) {
         console.log('[bookings] CAL_API_KEY not configured')
@@ -7243,11 +7243,10 @@ const ROUTES = [
 
       try {
       let rawBookings = []
-      let apiVersion = 'v2'
 
-      // Try Cal.com v2 first
+      // Cal.com v2 only (v1 is decommissioned — returns 410)
       try {
-        const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,pending,rescheduled&take=250', {
+        const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,recurring,unconfirmed&take=250', {
           headers: {
             'Authorization': `Bearer ${env.CAL_API_KEY}`,
             'cal-api-version': '2024-08-13',
@@ -7259,25 +7258,11 @@ const ROUTES = [
         } else {
           const v2Body = await v2Res.text().catch(() => '')
           console.log(`[bookings] Cal.com v2 failed: ${v2Res.status} ${v2Body.slice(0, 500)}`)
-          throw new Error(`v2 ${v2Res.status}`)
+          return json({ ok: true, bookings: [], counts: EMPTY_COUNTS, api_version: 'v2', event_types: CAL_EVENT_TYPES, warning: `Cal.com v2 returned ${v2Res.status}` }, 200, request)
         }
-      } catch (v2Err) {
-        // Fall back to Cal.com v1
-        apiVersion = 'v1'
-        try {
-          const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${env.CAL_API_KEY}`)
-          if (v1Res.ok) {
-            const v1Data = await v1Res.json()
-            rawBookings = v1Data.bookings || v1Data || []
-          } else {
-            const v1Body = await v1Res.text().catch(() => '')
-            console.log(`[bookings] Cal.com v1 failed: ${v1Res.status} ${v1Body.slice(0, 500)}`)
-            return json({ ok: true, bookings: [], counts: EMPTY_COUNTS, api_version: 'v1', event_types: CAL_EVENT_TYPES, warning: `Cal.com v1 returned ${v1Res.status}` }, 200, request)
-          }
-        } catch (e) {
-          console.log(`[bookings] Cal.com v1 unreachable: ${e.message}`)
-          return json({ ok: true, bookings: [], counts: EMPTY_COUNTS, api_version: 'v1', event_types: CAL_EVENT_TYPES, warning: `Cal.com unreachable: ${e.message}` }, 200, request)
-        }
+      } catch (e) {
+        console.log(`[bookings] Cal.com v2 unreachable: ${e.message}`)
+        return json({ ok: true, bookings: [], counts: EMPTY_COUNTS, api_version: 'v2', event_types: CAL_EVENT_TYPES, warning: `Cal.com unreachable: ${e.message}` }, 200, request)
       }
 
       // Normalize bookings to a consistent shape
@@ -7303,7 +7288,7 @@ const ROUTES = [
       })
 
       // Derive counts
-      const counts = { all: bookings.length, cancelled: 0, completed: 0, confirmed: 0, pending: 0, rescheduled: 0, upcoming: 0 }
+      const counts = { all: bookings.length, cancelled: 0, completed: 0, confirmed: 0, upcoming: 0, recurring: 0, unconfirmed: 0 }
       for (const b of bookings) {
         const startMs = new Date(b.start).getTime()
         const endMs = new Date(b.end).getTime()
@@ -7311,13 +7296,13 @@ const ROUTES = [
         if (b.status === 'cancelled') counts.cancelled++
         else if ((b.status === 'accepted' || b.status === 'attended') && endMs < now) counts.completed++
         else if (b.status === 'accepted' && startMs > now) counts.confirmed++
-        else if (b.status === 'pending') counts.pending++
-        else if (b.status === 'rescheduled') counts.rescheduled++
+        else if (b.status === 'recurring') counts.recurring++
+        else if (b.status === 'unconfirmed') counts.unconfirmed++
 
         if (startMs > now && b.status !== 'cancelled') counts.upcoming++
       }
 
-      const result = { ok: true, bookings, counts, api_version: apiVersion, event_types: CAL_EVENT_TYPES }
+      const result = { ok: true, bookings, counts, api_version: 'v2', event_types: CAL_EVENT_TYPES }
 
       // Cache in KV for 5 minutes
       try {
@@ -8293,7 +8278,7 @@ const ROUTES = [
 
       try {
         let rawBookings = [];
-        const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,pending,rescheduled&take=250', {
+        const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,recurring,unconfirmed&take=250', {
           headers: {
             'Authorization': `Bearer ${accessToken}`,
             'cal-api-version': '2024-08-13',
@@ -8302,12 +8287,6 @@ const ROUTES = [
         if (v2Res.ok) {
           const v2Data = await v2Res.json();
           rawBookings = v2Data.data || v2Data.bookings || [];
-        } else {
-          const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${accessToken}`);
-          if (v1Res.ok) {
-            const v1Data = await v1Res.json();
-            rawBookings = v1Data.bookings || v1Data || [];
-          }
         }
         const bookings = rawBookings.map(b => ({
           id: b.id || b.uid || b.bookingId,
@@ -8506,7 +8485,7 @@ const ROUTES = [
           let rawBookings = [];
           let _calDebug = { calcom_connected: calcomConnected, token_source: userCalToken ? 'oauth' : 'admin_key', token_prefix: calApiKey ? calApiKey.slice(0, 12) + '...' : null };
           try {
-            const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,pending,rescheduled&take=250', {
+            const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,recurring,unconfirmed&take=250', {
               headers: {
                 'Authorization': `Bearer ${calApiKey}`,
                 'cal-api-version': '2024-08-13',
@@ -8520,22 +8499,8 @@ const ROUTES = [
               rawBookings = v2Data.data || v2Data.bookings || [];
               _calDebug.v2_bookings_count = rawBookings.length;
             } else {
-              throw new Error(`v2 ${v2Res.status}`);
+              _calDebug.v2_error = `v2 ${v2Res.status}`;
             }
-          } catch (v2Err) {
-            _calDebug.v2_error = v2Err.message;
-            try {
-              const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${calApiKey}`);
-              const v1Text = await v1Res.text();
-              _calDebug.v1_status = v1Res.status;
-              _calDebug.v1_body = v1Text.slice(0, 4000);
-              if (v1Res.ok) {
-                const v1Data = JSON.parse(v1Text);
-                rawBookings = v1Data.bookings || v1Data || [];
-                _calDebug.v1_bookings_count = rawBookings.length;
-              }
-            } catch (v1Err) { _calDebug.v1_error = v1Err.message; }
-          }
           _calDebug.raw_bookings_total = rawBookings.length;
           _calDebug.raw_bookings_sample = rawBookings.slice(0, 3);
           // Write debug to R2
