@@ -8501,6 +8501,9 @@ const ROUTES = [
             } else {
               _calDebug.v2_error = `v2 ${v2Res.status}`;
             }
+          } catch (v2Err) {
+            _calDebug.v2_error = v2Err.message;
+          }
           _calDebug.raw_bookings_total = rawBookings.length;
           _calDebug.raw_bookings_sample = rawBookings.slice(0, 3);
           // Write debug to R2
