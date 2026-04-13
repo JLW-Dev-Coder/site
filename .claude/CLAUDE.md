@@ -1,5 +1,5 @@
 # CLAUDE.md — virtuallaunch.pro
-Last updated: 2026-04-12 (TTMP + VLP asset page generation in campaign router + backfill)
+Last updated: 2026-04-12 (Google Calendar OAuth fix + Cal.com per-user integration + calendar side panel)
 
 ---
 
@@ -1069,6 +1069,8 @@ FOOTER
 
 Full-month calendar view merging three event sources. Component: `web/components/member/FullCalendar.tsx` (reusable, accepts `brandColor` prop for TTMP teal).
 
+**Day detail panel:** Right slide-out panel (360-380px) instead of inline expansion. Shows date header, event count, event cards with source badge, time, duration, location, description, and action links. Click outside or X to dismiss. Full-width overlay on mobile.
+
 **Worker endpoint:** `GET /v1/calendar/events?start=YYYY-MM-DD&end=YYYY-MM-DD` — session auth.
 
 Returns:
@@ -1076,7 +1078,7 @@ Returns:
 {
   "ok": true,
   "google": { "connected": true, "events": [...] },
-  "calcom": { "bookings": [...] },
+  "calcom": { "connected": true, "bookings": [...] },
   "irs": { "dates": [...] },
   "merged": [{ "id", "title", "date", "start_time", "end_time", "all_day", "source", "color", "url", "description" }]
 }
@@ -1086,9 +1088,18 @@ Source colors: Google `#4285f4`, Cal.com `#292929`, IRS `#dc2626`.
 
 **IRS tax dates:** `IRS_TAX_DATES` constant in `workers/src/index.js` — covers 2026-2027. Weekend dates adjusted to next business day per IRS rules (e.g., 2026-01-31 Sat → 2026-02-02 Mon). **Update annually** when new tax year dates are confirmed.
 
-**Google Calendar OAuth:** Already built — `GET /v1/google/oauth/start` initiates the flow. Tokens stored on `accounts` table (`google_access_token`, `google_refresh_token`, `google_token_expiry`). The unified endpoint reuses the same refresh logic as `GET /v1/google/events`.
+**Google Calendar OAuth:** `GET /v1/google/oauth/start` initiates the flow. The redirect URI is hardcoded to `https://api.virtuallaunch.pro/v1/google/oauth/callback` (NOT `env.GOOGLE_REDIRECT_URI`, which points to the login callback). This URI must be registered in Google Cloud Console. Tokens stored on `accounts` table (`google_access_token`, `google_refresh_token`, `google_token_expiry`). The unified endpoint reuses the same refresh logic as `GET /v1/google/events`.
 
-**Cal.com scoping:** Bookings are fetched via the admin Cal.com API key and filtered to the logged-in user's email (host or attendee match).
+**Cal.com integration (per-user API key):** Users connect Cal.com by pasting their personal API key (from `cal.com/settings/developer/api-keys`). The key is validated against the Cal.com API before storage. The unified calendar endpoint uses the per-user key if available, falling back to the admin `CAL_API_KEY` (scoped by email).
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/v1/calcom/status` | Check if the current user has a Cal.com API key connected |
+| POST | `/v1/calcom/connect` | Body: `{ api_key }`. Validates the key against Cal.com, then stores in D1 |
+| POST | `/v1/calcom/disconnect` | Removes the user's Cal.com API key from D1 |
+| GET | `/v1/calcom/bookings` | Fetches all bookings using the user's stored Cal.com API key |
+
+D1 column: `accounts.calcom_api_key` (migration `0046_calcom_api_key.sql`).
 
 ### Design system (member app tokens)
 

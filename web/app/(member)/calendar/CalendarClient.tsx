@@ -9,6 +9,10 @@ import {
   CheckCircle,
   Video,
   AlertCircle,
+  Link2,
+  Unlink,
+  Loader2,
+  X,
 } from 'lucide-react'
 import HeroCard from '../components/HeroCard'
 import StatusBadge from '../components/StatusBadge'
@@ -20,6 +24,8 @@ import {
   type BookingRow,
 } from '@/lib/api/member'
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? ''
+
 type LoadState =
   | { status: 'loading' }
   | { status: 'error'; message: string }
@@ -28,6 +34,7 @@ type LoadState =
       bookings: BookingRow[]
       calBookingUrl: string | null
       availability: Array<{ day: string; hours: string }>
+      calcomConnected: boolean
     }
 
 function formatDate(iso: string): string {
@@ -69,14 +76,128 @@ function parseAvailability(profile: Record<string, unknown> | null): Array<{ day
   })
 }
 
+// ---------------------------------------------------------------------------
+// Cal.com Connect Modal
+// ---------------------------------------------------------------------------
+
+function CalcomConnectModal({ onClose, onConnected }: { onClose: () => void; onConnected: () => void }) {
+  const [apiKey, setApiKey] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!apiKey.trim()) return
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch(`${API_URL}/v1/calcom/connect`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey.trim() }),
+      })
+      const data = await res.json()
+      if (!data.ok) {
+        setError(data.message || 'Failed to connect')
+        return
+      }
+      onConnected()
+      onClose()
+    } catch {
+      setError('Network error — please try again')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="relative mx-4 w-full max-w-md rounded-xl border border-[--member-border] bg-[#0d1232] p-6 shadow-2xl">
+        <button
+          onClick={onClose}
+          className="absolute right-3 top-3 rounded-lg p-1 text-white/40 transition hover:bg-white/5 hover:text-white"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <h3 className="text-lg font-semibold text-white">Connect Cal.com</h3>
+        <p className="mt-1 text-sm text-white/50">
+          Paste your Cal.com API key to sync your bookings. Get your key from{' '}
+          <a
+            href="https://app.cal.com/settings/developer/api-keys"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300"
+          >
+            Cal.com Settings &rarr; Developer &rarr; API Keys
+          </a>
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+          <div>
+            <label htmlFor="calcom-key" className="block text-xs font-medium uppercase tracking-wider text-white/40">
+              API Key
+            </label>
+            <input
+              id="calcom-key"
+              type="password"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="cal_live_..."
+              autoFocus
+              className="mt-1 w-full rounded-lg border border-[--member-border] bg-white/5 px-3 py-2.5 text-sm text-white placeholder-white/30 outline-none focus:border-brand-orange/50 focus:ring-1 focus:ring-brand-orange/30"
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={!apiKey.trim() || saving}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-brand-orange px-4 py-2.5 text-sm font-medium text-white transition hover:bg-brand-orange/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Validating...
+              </>
+            ) : (
+              <>
+                <Link2 className="h-4 w-4" />
+                Connect Cal.com
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+
 export default function CalendarClient() {
   const [state, setState] = useState<LoadState>({ status: 'loading' })
+  const [showCalcomModal, setShowCalcomModal] = useState(false)
+  const [disconnecting, setDisconnecting] = useState(false)
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const dashboard = await getDashboard()
+        const [dashboard, calcomStatus] = await Promise.all([
+          getDashboard(),
+          fetch(`${API_URL}/v1/calcom/status`, { credentials: 'include' })
+            .then(r => r.json())
+            .catch(() => ({ connected: false })),
+        ])
         if (cancelled) return
         const accountId = dashboard.account.account_id
         const professionalId = dashboard.account.professional_id
@@ -94,7 +215,13 @@ export default function CalendarClient() {
 
         const availability = parseAvailability(profile)
 
-        if (!cancelled) setState({ status: 'ready', bookings, calBookingUrl, availability })
+        if (!cancelled) setState({
+          status: 'ready',
+          bookings,
+          calBookingUrl,
+          availability,
+          calcomConnected: calcomStatus.connected ?? false,
+        })
       } catch (err) {
         if (!cancelled) {
           setState({
@@ -109,10 +236,26 @@ export default function CalendarClient() {
     }
   }, [])
 
+  async function handleDisconnectCalcom() {
+    setDisconnecting(true)
+    try {
+      await fetch(`${API_URL}/v1/calcom/disconnect`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      setState(prev => prev.status === 'ready' ? { ...prev, calcomConnected: false } : prev)
+    } catch { /* ignore */ }
+    setDisconnecting(false)
+  }
+
+  function handleCalcomConnected() {
+    setState(prev => prev.status === 'ready' ? { ...prev, calcomConnected: true } : prev)
+  }
+
   if (state.status === 'loading') return <CalendarSkeleton />
   if (state.status === 'error') return <CalendarFallback message={state.message} />
 
-  const { bookings, calBookingUrl, availability } = state
+  const { bookings, calBookingUrl, availability, calcomConnected } = state
   const now = Date.now()
   const upcoming = bookings
     .filter((b) => {
@@ -133,7 +276,7 @@ export default function CalendarClient() {
       </div>
 
       {/* Full-month calendar */}
-      <FullCalendar />
+      <FullCalendar calcomConnected={calcomConnected} />
 
       {/* Cal.com connection card */}
       <HeroCard>
@@ -145,10 +288,15 @@ export default function CalendarClient() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-white">Cal.com</h2>
-                <StatusBadge status={calBookingUrl ? 'Connected' : 'Not connected'} />
+                <StatusBadge status={calcomConnected ? 'Connected' : 'Not connected'} />
               </div>
               <div className="mt-1 flex items-center gap-1.5 text-sm text-white/50">
-                {calBookingUrl ? (
+                {calcomConnected ? (
+                  <>
+                    <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                    <span>Your Cal.com bookings are synced to the calendar above</span>
+                  </>
+                ) : calBookingUrl ? (
                   <>
                     <ExternalLink className="h-3.5 w-3.5" />
                     <a
@@ -159,20 +307,39 @@ export default function CalendarClient() {
                     >
                       {calBookingUrl.replace(/^https?:\/\//, '')}
                     </a>
+                    <span className="text-white/30">|</span>
+                    <span>Connect to sync bookings</span>
                   </>
                 ) : (
-                  <span>Add a Cal.com URL in your profile to enable scheduling</span>
+                  <span>Connect your Cal.com API key to sync bookings</span>
                 )}
               </div>
             </div>
           </div>
-          <a
-            href="/profile/onboarding"
-            className="inline-flex items-center gap-2 rounded-lg border border-brand-orange/30 px-4 py-2 text-sm font-medium text-brand-orange transition hover:bg-brand-orange/10"
-          >
-            <Settings className="h-4 w-4" />
-            Configure
-          </a>
+          <div className="flex items-center gap-2">
+            {calcomConnected ? (
+              <button
+                onClick={handleDisconnectCalcom}
+                disabled={disconnecting}
+                className="inline-flex items-center gap-2 rounded-lg border border-red-500/30 px-4 py-2 text-sm font-medium text-red-400 transition hover:bg-red-500/10 disabled:opacity-50"
+              >
+                {disconnecting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Unlink className="h-4 w-4" />
+                )}
+                Disconnect
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowCalcomModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg border border-brand-orange/30 px-4 py-2 text-sm font-medium text-brand-orange transition hover:bg-brand-orange/10"
+              >
+                <Link2 className="h-4 w-4" />
+                Connect Cal.com
+              </button>
+            )}
+          </div>
         </div>
       </HeroCard>
 
@@ -247,6 +414,14 @@ export default function CalendarClient() {
           </a>
         </div>
       </div>
+
+      {/* Cal.com connect modal */}
+      {showCalcomModal && (
+        <CalcomConnectModal
+          onClose={() => setShowCalcomModal(false)}
+          onConnected={handleCalcomConnected}
+        />
+      )}
     </div>
   )
 }
@@ -256,7 +431,7 @@ function CalendarSkeleton() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-white">Calendar</h1>
-        <p className="mt-1 text-sm text-white/50">Loading calendar…</p>
+        <p className="mt-1 text-sm text-white/50">Loading calendar...</p>
       </div>
       <div className="h-[500px] animate-pulse rounded-xl border border-[--member-border] bg-[--member-card]" />
       <div className="h-28 animate-pulse rounded-xl border border-[--member-border] bg-[--member-card]" />

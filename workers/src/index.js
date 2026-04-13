@@ -7937,7 +7937,8 @@ const ROUTES = [
     handler: async (_method, _pattern, _params, request, env) => {
       const { session, error } = await requireSession(request, env);
       if (error) return error;
-      const redirectUri = env.GOOGLE_REDIRECT_URI ?? 'https://api.virtuallaunch.pro/v1/google/oauth/callback';
+      // Calendar OAuth uses its own redirect URI — NOT env.GOOGLE_REDIRECT_URI (that's the login callback)
+      const redirectUri = 'https://api.virtuallaunch.pro/v1/google/oauth/callback';
       const state = btoa(JSON.stringify({ accountId: session.account_id, nonce: crypto.randomUUID() }));
       const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
       url.searchParams.set('client_id', env.GOOGLE_CLIENT_ID);
@@ -7970,7 +7971,8 @@ const ROUTES = [
       } catch {
         return Response.redirect('https://virtuallaunch.pro/calendar?google=error&reason=invalid_state', 302);
       }
-      const redirectUri = env.GOOGLE_REDIRECT_URI ?? 'https://api.virtuallaunch.pro/v1/google/oauth/callback';
+      // Must match the redirect_uri used in /v1/google/oauth/start — NOT env.GOOGLE_REDIRECT_URI
+      const redirectUri = 'https://api.virtuallaunch.pro/v1/google/oauth/callback';
       try {
         const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
           method: 'POST',
@@ -8125,6 +8127,129 @@ const ROUTES = [
     },
   },
   // -------------------------------------------------------------------------
+  // CAL.COM INTEGRATION (per-user API key)
+  // Users paste their personal Cal.com API key from cal.com/settings/developer/api-keys
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'GET', pattern: '/v1/calcom/status',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+      try {
+        const row = await env.DB.prepare(
+          'SELECT calcom_api_key FROM accounts WHERE account_id = ?'
+        ).bind(session.account_id).first();
+        const connected = !!(row && row.calcom_api_key);
+        return json({ ok: true, connected }, 200, request);
+      } catch {
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to check Cal.com status' }, 500, request);
+      }
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/calcom/connect',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+      const body = await parseBody(request);
+      if (!body || typeof body.api_key !== 'string' || !body.api_key.trim()) {
+        return json({ ok: false, error: 'INVALID_PAYLOAD', message: 'api_key string required' }, 400, request);
+      }
+      const apiKey = body.api_key.trim();
+      // Validate the key by making a test call to Cal.com
+      try {
+        const testRes = await fetch('https://api.cal.com/v2/me', {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'cal-api-version': '2024-08-13',
+          },
+        });
+        if (!testRes.ok) {
+          // Try v1 fallback
+          const v1Res = await fetch(`https://api.cal.com/v1/me?apiKey=${apiKey}`);
+          if (!v1Res.ok) {
+            return json({ ok: false, error: 'INVALID_KEY', message: 'Cal.com API key is invalid or expired' }, 400, request);
+          }
+        }
+      } catch {
+        return json({ ok: false, error: 'CALCOM_UNREACHABLE', message: 'Could not reach Cal.com to validate key' }, 502, request);
+      }
+      // Store the validated key
+      await d1Run(env.DB,
+        'UPDATE accounts SET calcom_api_key = ? WHERE account_id = ?',
+        [apiKey, session.account_id]
+      );
+      return json({ ok: true, message: 'Cal.com connected' }, 200, request);
+    },
+  },
+
+  {
+    method: 'POST', pattern: '/v1/calcom/disconnect',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+      await d1Run(env.DB,
+        'UPDATE accounts SET calcom_api_key = NULL WHERE account_id = ?',
+        [session.account_id]
+      );
+      return json({ ok: true, message: 'Cal.com disconnected' }, 200, request);
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/calcom/bookings',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+      const row = await env.DB.prepare(
+        'SELECT calcom_api_key FROM accounts WHERE account_id = ?'
+      ).bind(session.account_id).first();
+      if (!row || !row.calcom_api_key) {
+        return json({ ok: false, error: 'NOT_CONNECTED', message: 'Cal.com not connected. Add your API key first.' }, 400, request);
+      }
+      const apiKey = row.calcom_api_key;
+      try {
+        let rawBookings = [];
+        // Try v2 first
+        const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,pending,rescheduled&take=250', {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'cal-api-version': '2024-08-13',
+          },
+        });
+        if (v2Res.ok) {
+          const v2Data = await v2Res.json();
+          rawBookings = v2Data.data || v2Data.bookings || [];
+        } else {
+          // v1 fallback
+          const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${apiKey}`);
+          if (v1Res.ok) {
+            const v1Data = await v1Res.json();
+            rawBookings = v1Data.bookings || v1Data || [];
+          }
+        }
+        const bookings = rawBookings.map(b => ({
+          id: b.id || b.uid || b.bookingId,
+          title: b.title || b.eventType?.title || 'Cal.com Booking',
+          status: (b.status || '').toLowerCase(),
+          start: b.startTime || b.start || b.start_time || '',
+          end: b.endTime || b.end || b.end_time || '',
+          attendee_name: (b.attendees?.[0]?.name || ''),
+          attendee_email: (b.attendees?.[0]?.email || ''),
+          event_type_slug: b.eventType?.slug || '',
+          meeting_url: b.meetingUrl || '',
+          created_at: b.createdAt || b.created_at || '',
+        }));
+        return json({ ok: true, bookings }, 200, request);
+      } catch {
+        return json({ ok: false, error: 'CALCOM_ERROR', message: 'Failed to fetch Cal.com bookings' }, 502, request);
+      }
+    },
+  },
+
+  // -------------------------------------------------------------------------
   // UNIFIED CALENDAR (Google + Cal.com + IRS)
   // -------------------------------------------------------------------------
 
@@ -8248,16 +8373,24 @@ const ROUTES = [
         console.log('[calendar] Google fetch error:', err.message);
       }
 
-      // --- Cal.com bookings (scoped to user email) ---
+      // --- Cal.com bookings ---
+      // Priority: per-user calcom_api_key > admin CAL_API_KEY (scoped by email)
       let calcomBookings = [];
+      let calcomConnected = false;
       try {
-        if (env.CAL_API_KEY) {
-          // Fetch from Cal.com — try v2 first
+        const calcomRow = await env.DB.prepare(
+          'SELECT calcom_api_key FROM accounts WHERE account_id = ?'
+        ).bind(session.account_id).first();
+        const userCalKey = calcomRow?.calcom_api_key || null;
+        const calApiKey = userCalKey || env.CAL_API_KEY || null;
+        calcomConnected = !!userCalKey;
+
+        if (calApiKey) {
           let rawBookings = [];
           try {
             const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,pending,rescheduled&take=250', {
               headers: {
-                'Authorization': `Bearer ${env.CAL_API_KEY}`,
+                'Authorization': `Bearer ${calApiKey}`,
                 'cal-api-version': '2024-08-13',
               },
             });
@@ -8269,7 +8402,7 @@ const ROUTES = [
             }
           } catch {
             try {
-              const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${env.CAL_API_KEY}`);
+              const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${calApiKey}`);
               if (v1Res.ok) {
                 const v1Data = await v1Res.json();
                 rawBookings = v1Data.bookings || v1Data || [];
@@ -8277,7 +8410,7 @@ const ROUTES = [
             } catch { /* skip Cal.com */ }
           }
 
-          // Filter by user email + date range
+          // When using the admin key, filter by user email; personal key returns only their bookings
           const userEmail = (session.email || '').toLowerCase();
           for (const b of rawBookings) {
             const start = b.startTime || b.start || b.start_time || '';
@@ -8287,13 +8420,16 @@ const ROUTES = [
             const dateStr = start.slice(0, 10);
             if (dateStr < rangeStart || dateStr > rangeEnd) continue;
 
-            // Scope: user is the host or an attendee
-            const attendees = b.attendees || b.guests || [];
-            const attendeeEmails = Array.isArray(attendees) ? attendees.map(a => (a.email || '').toLowerCase()) : [];
-            const hostEmail = (b.user?.email || b.hostEmail || '').toLowerCase();
-            const isRelevant = hostEmail === userEmail || attendeeEmails.includes(userEmail);
-            if (!isRelevant && userEmail) continue;
+            // When using admin key, scope to user's email
+            if (!userCalKey && userEmail) {
+              const attendees = b.attendees || b.guests || [];
+              const attendeeEmails = Array.isArray(attendees) ? attendees.map(a => (a.email || '').toLowerCase()) : [];
+              const hostEmail = (b.user?.email || b.hostEmail || '').toLowerCase();
+              const isRelevant = hostEmail === userEmail || attendeeEmails.includes(userEmail);
+              if (!isRelevant) continue;
+            }
 
+            const attendees = b.attendees || b.guests || [];
             const firstAttendee = Array.isArray(attendees) && attendees.length > 0 ? attendees[0] : {};
             const startTime = start.length > 10 ? start.slice(11, 16) : null;
             const endTime = end.length > 10 ? end.slice(11, 16) : null;
@@ -8345,7 +8481,7 @@ const ROUTES = [
       return json({
         ok: true,
         google: { connected: googleConnected, events: googleEvents },
-        calcom: { bookings: calcomBookings },
+        calcom: { connected: calcomConnected, bookings: calcomBookings },
         irs: { dates: irsDates },
         merged,
       }, 200, request);
