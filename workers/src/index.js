@@ -8103,7 +8103,9 @@ const ROUTES = [
         }
 
         if (!calRes.ok) {
-          return json({ ok: false, error: 'GOOGLE_API_ERROR', message: 'Failed to fetch Google Calendar events' }, 502, request);
+          const errorBody = await calRes.text().catch(() => '');
+          console.log('[google/events] Google API error:', calRes.status, errorBody);
+          return json({ ok: false, error: 'GOOGLE_API_ERROR', message: 'Google Calendar API returned ' + calRes.status }, 502, request);
         }
 
         const calData = await calRes.json();
@@ -8367,10 +8369,16 @@ const ROUTES = [
               };
             });
             for (const ge of googleEvents) merged.push(ge);
+          } else {
+            const errorBody = await calRes.text().catch(() => '');
+            console.log('[calendar] Google API error:', calRes.status, errorBody);
+            googleEvents = [];
+            googleConnected = { error: 'Google Calendar API returned ' + calRes.status };
           }
         }
       } catch (err) {
         console.log('[calendar] Google fetch error:', err.message);
+        googleConnected = { error: 'Google Calendar fetch failed: ' + err.message };
       }
 
       // --- Cal.com bookings ---
@@ -8478,9 +8486,13 @@ const ROUTES = [
         return at < bt ? -1 : at > bt ? 1 : 0;
       });
 
+      const googleResult = typeof googleConnected === 'object' && googleConnected?.error
+        ? { connected: true, events: [], error: googleConnected.error }
+        : { connected: googleConnected, events: googleEvents };
+
       return json({
         ok: true,
-        google: { connected: googleConnected, events: googleEvents },
+        google: googleResult,
         calcom: { connected: calcomConnected, bookings: calcomBookings },
         irs: { dates: irsDates },
         merged,
