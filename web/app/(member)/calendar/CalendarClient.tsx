@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import HeroCard from '../components/HeroCard'
 import StatusBadge from '../components/StatusBadge'
-import DataTable from '../components/DataTable'
+import FullCalendar from '@/components/member/FullCalendar'
 import { getDashboard } from '@/lib/api/dashboard'
 import {
   getBookingsByAccount,
@@ -44,11 +44,6 @@ function formatTime(iso: string): string {
 
 function dotFor(idx: number): string {
   return ['bg-brand-orange', 'bg-blue-400', 'bg-emerald-400', 'bg-white/30'][idx % 4]
-}
-
-function statusDisplay(s: string | null | undefined): string {
-  if (!s) return 'Pending'
-  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
 }
 
 function parseAvailability(profile: Record<string, unknown> | null): Array<{ day: string; hours: string }> {
@@ -128,20 +123,19 @@ export default function CalendarClient() {
 
   const nextThree = upcoming.slice(0, 3)
 
-  const tableRows = bookings
-    .slice()
-    .sort((a, b) => new Date(b.scheduled_at).getTime() - new Date(a.scheduled_at).getTime())
-    .slice(0, 10)
-
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-white">Calendar</h1>
         <p className="mt-1 text-sm text-white/50">
-          Cal.com integration. Manage scheduling and availability.
+          Unified view — Google Calendar, Cal.com bookings, and IRS deadlines.
         </p>
       </div>
 
+      {/* Full-month calendar */}
+      <FullCalendar />
+
+      {/* Cal.com connection card */}
       <HeroCard>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
@@ -183,6 +177,7 @@ export default function CalendarClient() {
       </HeroCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
+        {/* Upcoming sessions */}
         <div className="rounded-xl border border-[--member-border] bg-[--member-card] p-6">
           <h3 className="text-xs uppercase tracking-widest text-white/40">Upcoming Sessions</h3>
           <div className="mt-4 divide-y divide-[--member-border]">
@@ -217,6 +212,7 @@ export default function CalendarClient() {
           </div>
         </div>
 
+        {/* Availability */}
         <div className="rounded-xl border border-[--member-border] bg-[--member-card] p-6">
           <h3 className="text-xs uppercase tracking-widest text-white/40">Your Availability</h3>
           <div className="mt-4 space-y-0 divide-y divide-[--member-border]">
@@ -251,38 +247,6 @@ export default function CalendarClient() {
           </a>
         </div>
       </div>
-
-      <div>
-        <h3 className="mb-4 text-xs uppercase tracking-widest text-white/40">Booking Management</h3>
-        {tableRows.length === 0 ? (
-          <div className="rounded-xl border border-[--member-border] bg-[--member-card] p-10 text-center text-sm text-white/40">
-            No bookings yet. Share your Cal.com link to get started.
-          </div>
-        ) : (
-          <DataTable
-            columns={[
-              { key: 'client', label: 'Client' },
-              { key: 'service', label: 'Service Type' },
-              { key: 'scheduled', label: 'Scheduled For' },
-              { key: 'status', label: 'Status' },
-              { key: 'actions', label: 'Actions' },
-            ]}
-            rows={tableRows.map((b) => ({
-              client: <span className="font-medium text-white">{b.client_name ?? b.client_email ?? '—'}</span>,
-              service: (b.booking_type ?? 'session').replace(/_/g, ' '),
-              scheduled: `${formatDate(b.scheduled_at)} · ${formatTime(b.scheduled_at)}`,
-              status: <StatusBadge status={statusDisplay(b.status)} />,
-              actions: (
-                <div className="flex gap-3">
-                  <button className="text-xs font-medium text-brand-orange hover:text-brand-400 transition">
-                    Manage
-                  </button>
-                </div>
-              ),
-            }))}
-          />
-        )}
-      </div>
     </div>
   )
 }
@@ -292,14 +256,14 @@ function CalendarSkeleton() {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-white">Calendar</h1>
-        <p className="mt-1 text-sm text-white/50">Loading bookings…</p>
+        <p className="mt-1 text-sm text-white/50">Loading calendar…</p>
       </div>
+      <div className="h-[500px] animate-pulse rounded-xl border border-[--member-border] bg-[--member-card]" />
       <div className="h-28 animate-pulse rounded-xl border border-[--member-border] bg-[--member-card]" />
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="h-64 animate-pulse rounded-xl border border-[--member-border] bg-[--member-card]" />
         <div className="h-64 animate-pulse rounded-xl border border-[--member-border] bg-[--member-card]" />
       </div>
-      <div className="h-48 animate-pulse rounded-xl border border-[--member-border] bg-[--member-card]" />
     </div>
   )
 }
@@ -309,7 +273,7 @@ function CalendarFallback({ message }: { message: string }) {
     <div className="space-y-8">
       <div>
         <h1 className="text-2xl font-semibold text-white">Calendar</h1>
-        <p className="mt-1 text-sm text-white/50">Cal.com integration.</p>
+        <p className="mt-1 text-sm text-white/50">Unified calendar view.</p>
       </div>
       <div className="flex items-start gap-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-200">
         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />

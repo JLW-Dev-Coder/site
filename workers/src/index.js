@@ -1706,6 +1706,30 @@ const CF_DOMAIN_MAP = {
 // Root domains (vlp, tmp) don't need a host filter — the whole zone is them.
 const CF_ROOT_DOMAINS = new Set(['vlp', 'tmp']);
 
+// IRS tax dates for calendar integration. Weekend dates adjusted to next business day per IRS rules.
+const IRS_TAX_DATES = [
+  // 2026
+  { date: '2026-01-15', title: 'Q4 2025 Estimated Tax Payment Due', type: 'deadline' },
+  { date: '2026-02-02', title: 'W-2 and 1099 Filing Deadline (moved from 1/31 Sat)', type: 'deadline' },
+  { date: '2026-03-16', title: 'S-Corp/Partnership Return Due (Form 1065/1120-S) (moved from 3/15 Sun)', type: 'deadline' },
+  { date: '2026-03-31', title: '1099 Electronic Filing Deadline', type: 'deadline' },
+  { date: '2026-04-15', title: 'Individual Tax Return Due (Form 1040)', type: 'deadline' },
+  { date: '2026-04-15', title: 'Q1 2026 Estimated Tax Payment Due', type: 'deadline' },
+  { date: '2026-04-15', title: 'C-Corp Return Due (Form 1120)', type: 'deadline' },
+  { date: '2026-06-15', title: 'Q2 2026 Estimated Tax Payment Due', type: 'deadline' },
+  { date: '2026-09-15', title: 'Q3 2026 Estimated Tax Payment Due', type: 'deadline' },
+  { date: '2026-09-15', title: 'Extended S-Corp/Partnership Return Due', type: 'deadline' },
+  { date: '2026-10-15', title: 'Extended Individual Tax Return Due', type: 'deadline' },
+  { date: '2026-10-15', title: 'Extended C-Corp Return Due', type: 'deadline' },
+  // 2027
+  { date: '2027-01-15', title: 'Q4 2026 Estimated Tax Payment Due', type: 'deadline' },
+  { date: '2027-03-15', title: 'S-Corp/Partnership Return Due (Form 1065/1120-S)', type: 'deadline' },
+  { date: '2027-04-15', title: 'Individual Tax Return Due (Form 1040)', type: 'deadline' },
+  { date: '2027-04-15', title: 'Q1 2027 Estimated Tax Payment Due', type: 'deadline' },
+  { date: '2027-06-15', title: 'Q2 2027 Estimated Tax Payment Due', type: 'deadline' },
+  { date: '2027-09-15', title: 'Q3 2027 Estimated Tax Payment Due', type: 'deadline' },
+];
+
 // Cal.com event types grouped by platform
 const CAL_EVENT_TYPES = {
   dvlp: [
@@ -8100,6 +8124,234 @@ const ROUTES = [
       }
     },
   },
+  // -------------------------------------------------------------------------
+  // UNIFIED CALENDAR (Google + Cal.com + IRS)
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'GET', pattern: '/v1/calendar/events',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+
+      const url = new URL(request.url);
+      const startParam = url.searchParams.get('start');
+      const endParam = url.searchParams.get('end');
+      if (!startParam || !endParam) {
+        return json({ ok: false, error: 'MISSING_PARAMS', message: 'start and end query params required (YYYY-MM-DD)' }, 400, request);
+      }
+      const rangeStart = startParam;
+      const rangeEnd = endParam;
+
+      const merged = [];
+
+      // --- Google Calendar ---
+      let googleConnected = false;
+      let googleEvents = [];
+      try {
+        const row = await env.DB.prepare(
+          'SELECT google_access_token, google_refresh_token, google_token_expiry FROM accounts WHERE account_id = ?'
+        ).bind(session.account_id).first();
+
+        if (row && row.google_access_token) {
+          googleConnected = true;
+          let accessToken = row.google_access_token;
+
+          // Refresh if expired or expiring within 60s
+          const expiry = row.google_token_expiry ? new Date(row.google_token_expiry).getTime() : 0;
+          if (Date.now() + 60000 > expiry && row.google_refresh_token) {
+            const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                refresh_token: row.google_refresh_token,
+                client_id: env.GOOGLE_CLIENT_ID,
+                client_secret: env.GOOGLE_CLIENT_SECRET,
+                grant_type: 'refresh_token',
+              }),
+            });
+            if (refreshRes.ok) {
+              const refreshData = await refreshRes.json();
+              accessToken = refreshData.access_token;
+              const newExpiry = new Date(Date.now() + (refreshData.expires_in ?? 3600) * 1000).toISOString();
+              await d1Run(env.DB,
+                'UPDATE accounts SET google_access_token = ?, google_token_expiry = ? WHERE account_id = ?',
+                [accessToken, newExpiry, session.account_id]
+              );
+            }
+          }
+
+          const calUrl = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events');
+          calUrl.searchParams.set('timeMin', new Date(rangeStart + 'T00:00:00Z').toISOString());
+          calUrl.searchParams.set('timeMax', new Date(rangeEnd + 'T23:59:59Z').toISOString());
+          calUrl.searchParams.set('singleEvents', 'true');
+          calUrl.searchParams.set('orderBy', 'startTime');
+          calUrl.searchParams.set('maxResults', '250');
+
+          let calRes = await fetch(calUrl.toString(), {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          });
+
+          // If 401, try one more refresh
+          if (calRes.status === 401 && row.google_refresh_token) {
+            const refreshRes = await fetch('https://oauth2.googleapis.com/token', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({
+                refresh_token: row.google_refresh_token,
+                client_id: env.GOOGLE_CLIENT_ID,
+                client_secret: env.GOOGLE_CLIENT_SECRET,
+                grant_type: 'refresh_token',
+              }),
+            });
+            if (refreshRes.ok) {
+              const refreshData = await refreshRes.json();
+              accessToken = refreshData.access_token;
+              const newExpiry = new Date(Date.now() + (refreshData.expires_in ?? 3600) * 1000).toISOString();
+              await d1Run(env.DB,
+                'UPDATE accounts SET google_access_token = ?, google_token_expiry = ? WHERE account_id = ?',
+                [accessToken, newExpiry, session.account_id]
+              );
+              calRes = await fetch(calUrl.toString(), {
+                headers: { 'Authorization': `Bearer ${accessToken}` },
+              });
+            }
+          }
+
+          if (calRes.ok) {
+            const calData = await calRes.json();
+            googleEvents = (calData.items ?? []).map((e) => {
+              const startDt = e.start?.dateTime ?? e.start?.date ?? '';
+              const endDt = e.end?.dateTime ?? e.end?.date ?? '';
+              const allDay = !!(e.start?.date && !e.start?.dateTime);
+              const dateStr = allDay ? startDt : startDt.slice(0, 10);
+              const startTime = allDay ? null : startDt.slice(11, 16);
+              const endTime = allDay ? null : endDt.slice(11, 16);
+              return {
+                id: e.id ?? '',
+                title: e.summary ?? '(No title)',
+                date: dateStr,
+                start_time: startTime,
+                end_time: endTime,
+                all_day: allDay,
+                source: 'google',
+                color: '#4285f4',
+                url: e.htmlLink ?? '',
+                description: e.description ?? '',
+                location: e.location ?? '',
+              };
+            });
+            for (const ge of googleEvents) merged.push(ge);
+          }
+        }
+      } catch (err) {
+        console.log('[calendar] Google fetch error:', err.message);
+      }
+
+      // --- Cal.com bookings (scoped to user email) ---
+      let calcomBookings = [];
+      try {
+        if (env.CAL_API_KEY) {
+          // Fetch from Cal.com — try v2 first
+          let rawBookings = [];
+          try {
+            const v2Res = await fetch('https://api.cal.com/v2/bookings?status=upcoming,past,cancelled,pending,rescheduled&take=250', {
+              headers: {
+                'Authorization': `Bearer ${env.CAL_API_KEY}`,
+                'cal-api-version': '2024-08-13',
+              },
+            });
+            if (v2Res.ok) {
+              const v2Data = await v2Res.json();
+              rawBookings = v2Data.data || v2Data.bookings || [];
+            } else {
+              throw new Error(`v2 ${v2Res.status}`);
+            }
+          } catch {
+            try {
+              const v1Res = await fetch(`https://api.cal.com/v1/bookings?apiKey=${env.CAL_API_KEY}`);
+              if (v1Res.ok) {
+                const v1Data = await v1Res.json();
+                rawBookings = v1Data.bookings || v1Data || [];
+              }
+            } catch { /* skip Cal.com */ }
+          }
+
+          // Filter by user email + date range
+          const userEmail = (session.email || '').toLowerCase();
+          for (const b of rawBookings) {
+            const start = b.startTime || b.start || b.start_time || '';
+            const end = b.endTime || b.end || b.end_time || '';
+            const status = (b.status || '').toLowerCase();
+            if (status === 'cancelled') continue;
+            const dateStr = start.slice(0, 10);
+            if (dateStr < rangeStart || dateStr > rangeEnd) continue;
+
+            // Scope: user is the host or an attendee
+            const attendees = b.attendees || b.guests || [];
+            const attendeeEmails = Array.isArray(attendees) ? attendees.map(a => (a.email || '').toLowerCase()) : [];
+            const hostEmail = (b.user?.email || b.hostEmail || '').toLowerCase();
+            const isRelevant = hostEmail === userEmail || attendeeEmails.includes(userEmail);
+            if (!isRelevant && userEmail) continue;
+
+            const firstAttendee = Array.isArray(attendees) && attendees.length > 0 ? attendees[0] : {};
+            const startTime = start.length > 10 ? start.slice(11, 16) : null;
+            const endTime = end.length > 10 ? end.slice(11, 16) : null;
+            const booking = {
+              id: `calcom-${b.id || b.uid || b.bookingId}`,
+              title: b.title || b.eventType?.title || 'Cal.com Booking',
+              date: dateStr,
+              start_time: startTime,
+              end_time: endTime,
+              all_day: false,
+              source: 'calcom',
+              color: '#292929',
+              url: b.meetingUrl || '',
+              description: `${firstAttendee.name || ''} (${firstAttendee.email || ''})`.trim(),
+            };
+            calcomBookings.push(booking);
+            merged.push(booking);
+          }
+        }
+      } catch (err) {
+        console.log('[calendar] Cal.com fetch error:', err.message);
+      }
+
+      // --- IRS tax dates ---
+      const irsDates = IRS_TAX_DATES
+        .filter(d => d.date >= rangeStart && d.date <= rangeEnd)
+        .map(d => ({
+          id: `irs-${d.date}-${d.title.slice(0, 20).replace(/\s/g, '-').toLowerCase()}`,
+          title: d.title,
+          date: d.date,
+          start_time: null,
+          end_time: null,
+          all_day: true,
+          source: 'irs',
+          color: '#dc2626',
+          url: '',
+          description: '',
+        }));
+      for (const irs of irsDates) merged.push(irs);
+
+      // Sort merged: by date, then by start_time (nulls/all-day first)
+      merged.sort((a, b) => {
+        if (a.date !== b.date) return a.date < b.date ? -1 : 1;
+        const at = a.start_time || '';
+        const bt = b.start_time || '';
+        return at < bt ? -1 : at > bt ? 1 : 0;
+      });
+
+      return json({
+        ok: true,
+        google: { connected: googleConnected, events: googleEvents },
+        calcom: { bookings: calcomBookings },
+        irs: { dates: irsDates },
+        merged,
+      }, 200, request);
+    },
+  },
+
   // -------------------------------------------------------------------------
   // TOOLS (Phase 1 — TTTMP)
   // Rate limiting must be applied here before any processing.

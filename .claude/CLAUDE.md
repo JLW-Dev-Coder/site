@@ -1043,7 +1043,7 @@ FOOTER
 |------|------|--------|
 | `/dashboard` | Dashboard | Shell |
 | `/analytics` | Analytics | Shell |
-| `/calendar` | Calendar | Shell |
+| `/calendar` | Calendar (FullCalendar + Cal.com) | Built |
 | `/inquiries` | Inquiries | Shell |
 | `/reports` | Reports | Shell |
 | `/tokens` | Tokens | Shell |
@@ -1064,6 +1064,31 @@ FOOTER
 | `/notifications` | Notifications | Shell |
 
 **Note:** `/help` is served by the `(marketing)` route group's existing help center page. The topbar help icon links there.
+
+### Unified Calendar (`/calendar`)
+
+Full-month calendar view merging three event sources. Component: `web/components/member/FullCalendar.tsx` (reusable, accepts `brandColor` prop for TTMP teal).
+
+**Worker endpoint:** `GET /v1/calendar/events?start=YYYY-MM-DD&end=YYYY-MM-DD` — session auth.
+
+Returns:
+```json
+{
+  "ok": true,
+  "google": { "connected": true, "events": [...] },
+  "calcom": { "bookings": [...] },
+  "irs": { "dates": [...] },
+  "merged": [{ "id", "title", "date", "start_time", "end_time", "all_day", "source", "color", "url", "description" }]
+}
+```
+
+Source colors: Google `#4285f4`, Cal.com `#292929`, IRS `#dc2626`.
+
+**IRS tax dates:** `IRS_TAX_DATES` constant in `workers/src/index.js` — covers 2026-2027. Weekend dates adjusted to next business day per IRS rules (e.g., 2026-01-31 Sat → 2026-02-02 Mon). **Update annually** when new tax year dates are confirmed.
+
+**Google Calendar OAuth:** Already built — `GET /v1/google/oauth/start` initiates the flow. Tokens stored on `accounts` table (`google_access_token`, `google_refresh_token`, `google_token_expiry`). The unified endpoint reuses the same refresh logic as `GET /v1/google/events`.
+
+**Cal.com scoping:** Bookings are fetched via the admin Cal.com API key and filtered to the logged-in user's email (host or attendee match).
 
 ### Design system (member app tokens)
 
