@@ -217,6 +217,51 @@ async function d1Run(db, sql, params) {
   return db.prepare(sql).bind(...params).run();
 }
 
+// ---------------------------------------------------------------------------
+// CSV helpers (Clay CSV pipeline)
+// ---------------------------------------------------------------------------
+
+// Parse a single CSV line respecting quoted fields with commas/newlines inside
+function csvParseLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        result.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+function csvEscapeField(val) {
+  const s = String(val);
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
 // Map a D1 profiles row → nested card shape (vlp.profiles.list.v1 contract)
 // Fields not yet in D1 use safe defaults; a D1 migration will backfill them.
 function d1RowToProfileCard(row) {
@@ -16335,6 +16380,245 @@ TTMP Support Team
   },
 
   // -------------------------------------------------------------------------
+  // Clay CSV Pipeline — Upload + Status
+  // -------------------------------------------------------------------------
+
+  // PUT /v1/scale/prospects/upload — Clay CSV upload with validation
+  {
+    method: 'PUT', pattern: '/v1/scale/prospects/upload',
+    handler: async (_method, _pattern, _params, request, env) => {
+      // Auth: vlp_session cookie + owner-only check
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro'];
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
+      }
+
+      // Check body size (5MB limit)
+      const bodyText = await request.text();
+      if (!bodyText || bodyText.trim().length === 0) {
+        return json({ ok: false, error: 'empty_body' }, 400, request);
+      }
+      const bodyBytes = new TextEncoder().encode(bodyText).byteLength;
+      if (bodyBytes > 5242880) {
+        return json({ ok: false, error: 'file_too_large', max_bytes: 5242880 }, 400, request);
+      }
+
+      // Parse CSV
+      const lines = bodyText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length === 0) {
+        return json({ ok: false, error: 'invalid_format', detail: 'Could not parse CSV headers' }, 400, request);
+      }
+
+      // Parse header row
+      const headerLine = lines[0];
+      const headers = csvParseLine(headerLine);
+      if (!headers || headers.length === 0) {
+        return json({ ok: false, error: 'invalid_format', detail: 'Could not parse CSV headers' }, 400, request);
+      }
+
+      const REQUIRED_COLUMNS = ['LAST_NAME', 'First_NAME', 'BUS_ADDR_CITY', 'BUS_ST_CODE', 'PROFESSION', 'email_found', 'email_status', 'firm_bucket'];
+      const headerUpper = headers.map(h => h.trim());
+      const missing = REQUIRED_COLUMNS.filter(c => !headerUpper.includes(c));
+      if (missing.length > 0) {
+        return json({ ok: false, error: 'missing_columns', missing }, 400, request);
+      }
+
+      // Build column index
+      const colIdx = {};
+      for (let i = 0; i < headerUpper.length; i++) {
+        colIdx[headerUpper[i]] = i;
+      }
+
+      // Parse data rows
+      const dataLines = lines.slice(1);
+      if (dataLines.length === 0) {
+        return json({ ok: false, error: 'no_valid_rows' }, 400, request);
+      }
+
+      const VALID_PROFESSIONS = new Set(['CPA', 'EA', 'ATTY', 'JD']);
+      const rows = [];
+      let filteredInvalid = 0;
+
+      for (const line of dataLines) {
+        const cols = csvParseLine(line);
+        if (!cols || cols.length < headers.length) continue;
+
+        const emailFound = (cols[colIdx['email_found']] || '').trim();
+        const emailStatus = (cols[colIdx['email_status']] || '').trim().toLowerCase();
+        const profession = (cols[colIdx['PROFESSION']] || '').trim().toUpperCase();
+
+        // Validate email contains @
+        if (!emailFound || !emailFound.includes('@')) {
+          continue;
+        }
+
+        // Validate profession
+        if (!VALID_PROFESSIONS.has(profession)) {
+          continue;
+        }
+
+        // Filter invalid email_status (warn, don't reject)
+        if (emailStatus !== 'valid') {
+          filteredInvalid++;
+          continue;
+        }
+
+        // Build row object
+        const row = {};
+        for (const h of headerUpper) {
+          row[h] = (cols[colIdx[h]] || '').trim();
+        }
+        rows.push(row);
+      }
+
+      if (rows.length === 0) {
+        return json({ ok: false, error: 'no_valid_rows' }, 400, request);
+      }
+
+      // Deduplicate by email_found (case-insensitive, keep first)
+      const seenEmails = new Set();
+      const dedupedRows = [];
+      let dedupedCount = 0;
+      for (const row of rows) {
+        const emailLower = row.email_found.toLowerCase();
+        if (seenEmails.has(emailLower)) {
+          dedupedCount++;
+          continue;
+        }
+        seenEmails.add(emailLower);
+        dedupedRows.push(row);
+      }
+
+      // Check sent-emails.json for already-emailed prospects
+      let alreadySent = 0;
+      const finalRows = [];
+      try {
+        const sentObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/state/sent-emails.json');
+        if (sentObj) {
+          const sentEmails = await sentObj.json();
+          const sentSet = new Set((Array.isArray(sentEmails) ? sentEmails : []).map(e => e.toLowerCase()));
+          for (const row of dedupedRows) {
+            if (sentSet.has(row.email_found.toLowerCase())) {
+              alreadySent++;
+            } else {
+              finalRows.push(row);
+            }
+          }
+        } else {
+          finalRows.push(...dedupedRows);
+        }
+      } catch {
+        finalRows.push(...dedupedRows);
+      }
+
+      if (finalRows.length === 0) {
+        return json({ ok: false, error: 'no_valid_rows' }, 400, request);
+      }
+
+      // Rebuild CSV with headers + final rows
+      const outputLines = [headerLine];
+      for (const row of finalRows) {
+        const vals = headerUpper.map(h => csvEscapeField(row[h] || ''));
+        outputLines.push(vals.join(','));
+      }
+      const outputCsv = outputLines.join('\n') + '\n';
+
+      // Store to R2
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const timestamp = Math.floor(now.getTime() / 1000);
+      const r2Key = `vlp-scale/prospects/pending/${dateStr}-${timestamp}.csv`;
+
+      await env.R2_VIRTUAL_LAUNCH.put(r2Key, outputCsv, {
+        httpMetadata: { contentType: 'text/csv; charset=utf-8' },
+      });
+
+      return json({
+        ok: true,
+        stored: finalRows.length,
+        deduped: dedupedCount,
+        already_sent: alreadySent,
+        filtered_invalid: filteredInvalid,
+        date: dateStr,
+        r2_key: r2Key,
+      }, 200, request);
+    },
+  },
+
+  // GET /v1/scale/status — Clay CSV pipeline status dashboard
+  {
+    method: 'GET', pattern: '/v1/scale/status',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const { session, error } = await requireSession(request, env);
+      if (error) return error;
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro'];
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
+      }
+
+      // Read pipeline-status.json manifest (maintained by each step)
+      let status = {
+        pending_csvs: 0,
+        pending_prospects: 0,
+        email1_queued: 0,
+        email1_sent_today: 0,
+        email1_sent_total: 0,
+        email2_queued: 0,
+        asset_pages_live: 0,
+        last_batch_date: null,
+        pipeline_healthy: true,
+      };
+
+      try {
+        const manifestObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/state/pipeline-status.json');
+        if (manifestObj) {
+          const manifest = await manifestObj.json();
+          Object.assign(status, manifest);
+        }
+      } catch {}
+
+      // Live count of pending CSVs
+      try {
+        const pendingList = await env.R2_VIRTUAL_LAUNCH.list({ prefix: 'vlp-scale/prospects/pending/', limit: 100 });
+        status.pending_csvs = (pendingList.objects || []).length;
+      } catch {}
+
+      // Live count of email1 queue
+      try {
+        const e1Obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email1-pending.json');
+        if (e1Obj) {
+          const e1Queue = await e1Obj.json();
+          status.email1_queued = Array.isArray(e1Queue) ? e1Queue.filter(r => r.status === 'pending').length : 0;
+        }
+      } catch {}
+
+      // Live count of email2 scheduled
+      try {
+        const e2Obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email2-scheduled.json');
+        if (e2Obj) {
+          const e2Queue = await e2Obj.json();
+          status.email2_queued = Array.isArray(e2Queue) ? e2Queue.filter(r => r.status === 'scheduled').length : 0;
+        }
+      } catch {}
+
+      // Daily stats
+      try {
+        const statsObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/state/daily-stats.json');
+        if (statsObj) {
+          const stats = await statsObj.json();
+          const today = new Date().toISOString().slice(0, 10);
+          status.email1_sent_today = (stats[today] || {}).email1_sent || 0;
+          status.email1_sent_total = stats.total_email1_sent || 0;
+        }
+      } catch {}
+
+      return json({ ok: true, ...status }, 200, request);
+    },
+  },
+
+  // -------------------------------------------------------------------------
   // Scale Prospects FOIA Master JSONL (Admin)
   // -------------------------------------------------------------------------
   // The FOIA master JSONL at vlp-scale/foia-leads/foia-master.json is the
@@ -18361,6 +18645,137 @@ websitelotto.virtuallaunch.pro
 }
 
 // ---------------------------------------------------------------------------
+// Clay CSV Email Send (called from 14:00 UTC cron)
+// ---------------------------------------------------------------------------
+// Reads email1-pending.json and email2-pending.json from the Clay pipeline
+// queues, sends via Gmail API, updates status, tracks sent emails for dedup.
+// ---------------------------------------------------------------------------
+
+async function handleClayEmailSend(env) {
+  const today = new Date().toISOString().slice(0, 10);
+  const startedAt = new Date();
+  const stats = { email1_sent: 0, email2_sent: 0, errors: [] };
+
+  // Load sent-emails set for dedup tracking
+  let sentEmails = [];
+  try {
+    const sentObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/state/sent-emails.json');
+    if (sentObj) {
+      sentEmails = await sentObj.json();
+      if (!Array.isArray(sentEmails)) sentEmails = [];
+    }
+  } catch {}
+  const newSent = [];
+
+  // --- Email 1 ---
+  let e1Queue = [];
+  try {
+    const e1Obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email1-pending.json');
+    if (e1Obj) {
+      e1Queue = await e1Obj.json();
+      if (!Array.isArray(e1Queue)) e1Queue = [];
+    }
+  } catch {}
+
+  for (const record of e1Queue) {
+    if (record.status !== 'pending') continue;
+    try {
+      await sendGmailMessage(env, record.email, record.subject, record.body);
+      record.status = 'sent';
+      record.sent_at = new Date().toISOString();
+      stats.email1_sent++;
+      newSent.push(record.email.toLowerCase());
+    } catch (e) {
+      console.error(`Clay email1 send failed for ${record.slug}/${record.email}:`, e.message);
+      record.status = 'failed';
+      record.last_error = e.message;
+      stats.errors.push({ slug: record.slug, email: record.email, step: 'email1', error: e.message });
+      if (e.message === 'gmail_rate_limited') break;
+    }
+  }
+
+  // Write back email1 queue
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      'vlp-scale/send-queue/email1-pending.json',
+      JSON.stringify(e1Queue),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch {}
+
+  // --- Email 2 ---
+  let e2Queue = [];
+  try {
+    const e2Obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email2-pending.json');
+    if (e2Obj) {
+      e2Queue = await e2Obj.json();
+      if (!Array.isArray(e2Queue)) e2Queue = [];
+    }
+  } catch {}
+
+  for (const record of e2Queue) {
+    if (record.status !== 'pending') continue;
+    try {
+      await sendGmailMessage(env, record.email, record.subject, record.body);
+      record.status = 'sent';
+      record.sent_at = new Date().toISOString();
+      stats.email2_sent++;
+    } catch (e) {
+      console.error(`Clay email2 send failed for ${record.slug}/${record.email}:`, e.message);
+      record.status = 'failed';
+      record.last_error = e.message;
+      stats.errors.push({ slug: record.slug, email: record.email, step: 'email2', error: e.message });
+      if (e.message === 'gmail_rate_limited') break;
+    }
+  }
+
+  // Write back email2 queue
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      'vlp-scale/send-queue/email2-pending.json',
+      JSON.stringify(e2Queue),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch {}
+
+  // Update sent-emails.json for dedup
+  if (newSent.length > 0) {
+    const mergedSent = sentEmails.concat(newSent);
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        'vlp-scale/state/sent-emails.json',
+        JSON.stringify(mergedSent),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch {}
+  }
+
+  // Update daily-stats.json
+  try {
+    let dailyStats = {};
+    const dsObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/state/daily-stats.json');
+    if (dsObj) {
+      dailyStats = await dsObj.json();
+      if (typeof dailyStats !== 'object' || dailyStats === null) dailyStats = {};
+    }
+    if (!dailyStats[today]) dailyStats[today] = {};
+    dailyStats[today].email1_sent = (dailyStats[today].email1_sent || 0) + stats.email1_sent;
+    dailyStats[today].email2_sent = (dailyStats[today].email2_sent || 0) + stats.email2_sent;
+    dailyStats.total_email1_sent = (dailyStats.total_email1_sent || 0) + stats.email1_sent;
+    dailyStats.total_email2_sent = (dailyStats.total_email2_sent || 0) + stats.email2_sent;
+    await env.R2_VIRTUAL_LAUNCH.put(
+      'vlp-scale/state/daily-stats.json',
+      JSON.stringify(dailyStats),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch {}
+
+  const endedAt = new Date();
+  console.log(`Clay email send: ${stats.email1_sent} email1, ${stats.email2_sent} email2 sent in ${endedAt - startedAt}ms`);
+  return stats;
+}
+
+// ---------------------------------------------------------------------------
 // WLVLP Email Send (called from 14:00 UTC cron)
 // ---------------------------------------------------------------------------
 
@@ -18581,6 +18996,440 @@ async function handleWlvlpSite(slug, request, env) {
       'Cache-Control': 'no-store',
     }
   });
+}
+
+// ---------------------------------------------------------------------------
+// Clay CSV Campaign Processor — handleClayCampaignProcessor
+// ---------------------------------------------------------------------------
+// Runs at 12:00 UTC daily (before the legacy FOIA router). Reads pending
+// Clay CSVs from R2, applies selection logic, generates email copy + asset
+// pages from templates, writes send queue + asset pages to R2.
+// ---------------------------------------------------------------------------
+
+const CLAY_CRED = {
+  CPA:  { display: 'CPA',      hrs_week: 5.0, hrs_year: 260, revenue_low: '$39,000',  revenue_high: '$104,000/yr' },
+  EA:   { display: 'EA',       hrs_week: 6.7, hrs_year: 348, revenue_low: '$34,800',  revenue_high: '$104,400/yr' },
+  ATTY: { display: 'Attorney', hrs_week: 3.3, hrs_year: 174, revenue_low: '$34,800',  revenue_high: '$87,000/yr' },
+  JD:   { display: 'Attorney', hrs_week: 3.3, hrs_year: 174, revenue_low: '$34,800',  revenue_high: '$87,000/yr' },
+};
+
+function clayTitleCase(s) {
+  if (!s) return '';
+  return String(s).trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function clayStripTitles(name) {
+  if (!name) return '';
+  return String(name).replace(/\b(Dr|Mr|Mrs|Ms|Jr|Sr|III|II|IV)\b\.?/gi, '').trim();
+}
+
+function clayMakeSlug(first, last, city, state) {
+  return [first, last, city, state]
+    .map(p => clayStripTitles(String(p || '')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''))
+    .filter(Boolean)
+    .join('-');
+}
+
+function clayNormalizeProfession(profession) {
+  const p = String(profession || '').toUpperCase().trim();
+  if (p === 'ATTY') return 'ATTY';
+  if (p === 'JD') return 'JD';
+  if (p === 'CPA') return 'CPA';
+  if (p === 'EA') return 'EA';
+  return 'CPA';
+}
+
+function clayEmail1Subject(firmBucket, first, display, dba, city, hrs) {
+  if (firmBucket === 'solo_brand') {
+    return `${first} -- ${display}s running ${dba} spend ${hrs}+ hours/week on this`;
+  }
+  return `${first} -- ${display}s in ${city} are spending ${hrs}+ hours/week on this`;
+}
+
+function clayEmail1Headline(firmBucket, first, dba, city) {
+  if (firmBucket === 'solo_brand') {
+    return `${first}, here's what 20 minutes per transcript is costing ${dba}`;
+  }
+  if (firmBucket === 'local_firm') {
+    return `${first}, here's what 20 minutes per transcript is costing your ${city} practice`;
+  }
+  return `${first}, here's what 20 minutes per transcript is costing your ${city} office`;
+}
+
+function clayEmail1Body(headline, first, slug) {
+  return `${headline}
+
+Every IRS transcript that crosses your desk takes 15-20 minutes of manual review. Transaction codes, processing dates, cycle codes, account holds -- your team reads them line by line because there has not been a better option.
+
+Transcript Tax Monitor Pro reads the entire transcript and returns a plain-English analysis in seconds. No manual lookup. No missed codes.
+
+I put together a quick practice analysis for your firm:
+https://transcript.taxmonitor.pro/asset/${slug}
+
+It estimates the hours your practice spends on transcript review each year and what that time costs at your billing rate.
+
+The tool includes a free IRS code lookup -- no account needed:
+https://transcript.taxmonitor.pro/tools/code-lookup
+
+If the numbers make sense for your practice, token packs start at $19 for 10 transcripts:
+https://transcript.taxmonitor.pro/pricing
+
+--
+Jamie L Williams
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro
+`;
+}
+
+function clayEmail2Subject(firmBucket, first, dba, city, hrsYear) {
+  const practice = firmBucket === 'solo_brand' ? dba : `your ${city} practice`;
+  return `Quick practice analysis for ${practice}, ${first} -- ${hrsYear} hours/yr on the table`;
+}
+
+function clayEmail2Body(first, display, slug) {
+  return `${first},
+
+I sent you a note a few days ago about the time your practice spends on IRS transcript review.
+
+I went ahead and generated a quick practice analysis for your firm:
+https://transcript.taxmonitor.pro/asset/${slug}
+
+It breaks down the estimated hours per week your team spends translating transaction codes manually, and what that time costs annually at typical ${display} billing rates.
+
+The free IRS code lookup tool is there too -- no account, no signup:
+https://transcript.taxmonitor.pro/tools/code-lookup
+
+If you want to see how the full transcript analysis works on a real file, I am happy to walk through it:
+https://cal.com/vlp/ttmp-discovery
+
+--
+Jamie L Williams
+Transcript Tax Monitor Pro
+transcript.taxmonitor.pro
+`;
+}
+
+async function handleClayCampaignProcessor(env) {
+  const startedAt = new Date();
+  const todayIso = startedAt.toISOString();
+  const dateStr = todayIso.slice(0, 10);
+  const batchSize = parseInt(env.SCALE_BATCH_SIZE || '50', 10) || 50;
+
+  console.log(`Clay campaign processor: started at ${todayIso}`);
+
+  // 1. List pending CSVs
+  let pendingObjects = [];
+  try {
+    const listing = await env.R2_VIRTUAL_LAUNCH.list({ prefix: 'vlp-scale/prospects/pending/', limit: 100 });
+    pendingObjects = (listing.objects || []).filter(o => o.key.endsWith('.csv'));
+  } catch (e) {
+    console.error('Clay processor: failed to list pending CSVs:', e);
+    return { ok: false, reason: 'list_failed', error: String(e.message || e) };
+  }
+
+  if (pendingObjects.length === 0) {
+    console.log('Clay processor: no pending CSVs');
+    // Still process Email 2 promotions
+    await clayPromoteEmail2(env, dateStr);
+    return { ok: true, pending_csvs: 0, prospects_queued: 0 };
+  }
+
+  // 2. Read sent-emails.json for dedup
+  let sentEmailSet = new Set();
+  try {
+    const sentObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/state/sent-emails.json');
+    if (sentObj) {
+      const sentArr = await sentObj.json();
+      sentEmailSet = new Set((Array.isArray(sentArr) ? sentArr : []).map(e => e.toLowerCase()));
+    }
+  } catch {}
+
+  // 3. Parse all pending CSVs and collect eligible rows
+  const allRows = [];
+  const processedFiles = [];
+
+  for (const obj of pendingObjects) {
+    try {
+      const csvObj = await env.R2_VIRTUAL_LAUNCH.get(obj.key);
+      if (!csvObj) continue;
+      const csvText = await csvObj.text();
+      const lines = csvText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      if (lines.length < 2) continue;
+
+      const headers = csvParseLine(lines[0]);
+      const colIdx = {};
+      for (let i = 0; i < headers.length; i++) colIdx[headers[i].trim()] = i;
+
+      for (let li = 1; li < lines.length; li++) {
+        const cols = csvParseLine(lines[li]);
+        if (!cols || cols.length < headers.length) continue;
+        const row = {};
+        for (const h of headers) row[h.trim()] = (cols[colIdx[h.trim()]] || '').trim();
+        allRows.push({ row, sourceKey: obj.key });
+      }
+      processedFiles.push(obj.key);
+    } catch (e) {
+      console.error(`Clay processor: failed to parse ${obj.key}:`, e);
+    }
+  }
+
+  // 4. Filter eligible
+  const eligible = [];
+  const seenEmails = new Set();
+  for (const { row } of allRows) {
+    const email = (row.email_found || '').trim();
+    if (!email || email === 'undefined' || email === 'NaN' || !email.includes('@')) continue;
+    const emailStatus = (row.email_status || '').trim().toLowerCase();
+    if (emailStatus !== 'valid') continue;
+    const emailLower = email.toLowerCase();
+    if (sentEmailSet.has(emailLower)) continue;
+    if (seenEmails.has(emailLower)) continue;
+    seenEmails.add(emailLower);
+    eligible.push(row);
+  }
+
+  // 5. Select first N eligible
+  const selected = eligible.slice(0, batchSize);
+  console.log(`Clay processor: ${allRows.length} total rows, ${eligible.length} eligible, ${selected.length} selected`);
+
+  if (selected.length === 0) {
+    // Move CSVs to processed even if no eligible rows
+    for (const key of processedFiles) {
+      const filename = key.split('/').pop();
+      try {
+        const obj = await env.R2_VIRTUAL_LAUNCH.get(key);
+        if (obj) {
+          const body = await obj.text();
+          await env.R2_VIRTUAL_LAUNCH.put(`vlp-scale/prospects/processed/${filename}`, body, {
+            httpMetadata: { contentType: 'text/csv; charset=utf-8' },
+          });
+          await env.R2_VIRTUAL_LAUNCH.delete(key);
+        }
+      } catch (e) {
+        console.error(`Clay processor: failed to move ${key}:`, e);
+      }
+    }
+    await clayPromoteEmail2(env, dateStr);
+    return { ok: true, pending_csvs: processedFiles.length, prospects_queued: 0 };
+  }
+
+  // 6. Process each selected prospect
+  const usedSlugs = new Set();
+  const email1Queue = [];
+  const email2Schedule = [];
+  const assetPages = [];
+
+  const sendAfterDate = new Date(startedAt);
+  sendAfterDate.setUTCDate(sendAfterDate.getUTCDate() + 3);
+  const sendAfterIso = sendAfterDate.toISOString().slice(0, 10);
+
+  for (const row of selected) {
+    const first = clayTitleCase(row.First_NAME || '') || 'Friend';
+    const last = clayTitleCase(row.LAST_NAME || '');
+    const city = clayTitleCase(row.BUS_ADDR_CITY || '');
+    const state = (row.BUS_ST_CODE || '').toUpperCase().trim();
+    const dba = (row.DBA || '').trim();
+    const firmBucket = (row.firm_bucket || 'local_firm').trim();
+    const rawProfession = clayNormalizeProfession(row.PROFESSION);
+    const credKey = rawProfession === 'ATTY' || rawProfession === 'JD' ? 'ATTY' : rawProfession;
+    const cred = CLAY_CRED[credKey] || CLAY_CRED.CPA;
+    const email = row.email_found.trim();
+
+    // Build slug
+    let baseSlug = clayMakeSlug(row.First_NAME, row.LAST_NAME, row.BUS_ADDR_CITY, row.BUS_ST_CODE);
+    let slug = baseSlug || 'prospect';
+    let slugN = 1;
+    while (usedSlugs.has(slug)) { slugN++; slug = `${baseSlug}-${slugN}`; }
+    usedSlugs.add(slug);
+
+    // Email 1
+    const e1Subject = clayEmail1Subject(firmBucket, first, cred.display, dba, city, cred.hrs_week);
+    const e1Headline = clayEmail1Headline(firmBucket, first, dba, city);
+    const e1Body = clayEmail1Body(e1Headline, first, slug);
+
+    // Email 2
+    const e2Subject = clayEmail2Subject(firmBucket, first, dba, city, cred.hrs_year);
+    const e2Body = clayEmail2Body(first, cred.display, slug);
+
+    email1Queue.push({
+      email,
+      first_name: first,
+      subject: e1Subject,
+      body: e1Body,
+      slug,
+      queued_at: todayIso,
+      status: 'pending',
+    });
+
+    email2Schedule.push({
+      email,
+      first_name: first,
+      subject: e2Subject,
+      body: e2Body,
+      slug,
+      send_after: sendAfterIso,
+      status: 'scheduled',
+    });
+
+    assetPages.push({
+      slug,
+      name: `${first} ${last}`.trim(),
+      credential: cred.display,
+      city,
+      state,
+      firm: dba || `${first} ${last}`.trim(),
+      firm_bucket: firmBucket,
+      hrs_week: cred.hrs_week,
+      hrs_year: cred.hrs_year,
+      revenue_low: cred.revenue_low,
+      revenue_high: cred.revenue_high,
+      generated_at: todayIso,
+      email_1_subject: e1Subject,
+      cta_pricing: 'https://transcript.taxmonitor.pro/pricing',
+      cta_booking: 'https://cal.com/vlp/ttmp-discovery',
+      cta_tool: 'https://transcript.taxmonitor.pro/tools/code-lookup',
+    });
+  }
+
+  // 7. Write asset pages
+  for (const page of assetPages) {
+    try {
+      await env.R2_VIRTUAL_LAUNCH.put(
+        `vlp-scale/asset-pages/${page.slug}.json`,
+        JSON.stringify(page),
+        { httpMetadata: { contentType: 'application/json' } }
+      );
+    } catch (e) {
+      console.error(`Clay processor: asset page write failed ${page.slug}:`, e);
+    }
+  }
+
+  // 8. Append to email1-pending queue
+  try {
+    let existing = [];
+    const e1Obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email1-pending.json');
+    if (e1Obj) {
+      existing = await e1Obj.json();
+      if (!Array.isArray(existing)) existing = [];
+    }
+    await env.R2_VIRTUAL_LAUNCH.put(
+      'vlp-scale/send-queue/email1-pending.json',
+      JSON.stringify(existing.concat(email1Queue)),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch (e) {
+    console.error('Clay processor: failed to write email1 queue:', e);
+  }
+
+  // 9. Append to email2-scheduled queue
+  try {
+    let existing = [];
+    const e2Obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email2-scheduled.json');
+    if (e2Obj) {
+      existing = await e2Obj.json();
+      if (!Array.isArray(existing)) existing = [];
+    }
+    await env.R2_VIRTUAL_LAUNCH.put(
+      'vlp-scale/send-queue/email2-scheduled.json',
+      JSON.stringify(existing.concat(email2Schedule)),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch (e) {
+    console.error('Clay processor: failed to write email2 schedule:', e);
+  }
+
+  // 10. Move processed CSVs
+  for (const key of processedFiles) {
+    const filename = key.split('/').pop();
+    try {
+      const obj = await env.R2_VIRTUAL_LAUNCH.get(key);
+      if (obj) {
+        const body = await obj.text();
+        await env.R2_VIRTUAL_LAUNCH.put(`vlp-scale/prospects/processed/${filename}`, body, {
+          httpMetadata: { contentType: 'text/csv; charset=utf-8' },
+        });
+        await env.R2_VIRTUAL_LAUNCH.delete(key);
+      }
+    } catch (e) {
+      console.error(`Clay processor: failed to move ${key}:`, e);
+    }
+  }
+
+  // 11. Update pipeline-status.json
+  try {
+    await env.R2_VIRTUAL_LAUNCH.put(
+      'vlp-scale/state/pipeline-status.json',
+      JSON.stringify({
+        last_batch_date: dateStr,
+        last_batch_prospects: selected.length,
+        last_batch_asset_pages: assetPages.length,
+        pipeline_healthy: true,
+        updated_at: todayIso,
+      }),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+  } catch {}
+
+  // 12. Process Email 2 promotions
+  await clayPromoteEmail2(env, dateStr);
+
+  console.log(`Campaign processor: ${selected.length} prospects queued for Email 1, ${assetPages.length} asset pages written, ${email2Schedule.length} Email 2s scheduled for ${sendAfterIso}`);
+
+  return {
+    ok: true,
+    pending_csvs: processedFiles.length,
+    prospects_queued: selected.length,
+    asset_pages_written: assetPages.length,
+    email2_scheduled: email2Schedule.length,
+    email2_send_after: sendAfterIso,
+  };
+}
+
+// Promote scheduled Email 2s whose send_after date has arrived
+async function clayPromoteEmail2(env, today) {
+  try {
+    const schedObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email2-scheduled.json');
+    if (!schedObj) return;
+    const scheduled = await schedObj.json();
+    if (!Array.isArray(scheduled) || scheduled.length === 0) return;
+
+    const toPromote = [];
+    for (const entry of scheduled) {
+      if (entry.status === 'scheduled' && entry.send_after && entry.send_after <= today) {
+        toPromote.push({ ...entry, status: 'pending' });
+        entry.status = 'promoted';
+      }
+    }
+
+    if (toPromote.length === 0) return;
+
+    // Append promoted entries to email2-pending.json
+    let e2Pending = [];
+    try {
+      const e2Obj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/send-queue/email2-pending.json');
+      if (e2Obj) {
+        e2Pending = await e2Obj.json();
+        if (!Array.isArray(e2Pending)) e2Pending = [];
+      }
+    } catch {}
+
+    await env.R2_VIRTUAL_LAUNCH.put(
+      'vlp-scale/send-queue/email2-pending.json',
+      JSON.stringify(e2Pending.concat(toPromote)),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+
+    // Write back scheduled with promoted status
+    await env.R2_VIRTUAL_LAUNCH.put(
+      'vlp-scale/send-queue/email2-scheduled.json',
+      JSON.stringify(scheduled),
+      { httpMetadata: { contentType: 'application/json' } }
+    );
+
+    console.log(`Clay processor: promoted ${toPromote.length} Email 2s to pending`);
+  } catch (e) {
+    console.error('Clay processor: email2 promotion failed:', e);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -20838,35 +21687,37 @@ export default {
       }
     }
 
-    // 06:00 UTC trigger — runs WLVLP site generation and SCALE find-emails.
-    // Both share the 06:00 cron slot so they run in the same scheduled invocation.
+    // Retired 2026-04-13: find-emails and validate-emails crons replaced by Clay CSV pipeline.
+    // WLVLP site generation remains on the 06:00 trigger but the find-emails
+    // step is no longer needed — Clay CSVs arrive with pre-validated emails.
     if (event && event.cron === '0 6 * * *') {
       try {
         await handleWlvlpSiteGeneration(env);
       } catch (e) {
         console.error('WLVLP site generation cron failed:', e);
       }
-      try {
-        const findEmailsLog = await handleFindEmailsCron(env);
-        console.log('Find emails cron:', JSON.stringify(findEmailsLog));
-      } catch (e) {
-        console.error('Find emails cron failed:', e);
-      }
+      // Retired 2026-04-13: find-emails cron replaced by Clay CSV pipeline
+      // try {
+      //   const findEmailsLog = await handleFindEmailsCron(env);
+      //   console.log('Find emails cron:', JSON.stringify(findEmailsLog));
+      // } catch (e) {
+      //   console.error('Find emails cron failed:', e);
+      // }
       return;
     }
 
-    // 08:00 UTC trigger — runs SCALE validate-emails (Reoon quick-mode).
-    // Verifies deliverability of addresses discovered by the 06:00 find-emails
-    // cron. Shares the Reoon 500/day budget.
-    if (event && event.cron === '0 8 * * *') {
-      try {
-        const validateEmailsLog = await handleValidateEmailsCron(env);
-        console.log('Validate emails cron:', JSON.stringify(validateEmailsLog));
-      } catch (e) {
-        console.error('Validate emails cron failed:', e);
-      }
-      return;
-    }
+    // Retired 2026-04-13: validate-emails cron replaced by Clay CSV pipeline.
+    // Clay CSVs arrive with email_status: valid (pre-validated by Clay.com).
+    // The 08:00 UTC cron trigger is removed from wrangler.toml.
+    // if (event && event.cron === '0 8 * * *') {
+    //   try {
+    //     const validateEmailsLog = await handleValidateEmailsCron(env);
+    //     console.log('Validate emails cron:', JSON.stringify(validateEmailsLog));
+    //   } catch (e) {
+    //     console.error('Validate emails cron failed:', e);
+    //   }
+    //   return;
+    // }
 
     // WLVLP Asset Page Enrichment Cron — 13:00 UTC daily.
     // Crawls prospect websites, scores conversion leaks, and overwrites
@@ -20883,13 +21734,16 @@ export default {
       return;
     }
 
-    // Daily Campaign Router Cron — 12:00 UTC.
-    // Reads NDJSON master, filters send-eligible enriched leads, routes them
-    // into TTMP / VLP / WLVLP send queues with full 6-email content inline,
-    // capped at DAILY_BATCH_CAP per day. Replaces the legacy
-    // handleWlvlpBatchGeneration crawler — WLVLP records now use static
-    // templates and minimal asset pages instead of per-site crawls/scoring.
+    // 12:00 UTC — Clay CSV Campaign Processor + Legacy Daily Campaign Router.
+    // Clay processor runs first (reads pending Clay CSVs, generates email
+    // copy + asset pages, writes send queue). Legacy FOIA router runs second.
     if (event && event.cron === '0 12 * * *') {
+      try {
+        const clayStats = await handleClayCampaignProcessor(env);
+        console.log('Clay campaign processor:', JSON.stringify(clayStats));
+      } catch (e) {
+        console.error('Clay campaign processor failed:', e);
+      }
       try {
         const stats = await handleDailyBatchGeneration(env);
         console.log('Daily batch cron:', JSON.stringify(stats));
@@ -21085,12 +21939,18 @@ export default {
     }
 
     // Unified Send Cron — 14:00 UTC.
-    // Runs TTMP, VLP, and WLVLP send handlers in sequence. Each reads its
-    // own queue and processes pending email_1 plus any scheduled follow-ups
-    // (email_2..6) whose scheduled_for date is today or earlier. If the
-    // Worker times out before completing all three, the unsent records stay
-    // in their queue and the next day's run picks up where it left off.
+    // Runs Clay CSV, TTMP, VLP, and WLVLP send handlers in sequence. Each
+    // reads its own queue and processes pending emails. If the Worker times
+    // out before completing all, the unsent records stay in their queue and
+    // the next day's run picks up where it left off.
     if (event && event.cron === '0 14 * * *') {
+      // Clay CSV pipeline email send (email1 + email2)
+      try {
+        const clayStats = await handleClayEmailSend(env);
+        console.log('Clay email send cron:', JSON.stringify(clayStats));
+      } catch (e) {
+        console.error('Clay email send cron failed:', e);
+      }
       try {
         const ttmpStats = await handleTtmpEmailSend(env);
         console.log('TTMP email send cron:', JSON.stringify(ttmpStats));

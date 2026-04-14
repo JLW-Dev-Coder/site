@@ -103,9 +103,10 @@ Track legacy Worker retirement here. Update as work completes.
 | 5 | VLP Pricing Page Update | complete | 2026-04-04 |
 | 6 | VLP SCALE Batch Generator + Email Copy | complete | 2026-04-05 |
 | 7 | VLP Asset Page Route + R2 Push | complete | 2026-04-05 |
-| 8 | Test Full Workflow End to End | not started | — |
-| 9 | TMP + DVLP + GVLP Membership Tiers | not started | — |
-| 10 | WLVLP Marketplace | in progress | — |
+| 8 | Clay CSV Pipeline + Automated Campaign Processor | complete | 2026-04-13 |
+| 9 | Test Full Workflow End to End | not started | — |
+| 10 | TMP + DVLP + GVLP Membership Tiers | not started | — |
+| 11 | WLVLP Marketplace | in progress | — |
 
 ---
 
@@ -552,14 +553,23 @@ Both plan keys should grant identical token amounts.
 - R2 key pattern: vlp-scale/asset-pages/{slug}.json
 - Created scale/push-vlp-asset-pages.js for R2 upload
 
-### Phase 8 — Test Full Workflow End to End (next)
+### Phase 8 — Clay CSV Pipeline + Automated Campaign Processor — COMPLETE (2026-04-13)
+- PUT /v1/scale/prospects/upload — CSV upload with validation
+- GET /v1/scale/status — pipeline health dashboard
+- 12:00 UTC campaign processor — template-based email/asset generation
+- Email templates moved from Claude skill to Worker (deterministic, no AI)
+- Retired 06:00 UTC find-emails and 08:00 UTC validate-emails crons
+- Clay.com replaces FOIA as primary prospect source
+- UTF-8 encoding fix in email send handler
 
-### Phase 9 — TMP + DVLP + GVLP Membership Tiers
+### Phase 9 — Test Full Workflow End to End (next)
+
+### Phase 10 — TMP + DVLP + GVLP Membership Tiers
 - Tax pro directory (TMP) — taxpayer intake + matching
 - Developer marketplace (DVLP) — Free + $2.99 intro tier
 - Gamified subscriptions (GVLP) — $9/$19/$39/mo
 
-### Phase 10 — WLVLP Marketplace (in progress)
+### Phase 11 — WLVLP Marketplace (in progress)
 - Canva site exports served as static content under `/sites/[slug]/`
 - Next.js is the system layer — do NOT convert Canva exports to React
 - Voting/bidding calls private Worker only at mutation point — no PII in responses
@@ -814,40 +824,43 @@ find-emails cron discovered.
 ### SCALE Pipeline (unified)
 
 ```
-06:00 UTC — find-emails       discover emails for rows without email_found
-                               in the FOIA master JSONL (88K+ rows)
-08:00 UTC — validate-emails   verify discovered emails via Reoon quick mode
-10:00 UTC — enrichment        handleEnrichmentBatch: MX + catch-all + pattern
-                               + Reoon validation for unenriched rows
-12:00 UTC — campaign router   handleDailyBatchGeneration selects valid
-                               prospects from FOIA master NDJSON, allocates
-                               TTMP 65% / VLP 25% / WLVLP 10% (DAILY_BATCH_CAP
-                               = 200/day), builds 6-email sequences, appends
-                               to platform send queues
+Source: Clay.com CSV (pre-validated emails) — uploaded via PUT /v1/scale/prospects/upload
+Status: GET /v1/scale/status — pipeline health dashboard
+
+06:00 UTC — WLVLP site generation (find-emails RETIRED 2026-04-13)
+08:00 UTC — RETIRED 2026-04-13 (validate-emails no longer needed — Clay pre-validates)
+10:00 UTC — enrichment        handleEnrichmentBatch (FOIA legacy)
+12:00 UTC — Clay campaign     handleClayCampaignProcessor reads pending Clay CSVs,
+                               generates email copy + asset pages from templates
+                               (no AI), writes to send queue. Batch size: 50.
+                               Also runs legacy handleDailyBatchGeneration.
+                               ATTY/JD → Attorney credential mapping.
 13:00 UTC — wlvlp-enrich     handleWlvlpAssetEnrichmentCron: crawls prospect
-                               websites, scores conversion leaks, overwrites
-                               minimal Shape B asset pages with full Shape A
-                               records containing conversion_leak_report
-14:00 UTC — staged send       handleTtmpEmailSend, handleVlpEmailSend, and
-                               handleWlvlpEmailSend each drain their platform
-                               queue: deliver Email 1 for new records and
-                               advance Emails 2-6 on the compressed 10-day
-                               cadence (Day 0, +2, +4, +6, +8, +10)
+                               websites, scores conversion leaks
+14:00 UTC — unified send      handleClayEmailSend (email1 + email2 from Clay),
+                               then handleTtmpEmailSend, handleVlpEmailSend,
+                               handleWlvlpEmailSend (legacy FOIA queues)
 ```
 
-**All five data crons** (find-emails, validate-emails, enrichment, campaign
-router, wlvlp-enrich) read and write the same R2 file:
-`vlp-scale/foia-leads/foia-master.json`. There is no separate master CSV or
-FOIA source — they were consolidated into this single NDJSON data store on
-2026-04-11.
+Clay CSV pipeline R2 keys:
+- `vlp-scale/prospects/pending/{date}-{ts}.csv` — uploaded CSVs awaiting processing
+- `vlp-scale/prospects/processed/{filename}` — processed CSVs (moved after batch)
+- `vlp-scale/send-queue/email1-pending.json` — Clay Email 1 send queue
+- `vlp-scale/send-queue/email2-scheduled.json` — Clay Email 2 scheduled (3 days after Email 1)
+- `vlp-scale/send-queue/email2-pending.json` — Clay Email 2 ready to send
+- `vlp-scale/asset-pages/{slug}.json` — per-prospect asset pages
+- `vlp-scale/state/sent-emails.json` — dedup list of already-emailed addresses
+- `vlp-scale/state/daily-stats.json` — daily send counts
+- `vlp-scale/state/pipeline-status.json` — manifest updated by each step
+
+Legacy FOIA crons (find-emails, validate-emails, enrichment, campaign router,
+wlvlp-enrich) still read/write `vlp-scale/foia-leads/foia-master.json`.
 
 All crons:
 - are guarded in `scheduled(event, env, ctx)` by `event.cron` string matching
-- find-emails, validate-emails, and wlvlp-enrich have manual trigger routes
-  under `POST /v1/scale/cron/<step>` with `Authorization: Bearer <SCALE_API_KEY>`
-  and `?limit=N`
-- write run logs under `vlp-scale/logs/<step>-{YYYY-MM-DD}.json` or
-  `vlp-scale/batch-logs/{YYYY-MM-DD}.json` (campaign router)
+- find-emails and validate-emails are RETIRED (code commented out, cron removed)
+- wlvlp-enrich has manual trigger route at `POST /v1/scale/cron/wlvlp-enrich`
+- write run logs under `vlp-scale/logs/<step>-{YYYY-MM-DD}.json`
 
 ### Daily batch generation
 1. Run: node scale/generate-vlp-batch.js scale/prospects/{source}.csv

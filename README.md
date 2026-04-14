@@ -161,9 +161,11 @@ Secrets managed via `wrangler secret put` — never committed to the repo.
 
 ## 9. Current Phase
 
-**Phase 7 — VLP Asset Page Route + R2 Push: COMPLETE (2026-04-05)**
+**Phase 8 — Clay CSV Pipeline + Automated Campaign Processor: COMPLETE (2026-04-13)**
 
-**Phase 10 — WLVLP Marketplace: in progress** — operational with 13 backend routes, 210+ templates, one-time purchase + recurring hosting model. See CLAUDE.md section 21.
+Clay.com replaces FOIA as primary prospect source. Automated upload endpoint, template-based email/asset generation at 12:00 UTC, retired find-emails and validate-emails crons.
+
+**Phase 11 — WLVLP Marketplace: in progress** — operational with 13 backend routes, 210+ templates, one-time purchase + recurring hosting model. See CLAUDE.md section 21.
 
 See CLAUDE.md section 7 for full phase plan.
 
