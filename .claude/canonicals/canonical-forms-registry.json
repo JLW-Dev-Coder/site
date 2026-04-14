@@ -1,0 +1,111 @@
+{
+  "_description": "Master registry of all forms across all 8 VLP platforms",
+  "_updated": "2026-04-14",
+  "forms": [
+    {
+      "id": "ttmp_review",
+      "platform": "ttmp",
+      "form_type": "review",
+      "page": "/reviews/submit",
+      "endpoint": "POST /v1/submissions",
+      "auth_required": false,
+      "contract": "contracts/vlp/vlp.submissions.create.v1.json",
+      "fields": ["rating", "review_text", "use_case", "submitter_name", "submitter_firm", "anonymous", "consent_publish", "consent_marketing"],
+      "status": "active"
+    },
+    {
+      "id": "ttmp_case_study",
+      "platform": "ttmp",
+      "form_type": "case_study",
+      "page": "/reviews/submit",
+      "endpoint": "POST /v1/submissions",
+      "auth_required": false,
+      "contract": "contracts/vlp/vlp.submissions.create.v1.json",
+      "fields": ["situation_industry", "situation_firm_type", "situation_description", "issue", "findings", "result", "time_saved", "dollar_impact", "consent_publish", "consent_marketing"],
+      "status": "active"
+    },
+    {
+      "id": "ttmp_testimonial",
+      "platform": "ttmp",
+      "form_type": "testimonial",
+      "page": "/reviews/submit",
+      "endpoint": "POST /v1/submissions",
+      "auth_required": false,
+      "contract": "contracts/vlp/vlp.submissions.create.v1.json",
+      "fields": ["video_summary", "profession", "practice_area", "consent_publish", "consent_marketing"],
+      "status": "active"
+    },
+    {
+      "id": "vlp_support_ticket",
+      "platform": "vlp",
+      "form_type": "support_ticket",
+      "page": "/support",
+      "endpoint": "POST /v1/support/tickets",
+      "auth_required": true,
+      "contract": "contracts/vlp/vlp.support.create.v1.json",
+      "fields": ["subject", "message", "category"],
+      "status": "active",
+      "note": "Existing endpoint — wire to submissions table in Phase 2"
+    },
+    {
+      "id": "tmp_inquiry",
+      "platform": "tmp",
+      "form_type": "inquiry",
+      "page": "/inquiry",
+      "endpoint": "POST /v1/tmp/inquiries",
+      "auth_required": false,
+      "contract": "contracts/tmp/tmp.inquiry.create.v1.json",
+      "fields": ["service_needed", "entity_type", "state", "language", "name", "email", "phone", "source"],
+      "status": "active",
+      "note": "Existing endpoint — wire to submissions table in Phase 2"
+    },
+    {
+      "id": "dvlp_onboarding",
+      "platform": "dvlp",
+      "form_type": "onboarding",
+      "page": "/onboarding",
+      "endpoint": "POST /v1/dvlp/onboarding",
+      "auth_required": true,
+      "contract": "contracts/dvlp/dvlp.onboarding.create.v1.json",
+      "fields": ["name", "email", "skills", "experience", "rate", "portfolio_url"],
+      "status": "active",
+      "note": "Existing endpoint — wire to submissions table in Phase 2"
+    },
+    {
+      "id": "dvlp_find_developers",
+      "platform": "dvlp",
+      "form_type": "inquiry",
+      "page": "/find-developers",
+      "endpoint": "POST /v1/dvlp/match-intake",
+      "auth_required": false,
+      "contract": "contracts/dvlp/dvlp.match-intake.create.v1.json",
+      "fields": ["project_description", "budget", "timeline", "skills_needed"],
+      "status": "active",
+      "note": "Existing endpoint — wire to submissions table in Phase 2"
+    },
+    {
+      "id": "tcvlp_onboarding",
+      "platform": "tcvlp",
+      "form_type": "onboarding",
+      "page": "/onboarding",
+      "endpoint": "POST /v1/tcvlp/onboarding",
+      "auth_required": true,
+      "contract": "contracts/tcvlp/tcvlp.onboarding.create.v1.json",
+      "fields": ["name", "email", "firm", "credential"],
+      "status": "active",
+      "note": "Existing endpoint — wire to submissions table in Phase 2"
+    },
+    {
+      "id": "tcvlp_form843",
+      "platform": "tcvlp",
+      "form_type": "contact",
+      "page": "/claim/[slug]",
+      "endpoint": "POST /v1/tcvlp/forms/843/submit",
+      "auth_required": false,
+      "contract": "contracts/tcvlp/tcvlp.form843.submit.v1.json",
+      "fields": ["taxpayer_name", "tax_year", "penalties", "interest"],
+      "status": "active",
+      "note": "Existing endpoint — wire to submissions table in Phase 2"
+    }
+  ]
+}

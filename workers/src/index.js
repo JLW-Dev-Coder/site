@@ -17254,6 +17254,389 @@ TTMP Support Team
     },
   },
 
+  // -------------------------------------------------------------------------
+  // Unified Submissions System
+  // -------------------------------------------------------------------------
+
+  {
+    method: 'POST', pattern: '/v1/submissions',
+    handler: async (_method, _pattern, _params, request, env) => {
+      // Rate limit: 10 submissions per minute per IP
+      const clientIp = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const rlKey = `rl:submissions:${clientIp}`;
+      const rlObj = await env.R2_VIRTUAL_LAUNCH.get(rlKey);
+      if (rlObj) {
+        try {
+          const rlData = await rlObj.json();
+          const windowStart = Date.now() - 60000;
+          const recentHits = (rlData.hits || []).filter((t) => t > windowStart);
+          if (recentHits.length >= 10) {
+            return json({ ok: false, error: 'RATE_LIMIT_EXCEEDED', message: 'Maximum 10 submissions per minute' }, 429, request);
+          }
+          recentHits.push(Date.now());
+          await r2Put(env.R2_VIRTUAL_LAUNCH, rlKey, { hits: recentHits });
+        } catch { /* ignore corrupt RL data */ }
+      } else {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, rlKey, { hits: [Date.now()] });
+      }
+
+      const body = await parseBody(request);
+      if (!body) return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid JSON body' }, 400, request);
+
+      // Validate required fields
+      const VALID_PLATFORMS = ['vlp', 'tmp', 'ttmp', 'tttmp', 'dvlp', 'gvlp', 'tcvlp', 'wlvlp'];
+      const VALID_FORM_TYPES = ['review', 'case_study', 'testimonial', 'support_ticket', 'inquiry', 'onboarding', 'contact', 'exit_survey'];
+
+      if (!body.platform || !VALID_PLATFORMS.includes(body.platform)) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid or missing platform' }, 400, request);
+      }
+      if (!body.form_type || !VALID_FORM_TYPES.includes(body.form_type)) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid or missing form_type' }, 400, request);
+      }
+      if (!body.data || typeof body.data !== 'object' || Array.isArray(body.data)) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'data must be a non-null object' }, 400, request);
+      }
+
+      // Validate form-type-specific data
+      if (body.form_type === 'review') {
+        const d = body.data;
+        if (typeof d.rating !== 'number' || !Number.isInteger(d.rating) || d.rating < 1 || d.rating > 5) {
+          return json({ ok: false, error: 'BAD_REQUEST', message: 'review data.rating must be an integer 1-5' }, 400, request);
+        }
+        if (typeof d.review_text !== 'string' || d.review_text.length < 10 || d.review_text.length > 2000) {
+          return json({ ok: false, error: 'BAD_REQUEST', message: 'review data.review_text must be 10-2000 characters' }, 400, request);
+        }
+        if (typeof d.use_case !== 'string' || !d.use_case) {
+          return json({ ok: false, error: 'BAD_REQUEST', message: 'review data.use_case is required' }, 400, request);
+        }
+      } else if (body.form_type === 'case_study') {
+        const d = body.data;
+        for (const field of ['situation', 'issue', 'findings', 'result']) {
+          if (typeof d[field] !== 'string' || !d[field]) {
+            return json({ ok: false, error: 'BAD_REQUEST', message: `case_study data.${field} is required` }, 400, request);
+          }
+        }
+      } else if (body.form_type === 'testimonial') {
+        const d = body.data;
+        if (typeof d.summary !== 'string' || !d.summary) {
+          return json({ ok: false, error: 'BAD_REQUEST', message: 'testimonial data.summary is required' }, 400, request);
+        }
+        if (!d.video_url && !d.video_uploaded) {
+          return json({ ok: false, error: 'BAD_REQUEST', message: 'testimonial requires data.video_url or data.video_uploaded' }, 400, request);
+        }
+      }
+
+      // Validate optional fields
+      const VALID_CREDENTIALS = ['CPA', 'EA', 'ATTY', 'JD', ''];
+      if (body.submitter_credential !== undefined && !VALID_CREDENTIALS.includes(body.submitter_credential)) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid submitter_credential' }, 400, request);
+      }
+
+      // Title Case normalization
+      function toTitleCase(str) {
+        if (!str || typeof str !== 'string') return str || '';
+        return str.toLowerCase().replace(/(?:^|\s)\S/g, (c) => c.toUpperCase());
+      }
+
+      const now = new Date().toISOString();
+      const submissionId = `SUB_${crypto.randomUUID()}`;
+      const isPublic = body.consent_publish === true;
+
+      const record = {
+        submission_id: submissionId,
+        platform: body.platform,
+        form_type: body.form_type,
+        data: body.data,
+        submitter_name: toTitleCase(body.submitter_name) || '',
+        submitter_email: (body.submitter_email || '').toLowerCase().trim(),
+        submitter_firm: body.submitter_firm || '',
+        submitter_credential: body.submitter_credential || '',
+        anonymous: body.anonymous === true,
+        consent_publish: body.consent_publish === true,
+        consent_marketing: body.consent_marketing === true,
+        public: isPublic,
+        created_at: now,
+        updated_at: now,
+        audit_log: [
+          { action: 'created', by: 'submitter', at: now },
+        ],
+      };
+
+      // Try to match submitter_email to an existing prospect
+      if (record.submitter_email) {
+        try {
+          const sentObj = await env.R2_VIRTUAL_LAUNCH.get('vlp-scale/state/sent-emails.json');
+          if (sentObj) {
+            const sentData = await sentObj.json();
+            const sentEmails = Array.isArray(sentData) ? sentData : (sentData.emails || []);
+            const matchedEntry = sentEmails.find((e) => {
+              const addr = typeof e === 'string' ? e : (e.email || '');
+              return addr.toLowerCase() === record.submitter_email;
+            });
+            if (matchedEntry && typeof matchedEntry === 'object' && matchedEntry.slug) {
+              record.prospect_slug = matchedEntry.slug;
+            }
+          }
+        } catch { /* non-critical */ }
+
+        if (!record.prospect_slug) {
+          try {
+            const prospectRow = await env.DB.prepare(
+              'SELECT slug FROM prospects WHERE email = ? LIMIT 1'
+            ).bind(record.submitter_email).first();
+            if (prospectRow && prospectRow.slug) {
+              record.prospect_slug = prospectRow.slug;
+            }
+          } catch { /* table may not exist — non-critical */ }
+        }
+      }
+
+      // Write pipeline: receipt → canonical R2 → D1 projection
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `receipts/submissions/${submissionId}.json`, record);
+      } catch (e) {
+        console.error('Submission receipt write failed:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to write receipt' }, 500, request);
+      }
+
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, `submissions/${record.form_type}/${submissionId}.json`, record);
+      } catch (e) {
+        console.error('Submission canonical write failed:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Failed to write submission' }, 500, request);
+      }
+
+      try {
+        await env.DB.prepare(
+          `INSERT INTO submissions (submission_id, platform, form_type, submitter_name, submitter_email, submitter_firm, submitter_credential, anonymous, public, consent_publish, consent_marketing, rating, prospect_slug, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          submissionId,
+          record.platform,
+          record.form_type,
+          record.submitter_name,
+          record.submitter_email,
+          record.submitter_firm,
+          record.submitter_credential,
+          record.anonymous ? 1 : 0,
+          record.public ? 1 : 0,
+          record.consent_publish ? 1 : 0,
+          record.consent_marketing ? 1 : 0,
+          record.data.rating || null,
+          record.prospect_slug || null,
+          record.created_at,
+          record.updated_at,
+        ).run();
+      } catch (e) {
+        console.error('Submission D1 insert failed:', e);
+        // R2 is authoritative — D1 failure is non-fatal
+      }
+
+      return json({ ok: true, submission_id: submissionId }, 201, request);
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/submissions',
+    handler: async (_method, _pattern, _params, request, env) => {
+      // Admin only
+      const session = await getSessionFromRequest(request, env);
+      if (!session) return json({ ok: false, error: 'UNAUTHORIZED' }, 401, request);
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro'];
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
+      }
+
+      const url = new URL(request.url);
+      const platform = url.searchParams.get('platform');
+      const form_type = url.searchParams.get('form_type');
+      const publicFilter = url.searchParams.get('public');
+      const email = url.searchParams.get('email');
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '50', 10) || 50, 1), 200);
+      const offset = Math.max(parseInt(url.searchParams.get('offset') || '0', 10) || 0, 0);
+
+      let where = [];
+      let binds = [];
+
+      if (platform) { where.push('platform = ?'); binds.push(platform); }
+      if (form_type) { where.push('form_type = ?'); binds.push(form_type); }
+      if (publicFilter === 'true') { where.push('public = 1'); }
+      else if (publicFilter === 'false') { where.push('public = 0'); }
+      if (email) { where.push('submitter_email = ?'); binds.push(email.toLowerCase().trim()); }
+
+      const whereClause = where.length > 0 ? 'WHERE ' + where.join(' AND ') : '';
+
+      try {
+        const countResult = await env.DB.prepare(
+          `SELECT COUNT(*) as total FROM submissions ${whereClause}`
+        ).bind(...binds).first();
+
+        const rows = await env.DB.prepare(
+          `SELECT * FROM submissions ${whereClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`
+        ).bind(...binds, limit, offset).all();
+
+        return json({
+          ok: true,
+          submissions: rows.results || [],
+          total: countResult?.total || 0,
+          limit,
+          offset,
+        }, 200, request);
+      } catch (e) {
+        console.error('Submissions list query failed:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Query failed' }, 500, request);
+      }
+    },
+  },
+
+  {
+    method: 'GET', pattern: '/v1/submissions/public',
+    handler: async (_method, _pattern, _params, request, env) => {
+      const url = new URL(request.url);
+      const platform = url.searchParams.get('platform');
+      const form_type = url.searchParams.get('form_type');
+      const limit = Math.min(Math.max(parseInt(url.searchParams.get('limit') || '20', 10) || 20, 1), 50);
+
+      if (!platform) return json({ ok: false, error: 'BAD_REQUEST', message: 'platform is required' }, 400, request);
+      if (!form_type) return json({ ok: false, error: 'BAD_REQUEST', message: 'form_type is required' }, 400, request);
+
+      try {
+        const rows = await env.DB.prepare(
+          `SELECT submission_id, form_type, submitter_name, submitter_credential, submitter_firm, rating, anonymous, created_at
+           FROM submissions
+           WHERE platform = ? AND form_type = ? AND public = 1 AND consent_publish = 1
+           ORDER BY created_at DESC LIMIT ?`
+        ).bind(platform, form_type, limit).all();
+
+        // Hydrate each row with full data from R2, respecting anonymity
+        const submissions = [];
+        for (const row of (rows.results || [])) {
+          let data = {};
+          try {
+            const r2Obj = await env.R2_VIRTUAL_LAUNCH.get(`submissions/${row.form_type}/${row.submission_id}.json`);
+            if (r2Obj) {
+              const full = await r2Obj.json();
+              data = full.data || {};
+            }
+          } catch { /* use empty data */ }
+
+          const entry = {
+            submission_id: row.submission_id,
+            form_type: row.form_type,
+            display_name: row.anonymous ? 'Anonymous' : (row.submitter_name || 'Anonymous'),
+            rating: row.rating || data.rating || null,
+            created_at: row.created_at,
+          };
+
+          // Include form-type-specific fields from data
+          if (form_type === 'review') {
+            entry.review_text = data.review_text || '';
+            entry.use_case = data.use_case || '';
+          } else if (form_type === 'case_study') {
+            entry.situation = data.situation || '';
+            entry.issue = data.issue || '';
+            entry.findings = data.findings || '';
+            entry.result = data.result || '';
+          } else if (form_type === 'testimonial') {
+            entry.summary = data.summary || '';
+            entry.video_url = data.video_url || '';
+          }
+
+          // Only include identity fields if not anonymous
+          if (!row.anonymous) {
+            entry.credential = row.submitter_credential || '';
+            entry.firm = row.submitter_firm || '';
+          }
+
+          submissions.push(entry);
+        }
+
+        return json({ ok: true, submissions }, 200, request);
+      } catch (e) {
+        console.error('Public submissions query failed:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR', message: 'Query failed' }, 500, request);
+      }
+    },
+  },
+
+  {
+    method: 'PATCH', pattern: '/v1/submissions/:id',
+    handler: async (_method, _pattern, params, request, env) => {
+      // Admin only
+      const session = await getSessionFromRequest(request, env);
+      if (!session) return json({ ok: false, error: 'UNAUTHORIZED' }, 401, request);
+      const adminEmails = ['jamie.williams@virtuallaunch.pro', 'hello@virtuallaunch.pro'];
+      if (!adminEmails.includes((session.email || '').toLowerCase())) {
+        return json({ ok: false, error: 'FORBIDDEN' }, 403, request);
+      }
+
+      const { id: submissionId } = params;
+      const body = await parseBody(request);
+      if (!body) return json({ ok: false, error: 'BAD_REQUEST', message: 'Invalid JSON body' }, 400, request);
+
+      if (body.public === undefined) {
+        return json({ ok: false, error: 'BAD_REQUEST', message: 'public field is required' }, 400, request);
+      }
+
+      // Look up the form_type from D1 so we know the R2 path
+      let formType;
+      try {
+        const row = await env.DB.prepare(
+          'SELECT form_type FROM submissions WHERE submission_id = ?'
+        ).bind(submissionId).first();
+        if (!row) return json({ ok: false, error: 'NOT_FOUND', message: 'Submission not found' }, 404, request);
+        formType = row.form_type;
+      } catch (e) {
+        console.error('Submission lookup failed:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
+      }
+
+      // Read existing record from R2
+      const r2Key = `submissions/${formType}/${submissionId}.json`;
+      let record;
+      try {
+        const obj = await env.R2_VIRTUAL_LAUNCH.get(r2Key);
+        if (!obj) return json({ ok: false, error: 'NOT_FOUND', message: 'Submission not found in R2' }, 404, request);
+        record = await obj.json();
+      } catch (e) {
+        console.error('Submission R2 read failed:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
+      }
+
+      const now = new Date().toISOString();
+      record.public = body.public === true;
+      record.updated_at = now;
+      if (!Array.isArray(record.audit_log)) record.audit_log = [];
+      record.audit_log.push({
+        action: 'public_toggled',
+        value: record.public,
+        reason: body.reason || '',
+        by: session.email,
+        at: now,
+      });
+
+      // Write back to R2
+      try {
+        await r2Put(env.R2_VIRTUAL_LAUNCH, r2Key, record);
+      } catch (e) {
+        console.error('Submission R2 update failed:', e);
+        return json({ ok: false, error: 'INTERNAL_ERROR' }, 500, request);
+      }
+
+      // Update D1 projection
+      try {
+        await env.DB.prepare(
+          'UPDATE submissions SET public = ?, updated_at = ? WHERE submission_id = ?'
+        ).bind(record.public ? 1 : 0, now, submissionId).run();
+      } catch (e) {
+        console.error('Submission D1 update failed:', e);
+        // R2 is authoritative — D1 failure is non-fatal
+      }
+
+      return json({ ok: true, public: record.public }, 200, request);
+    },
+  },
+
 ];
 // ---------------------------------------------------------------------------
 // Router

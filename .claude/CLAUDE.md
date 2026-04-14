@@ -104,6 +104,7 @@ Track legacy Worker retirement here. Update as work completes.
 | 6 | VLP SCALE Batch Generator + Email Copy | complete | 2026-04-05 |
 | 7 | VLP Asset Page Route + R2 Push | complete | 2026-04-05 |
 | 8 | Clay CSV Pipeline + Automated Campaign Processor | complete | 2026-04-13 |
+| 8b | Unified Submissions System | complete | 2026-04-14 |
 | 9 | Test Full Workflow End to End | not started | — |
 | 10 | TMP + DVLP + GVLP Membership Tiers | not started | — |
 | 11 | WLVLP Marketplace | in progress | — |
@@ -174,6 +175,7 @@ R2 is always authoritative. D1 is always a queryable projection.
 - bookings
 - memberships
 - profiles
+- submissions (all form data across all platforms)
 - support tickets
 - tokens
 
@@ -561,6 +563,14 @@ Both plan keys should grant identical token amounts.
 - Retired 06:00 UTC find-emails and 08:00 UTC validate-emails crons
 - Clay.com replaces FOIA as primary prospect source
 - UTF-8 encoding fix in email send handler
+
+### Phase 8b — Unified Submissions System — COMPLETE (2026-04-14)
+- POST /v1/submissions — unified form handler (reviews, case studies, testimonials, all form types)
+- GET /v1/submissions — admin query with filters (platform, form_type, email, public)
+- GET /v1/submissions/public — public-facing reviews/testimonials (CORS enabled for all platform domains)
+- PATCH /v1/submissions/:id — toggle visibility with audit trail
+- D1 submissions table with indexes
+- Forms registry canonical: .claude/canonicals/canonical-forms-registry.json
 
 ### Phase 9 — Test Full Workflow End to End (next)
 

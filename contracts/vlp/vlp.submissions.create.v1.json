@@ -1,0 +1,120 @@
+{
+  "auth": {
+    "required": false,
+    "trustClientIdentityFields": false,
+    "type": "none"
+  },
+  "contract": {
+    "authority": [
+      "R2_VIRTUAL_LAUNCH",
+      "D1_DB"
+    ],
+    "governs": "Unified form submission creation across all 8 VLP platforms",
+    "path": "/contracts/vlp/vlp.submissions.create.v1.json",
+    "source": "Virtual Launch Pro",
+    "title": "Virtual Launch Pro — Unified Submissions",
+    "usedOnPages": [
+      "/reviews/submit",
+      "/scale/submissions"
+    ],
+    "validation": {
+      "requireSessionAuthentication": false,
+      "requireJsonContentType": true,
+      "validatePlatformEnum": true,
+      "validateFormTypeEnum": true,
+      "validateFormTypeSpecificData": true
+    },
+    "version": 1
+  },
+  "delivery": {
+    "endpoint": "/v1/submissions",
+    "method": "POST",
+    "receiptKeyPattern": "receipts/submissions/{submission_id}.json",
+    "receiptSource": "submissions",
+    "signature": {
+      "header": null,
+      "required": false,
+      "secretEnvVar": null
+    }
+  },
+  "effects": {
+    "dedupeKey": "payload.submission_id",
+    "eventIdFrom": "generated.submission_id",
+    "writeOrder": [
+      "receiptAppend",
+      "canonicalUpsert",
+      "d1Insert"
+    ],
+    "writes": [
+      "submissions"
+    ]
+  },
+  "payload": {
+    "additionalProperties": false,
+    "properties": {
+      "platform": {
+        "type": "string",
+        "enum": ["vlp", "tmp", "ttmp", "tttmp", "dvlp", "gvlp", "tcvlp", "wlvlp"]
+      },
+      "form_type": {
+        "type": "string",
+        "enum": ["review", "case_study", "testimonial", "support_ticket", "inquiry", "onboarding", "contact", "exit_survey"]
+      },
+      "data": {
+        "type": "object",
+        "description": "Form-type-specific payload — validated per form_type"
+      },
+      "submitter_name": {
+        "type": "string"
+      },
+      "submitter_email": {
+        "type": "string"
+      },
+      "submitter_firm": {
+        "type": "string"
+      },
+      "submitter_credential": {
+        "type": "string",
+        "enum": ["CPA", "EA", "ATTY", "JD", ""]
+      },
+      "anonymous": {
+        "type": "boolean",
+        "default": false
+      },
+      "consent_publish": {
+        "type": "boolean",
+        "default": false
+      },
+      "consent_marketing": {
+        "type": "boolean",
+        "default": false
+      }
+    },
+    "required": [
+      "platform",
+      "form_type",
+      "data"
+    ],
+    "type": "object"
+  },
+  "response": {
+    "deduped": {
+      "ok": true,
+      "submission_id": "{submission_id}",
+      "deduped": true
+    },
+    "error": {
+      "ok": false,
+      "error": "BAD_REQUEST",
+      "message": "string"
+    },
+    "success": {
+      "ok": true,
+      "submission_id": "string"
+    }
+  },
+  "schema": {
+    "name": "vlp_submissions_create",
+    "version": 1
+  }
+}
