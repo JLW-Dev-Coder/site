@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { renderMarkdown } from '@/components/scale/MarkdownRenderer'
+import UploadTab from '@/components/scale/UploadTab'
 import styles from '../page.module.css'
 
-export default function WorkflowPage() {
+// ---------------------------------------------------------------------------
+// Workflow content (second tab)
+// ---------------------------------------------------------------------------
+function WorkflowContent() {
   const [markdown, setMarkdown] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -29,14 +33,7 @@ export default function WorkflowPage() {
   }, [])
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Workflow</h1>
-        <p className="mt-1 text-sm text-slate-500 italic">
-          Synced from <code className="text-xs bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-amber-400/90">scale/WORKFLOW.md</code> — push updates via <code className="text-xs bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-amber-400/90">node scale/push-workflow.js</code>
-        </p>
-      </div>
-
+    <>
       {loading && (
         <div className="flex items-center justify-center py-16">
           <svg className={styles.spinner} viewBox="0 0 24 24" style={{ width: 28, height: 28 }}>
@@ -55,6 +52,52 @@ export default function WorkflowPage() {
           dangerouslySetInnerHTML={{ __html: renderMarkdown(markdown) }}
         />
       )}
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
+type Tab = 'upload' | 'workflow'
+
+export default function WorkflowPage() {
+  const [tab, setTab] = useState<Tab>('upload')
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-white">Workflow</h1>
+        <p className="mt-1 text-sm text-slate-500 italic">
+          {tab === 'upload'
+            ? 'Upload Clay CSV prospects and monitor the pipeline'
+            : <>Synced from <code className="text-xs bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-amber-400/90">scale/WORKFLOW.md</code> — push updates via <code className="text-xs bg-white/5 px-1.5 py-0.5 rounded border border-white/10 text-amber-400/90">node scale/push-workflow.js</code></>
+          }
+        </p>
+      </div>
+
+      <div className={styles.tabBar} role="tablist">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'upload'}
+          className={`${styles.tabButton} ${tab === 'upload' ? styles.tabButtonActive : ''}`}
+          onClick={() => setTab('upload')}
+        >
+          Upload
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={tab === 'workflow'}
+          className={`${styles.tabButton} ${tab === 'workflow' ? styles.tabButtonActive : ''}`}
+          onClick={() => setTab('workflow')}
+        >
+          Workflow
+        </button>
+      </div>
+
+      {tab === 'upload' ? <UploadTab /> : <WorkflowContent />}
     </div>
   )
 }

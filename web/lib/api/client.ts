@@ -418,3 +418,7 @@ export async function requestPayout(amount: number): Promise<PayoutResponse> {
   if (!result.ok) throw new Error(result.error.message)
   return result.data
 }
+
+// ---------------------------------------------------------------------------
+// SCALE Pipeline — see lib/api/scale.ts (client-safe, no server-only imports)
+// ---------------------------------------------------------------------------

@@ -1141,3 +1141,207 @@
     font-size: 1.5rem;
   }
 }
+
+/* ---------------------------------------------------------------------- */
+/* Upload tab                                                              */
+/* ---------------------------------------------------------------------- */
+.uploadDropzone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  border: 2px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.02);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.uploadDropzone:hover {
+  border-color: rgba(249, 115, 22, 0.4);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.uploadDropzoneActive {
+  border-color: rgb(249, 115, 22);
+  background-color: rgba(249, 115, 22, 0.06);
+}
+
+.uploadDropzoneContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  padding: 1rem;
+}
+
+.uploadFileInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem;
+}
+
+.uploadValidationError {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 0.75rem;
+  background-color: rgba(248, 113, 113, 0.08);
+  color: rgb(248, 113, 113);
+}
+
+.uploadValidationSuccess {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  border-radius: 0.75rem;
+  background-color: rgba(52, 211, 153, 0.06);
+  color: rgb(52, 211, 153);
+}
+
+.uploadBannerSuccess {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  border-radius: 0.75rem;
+  background-color: rgba(52, 211, 153, 0.06);
+  color: rgb(52, 211, 153);
+}
+
+.uploadBannerError {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 0.75rem;
+  background-color: rgba(248, 113, 113, 0.08);
+  color: rgb(248, 113, 113);
+}
+
+.uploadButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 1.25rem;
+  background: linear-gradient(to right, rgb(249, 115, 22), rgb(245, 158, 11));
+  color: rgb(15, 23, 42);
+  border: none;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.uploadButton:hover:not(:disabled) {
+  background: linear-gradient(to right, rgb(251, 146, 60), rgb(251, 191, 36));
+}
+
+.uploadButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.uploadResetButton {
+  padding: 0.6rem 1.25rem;
+  background: transparent;
+  color: rgba(148, 163, 184, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.uploadResetButton:hover {
+  color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.25);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.uploadChooseDifferent {
+  display: inline-block;
+  margin-top: 0.75rem;
+  padding: 0;
+  background: none;
+  border: none;
+  color: rgb(248, 113, 113);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.uploadChooseDifferent:hover {
+  opacity: 0.8;
+}
+
+.uploadRefreshBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 0.5rem;
+  color: rgba(148, 163, 184, 0.8);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.uploadRefreshBtn:hover {
+  color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.25);
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.uploadRefreshBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Pipeline status grid */
+.uploadStatusGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+
+@media (max-width: 768px) {
+  .uploadStatusGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.uploadStatCard {
+  padding: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0.5rem;
+}
+
+.uploadStatValue {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.uploadStatLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(148, 163, 184, 0.75);
+  margin-top: 0.2rem;
+}
